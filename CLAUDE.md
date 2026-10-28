@@ -23,11 +23,13 @@ trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 - Build DOM with the h() helper (textContent), never innerHTML with remote data.
 
 ## Layout
-- index.html            page shell
+- index.html            page shell: top bar + nav, one <section data-page="..."> per page
+                        (home, offers, training, cv, applications), shown by the hash router in js/app.js
 - css/input.css         Tailwind source + component classes (css/app.css is generated, gitignored)
 - scripts/write-config.mjs  writes js/config.js from SUPABASE_URL / SUPABASE_ANON_KEY at build time
 - .github/workflows/deploy.yml  builds and publishes index.html, css/, js/ to GitHub Pages on push to main
-- js/app.js             wiring, state, rendering of paths / learn / search
+- js/app.js             wiring, state, hash routes (#/, #/offers, #/training, #/cv, #/applications),
+                        rendering of home summary / paths / learn / search
 - js/store.js           LocalStore + CloudStore (same interface) + guest import
 - js/tracker.js         Kanban board (drag and drop + arrow buttons)
 - js/jobs.js            calls the job-search function; fallback deep links

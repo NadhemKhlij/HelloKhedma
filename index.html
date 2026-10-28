@@ -17,23 +17,42 @@
   <p class="mute text-sm mt-1">Copy <code>js/config.example.js</code> to <code>js/config.js</code> and add your project URL and anon key. See the README.</p>
 </div>
 
-<header class="mx-auto max-w-6xl px-4 pt-6 flex flex-wrap items-center justify-between gap-3">
-  <div>
-    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">HelloKhedma</h1>
-    <p class="mute max-w-prose">Pick your role. Offers, learning tracks, tools and CV keywords adapt to it.</p>
-  </div>
-  <div class="flex items-center gap-3">
-    <span id="status" class="mute text-sm"></span>
-    <button id="authOpen" class="btn" type="button">Sign in</button>
-    <button id="signOut" class="btn-ghost" type="button" hidden>Sign out</button>
+<!-- Top bar: brand, current path, account. Visible on every page. -->
+<header class="topbar sticky top-0 z-20">
+  <div class="mx-auto max-w-6xl px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+    <a href="#/" class="text-xl font-bold tracking-tight">HelloKhedma</a>
+    <!-- Bottom tab bar on phones, inline links from sm up -->
+    <nav id="nav" aria-label="Main" class="nav order-last sm:order-none">
+      <a href="#/" data-route="home" class="navlink"><span aria-hidden="true">⌂</span>Home</a>
+      <a href="#/offers" data-route="offers" class="navlink"><span aria-hidden="true">⌕</span>Offers</a>
+      <a href="#/training" data-route="training" class="navlink"><span aria-hidden="true">◎</span>Training</a>
+      <a href="#/cv" data-route="cv" class="navlink"><span aria-hidden="true">✓</span>CV check</a>
+      <a href="#/applications" data-route="applications" class="navlink"><span aria-hidden="true">▤</span>Applications</a>
+    </nav>
+    <div class="ml-auto flex items-center gap-2">
+      <select id="pathSelect" class="input !py-1" aria-label="Career path"></select>
+      <button id="authOpen" class="btn !py-1" type="button">Sign in</button>
+      <button id="signOut" class="btn-ghost !py-1" type="button" hidden>Sign out</button>
+    </div>
   </div>
 </header>
 
-<main class="mx-auto max-w-6xl px-4 pb-24 pt-6 grid gap-6">
-  <section aria-label="Career path"><div id="paths" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"></div></section>
+<main class="mx-auto max-w-6xl px-4 pb-28 sm:pb-16 pt-6">
 
-  <section id="jobs" class="panel">
-    <h2>Find offers</h2>
+  <!-- Home -->
+  <section data-page="home" aria-labelledby="h-home" class="grid gap-6">
+    <div>
+      <h1 id="h-home" tabindex="-1" class="text-3xl sm:text-4xl font-bold tracking-tight">Your job hunt, one path at a time</h1>
+      <p class="mute max-w-prose mt-1">Pick your role. Offers, learning tracks, tools and CV keywords adapt to it.</p>
+      <p id="status" class="mute text-sm mt-2"></p>
+    </div>
+    <div id="paths" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Career path"></div>
+    <div id="homeSummary" class="grid gap-3 md:grid-cols-3"></div>
+  </section>
+
+  <!-- Offers -->
+  <section data-page="offers" aria-labelledby="h-offers" hidden class="panel">
+    <h1 id="h-offers" tabindex="-1" class="page-title">Find offers</h1>
     <form id="searchForm" class="flex flex-wrap gap-2">
       <select id="role" class="input" aria-label="Job title"></select>
       <input id="loc" class="input" placeholder="City or region" aria-label="Location">
@@ -53,33 +72,36 @@
     </div>
   </section>
 
-  <section id="learn" class="grid gap-4 md:grid-cols-3">
-    <div class="panel md:col-span-3">
+  <!-- Training -->
+  <section data-page="training" aria-labelledby="h-training" hidden class="grid gap-4">
+    <div class="panel">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2>Learning tracks</h2>
+        <h1 id="h-training" tabindex="-1" class="page-title">Learning tracks</h1>
         <label class="mute text-sm">I can study <input id="hoursPerWeek" type="number" min="1" max="60" value="5" class="input !w-16 !py-1"> h/week</label>
       </div>
       <p id="progress" class="mute text-sm mb-3" aria-live="polite"></p>
       <div id="nextUp" class="mb-3"></div>
       <div id="tracks" class="grid gap-3"></div>
     </div>
-    <div class="panel md:col-span-3"><h2>Tools to learn</h2><ul id="tools" class="grid gap-3 sm:grid-cols-2 md:grid-cols-5"></ul></div>
-    <div class="panel md:col-span-3"><h2>Tips</h2><ul id="tips" class="grid gap-2 md:grid-cols-3"></ul></div>
+    <div class="panel"><h2>Tools to learn</h2><ul id="tools" class="grid gap-3 sm:grid-cols-2 md:grid-cols-5"></ul></div>
+    <div class="panel"><h2>Tips</h2><ul id="tips" class="grid gap-2 md:grid-cols-3"></ul></div>
   </section>
 
-  <section id="ats" class="panel">
-    <h2>CV keyword check</h2>
+  <!-- CV check -->
+  <section data-page="cv" aria-labelledby="h-cv" hidden class="panel">
+    <h1 id="h-cv" tabindex="-1" class="page-title">CV keyword check</h1>
     <p class="mute text-sm mb-3">Paste your CV, and optionally a job description. We compare it with the keywords for your path. Everything stays in your browser.</p>
     <div class="grid gap-3 md:grid-cols-2">
-      <textarea id="cv" rows="7" class="input" placeholder="Your CV text" aria-label="CV text"></textarea>
-      <textarea id="jd" rows="7" class="input" placeholder="Job description (optional)" aria-label="Job description"></textarea>
+      <textarea id="cv" rows="10" class="input" placeholder="Your CV text" aria-label="CV text"></textarea>
+      <textarea id="jd" rows="10" class="input" placeholder="Job description (optional)" aria-label="Job description"></textarea>
     </div>
     <button id="atsBtn" class="btn mt-3" type="button">Check keywords</button>
     <div id="atsOut" class="mt-4" aria-live="polite"></div>
   </section>
 
-  <section id="tracker" class="panel">
-    <h2>My applications</h2>
+  <!-- Applications -->
+  <section data-page="applications" aria-labelledby="h-applications" hidden class="panel">
+    <h1 id="h-applications" tabindex="-1" class="page-title">My applications</h1>
     <form id="addForm" class="flex flex-wrap gap-2 mb-4">
       <input id="cTitle" class="input" placeholder="Job title" required aria-label="Job title">
       <input id="cCo" class="input" placeholder="Company" aria-label="Company">
@@ -106,7 +128,7 @@
   </form>
 </dialog>
 
-<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 panel !py-2 text-sm" hidden role="status"></div>
+<div id="toast" class="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 z-30 panel !py-2 text-sm" hidden role="status"></div>
 
 <script type="module" src="js/app.js"></script>
 </body>

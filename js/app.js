@@ -18,6 +18,24 @@ const path = () => state.paths.find((p) => p.id === state.pathId);
 const byKind = (k) => state.resources.filter((r) => r.kind === k);
 const fail = (e) => toast(e?.message || "Something went wrong.");
 
+/* ---------- pages (hash routes: #/, #/offers, #/training, #/cv, #/applications) ---------- */
+const ROUTES = { home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications" };
+// Anything that is not "#/<route>" (e.g. Supabase's "#access_token=..." after a magic link) shows Home
+// and is left untouched so supabase-js can read it.
+const routeOf = () => {
+  const r = location.hash.match(/^#\/([a-z]*)/)?.[1] || "home";
+  return r in ROUTES ? r : "home";
+};
+function showRoute(moveFocus) {
+  const r = routeOf();
+  document.querySelectorAll("[data-page]").forEach((s) => { s.hidden = s.dataset.page !== r; });
+  document.querySelectorAll("[data-route]").forEach((a) => {
+    if (a.dataset.route === r) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  });
+  document.title = r === "home" ? "HelloKhedma" : `${ROUTES[r]} · HelloKhedma`;
+  if (moveFocus) { window.scrollTo(0, 0); $(`#h-${r}`)?.focus({ preventScroll: true }); }
+}
+
 /* ---------- data loading (all content comes from Supabase) ---------- */
 async function loadPaths() {
   const { data, error } = await sb.from("career_paths").select("*").order("sort_order");
@@ -52,6 +70,7 @@ async function refreshTracker() {
     onMove: async (id, stage) => { try { await state.store.move(id, stage); await refreshTracker(); } catch (e) { fail(e); } },
     onRemove: async (id) => { try { await state.store.remove(id); await refreshTracker(); } catch (e) { fail(e); } },
   });
+  renderHome();
 }
 
 /* ---------- rendering ---------- */
@@ -64,6 +83,26 @@ function renderPaths() {
       onClick: () => selectPath(p.id),
     }, h("b", { class: "block text-lg" }, p.name), h("span", { class: "mute text-sm" }, p.blurb));
   }));
+  $("#pathSelect").replaceChildren(...state.paths.map((p) => h("option", { value: p.id, selected: p.id === state.pathId }, p.name)));
+}
+
+function renderHome() {
+  const all = state.tracks.flatMap(stepsOf), done = all.filter((s) => state.done.has(s.id)).length;
+  const next = all.find((s) => !state.done.has(s.id));
+  const count = (stage) => state.cards.filter((c) => c.stage === stage).length;
+  const card = (title, big, detail, href, cta) => h("a", { href, class: "panel block hover:opacity-90" },
+    h("span", { class: "mute text-sm" }, title),
+    h("b", { class: "block text-2xl my-1" }, big),
+    h("p", { class: "mute text-sm mb-2" }, detail),
+    h("span", { class: "text-sm font-medium", style: "color:var(--accent)" }, `${cta} →`));
+  $("#homeSummary").replaceChildren(
+    card("Training", all.length ? `${done}/${all.length} steps` : "No tracks yet",
+      next ? `Next up: ${next.title}` : all.length ? "Every step is done. Time to apply!" : "", "#/training", "Continue learning"),
+    card("Applications", String(state.cards.length),
+      `${count("applied")} applied · ${count("interview")} interview · ${count("offer")} offer`, "#/applications", "Open tracker"),
+    card("Offers", path()?.name || "Offers",
+      `Live ${path()?.job_titles?.[0] || "job"} offers by city and country.`, "#/offers", "Find offers"),
+  );
 }
 
 function renderSearchControls() {
@@ -142,6 +181,7 @@ function renderLearn() {
   renderTracks();
   $("#tools").replaceChildren(...byKind("tool").map((t) => h("li", {}, h("b", {}, t.title), h("small", { class: "mute block" }, t.description))));
   $("#tips").replaceChildren(...byKind("tip").map((t) => h("li", { class: "rounded-lg p-3 text-sm", style: "background:var(--bg);border:1px solid var(--line)" }, t.title)));
+  renderHome();
 }
 
 function renderStatus() {
@@ -267,6 +307,8 @@ async function onUser(user) {
 
 /* ---------- init ---------- */
 async function init() {
+  showRoute(false);
+  window.addEventListener("hashchange", () => showRoute(true));
   if (!configured) { $("#setup").hidden = false; $("#status").textContent = "Setup needed"; return; }
   try {
     await loadPaths();
@@ -277,6 +319,7 @@ async function init() {
   } catch (e) { fail(e); return; }
 
   $("#loc").value = ls.get(LOC_KEY) || "";
+  $("#pathSelect").addEventListener("change", (e) => selectPath(e.target.value));
   $("#role").addEventListener("change", renderBoards);
   $("#loc").addEventListener("input", renderBoards);
   $("#searchForm").addEventListener("submit", onSearch);

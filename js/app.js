@@ -3,15 +3,17 @@ import { sb, configured, CONFIG } from "./supabase.js";
 import { LocalStore, CloudStore, importLocalToCloud } from "./store.js";
 import { searchJobs, boardLinks } from "./jobs.js";
 import { renderBoard } from "./tracker.js";
-import { analyze } from "./ats.js";
+import { extractSkills, matchSkills, addKeywords, readCvFile } from "./ats.js";
 import { initAuth } from "./auth.js";
 
 const PATH_KEY = "hk.path", LOC_KEY = "hk.location", PROG_KEY = "hk.progress.v2";
+const CV_KEY = "hk.cv.text"; // the CV text stays in this browser only, even for signed-in users
 const COUNTRIES = ["fr", "gb", "us", "de", "nl", "ca", "au", "be", "ch", "es", "it"];
 
 const state = {
   paths: [], pathId: null, resources: [], tracks: [], open: new Set(), openInit: false, done: new Set(),
   user: null, store: new LocalStore(), cards: [],
+  cv: { text: "", skills: [], names: new Set() }, jobs: [], skillFilter: null,
 };
 
 const path = () => state.paths.find((p) => p.id === state.pathId);
@@ -46,6 +48,7 @@ async function loadResources() {
   const { data, error } = await sb.from("path_resources").select("*").eq("path_id", state.pathId).order("sort_order");
   if (error) throw error;
   state.resources = data;
+  addKeywords(byKind("keyword").map((k) => k.title)); // make every path keyword detectable in CVs and offers
 }
 async function loadTracks() {
   const { data, error } = await sb.from("training_tracks")
@@ -199,9 +202,11 @@ function renderAll() {
 async function selectPath(id) {
   state.pathId = id;
   ls.set(PATH_KEY, id);
-  $("#results").replaceChildren(); $("#searchMsg").textContent = ""; $("#atsOut").replaceChildren();
+  state.jobs = []; state.skillFilter = null;
+  $("#searchMsg").textContent = ""; $("#atsOut").replaceChildren();
   try { state.openInit = false; await Promise.all([loadResources(), loadTracks()]); } catch (e) { fail(e); }
-  renderAll();
+  setCv(state.cv.text); // new path keywords may now be detectable
+  renderAll(); renderCvSkills(); renderOffers();
   if (state.user) sb.from("profiles").upsert({ user_id: state.user.id, selected_path: id });
 }
 
@@ -226,16 +231,144 @@ async function track(job, btn) {
   } catch (e) { toast(e.code === "DUPLICATE" ? "Already in your tracker" : e.message); }
 }
 
-function renderJob(j) {
+/* ---------- CV skills (the CV text is kept in this browser only) ---------- */
+const fitColor = (score) => (score >= 70 ? "#18a999" : score >= 40 ? "#f08a24" : "#e0508b");
+const skillChip = (name, inCv) => h("span", { class: `chip text-xs ${inCv ? "chip-ok" : "mute"}` }, inCv ? `✓ ${name}` : name);
+
+function setCv(text) {
+  const skills = extractSkills(text);
+  state.cv = { text, skills, names: new Set(skills.map((s) => s.name)) };
+}
+
+function saveCv(text) {
+  setCv(text);
+  if (text.trim()) ls.set(CV_KEY, text); else ls.del(CV_KEY);
+  renderCvSkills(); renderOffers();
+}
+
+function renderCvSkills() {
+  const { text, skills } = state.cv;
+  if (!text.trim()) { $("#cvSkills").replaceChildren(h("p", { class: "mute text-sm" }, "No CV saved yet.")); return; }
+  const cats = [...new Set(skills.map((s) => s.cat))];
+  $("#cvSkills").replaceChildren(...[
+    h("p", { class: "font-bold" }, `${skills.length} skills found in your CV`,
+      h("span", { class: "mute text-sm font-normal" }, " · saved on this device and used to score offers")),
+    skills.length ? null : h("p", { class: "mute text-sm" }, "No known skills detected. Check the text is readable, or paste it instead."),
+    ...cats.map((c) => h("div", { class: "mt-2" },
+      h("p", { class: "mute text-xs mb-1" }, c),
+      h("div", { class: "flex flex-wrap gap-1.5" }, skills.filter((s) => s.cat === c)
+        .map((s) => h("span", { class: "chip chip-ok text-xs" }, s.count > 1 ? `${s.name} ×${s.count}` : s.name))))),
+  ].filter(Boolean));
+}
+
+async function onCvFile(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const msg = $("#cvFileMsg");
+  msg.textContent = `Reading ${file.name}…`;
+  try {
+    const text = (await readCvFile(file)).trim();
+    if (!text) throw new Error("no text found. If it is a scanned PDF, paste the text instead.");
+    $("#cv").value = text;
+    saveCv(text);
+    msg.textContent = `${file.name} read.`;
+  } catch (err) { msg.textContent = `Could not read ${file.name}: ${err.message}`; }
+  e.target.value = "";
+}
+
+function onCvSave() {
+  const text = $("#cv").value;
+  if (!text.trim()) { toast("Upload or paste your CV first."); return; }
+  saveCv(text);
+}
+
+function onCvClear() {
+  $("#cv").value = ""; $("#atsOut").replaceChildren(); $("#cvFileMsg").textContent = "";
+  saveCv("");
+  toast("Your CV was removed from this device.");
+}
+
+function onAts() {
+  if (!state.cv.text.trim()) { toast("Add your CV first (upload or paste it above)."); return; }
+  const jd = $("#jd").value, usedJd = Boolean(jd.trim());
+  // Path keywords go through the extractor too, so aliases map to the same names as in the CV.
+  const required = extractSkills(usedJd ? jd : byKind("keyword").map((k) => k.title).join(" ; ")).map((s) => s.name);
+  const r = matchSkills(required, state.cv.names);
+  if (!r.total) { $("#atsOut").replaceChildren(h("p", { class: "mute text-sm" }, "No known skills found in this job description.")); return; }
+  const chips = (list, inCv) => list.map((n) => skillChip(n, inCv));
+  $("#atsOut").replaceChildren(
+    h("p", { class: "text-lg font-bold", style: `color:${fitColor(r.score)}` }, `${r.score}% match`,
+      h("span", { class: "mute text-sm font-normal" }, ` · ${r.matched.length} of ${r.total} ${usedJd ? "skills from the offer" : "path keywords"} are in your CV`)),
+    h("p", { class: "mute text-sm mt-3 mb-1" }, "In your CV"),
+    h("div", { class: "flex flex-wrap gap-2" }, r.matched.length ? chips(r.matched, true) : h("span", { class: "mute text-sm" }, "None yet.")),
+    h("p", { class: "mute text-sm mt-3 mb-1" }, "Missing: add the ones you genuinely have"),
+    h("div", { class: "flex flex-wrap gap-2" }, r.missing.length ? chips(r.missing, false) : h("span", { class: "mute text-sm" }, "Nothing missing.")),
+  );
+}
+
+/* ---------- offers: skills per offer + CV fit ---------- */
+// `text` is the fuller description from the job-search function; older cached results only have `snippet`.
+const jobText = (j) => `${j.title} ${j.text || j.snippet || ""}`;
+// Below this many detected skills a percentage says more about the short summary than about the fit.
+const MIN_SKILLS_FOR_FIT = 2;
+
+function renderJob({ j, skills, fit }) {
   const url = safeUrl(j.url);
   const btn = h("button", { type: "button", class: "btn-ghost", onClick: (e) => track(j, e.currentTarget) }, "Track");
+  const badge = fit?.score != null
+    ? h("span", { class: "chip text-xs font-bold shrink-0 ml-auto whitespace-nowrap", style: `border-color:${fitColor(fit.score)};color:${fitColor(fit.score)}`,
+        title: `${fit.matched.length} of ${fit.total} skills from this offer are in your CV` }, `${fit.score}% fit · ${fit.matched.length}/${fit.total}`)
+    : fit ? h("span", { class: "mute text-xs shrink-0 ml-auto whitespace-nowrap", title: "The offer summary names too few skills to score it." }, "Fit: n/a")
+    : null;
   return h("li", { class: "rounded-lg p-3", style: "background:var(--bg);border:1px solid var(--line)" },
-    h("b", { class: "block" }, j.title),
-    h("span", { class: "mute text-sm block" }, [j.company, j.location].filter(Boolean).join(" · ")),
-    h("p", { class: "text-sm mt-1 mute" }, j.snippet),
+    h("div", { class: "flex items-start gap-2" },
+      h("div", { class: "min-w-0" },
+        h("b", { class: "block" }, j.title),
+        h("span", { class: "mute text-sm block" }, [j.company, j.location].filter(Boolean).join(" · "))),
+      badge),
+    skills.length
+      ? h("div", { class: "flex flex-wrap gap-1.5 mt-2", "aria-label": "Skills in this offer" }, skills.slice(0, 8).map((s) => skillChip(s, state.cv.names.has(s))))
+      : h("p", { class: "mute text-xs mt-2" }, "No specific skills detected in the offer summary."),
+    h("p", { class: "text-sm mt-2 mute" }, j.snippet),
     h("div", { class: "flex items-center gap-2 mt-2" },
       url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn" }, "View offer") : null,
       btn, h("span", { class: "mute text-xs ml-auto" }, j.source)));
+}
+
+function renderOffers() {
+  const hasCv = state.cv.skills.length > 0;
+  if (!state.jobs.length) { $("#offerTools").hidden = true; $("#results").replaceChildren(); return; }
+  let list = state.jobs.map((j) => {
+    const skills = extractSkills(jobText(j)).map((s) => s.name);
+    let fit = hasCv ? matchSkills(skills, state.cv.names) : null;
+    if (fit && fit.total < MIN_SKILLS_FOR_FIT) fit = { ...fit, score: null };
+    return { j, skills, fit };
+  });
+
+  // Skills most requested across these offers; clicking one filters the list.
+  const freq = new Map();
+  list.forEach((x) => x.skills.forEach((s) => freq.set(s, (freq.get(s) || 0) + 1)));
+  if (state.skillFilter && !freq.has(state.skillFilter)) state.skillFilter = null;
+  $("#offerSkills").replaceChildren(...[...freq].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, n]) => {
+    const on = state.skillFilter === name, inCv = state.cv.names.has(name);
+    return h("button", { type: "button", class: `chip text-xs ${inCv ? "chip-ok" : ""}`, "aria-pressed": String(on),
+      style: on ? "background:var(--accent);color:#fff" : "",
+      onClick: () => { state.skillFilter = on ? null : name; renderOffers(); } }, `${inCv ? "✓ " : ""}${name} · ${n}`);
+  }));
+
+  const scored = list.filter((x) => x.fit?.score != null);
+  const avg = scored.length ? Math.round(scored.reduce((a, x) => a + x.fit.score, 0) / scored.length) : null;
+  $("#fitNote").replaceChildren(hasCv
+    ? h("span", {}, "Average CV fit: ", h("b", { style: avg == null ? "" : `color:${fitColor(avg)}` }, avg == null ? "n/a" : `${avg}%`),
+        h("span", { class: "mute" }, " · ✓ = skill found in your CV"))
+    : h("span", { class: "mute" }, "Add your CV on the ",
+        h("a", { href: "#/cv", class: "underline", style: "color:var(--accent)" }, "CV check"), " page to see how well you fit each offer."));
+
+  $("#sortBy").disabled = !hasCv;
+  if (state.skillFilter) list = list.filter((x) => x.skills.includes(state.skillFilter));
+  if (hasCv && $("#sortBy").value === "fit") list = [...list].sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1));
+  $("#offerTools").hidden = false;
+  $("#results").replaceChildren(...list.map(renderJob));
 }
 
 async function onSearch(e) {
@@ -243,29 +376,16 @@ async function onSearch(e) {
   const btn = $("#searchBtn"), msg = $("#searchMsg");
   const params = { query: $("#role").value, location: $("#loc").value.trim(), provider: $("#provider").value, country: $("#country").value };
   ls.set(LOC_KEY, params.location);
-  btn.disabled = true; msg.textContent = "Searching…"; $("#results").replaceChildren();
+  btn.disabled = true; msg.textContent = "Searching…";
+  state.jobs = []; state.skillFilter = null; renderOffers();
   try {
     const { jobs, warnings } = await searchJobs(params);
     msg.textContent = jobs.length ? `${jobs.length} offers.${warnings.length ? " " + warnings.join(" ") : ""}` : "No offers found. Try another title, city or country.";
-    $("#results").replaceChildren(...jobs.map(renderJob));
+    state.jobs = jobs;
   } catch (err) {
     msg.textContent = `Live search is unavailable (${err.message}). Use the job board links below.`;
   } finally { btn.disabled = false; }
-}
-
-function onAts() {
-  const keywords = byKind("keyword").map((k) => k.title);
-  const cv = $("#cv").value;
-  if (!cv.trim()) { toast("Paste your CV text first."); return; }
-  const r = analyze(cv, $("#jd").value, keywords);
-  const chips = (list, ok) => list.map((k) => h("span", { class: `chip ${ok ? "chip-ok" : ""}` }, k));
-  $("#atsOut").replaceChildren(
-    h("p", { class: "text-lg font-bold" }, `${r.score}% match`, h("span", { class: "mute text-sm font-normal" }, ` · ${r.found.length} of ${r.total} ${r.usedJd ? "keywords from the job description" : "path keywords"}`)),
-    h("p", { class: "mute text-sm mt-3 mb-1" }, "Found"),
-    h("div", { class: "flex flex-wrap gap-2" }, r.found.length ? chips(r.found, true) : h("span", { class: "mute text-sm" }, "None yet.")),
-    h("p", { class: "mute text-sm mt-3 mb-1" }, "Missing: add the ones you genuinely have"),
-    h("div", { class: "flex flex-wrap gap-2" }, r.missing.length ? chips(r.missing, false) : h("span", { class: "mute text-sm" }, "Nothing missing.")),
-  );
+  renderOffers();
 }
 
 async function onAdd(e) {
@@ -324,7 +444,14 @@ async function init() {
   $("#loc").addEventListener("input", renderBoards);
   $("#searchForm").addEventListener("submit", onSearch);
   $("#atsBtn").addEventListener("click", onAts);
+  $("#cvFile").addEventListener("change", onCvFile);
+  $("#cvSave").addEventListener("click", onCvSave);
+  $("#cvClear").addEventListener("click", onCvClear);
+  $("#sortBy").addEventListener("change", renderOffers);
   $("#addForm").addEventListener("submit", onAdd);
+  $("#cv").value = ls.get(CV_KEY) || "";
+  setCv($("#cv").value);
+  renderCvSkills();
   $("#hoursPerWeek").value = ls.get("hk.hours") || "5";
   $("#hoursPerWeek").addEventListener("input", (e) => { ls.set("hk.hours", e.target.value); renderTracks(); });
 

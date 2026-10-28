@@ -33,7 +33,8 @@ trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 - js/store.js           LocalStore + CloudStore (same interface) + guest import
 - js/tracker.js         Kanban board (drag and drop + arrow buttons)
 - js/jobs.js            calls the job-search function; fallback deep links
-- js/ats.js             client-side keyword matching
+- js/ats.js             skills dictionary (EN + FR aliases) + extraction, CV ↔ offer matching, PDF/TXT CV reading (pdf.js from cdnjs).
+                        The CV text is stored only in localStorage ("hk.cv.text"); never send it to Supabase.
 - js/auth.js            auth dialog (password, sign up, magic link)
 - supabase/migrations   schema + RLS
 - supabase/seed.sql     paths, learning tracks + steps, tools, tips, keywords (idempotent)

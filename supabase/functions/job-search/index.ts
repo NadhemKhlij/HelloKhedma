@@ -30,6 +30,7 @@ type Job = {
   url: string;
   posted: string | null;
   snippet: string;
+  text: string; // longer description, used by the app to detect skills
   source: Source;
 };
 
@@ -40,8 +41,8 @@ const COUNTRIES = new Set([
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
-const strip = (s: unknown) =>
-  String(s ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 280);
+const strip = (s: unknown, max = 280) =>
+  String(s ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 
 const envNum = (name: string, fallback: number) => Number(Deno.env.get(name)) || fallback;
 const CACHE_TTL_MS = envNum("CACHE_TTL_HOURS", 6) * 3600_000;
@@ -94,6 +95,7 @@ async function adzuna(q: string, where: string, country: string, page: number): 
     url: x.redirect_url,
     posted: x.created ?? null,
     snippet: strip(x.description),
+    text: strip(x.description, 4000), // Adzuna itself only returns the first ~500 characters
     source: "adzuna",
   }));
 }
@@ -123,6 +125,10 @@ async function jsearch(q: string, where: string, country: string, page: number):
     url: x.job_apply_link,
     posted: x.job_posted_at_datetime_utc ?? null,
     snippet: strip(x.job_description),
+    text: strip(
+      [x.job_description, ...(x.job_highlights?.Qualifications ?? []), ...(x.job_required_skills ?? [])].join(" "),
+      4000,
+    ),
     source: "jsearch",
   }));
 }
@@ -149,7 +155,8 @@ Deno.serve(async (req) => {
     wanted === "both" ? ["adzuna", "jsearch"] : wanted === "jsearch" ? ["jsearch"] : ["adzuna"];
 
   // Guard and cache need the migration 20261028000200_job_search_guard.sql; if it is missing we log and carry on.
-  const cacheKey = [providers.join("+"), country, query.toLowerCase(), where.toLowerCase(), page].join("|");
+  // "v2": results now carry `text`; bumping the key skips entries cached before that change.
+  const cacheKey = ["v2", providers.join("+"), country, query.toLowerCase(), where.toLowerCase(), page].join("|");
   if (admin) {
     const { bucket, limit } = await rateBucket(req);
     const { data: allowed, error } = await admin.rpc("job_search_hit", {

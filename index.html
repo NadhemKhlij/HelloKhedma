@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HelloKhedma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;700&display=swap" rel="stylesheet">
+<!-- Built from css/input.css by `npm run build` (or `npm run watch:css` while developing). -->
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="setup" hidden class="mx-auto max-w-3xl m-4 panel" style="border-color:#f08a24">
+  <b>Supabase isn’t configured yet.</b>
+  <p class="mute text-sm mt-1">Copy <code>js/config.example.js</code> to <code>js/config.js</code> and add your project URL and anon key. See the README.</p>
+</div>
+
+<header class="mx-auto max-w-6xl px-4 pt-6 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">HelloKhedma</h1>
+    <p class="mute max-w-prose">Pick your role. Offers, learning tracks, tools and CV keywords adapt to it.</p>
+  </div>
+  <div class="flex items-center gap-3">
+    <span id="status" class="mute text-sm"></span>
+    <button id="authOpen" class="btn" type="button">Sign in</button>
+    <button id="signOut" class="btn-ghost" type="button" hidden>Sign out</button>
+  </div>
+</header>
+
+<main class="mx-auto max-w-6xl px-4 pb-24 pt-6 grid gap-6">
+  <section aria-label="Career path"><div id="paths" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"></div></section>
+
+  <section id="jobs" class="panel">
+    <h2>Find offers</h2>
+    <form id="searchForm" class="flex flex-wrap gap-2">
+      <select id="role" class="input" aria-label="Job title"></select>
+      <input id="loc" class="input" placeholder="City or region" aria-label="Location">
+      <select id="country" class="input" aria-label="Country"></select>
+      <select id="provider" class="input" aria-label="Job source">
+        <option value="adzuna">Adzuna</option>
+        <option value="jsearch">JSearch</option>
+        <option value="both">Both</option>
+      </select>
+      <button class="btn" id="searchBtn" type="submit">Search</button>
+    </form>
+    <p id="searchMsg" class="mute text-sm mt-3" aria-live="polite"></p>
+    <ul id="results" class="grid gap-3 mt-3 md:grid-cols-2"></ul>
+    <div class="mt-4">
+      <p class="mute text-sm mb-2">Or open the same search directly on a job board:</p>
+      <div id="boards" class="flex flex-wrap gap-2"></div>
+    </div>
+  </section>
+
+  <section id="learn" class="grid gap-4 md:grid-cols-3">
+    <div class="panel md:col-span-3">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2>Learning tracks</h2>
+        <label class="mute text-sm">I can study <input id="hoursPerWeek" type="number" min="1" max="60" value="5" class="input !w-16 !py-1"> h/week</label>
+      </div>
+      <p id="progress" class="mute text-sm mb-3" aria-live="polite"></p>
+      <div id="nextUp" class="mb-3"></div>
+      <div id="tracks" class="grid gap-3"></div>
+    </div>
+    <div class="panel md:col-span-3"><h2>Tools to learn</h2><ul id="tools" class="grid gap-3 sm:grid-cols-2 md:grid-cols-5"></ul></div>
+    <div class="panel md:col-span-3"><h2>Tips</h2><ul id="tips" class="grid gap-2 md:grid-cols-3"></ul></div>
+  </section>
+
+  <section id="ats" class="panel">
+    <h2>CV keyword check</h2>
+    <p class="mute text-sm mb-3">Paste your CV, and optionally a job description. We compare it with the keywords for your path. Everything stays in your browser.</p>
+    <div class="grid gap-3 md:grid-cols-2">
+      <textarea id="cv" rows="7" class="input" placeholder="Your CV text" aria-label="CV text"></textarea>
+      <textarea id="jd" rows="7" class="input" placeholder="Job description (optional)" aria-label="Job description"></textarea>
+    </div>
+    <button id="atsBtn" class="btn mt-3" type="button">Check keywords</button>
+    <div id="atsOut" class="mt-4" aria-live="polite"></div>
+  </section>
+
+  <section id="tracker" class="panel">
+    <h2>My applications</h2>
+    <form id="addForm" class="flex flex-wrap gap-2 mb-4">
+      <input id="cTitle" class="input" placeholder="Job title" required aria-label="Job title">
+      <input id="cCo" class="input" placeholder="Company" aria-label="Company">
+      <input id="cUrl" class="input" placeholder="Offer link (optional)" aria-label="Offer link">
+      <button class="btn" type="submit">Add application</button>
+    </form>
+    <div id="board" class="grid gap-3 overflow-x-auto pb-2" style="grid-template-columns:repeat(5,minmax(200px,1fr))"></div>
+  </section>
+</main>
+
+<dialog id="authDialog" class="panel w-[min(92vw,380px)] m-auto">
+  <form id="authForm" class="grid gap-3">
+    <h2 class="!mb-0">Sign in to sync</h2>
+    <p class="mute text-sm">Your guest applications on this device are imported the first time you sign in.</p>
+    <input id="email" type="email" class="input" placeholder="Email" required autocomplete="email" aria-label="Email">
+    <input id="password" type="password" class="input" placeholder="Password" minlength="6" autocomplete="current-password" aria-label="Password">
+    <div class="flex flex-wrap gap-2">
+      <button type="button" id="doSignIn" class="btn">Sign in</button>
+      <button type="button" id="doSignUp" class="btn-ghost">Create account</button>
+      <button type="button" id="doMagic" class="btn-ghost">Email me a link</button>
+    </div>
+    <p id="authMsg" class="text-sm" style="color:#f08a24" aria-live="polite"></p>
+    <button type="button" id="authClose" class="btn-ghost justify-self-start">Close</button>
+  </form>
+</dialog>
+
+<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 panel !py-2 text-sm" hidden role="status"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -183,24 +183,28 @@ async function adzuna(q: string, where: string, country: string, page: number): 
   }));
 }
 
+// JSearch employment types, written the way the app's contract detection reads them.
+const EMPLOYMENT: Record<string, string> = {
+  FULLTIME: "full-time", PARTTIME: "part-time", CONTRACTOR: "contractor", INTERN: "internship", // full-time ≠ CDI
+};
+
 async function jsearch(q: string, where: string, country: string, page: number): Promise<Job[]> {
   const key = Deno.env.get("RAPIDAPI_KEY");
   if (!key) throw new Error("JSearch is not configured (RAPIDAPI_KEY).");
 
-  const url = new URL("https://jsearch.p.rapidapi.com/search");
-  url.search = new URLSearchParams({
-    query: where ? `${q} in ${where}` : q,
-    page: String(page),
-    num_pages: "1",
-    country,
-  }).toString();
-
-  const res = await fetch(url, {
-    headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" },
-  });
+  // JSearch replaced /search with /search-v2 (cursor pagination, same job fields); older plans may still have /search.
+  // The app only asks for page 1, so no cursor is needed.
+  const query = where ? `${q} in ${where}` : q;
+  const call = (path: string, params: Record<string, string>) => {
+    const url = new URL(`https://jsearch.p.rapidapi.com${path}`);
+    url.search = new URLSearchParams(params).toString();
+    return fetch(url, { headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" } });
+  };
+  let res = await call("/search-v2", { query, country, ...(country === "fr" ? { language: "fr" } : {}) });
+  if (res.status === 404) res = await call("/search", { query, country, page: String(page), num_pages: "1" });
   if (!res.ok) throw new Error(`JSearch returned ${res.status}: ${await providerMessage(res)}`);
   const data = await res.json();
-  return (data.data ?? []).map((x: Raw): Job => ({
+  return (data.data ?? data.jobs ?? []).map((x: Raw): Job => ({
     id: String(x.job_id),
     title: strip(x.job_title),
     company: x.employer_name ?? "",
@@ -208,10 +212,14 @@ async function jsearch(q: string, where: string, country: string, page: number):
     url: x.job_apply_link,
     posted: x.job_posted_at_datetime_utc ?? null,
     snippet: strip(x.job_description),
-    text: strip(
-      [x.job_description, ...(x.job_highlights?.Qualifications ?? []), ...(x.job_required_skills ?? [])].join(" "),
-      4000,
-    ),
+    // Description + structured fields: the app detects skills, contract type and remote policy from this text.
+    text: strip([
+      x.job_description,
+      ...(x.job_highlights?.Qualifications ?? []),
+      ...(x.job_required_skills ?? []),
+      ...(x.job_employment_types ?? [x.job_employment_type]).filter(Boolean).map((t: string) => EMPLOYMENT[t] ?? t),
+      x.job_is_remote ? "full remote" : "",
+    ].filter(Boolean).join(" "), 6000),
     source: "jsearch",
   }));
 }

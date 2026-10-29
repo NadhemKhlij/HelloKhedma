@@ -1,14 +1,14 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-29)
-- **Just finished:** French content (ROADMAP 1.7b): the 17 courses and the interview prep are live in French
-  (content/…/fr/); career paths, tracks, steps, tools and tips need O14 (migration + seed) and stay English until then.
-  Before that: js/app.js split per page, "CV sent" per application (2.7, needs O13), several CV versions (3.7), French /
-  English interface (1.7). All tested as a guest in both languages; not signed in. The O14 SQL was not run by Claude.
-- **Owner, first:** run O13 and O14 (SQL Editor, in that order), check "Confirm email" is OFF in Supabase, delete the
-  Resend key that was pasted in the chat (O5b). Then try the live site in French and English (O12).
-- **Next in code (owner's choice):** accessibility pass (1.9) or cover letter per application (2.7b); also update
-  supabase/setup-all.sql (ROADMAP, Engineering hygiene).
+- **Just finished:** salary on offers (ROADMAP 3.1): 💶 chip, salary filter and sort, salary copied when tracking,
+  pay transparency rights tip in Interview prep. Provider salary fields need O15 (redeploy job-search). Before that:
+  French content (1.7b, path content needs O14), app.js split, "CV sent" (2.7, needs O13), CV versions (3.7), FR/EN
+  interface (1.7). All tested as a guest in both languages; not signed in. O14 SQL not run by Claude.
+- **Owner, first:** run O13 then O14 (SQL Editor), redeploy job-search (O15), check "Confirm email" is OFF in
+  Supabase, delete the Resend key that was pasted in the chat (O5b). Then try the live site in French and English (O12).
+- **Next in code (owner's choice):** smoke tests in CI (ROADMAP, Engineering hygiene), accessibility pass (1.9), AI
+  cover letter + CV tailoring (Phase 5), networking contacts; also update supabase/setup-all.sql.
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
   local preview without Node: scripts/preview-cdn.sh + scripts/serve.ps1.
 
@@ -28,6 +28,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | O10 | Your phone | Install the app (Android: "Install the app" link in the footer; iPhone: Safari → Share → Add to Home Screen) and check it opens offline | PWA install was only tested in a desktop browser | — |
 | O13 | Supabase → SQL Editor | Run migration `20261029000100_application_cv.sql` (one line: adds the "CV sent" column to applications; safe to run twice) | Until then, signed-in users can't save which CV they sent (guests can); the dialog shows a notice | [SQL file at commit a26b743](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/a26b74375e5410242d30263c7dc5f33700cdf147/supabase/migrations/20261029000100_application_cv.sql) |
 | O14 | Supabase → SQL Editor | **1.** Run migration `20261029000200_content_fr.sql` (adds French columns, safe to run twice). **2.** Then re-run the whole `seed.sql` (idempotent; its new last block fills the French texts). Order matters: the seed fails if the columns do not exist yet | In French, path names, tracks, steps, tools and tips stay English until then (courses and interview are already French) | [migration at 29fe285](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/29fe285d0a6ac2667e97507db0fd79952582e9c9/supabase/migrations/20261029000200_content_fr.sql) · [seed.sql at 29fe285](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/29fe285d0a6ac2667e97507db0fd79952582e9c9/supabase/seed.sql) |
+| O15 | Supabase → Edge Functions → `job-search` | Redeploy the function with the code at commit a4e15f9 (same steps as the last redeploy: paste the file, Deploy) | Job search then shows the salary France Travail, Adzuna and JSearch give in their own fields; until then only salaries written in the description show | [index.ts at a4e15f9](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/a4e15f963f1739e595da5828d8010bd42cfbdc7b/supabase/functions/job-search/index.ts) |
 | O12 | Live site | Sign in and use the app in French, then press **EN** and back: check nothing is left in the wrong language and the French reads naturally (report odd wording) | Translations were written by Claude and only tested as a guest | js/i18n-fr.js |
 | O11 | Content (before promoting) | Have the 17 courses, interview questions and model answers reviewed by people in each field, in English **and French** | Written and translated by Claude: realistic but unreviewed | content/courses/, content/interview/ (French in fr/ subfolders) |
 
@@ -50,6 +51,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | 2026-10-29 | Installable app (PWA, offline), "Remote jobs" tab, weekly study plan; no setup needed |
 | 2026-10-29 | Interview prep page (practice, STAR stories, checklist); no setup needed |
 | 2026-10-29 | "Companies I follow" on the Offers page (no setup needed: career-page APIs are called from the browser) |
+| 2026-10-29 | Salary on offers: chip, filter, sort, copied to the tracker, rights tip (provider fields need O15) |
 | 2026-10-29 | French content: 17 courses + interview prep live in French; path content needs O14 |
 | 2026-10-29 | js/app.js split into one module per page (no change for users) |
 | 2026-10-29 | "CV sent" per application (2.7); signed-in sync needs O13 |

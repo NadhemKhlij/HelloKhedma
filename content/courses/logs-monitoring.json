@@ -1,0 +1,98 @@
+{
+  "why": "Support and data engineers spend much of their time finding out why something broke. Knowing logs, metrics and alerting makes you faster and calmer on call.",
+  "outcome": "read structured logs, search them in Kibana, Splunk or Grafana, choose the right metrics and write alerts that are actionable.",
+  "lessons": [
+    {
+      "title": "Logs: read and search them",
+      "minutes": 40,
+      "text": [
+        "A log line records an event: timestamp, level, component, message, and ideally a request or correlation id. Structured logs (JSON) are much easier to search than free text.",
+        "To investigate, narrow the time window, filter by level and service, then follow one request id across components."
+      ],
+      "points": [
+        "Levels: DEBUG < INFO < WARN < ERROR < FATAL.",
+        "Read the first error, not the last: later errors are often consequences.",
+        "Check timezones: servers often log in UTC.",
+        "Count errors over time to see when it started."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "{\"ts\":\"2026-10-29T09:52:13Z\",\"level\":\"ERROR\",\"service\":\"search-api\",\n \"request_id\":\"a81f\",\"msg\":\"database timeout after 5000 ms\",\"route\":\"/offers\"}\n\nKibana (KQL):   service : \"search-api\" and level : \"ERROR\" and msg : *timeout*\nSplunk (SPL):   index=app service=search-api level=ERROR | timechart count\nGrafana Loki:   {service=\"search-api\"} |= \"timeout\""
+      }
+    },
+    {
+      "title": "Metrics and dashboards",
+      "minutes": 40,
+      "text": [
+        "Metrics are numbers over time: request rate, error rate, latency, CPU, queue length. They show trends and are cheap to keep, while logs explain individual events.",
+        "Two simple frameworks: RED for services (Rate, Errors, Duration) and USE for resources (Utilisation, Saturation, Errors)."
+      ],
+      "points": [
+        "Latency: watch P95 / P99, not only the average.",
+        "Error rate = errors / requests, as a percentage.",
+        "Golden signals: latency, traffic, errors, saturation.",
+        "One dashboard per service, with the most important graphs on top."
+      ],
+      "example": {
+        "lang": "promql",
+        "code": "# error rate (%) over 5 minutes\n100 * sum(rate(http_requests_total{status=~\"5..\"}[5m]))\n    / sum(rate(http_requests_total[5m]))\n\n# 95th percentile latency\nhistogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))"
+      }
+    },
+    {
+      "title": "Alerts that people trust",
+      "minutes": 35,
+      "text": [
+        "An alert should mean: a human must act now. Too many alerts and people ignore them (alert fatigue).",
+        "Alert on symptoms users feel (errors, latency, availability) more than on causes (CPU at 80%), and link each alert to a runbook."
+      ],
+      "points": [
+        "Use a duration: 'error rate > 5% for 5 minutes', not a single spike.",
+        "Severity levels: page someone vs create a ticket.",
+        "Every alert has an owner and a runbook link: what to check, how to mitigate.",
+        "Review alerts monthly: delete the ones nobody acted on."
+      ]
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Investigate", "items": [
+      ["Narrow the time window", "Start just before the first error"],
+      ["Filter service + level", "Reduce noise"],
+      ["Follow request_id", "Trace one request across services"],
+      ["Count over time", "See when it started"]
+    ]},
+    { "group": "Queries", "items": [
+      ["Kibana KQL: level : \"ERROR\"", "Filter a field"],
+      ["Splunk: ... | stats count by host", "Count per host"],
+      ["Splunk: ... | timechart count", "Errors over time"],
+      ["Loki: {app=\"x\"} |= \"timeout\"", "Text filter on a stream"]
+    ]},
+    { "group": "Metrics", "items": [
+      ["RED", "Rate, Errors, Duration (services)"],
+      ["USE", "Utilisation, Saturation, Errors (resources)"],
+      ["P95 / P99 latency", "Experience of the slowest users"],
+      ["rate(x[5m])", "Per-second rate (Prometheus)"]
+    ]},
+    { "group": "Alerting", "items": [
+      ["Symptom-based", "Alert on what users feel"],
+      ["for: 5m", "Ignore short spikes"],
+      ["Runbook link", "What to do when it fires"],
+      ["Page vs ticket", "Urgent vs can wait"]
+    ]}
+  ],
+  "pitfalls": [
+    "Reading the last error in the log instead of the first one.",
+    "Comparing timestamps from systems in different timezones.",
+    "Alerting on every warning, so real alerts get ignored.",
+    "Average latency dashboards that hide slow requests."
+  ],
+  "exercises": [
+    { "q": "Users say the site was slow between 10:00 and 10:30. Which metrics do you open first?", "answer": "P95/P99 latency and error rate of the front service for that window, then request rate (traffic spike?), then saturation of dependencies: database latency and connections, CPU and memory." },
+    { "q": "Write a Splunk search counting ERROR lines per service over the last hour.", "code": "text", "answer": "index=app level=ERROR earliest=-1h | stats count by service | sort -count" },
+    { "q": "Turn this into a good alert: 'CPU > 80%'.", "answer": "Alert on the symptom instead: 'P95 latency > 2 s for 10 minutes on search-api' with a runbook link. Keep CPU as a dashboard graph or a low-severity ticket for capacity planning." }
+  ],
+  "interview": [
+    { "q": "Logs vs metrics vs traces?", "a": "Metrics are numbers over time that show trends and trigger alerts. Logs record individual events with details to explain what happened. Traces follow one request across services to show where time is spent." },
+    { "q": "How do you investigate an error you have never seen?", "a": "Define the impact and start time, narrow logs to that window and service, find the first error, follow its request id, check recent changes and dependencies, reproduce if possible, and write down findings as you go." },
+    { "q": "What makes a good alert?", "a": "It fires only when a human must act, is based on user-facing symptoms with a duration threshold, has a clear owner and severity, and links to a runbook." }
+  ]
+}

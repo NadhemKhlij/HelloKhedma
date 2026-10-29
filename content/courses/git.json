@@ -1,0 +1,105 @@
+{
+  "why": "Every team versions its code, SQL and pipelines with Git. A clean GitHub profile is also the first thing recruiters open.",
+  "outcome": "create a repository, commit cleanly, work on branches, open a pull request and fix a simple conflict.",
+  "lessons": [
+    {
+      "title": "Commits: the history of your project",
+      "minutes": 35,
+      "text": [
+        "Git takes snapshots of your files. You choose what goes into the next snapshot (staging with git add), then record it with a message (git commit).",
+        "A good commit does one thing and its message says why, in the present tense: 'Add salary filter to search'."
+      ],
+      "points": [
+        "git status tells you what changed and what is staged.",
+        "git diff shows unstaged changes; git diff --staged shows what will be committed.",
+        "git log --oneline gives a compact history.",
+        "Use a .gitignore for secrets, data dumps and generated files."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "git init\ngit add README.md src/\ngit commit -m \"Add first version of the job scraper\"\ngit log --oneline"
+      }
+    },
+    {
+      "title": "Branches and pull requests",
+      "minutes": 40,
+      "text": [
+        "A branch is a movable pointer to a line of work. Create one per feature or fix so main always stays working.",
+        "On GitHub, push the branch and open a pull request (PR): teammates review the diff, CI runs tests, then you merge."
+      ],
+      "points": [
+        "git switch -c feature/salary-filter creates and moves to a branch.",
+        "git push -u origin feature/salary-filter publishes it.",
+        "Keep PRs small: they get reviewed faster and break less.",
+        "Describe what changed, why, and how you tested it in the PR description."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "git switch -c feature/salary-filter\n# ... edit files ...\ngit add -A\ngit commit -m \"Filter offers by minimum salary\"\ngit push -u origin feature/salary-filter\n# then open a Pull Request on GitHub"
+      }
+    },
+    {
+      "title": "Stay in sync and fix conflicts",
+      "minutes": 40,
+      "text": [
+        "Others change main while you work. git pull brings their commits into your branch; if you both edited the same lines, Git asks you to resolve a conflict.",
+        "A conflict is just text with markers. Keep the right version, delete the markers, add and commit."
+      ],
+      "points": [
+        "git fetch downloads changes without touching your files; git pull = fetch + merge.",
+        "Conflict markers: <<<<<<< yours, ======= , >>>>>>> theirs.",
+        "git restore file throws away local changes to a file (careful).",
+        "git revert <commit> undoes a commit safely by adding a new one."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "git switch feature/salary-filter\ngit pull origin main      # conflict in search.py\n# edit search.py, keep the right lines, remove <<<<<<< ======= >>>>>>>\ngit add search.py\ngit commit                # completes the merge"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Everyday", "items": [
+      ["git status", "What changed"],
+      ["git add <file> / git add -A", "Stage one file / everything"],
+      ["git commit -m \"msg\"", "Record a snapshot"],
+      ["git log --oneline --graph", "Compact history"],
+      ["git diff / git diff --staged", "See changes"]
+    ]},
+    { "group": "Branches", "items": [
+      ["git switch -c name", "Create and switch to a branch"],
+      ["git switch main", "Go back to main"],
+      ["git branch -d name", "Delete a merged branch"],
+      ["git merge name", "Merge a branch into the current one"]
+    ]},
+    { "group": "Remote (GitHub)", "items": [
+      ["git clone <url>", "Copy a repository"],
+      ["git push -u origin name", "Publish a branch"],
+      ["git pull", "Fetch and merge remote changes"],
+      ["git remote -v", "Show remotes"]
+    ]},
+    { "group": "Undo", "items": [
+      ["git restore <file>", "Discard local edits to a file"],
+      ["git restore --staged <file>", "Unstage a file"],
+      ["git revert <sha>", "Undo a commit with a new commit"],
+      ["git commit --amend", "Fix the last commit (before pushing)"]
+    ]}
+  ],
+  "pitfalls": [
+    "Committing passwords or API keys. Even after deletion they stay in history: rotate the key.",
+    "Working directly on main and pushing broken code.",
+    "Huge commits mixing unrelated changes with messages like 'update'.",
+    "Using git push --force on a shared branch."
+  ],
+  "exercises": [
+    { "q": "You committed to main by mistake but have not pushed. How do you move that commit to a new branch?",
+      "code": "bash", "answer": "git branch my-feature        # new branch points at your commit\ngit reset --hard HEAD~1      # move main back one commit\ngit switch my-feature" },
+    { "q": "How do you see which commit changed a given line of a file?", "answer": "git blame <file> shows, for each line, the last commit and author that changed it. On GitHub, the 'Blame' button does the same." },
+    { "q": "Write a .gitignore for a Python data project.",
+      "code": "text", "answer": ".venv/\n__pycache__/\n*.pyc\n.env\ndata/raw/\n*.csv\n.ipynb_checkpoints/" }
+  ],
+  "interview": [
+    { "q": "merge vs rebase?", "a": "Both integrate changes from one branch into another. merge keeps history as it happened and adds a merge commit; rebase replays your commits on top of the other branch for a linear history. Never rebase commits others already use." },
+    { "q": "How do you undo a commit that is already pushed?", "a": "Use git revert <sha>: it creates a new commit that reverses the change, without rewriting shared history." },
+    { "q": "What makes a good pull request?", "a": "Small and focused, a clear title, a description of what and why, how it was tested, screenshots for UI, and passing CI." }
+  ]
+}

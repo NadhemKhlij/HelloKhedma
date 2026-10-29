@@ -1,0 +1,107 @@
+{
+  "why": "Docker makes 'it works on my machine' reproducible. Data pipelines, APIs and local databases are run in containers in most teams.",
+  "outcome": "write a Dockerfile, build and run an image, pass configuration, persist data, and run several services with Docker Compose.",
+  "lessons": [
+    {
+      "title": "Images and containers",
+      "minutes": 35,
+      "text": [
+        "An image is a read-only package: an OS base, your code, its dependencies and the command to start. A container is a running instance of an image.",
+        "Images come from a registry (Docker Hub, GitHub Container Registry) or you build them from a Dockerfile."
+      ],
+      "points": [
+        "docker run -d --name db -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:16 starts a database in seconds.",
+        "-p host:container publishes a port; -e sets an environment variable; -d runs in the background.",
+        "docker ps lists running containers; docker logs -f name follows their output.",
+        "Pin versions (postgres:16), avoid :latest in real projects."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "docker run -d --name jobs-db -p 5432:5432 \\\n  -e POSTGRES_PASSWORD=dev -v jobs-data:/var/lib/postgresql/data postgres:16\ndocker ps\ndocker logs -f jobs-db",
+        "note": "-v jobs-data:... keeps the database files in a named volume, so they survive container restarts."
+      }
+    },
+    {
+      "title": "Write a Dockerfile",
+      "minutes": 45,
+      "text": [
+        "A Dockerfile lists the steps to build your image. Each instruction creates a cached layer, so put what changes least (dependencies) before what changes most (your code).",
+        "Keep images small and safe: slim base images, no secrets baked in, a non-root user."
+      ],
+      "points": [
+        "FROM picks the base; WORKDIR sets the folder; COPY adds files; RUN executes at build time; CMD is the default start command.",
+        "Copy requirements.txt and install before copying the rest, to reuse the cache.",
+        "Use a .dockerignore (like .gitignore) to keep .venv, data and .git out of the image.",
+        "Pass secrets at runtime with -e or an env file, never with COPY."
+      ],
+      "example": {
+        "lang": "dockerfile",
+        "code": "FROM python:3.12-slim\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nRUN useradd -m appuser\nUSER appuser\nCMD [\"python\", \"pipeline.py\"]"
+      }
+    },
+    {
+      "title": "Several services with Docker Compose",
+      "minutes": 40,
+      "text": [
+        "Real projects need several containers: an app, a database, maybe a scheduler. docker compose describes them in one YAML file and starts them together on a shared network.",
+        "Services reach each other by service name (the app connects to host 'db', not localhost)."
+      ],
+      "points": [
+        "docker compose up -d starts everything; docker compose down stops it.",
+        "depends_on orders startup; healthchecks say when a service is really ready.",
+        "env_file: .env loads configuration without hard-coding it.",
+        "docker compose logs -f app follows one service."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "services:\n  db:\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: dev\n    volumes:\n      - db-data:/var/lib/postgresql/data\n  app:\n    build: .\n    env_file: .env\n    environment:\n      DATABASE_URL: postgresql://postgres:dev@db:5432/postgres\n    depends_on:\n      - db\nvolumes:\n  db-data:"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Run", "items": [
+      ["docker run -d -p 8080:80 --name web nginx", "Start a container in the background"],
+      ["docker ps / docker ps -a", "Running / all containers"],
+      ["docker logs -f name", "Follow logs"],
+      ["docker exec -it name sh", "Open a shell inside"],
+      ["docker stop name / docker rm name", "Stop / remove"]
+    ]},
+    { "group": "Build", "items": [
+      ["docker build -t myapp:1.0 .", "Build an image from ./Dockerfile"],
+      ["docker images", "List local images"],
+      ["docker push registry/myapp:1.0", "Publish an image"],
+      ["docker system prune", "Clean unused data (careful)"]
+    ]},
+    { "group": "Dockerfile", "items": [
+      ["FROM python:3.12-slim", "Base image"],
+      ["COPY requirements.txt . + RUN pip install", "Install deps before code (cache)"],
+      ["ENV KEY=value", "Default environment variable"],
+      ["EXPOSE 8000", "Document the port"],
+      ["CMD [\"python\", \"app.py\"]", "Start command"]
+    ]},
+    { "group": "Compose", "items": [
+      ["docker compose up -d", "Start all services"],
+      ["docker compose down", "Stop and remove (volumes kept)"],
+      ["docker compose ps / logs -f svc", "Status / logs"],
+      ["docker compose build", "Rebuild images"]
+    ]}
+  ],
+  "pitfalls": [
+    "Connecting to localhost from one container to another: use the service name.",
+    "Losing database data because no volume was mounted.",
+    "Copying the whole project before installing dependencies, which rebuilds everything on each code change.",
+    "Baking passwords into the image with COPY .env or ENV."
+  ],
+  "exercises": [
+    { "q": "Run a Redis server in the background on port 6379 and check its logs.",
+      "code": "bash", "answer": "docker run -d --name cache -p 6379:6379 redis:7\ndocker logs cache" },
+    { "q": "Your container exits immediately. How do you find out why?", "answer": "docker ps -a to see the exit code, then docker logs <name> to read the error. Running it interactively (docker run -it image sh) helps to test the start command by hand." },
+    { "q": "Write a .dockerignore for a Python project.",
+      "code": "text", "answer": ".git\n.venv\n__pycache__\n*.pyc\n.env\ndata/" }
+  ],
+  "interview": [
+    { "q": "Image vs container?", "a": "An image is the immutable template (code, dependencies, start command). A container is a running, isolated instance created from an image; you can run many containers from one image." },
+    { "q": "Docker vs a virtual machine?", "a": "Containers share the host's kernel and only package the app and its libraries, so they start in seconds and are light. A VM emulates a whole machine with its own OS, which is heavier but more isolated." },
+    { "q": "How do you persist data in Docker?", "a": "With volumes (named volumes managed by Docker) or bind mounts (a host folder). The container filesystem is lost when the container is removed." }
+  ]
+}

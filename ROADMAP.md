@@ -5,11 +5,11 @@ keeps every application moving**, without juggling five tools.
 
 Effort: **S** ≈ under a day · **M** ≈ 1–3 days · **L** ≈ a week or more. Each phase ends with a deploy.
 
-## Phase 0: in progress
-| # | Item | Why | Effort |
-|---|---|---|---|
-| 0.1 | Light / dark theme toggle | Comfort, accessibility, daytime use | S |
-| 0.2 | HelloKhedma courses + cheat sheets per skill, linked from missing skills | Turn "you lack X" into "learn X here, now" | L (content grows over time) |
+## Phase 0: done
+| # | Item | Status |
+|---|---|---|
+| 0.1 | Light / dark theme toggle (remembers the choice, follows the system by default) | ✅ live |
+| 0.2 | 17 HelloKhedma courses with lessons, printable cheat sheets, exercises, common mistakes and interview questions; missing skills link to them | ✅ live. Still missing: Spark, Kafka, Snowflake/BigQuery, cloud (AWS/Azure/GCP), CI/CD, Tableau, Looker, ServiceNow, Jira deep-dive, data storytelling (see 4.1) |
 
 ## Phase 1: ready for real users (trust, legal, reliability)
 | # | Item | Why | Effort |

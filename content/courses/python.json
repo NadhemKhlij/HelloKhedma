@@ -1,0 +1,130 @@
+{
+  "why": "Python is the default language for data pipelines, analysis and automation scripts. Most data job offers list it next to SQL.",
+  "outcome": "write small, readable scripts that read files, transform data, handle errors and use packages.",
+  "lessons": [
+    {
+      "title": "Values, lists and dictionaries",
+      "minutes": 45,
+      "text": [
+        "Python has a few core types you will use all day: int, float, str, bool, None, list (ordered, changeable), dict (key to value), tuple (fixed list) and set (unique values).",
+        "Indentation is part of the syntax: the body of an if, for or def is the indented block under it."
+      ],
+      "points": [
+        "f-strings format text: f\"{name} earns {salary:,.0f} EUR\".",
+        "Lists: items[0] is the first, items[-1] the last, items[1:3] a slice.",
+        "Dicts: person[\"city\"] fails if the key is missing; person.get(\"city\", \"n/a\") does not.",
+        "A list comprehension builds a list in one line: [x * 2 for x in numbers if x > 0]."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "jobs = [\n    {\"title\": \"Data Engineer\", \"city\": \"Paris\", \"salary\": 52000},\n    {\"title\": \"Data Analyst\", \"city\": \"Lyon\", \"salary\": 41000},\n]\nparis = [j[\"title\"] for j in jobs if j[\"city\"] == \"Paris\"]\nprint(paris)  # ['Data Engineer']"
+      }
+    },
+    {
+      "title": "Functions and control flow",
+      "minutes": 40,
+      "text": [
+        "A function packages logic behind a name so you can test it and reuse it. Give it clear parameters, return a value, and avoid changing global variables.",
+        "if / elif / else chooses a branch; for loops over any iterable; while repeats until a condition is false."
+      ],
+      "points": [
+        "Default arguments: def greet(name, lang=\"fr\").",
+        "Return early to avoid deep nesting.",
+        "Type hints (def total(xs: list[float]) -> float) document intent and help your editor.",
+        "enumerate(items) gives index and value; zip(a, b) walks two lists together."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "def salary_band(salary: float) -> str:\n    if salary < 35000:\n        return \"junior\"\n    if salary < 55000:\n        return \"mid\"\n    return \"senior\"\n\nfor title, s in [(\"Analyst\", 38000), (\"Lead\", 70000)]:\n    print(title, salary_band(s))"
+      }
+    },
+    {
+      "title": "Files, JSON and errors",
+      "minutes": 45,
+      "text": [
+        "Use with open(...) so the file is always closed. The csv and json modules from the standard library cover most simple formats.",
+        "Errors are exceptions. Catch the specific ones you expect with try / except, log a clear message, and let unexpected ones surface."
+      ],
+      "points": [
+        "Path from pathlib is cleaner than string paths: Path(\"data\") / \"jobs.json\".",
+        "json.load(f) reads JSON into dicts and lists; json.dump(obj, f, indent=2) writes it.",
+        "Never write a bare except: it hides bugs.",
+        "raise ValueError(\"clear message\") when input is wrong."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import json\nfrom pathlib import Path\n\ndef load_jobs(path: Path) -> list[dict]:\n    try:\n        with path.open(encoding=\"utf-8\") as f:\n            return json.load(f)\n    except FileNotFoundError:\n        print(f\"No file at {path}, starting empty\")\n        return []\n\njobs = load_jobs(Path(\"data\") / \"jobs.json\")"
+      }
+    },
+    {
+      "title": "Packages, virtual environments and calling an API",
+      "minutes": 45,
+      "text": [
+        "Install third-party packages with pip inside a virtual environment, so each project has its own versions. Save them in requirements.txt.",
+        "The requests package calls web APIs; always set a timeout and check the status code."
+      ],
+      "points": [
+        "python -m venv .venv then activate it (.venv\\Scripts\\activate on Windows, source .venv/bin/activate elsewhere).",
+        "pip install requests pandas, then pip freeze > requirements.txt.",
+        "Keep secrets (API keys) in environment variables, never in code: os.environ[\"API_KEY\"].",
+        "if __name__ == \"__main__\": runs code only when the file is executed directly."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import os\nimport requests\n\nresp = requests.get(\n    \"https://api.example.com/jobs\",\n    params={\"q\": \"data engineer\"},\n    headers={\"Authorization\": f\"Bearer {os.environ['API_KEY']}\"},\n    timeout=10,\n)\nresp.raise_for_status()\nprint(len(resp.json()[\"results\"]))"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Basics", "items": [
+      ["f\"{x:.2f}\"", "Format a number with 2 decimals"],
+      ["len(x)", "Length of a list, string, dict"],
+      ["type(x) / isinstance(x, int)", "Check a type"],
+      ["x if cond else y", "Inline condition"]
+    ]},
+    { "group": "Lists & dicts", "items": [
+      ["xs.append(v) / xs.extend(ys)", "Add one / many items"],
+      ["sorted(xs, key=lambda j: j[\"salary\"])", "Sorted copy by a field"],
+      ["[f(x) for x in xs if cond]", "List comprehension"],
+      ["d.get(k, default)", "Safe dict lookup"],
+      ["d.items()", "Loop over key, value pairs"],
+      ["{k: v for k, v in pairs}", "Dict comprehension"]
+    ]},
+    { "group": "Strings", "items": [
+      ["s.strip() / s.lower()", "Trim spaces / lowercase"],
+      ["s.split(\",\") / \",\".join(xs)", "Split / join"],
+      ["s.replace(a, b)", "Replace text"],
+      ["s.startswith(\"Data\")", "Prefix test"]
+    ]},
+    { "group": "Files & errors", "items": [
+      ["with open(p, encoding=\"utf-8\") as f:", "Open and auto-close a file"],
+      ["json.load(f) / json.dump(o, f)", "Read / write JSON"],
+      ["try: ... except ValueError as e:", "Catch a specific error"],
+      ["raise ValueError(\"msg\")", "Signal bad input"]
+    ]},
+    { "group": "Environment", "items": [
+      ["python -m venv .venv", "Create a virtual environment"],
+      ["pip install -r requirements.txt", "Install project packages"],
+      ["os.environ[\"KEY\"]", "Read a secret from the environment"]
+    ]}
+  ],
+  "pitfalls": [
+    "Using a mutable default argument (def f(xs=[])): the same list is shared between calls. Use None and create the list inside.",
+    "Comparing floats with == (0.1 + 0.2 != 0.3). Use round() or math.isclose().",
+    "Installing packages globally instead of in a virtual environment.",
+    "Catching every exception with a bare except and hiding real bugs."
+  ],
+  "exercises": [
+    { "q": "Given a list of job dicts with a 'salary' key, return the average salary rounded to the nearest euro.",
+      "code": "python", "answer": "def average_salary(jobs):\n    if not jobs:\n        return 0\n    return round(sum(j[\"salary\"] for j in jobs) / len(jobs))" },
+    { "q": "Count how many times each word appears in a sentence (case-insensitive).", "hint": "Split, lowercase, and use a dict or collections.Counter.",
+      "code": "python", "answer": "from collections import Counter\n\ndef word_counts(text):\n    return Counter(text.lower().split())" },
+    { "q": "Write a function that reads a CSV file of jobs and returns the titles in Paris.", "hint": "csv.DictReader gives one dict per row.",
+      "code": "python", "answer": "import csv\n\ndef paris_titles(path):\n    with open(path, encoding=\"utf-8\", newline=\"\") as f:\n        return [row[\"title\"] for row in csv.DictReader(f) if row[\"city\"] == \"Paris\"]" }
+  ],
+  "interview": [
+    { "q": "List vs tuple?", "a": "Both are ordered sequences. A list is mutable (you can add or change items); a tuple is immutable, slightly lighter, and can be used as a dict key." },
+    { "q": "What is a virtual environment and why use one?", "a": "An isolated folder with its own Python and packages. It lets each project pin its own versions so installing something for one project cannot break another, and makes the setup reproducible with requirements.txt." },
+    { "q": "How do you handle an error when calling an API?", "a": "Set a timeout, check the status code (raise_for_status), catch the specific exceptions (timeout, connection error, HTTP error), log a useful message, and retry with a delay only when the error is temporary." }
+  ]
+}

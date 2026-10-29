@@ -1,0 +1,113 @@
+{
+  "why": "Power BI is the most requested BI tool in French job offers for analysts and many BA roles. A good report in your portfolio is strong proof.",
+  "outcome": "import and clean data with Power Query, build a star-schema model, write core DAX measures and design a readable report.",
+  "lessons": [
+    {
+      "title": "Get and clean data with Power Query",
+      "minutes": 40,
+      "text": [
+        "Power Query (Transform data) is where you connect to sources (Excel, CSV, SQL, SharePoint) and clean them before they reach the model. Each step is recorded and replayed on refresh.",
+        "Do cleaning here, not in visuals: set types, remove columns, split, unpivot, merge queries."
+      ],
+      "points": [
+        "Set data types on every column; dates as Date, amounts as Decimal.",
+        "Remove the columns you do not need: smaller model, faster report.",
+        "Unpivot turns month columns (Jan, Feb, ...) into rows, the shape models need.",
+        "Name queries clearly: Fact_Sales, Dim_Product."
+      ]
+    },
+    {
+      "title": "Model: relationships and a date table",
+      "minutes": 40,
+      "text": [
+        "In Model view, connect fact tables to dimension tables with one-to-many relationships, filtering from dimension to fact. That is a star schema.",
+        "Add a dedicated date table marked as date table, so time intelligence (year to date, previous year) works."
+      ],
+      "points": [
+        "Avoid bi-directional filters unless you really need them.",
+        "Hide technical columns (keys) from the report view.",
+        "One date table, related to every fact date column you analyse.",
+        "Measures go in the model; keep calculated columns for row-level attributes."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Dim_Date =\nADDCOLUMNS (\n    CALENDAR ( DATE ( 2024, 1, 1 ), DATE ( 2026, 12, 31 ) ),\n    \"Year\", YEAR ( [Date] ),\n    \"Month\", FORMAT ( [Date], \"MMM\" ),\n    \"MonthNum\", MONTH ( [Date] )\n)"
+      }
+    },
+    {
+      "title": "DAX measures and CALCULATE",
+      "minutes": 50,
+      "text": [
+        "A measure is computed at query time in the current filter context (whatever the visual, slicers and filters select). That is why the same measure shows different values in each cell.",
+        "CALCULATE changes the filter context: it is the most important DAX function."
+      ],
+      "points": [
+        "SUM / AVERAGE / DISTINCTCOUNT for basic measures.",
+        "DIVIDE(a, b) avoids divide-by-zero errors.",
+        "CALCULATE([Sales], Dim_Product[Category] = \"Bikes\") filters a measure.",
+        "Time intelligence: TOTALYTD, SAMEPERIODLASTYEAR, DATEADD.",
+        "Use VAR to make long measures readable."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Total Sales = SUM ( Fact_Sales[Amount] )\n\nSales LY = CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( Dim_Date[Date] ) )\n\nSales YoY % =\nVAR cur = [Total Sales]\nVAR prev = [Sales LY]\nRETURN DIVIDE ( cur - prev, prev )"
+      }
+    },
+    {
+      "title": "Design reports people use",
+      "minutes": 35,
+      "text": [
+        "Start from the questions the audience asks and put the answer at the top: 3 to 5 KPI cards, then the breakdowns, then the details.",
+        "Consistency beats decoration: same colors for the same meaning, aligned visuals, clear titles that state the insight."
+      ],
+      "points": [
+        "Bar charts for comparisons, lines for trends, tables for details; avoid pies with many slices.",
+        "Use slicers sparingly and sync them across pages.",
+        "Tooltips and drill-through add detail without clutter.",
+        "Publish to the Power BI Service, set a scheduled refresh, and share through an app or workspace."
+      ]
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Power Query", "items": [
+      ["Change type", "Set correct data types first"],
+      ["Unpivot columns", "Columns → rows"],
+      ["Merge queries", "Join two tables"],
+      ["Append queries", "Stack tables"],
+      ["Group by", "Aggregate before loading"]
+    ]},
+    { "group": "Modeling", "items": [
+      ["1 → * relationship", "Dimension filters fact"],
+      ["Mark as date table", "Enable time intelligence"],
+      ["Hide in report view", "Keep keys out of sight"],
+      ["Measure vs calculated column", "Query time vs row level, stored"]
+    ]},
+    { "group": "DAX", "items": [
+      ["SUM / AVERAGE / DISTINCTCOUNT", "Basic aggregations"],
+      ["DIVIDE(a, b)", "Safe division"],
+      ["CALCULATE(m, filter)", "Change filter context"],
+      ["ALL(table)", "Remove filters (e.g. % of total)"],
+      ["TOTALYTD(m, Dim_Date[Date])", "Year to date"],
+      ["SAMEPERIODLASTYEAR(Dim_Date[Date])", "Same period last year"],
+      ["VAR x = ... RETURN ...", "Readable measures"]
+    ]}
+  ],
+  "pitfalls": [
+    "One big flat table instead of a star schema: slow and wrong totals.",
+    "Calculated columns where a measure is needed (they do not react to filters).",
+    "Using the automatic date hierarchy instead of a real date table.",
+    "Bi-directional relationships everywhere, which create ambiguous results."
+  ],
+  "exercises": [
+    { "q": "Write a measure for the share of each category in total sales (percent of grand total).",
+      "code": "dax", "answer": "% of Total =\nDIVIDE ( [Total Sales], CALCULATE ( [Total Sales], ALL ( Dim_Product[Category] ) ) )" },
+    { "q": "Write a measure counting distinct customers who bought in the selected period.",
+      "code": "dax", "answer": "Active Customers = DISTINCTCOUNT ( Fact_Sales[CustomerID] )" },
+    { "q": "Sales data has one column per month. What do you do in Power Query?", "answer": "Select the identifier columns, then Unpivot Other Columns: you get one row per month with Attribute (month) and Value (sales), then set types and rename." }
+  ],
+  "interview": [
+    { "q": "Calculated column vs measure?", "a": "A calculated column is computed per row at refresh and stored in the model; it does not react to slicers. A measure is computed at query time in the current filter context and is what you use for aggregations in visuals." },
+    { "q": "What does CALCULATE do?", "a": "It evaluates an expression in a modified filter context: it can add, replace or remove filters. It is the basis of most advanced measures, such as year-over-year or percentage of total." },
+    { "q": "How do you make a slow report faster?", "a": "Remove unused columns and rows, use a star schema, prefer measures over calculated columns, avoid bi-directional relationships, reduce visuals per page, and check with Performance Analyzer." }
+  ]
+}

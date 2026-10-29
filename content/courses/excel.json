@@ -1,0 +1,106 @@
+{
+  "why": "Excel is everywhere in business. Analyst and BA interviews often include a timed Excel test with lookups and pivot tables.",
+  "outcome": "structure data as a table, use lookups and conditional formulas, build pivot tables and a simple dashboard.",
+  "lessons": [
+    {
+      "title": "Clean tables and essential formulas",
+      "minutes": 40,
+      "text": [
+        "Convert your range into a Table (Ctrl+T): it grows automatically, formulas use column names, and pivot tables follow new rows.",
+        "Most business formulas are conditional sums and counts. Learn the 'IFS' family by heart."
+      ],
+      "points": [
+        "SUMIFS(sum_range, criteria_range1, criteria1, ...) and COUNTIFS for multi-criteria totals.",
+        "IF and IFS for categories; IFERROR to show a clean value instead of #N/A.",
+        "TEXT, LEFT, RIGHT, TRIM, PROPER clean text; DATE, EOMONTH, NETWORKDAYS handle dates.",
+        "$A$1 is an absolute reference: it does not move when copied."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=SUMIFS(Sales[Amount], Sales[City], \"Paris\", Sales[Date], \">=\"&DATE(2026,1,1))\n=COUNTIFS(Offers[Status], \"Applied\", Offers[Path], $B$2)\n=IFS([@Salary]<35000, \"Junior\", [@Salary]<55000, \"Mid\", TRUE, \"Senior\")"
+      }
+    },
+    {
+      "title": "Lookups: XLOOKUP and INDEX/MATCH",
+      "minutes": 35,
+      "text": [
+        "A lookup brings a value from another table using a key, like a join. XLOOKUP is the modern function; INDEX/MATCH works in every version; VLOOKUP is still common in old files.",
+        "Always use exact match and handle the 'not found' case."
+      ],
+      "points": [
+        "XLOOKUP(key, lookup_column, return_column, \"not found\").",
+        "INDEX(return_column, MATCH(key, lookup_column, 0)).",
+        "VLOOKUP(key, table, col_number, FALSE): FALSE means exact match.",
+        "Lookups return the first match only: check keys are unique."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=XLOOKUP([@CompanyID], Companies[ID], Companies[Name], \"Unknown\")\n=INDEX(Companies[Name], MATCH([@CompanyID], Companies[ID], 0))"
+      }
+    },
+    {
+      "title": "Pivot tables and dashboards",
+      "minutes": 40,
+      "text": [
+        "A pivot table summarises a table by dragging fields into Rows, Columns, Values and Filters. It answers 'how much per X per Y' in seconds.",
+        "Add slicers and a pivot chart to build a simple interactive dashboard."
+      ],
+      "points": [
+        "Insert → PivotTable from a Table so new rows are included after Refresh.",
+        "Value field settings: Sum, Count, Average, % of grand total.",
+        "Group dates by month or quarter (right-click → Group).",
+        "Modern Excel also has FILTER, UNIQUE and SORT functions for dynamic lists."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=UNIQUE(Offers[City])\n=FILTER(Offers, Offers[Fit]>=60, \"None\")\n=SORT(FILTER(Offers[[Title]:[Fit]], Offers[Path]=\"da\"), 2, -1)"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Conditional", "items": [
+      ["SUMIFS / COUNTIFS / AVERAGEIFS", "Multi-criteria aggregation"],
+      ["IF / IFS", "Conditional values"],
+      ["IFERROR(x, \"\")", "Hide errors"],
+      ["AND(...) / OR(...)", "Combine conditions"]
+    ]},
+    { "group": "Lookup", "items": [
+      ["XLOOKUP(k, col, ret, \"n/a\")", "Modern lookup"],
+      ["INDEX(ret, MATCH(k, col, 0))", "Works everywhere"],
+      ["VLOOKUP(k, tbl, n, FALSE)", "Exact-match legacy lookup"]
+    ]},
+    { "group": "Text & dates", "items": [
+      ["TRIM / PROPER / UPPER", "Clean text"],
+      ["TEXTSPLIT / TEXTJOIN", "Split / join text"],
+      ["EOMONTH(d, 0)", "End of month"],
+      ["NETWORKDAYS(start, end)", "Working days between dates"]
+    ]},
+    { "group": "Dynamic arrays", "items": [
+      ["UNIQUE(range)", "Distinct values"],
+      ["FILTER(range, cond)", "Rows matching a condition"],
+      ["SORT(range, col, -1)", "Sort descending"]
+    ]},
+    { "group": "Shortcuts", "items": [
+      ["Ctrl+T", "Format as table"],
+      ["Ctrl+Shift+L", "Toggle filters"],
+      ["F4", "Toggle $ absolute reference"],
+      ["Alt+=", "AutoSum"]
+    ]}
+  ],
+  "pitfalls": [
+    "VLOOKUP without FALSE: approximate match returns wrong values silently.",
+    "Merged cells and blank rows inside data: they break sorting, filters and pivots.",
+    "Hard-coded numbers inside formulas instead of a cell or table reference.",
+    "Forgetting to Refresh a pivot table after changing data."
+  ],
+  "exercises": [
+    { "q": "Count applications with status 'Interview' for the path in cell B2.", "code": "excel", "answer": "=COUNTIFS(Apps[Status], \"Interview\", Apps[Path], $B$2)" },
+    { "q": "Return the salary for the offer ID in A2 from table Offers, or 'missing' if not found.", "code": "excel", "answer": "=XLOOKUP(A2, Offers[ID], Offers[Salary], \"missing\")" },
+    { "q": "How do you show the number of offers per city and month?", "answer": "Insert a PivotTable from the Offers table: City in Rows, Posted date in Columns grouped by Month, Title in Values set to Count." }
+  ],
+  "interview": [
+    { "q": "VLOOKUP vs XLOOKUP vs INDEX/MATCH?", "a": "VLOOKUP looks only to the right and uses a column number that breaks when columns move. INDEX/MATCH looks in any direction and is robust. XLOOKUP does the same in one function, with exact match by default and a 'not found' value." },
+    { "q": "How do you check data quality in a spreadsheet?", "a": "Remove duplicates, look for blanks and errors with filters or COUNTBLANK/ISERROR, check types (numbers stored as text), validate ranges with conditional formatting, and reconcile totals with the source." },
+    { "q": "When would you use a pivot table instead of formulas?", "a": "For exploring and summarising data quickly by several dimensions, especially when the layout changes often. Formulas are better for a fixed report layout or calculations that pivots cannot express." }
+  ]
+}

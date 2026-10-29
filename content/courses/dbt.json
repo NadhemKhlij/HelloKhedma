@@ -1,0 +1,100 @@
+{
+  "why": "dbt is the standard way to build and test SQL transformations in modern warehouses (Snowflake, BigQuery, Databricks, Postgres). It appears in most Analytics Engineer and many Data Engineer offers.",
+  "outcome": "organise a dbt project in layers, write models with ref() and sources, add tests and documentation, and build incremental models.",
+  "lessons": [
+    {
+      "title": "Models, ref() and sources",
+      "minutes": 40,
+      "text": [
+        "A dbt model is a SELECT statement in a .sql file. dbt turns it into a view or table in the warehouse and runs models in the right order.",
+        "ref('model') points to another model and builds the dependency graph; source('system', 'table') points to raw data loaded by another tool."
+      ],
+      "points": [
+        "Typical layers: staging (clean and rename one source), intermediate (business logic), marts (tables for reporting).",
+        "dbt run builds models; dbt build runs models and tests in order.",
+        "Select part of the project: dbt run -s stg_offers+ (a model and everything after it).",
+        "Jinja ({{ }}) adds variables and loops to SQL."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- models/staging/stg_offers.sql\nselect\n    id as offer_id,\n    lower(trim(title)) as title,\n    company_name as company,\n    cast(posted_at as date) as posted_date\nfrom {{ source('job_api', 'raw_offers') }}\nwhere id is not null"
+      }
+    },
+    {
+      "title": "Tests and documentation",
+      "minutes": 35,
+      "text": [
+        "Tests are assertions on your data. Generic tests are declared in YAML; singular tests are SQL queries that must return zero rows.",
+        "Descriptions in YAML generate a documentation site with the lineage graph."
+      ],
+      "points": [
+        "Built-in generic tests: unique, not_null, accepted_values, relationships.",
+        "Packages such as dbt_utils add more (e.g. expression_is_true).",
+        "dbt docs generate then dbt docs serve to browse documentation.",
+        "Run tests in CI on every pull request."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "version: 2\nmodels:\n  - name: stg_offers\n    description: One row per job offer from the job API.\n    columns:\n      - name: offer_id\n        tests: [unique, not_null]\n      - name: contract_type\n        tests:\n          - accepted_values:\n              values: ['CDI', 'CDD', 'freelance', 'internship']"
+      }
+    },
+    {
+      "title": "Materializations and incremental models",
+      "minutes": 40,
+      "text": [
+        "Materialization decides how a model is stored: view (cheap, always fresh), table (fast to query), incremental (only new rows are processed), ephemeral (inlined as a CTE).",
+        "Incremental models matter for large tables: the first run builds everything, later runs only add or update recent rows."
+      ],
+      "points": [
+        "Configure in the model: {{ config(materialized='incremental', unique_key='offer_id') }}.",
+        "is_incremental() is true on later runs; filter new rows inside it.",
+        "dbt run --full-refresh rebuilds an incremental model from scratch.",
+        "Snapshots keep the history of slowly changing data (type 2)."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "{{ config(materialized='incremental', unique_key='offer_id') }}\n\nselect offer_id, title, company, posted_date\nfrom {{ ref('stg_offers') }}\n{% if is_incremental() %}\nwhere posted_date > (select max(posted_date) from {{ this }})\n{% endif %}"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Commands", "items": [
+      ["dbt run", "Build models"],
+      ["dbt test", "Run tests"],
+      ["dbt build", "Run + test in dependency order"],
+      ["dbt run -s model+", "A model and its children"],
+      ["dbt run -s +model", "A model and its parents"],
+      ["dbt docs generate && dbt docs serve", "Documentation site"]
+    ]},
+    { "group": "In SQL", "items": [
+      ["{{ ref('model') }}", "Depend on another model"],
+      ["{{ source('src', 'table') }}", "Read raw data"],
+      ["{{ config(materialized='table') }}", "Store as a table"],
+      ["{{ this }}", "The current model's relation"],
+      ["{% if is_incremental() %}", "Only on incremental runs"]
+    ]},
+    { "group": "Tests (YAML)", "items": [
+      ["unique / not_null", "Key checks"],
+      ["accepted_values: values: [...]", "Allowed values"],
+      ["relationships: to: ref('x'), field: id", "Foreign key check"]
+    ]}
+  ],
+  "pitfalls": [
+    "Hard-coding schema.table names instead of ref() / source(): dbt cannot order the models.",
+    "Business logic in staging models: keep staging to cleaning and renaming.",
+    "Incremental models without unique_key, which create duplicates on reruns.",
+    "No tests on primary keys."
+  ],
+  "exercises": [
+    { "q": "Write a mart model counting offers per company per month from stg_offers.",
+      "code": "sql", "answer": "select\n    company,\n    date_trunc('month', posted_date) as month,\n    count(*) as offers\nfrom {{ ref('stg_offers') }}\ngroup by 1, 2" },
+    { "q": "Write a singular test that fails if any offer is posted in the future.",
+      "code": "sql", "answer": "-- tests/no_future_offers.sql\nselect * from {{ ref('stg_offers') }}\nwhere posted_date > current_date" },
+    { "q": "Which command builds and tests only the models you changed and their children?", "answer": "With state comparison: dbt build -s state:modified+ --state path/to/prod_artifacts. This is the usual CI setup." }
+  ],
+  "interview": [
+    { "q": "What problem does dbt solve?", "a": "It brings software engineering to SQL transformations: versioned models, dependency management with ref(), automated tests, documentation and lineage, environments, and CI, all inside the warehouse." },
+    { "q": "View, table or incremental?", "a": "View for light models that must always be fresh, table for models queried often or heavy to compute, incremental for very large append-heavy tables where rebuilding everything is too slow or costly." },
+    { "q": "How do you test data quality with dbt?", "a": "Generic tests in YAML (unique, not_null, accepted_values, relationships), singular SQL tests for business rules, packages like dbt_utils or dbt-expectations, run in CI and in production with dbt build." }
+  ]
+}

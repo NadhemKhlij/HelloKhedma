@@ -1,0 +1,134 @@
+{
+  "why": "SQL is the most requested skill across data, BA and support roles. Interviews almost always include a live query exercise.",
+  "outcome": "write SELECT queries with filters, joins, aggregations, CTEs and window functions, and explain what they return.",
+  "lessons": [
+    {
+      "title": "Read data: SELECT, WHERE, ORDER BY",
+      "minutes": 40,
+      "text": [
+        "A table is a set of rows with named columns. SELECT chooses columns, FROM chooses the table, WHERE keeps only the rows that match a condition, ORDER BY sorts, LIMIT keeps the first rows.",
+        "SQL is written in that order but executed in another one: FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY, LIMIT. This explains why you cannot use a column alias in WHERE."
+      ],
+      "points": [
+        "Text values use single quotes: 'Paris'.",
+        "NULL means unknown: test it with IS NULL / IS NOT NULL, never = NULL.",
+        "Combine conditions with AND / OR and use parentheses to be explicit.",
+        "IN ('a','b') and BETWEEN 10 AND 20 keep queries short; LIKE 'Data%' matches a prefix."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "SELECT first_name, city, salary\nFROM employees\nWHERE city IN ('Paris', 'Lyon')\n  AND salary >= 40000\n  AND manager_id IS NOT NULL\nORDER BY salary DESC\nLIMIT 10;",
+        "note": "Top 10 salaries in Paris or Lyon, among people who have a manager."
+      }
+    },
+    {
+      "title": "Summarise: GROUP BY, aggregates, HAVING",
+      "minutes": 45,
+      "text": [
+        "Aggregate functions turn many rows into one value: COUNT, SUM, AVG, MIN, MAX. With GROUP BY you get one result row per group.",
+        "WHERE filters rows before grouping; HAVING filters groups after the aggregate is computed."
+      ],
+      "points": [
+        "Every selected column must be grouped or aggregated.",
+        "COUNT(*) counts rows; COUNT(column) ignores NULLs; COUNT(DISTINCT column) counts unique values.",
+        "Use ROUND(AVG(x), 2) to present clean numbers."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "SELECT department, COUNT(*) AS headcount, ROUND(AVG(salary), 0) AS avg_salary\nFROM employees\nWHERE hired_on >= '2023-01-01'\nGROUP BY department\nHAVING COUNT(*) >= 5\nORDER BY avg_salary DESC;",
+        "note": "Departments with at least 5 people hired since 2023, by average salary."
+      }
+    },
+    {
+      "title": "Combine tables: JOINs",
+      "minutes": 50,
+      "text": [
+        "A JOIN matches rows of two tables on a condition, usually a foreign key equal to a primary key (orders.customer_id = customers.id).",
+        "INNER JOIN keeps only matching rows. LEFT JOIN keeps every row of the left table and fills the right side with NULL when nothing matches; that is how you find what is missing."
+      ],
+      "points": [
+        "Always alias tables (o, c) and prefix columns: o.amount, c.name.",
+        "Check row counts before and after a join: a join on a non-unique key multiplies rows.",
+        "LEFT JOIN ... WHERE right.id IS NULL finds rows with no match (customers without orders)."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "SELECT c.name, COUNT(o.id) AS orders, COALESCE(SUM(o.amount), 0) AS revenue\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nGROUP BY c.name\nORDER BY revenue DESC;",
+        "note": "Customers without orders still appear, with 0 orders and 0 revenue."
+      }
+    },
+    {
+      "title": "Go further: CTEs and window functions",
+      "minutes": 60,
+      "text": [
+        "A CTE (WITH name AS (...)) names an intermediate result so a long query reads top to bottom.",
+        "Window functions compute a value per row while looking at other rows, without collapsing them: rankings, running totals, the previous value. They are the classic intermediate interview question."
+      ],
+      "points": [
+        "ROW_NUMBER() gives 1, 2, 3; RANK() leaves gaps after ties; DENSE_RANK() does not.",
+        "PARTITION BY restarts the calculation for each group; ORDER BY inside OVER sets the order.",
+        "LAG(x) / LEAD(x) read the previous / next row: perfect for month-over-month changes.",
+        "SUM(x) OVER (ORDER BY day) gives a running total."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "WITH monthly AS (\n  SELECT DATE_TRUNC('month', ordered_at) AS month, SUM(amount) AS revenue\n  FROM orders\n  GROUP BY 1\n)\nSELECT month, revenue,\n       revenue - LAG(revenue) OVER (ORDER BY month) AS change_vs_prev\nFROM monthly\nORDER BY month;",
+        "note": "DATE_TRUNC is PostgreSQL / Snowflake / BigQuery-style; SQL Server uses DATETRUNC or FORMAT."
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Query skeleton", "items": [
+      ["SELECT col, ... FROM t", "Choose columns from a table"],
+      ["WHERE cond", "Keep rows before grouping"],
+      ["GROUP BY col", "One row per group"],
+      ["HAVING agg_cond", "Keep groups after aggregation"],
+      ["ORDER BY col DESC", "Sort (ASC is default)"],
+      ["LIMIT n", "First n rows (SQL Server: TOP n)"]
+    ]},
+    { "group": "Filters", "items": [
+      ["col IN ('a','b')", "Matches any value in the list"],
+      ["col BETWEEN 1 AND 9", "Inclusive range"],
+      ["col LIKE 'Dat%'", "% = any text, _ = one character"],
+      ["col IS NULL", "Test for missing values"],
+      ["COALESCE(col, 0)", "Replace NULL with a default"]
+    ]},
+    { "group": "Joins", "items": [
+      ["a JOIN b ON a.id = b.a_id", "Only matching rows"],
+      ["a LEFT JOIN b ON ...", "All rows of a, NULL when no match"],
+      ["... WHERE b.id IS NULL", "Rows of a with no match in b"],
+      ["a FULL JOIN b ON ...", "All rows of both"]
+    ]},
+    { "group": "Aggregates", "items": [
+      ["COUNT(*) / COUNT(DISTINCT c)", "Rows / unique values"],
+      ["SUM, AVG, MIN, MAX", "Numeric summaries"],
+      ["CASE WHEN x THEN 1 ELSE 0 END", "Conditional value, e.g. inside SUM"]
+    ]},
+    { "group": "Windows & CTEs", "items": [
+      ["WITH t AS (SELECT ...)", "Named sub-query"],
+      ["ROW_NUMBER() OVER (PARTITION BY g ORDER BY d)", "Number rows inside each group"],
+      ["RANK() / DENSE_RANK()", "Ranking with / without gaps"],
+      ["LAG(x) OVER (ORDER BY d)", "Previous row's value"],
+      ["SUM(x) OVER (ORDER BY d)", "Running total"]
+    ]}
+  ],
+  "pitfalls": [
+    "Writing = NULL instead of IS NULL: the condition is never true.",
+    "Putting a condition on the right table of a LEFT JOIN in WHERE, which silently turns it into an INNER JOIN. Put it in the ON clause instead.",
+    "Joining on a key that is not unique and getting duplicated totals.",
+    "Using SELECT * in production queries: slower and breaks when columns change."
+  ],
+  "exercises": [
+    { "q": "List the 5 cities with the most customers, with the number of customers.", "hint": "GROUP BY city, ORDER BY the count, LIMIT.",
+      "code": "sql", "answer": "SELECT city, COUNT(*) AS customers\nFROM customers\nGROUP BY city\nORDER BY customers DESC\nLIMIT 5;" },
+    { "q": "Find customers who never placed an order.", "hint": "LEFT JOIN and look for NULL on the orders side.",
+      "code": "sql", "answer": "SELECT c.id, c.name\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.id IS NULL;" },
+    { "q": "For each customer, return their most recent order only.", "hint": "ROW_NUMBER() partitioned by customer, ordered by date descending.",
+      "code": "sql", "answer": "WITH ranked AS (\n  SELECT o.*, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY ordered_at DESC) AS rn\n  FROM orders o\n)\nSELECT * FROM ranked WHERE rn = 1;" }
+  ],
+  "interview": [
+    { "q": "What is the difference between WHERE and HAVING?", "a": "WHERE filters individual rows before grouping and cannot use aggregates. HAVING filters groups after GROUP BY and is where conditions on COUNT, SUM, etc. go." },
+    { "q": "INNER JOIN vs LEFT JOIN?", "a": "INNER JOIN returns only rows that match in both tables. LEFT JOIN returns every row of the left table, with NULLs for the right table when there is no match. Use LEFT JOIN when you must not lose rows, for example customers without orders." },
+    { "q": "RANK, DENSE_RANK and ROW_NUMBER?", "a": "All number rows within a window. ROW_NUMBER is always 1, 2, 3 even with ties. RANK gives ties the same number and skips the next ones (1, 1, 3). DENSE_RANK gives ties the same number without gaps (1, 1, 2)." }
+  ]
+}

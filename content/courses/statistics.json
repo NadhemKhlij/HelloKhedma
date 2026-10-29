@@ -1,0 +1,93 @@
+{
+  "why": "Analysts are hired to tell signal from noise. Questions about averages, distributions and A/B tests are standard in data analyst interviews.",
+  "outcome": "describe a dataset correctly, define good KPIs, explain uncertainty and read an A/B test result without common mistakes.",
+  "lessons": [
+    {
+      "title": "Describe data: centre, spread, distribution",
+      "minutes": 40,
+      "text": [
+        "Before any conclusion, look at the distribution: a histogram tells you more than a single average. Salaries, delivery times and revenues are usually skewed, with a long tail of high values.",
+        "With skewed data, the median and percentiles describe the 'typical' case better than the mean."
+      ],
+      "points": [
+        "Mean is sensitive to outliers; the median is not.",
+        "Standard deviation measures spread around the mean; the interquartile range (P75 − P25) is robust.",
+        "Report percentiles for experiences people feel (P90 response time).",
+        "Correlation is not causation: a third factor can drive both."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import pandas as pd\nsalaries = pd.Series([32000, 35000, 38000, 41000, 45000, 120000])\nprint(salaries.mean())    # 51833: pulled up by one outlier\nprint(salaries.median())  # 39500: closer to the typical salary\nprint(salaries.quantile([0.25, 0.75]))"
+      }
+    },
+    {
+      "title": "KPIs and metrics that mean something",
+      "minutes": 35,
+      "text": [
+        "A good KPI is tied to a goal, clearly defined (numerator, denominator, period, filters), and moves when the business really changes.",
+        "Rates need their volumes: '50% conversion' on 4 visitors is not the same as on 40,000."
+      ],
+      "points": [
+        "Write the definition: 'Application rate = applications / offer views, per week, excluding internal traffic'.",
+        "Pair a primary metric with guardrail metrics (e.g. conversion up, but refunds must not rise).",
+        "Beware of averages of ratios; compute the ratio of totals instead.",
+        "Segment results (device, country) before concluding, but watch for Simpson's paradox."
+      ]
+    },
+    {
+      "title": "A/B tests and significance",
+      "minutes": 50,
+      "text": [
+        "An A/B test randomly splits users between the current version (A) and a change (B), then compares a metric. Randomisation is what lets you talk about causation.",
+        "The p-value is the probability of seeing a difference at least this large if there were actually no effect. A small p-value (often < 0.05) means the result is unlikely to be pure noise; it does not measure how big or important the effect is."
+      ],
+      "points": [
+        "Decide the metric, the minimum effect worth detecting and the sample size before starting.",
+        "Do not stop the test the moment it looks significant ('peeking' inflates false positives).",
+        "Report the effect with a confidence interval, e.g. +2.1 pts [+0.4; +3.8].",
+        "Check sample ratio mismatch: a 50/50 split that ends 46/54 signals a bug."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from statsmodels.stats.proportion import proportions_ztest\n# conversions and visitors for A and B\nstat, p_value = proportions_ztest([410, 470], [10000, 10000])\nprint(round(p_value, 4))  # about 0.04 -> unlikely to be noise at the 5% level"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Describe", "items": [
+      ["Mean", "Sum / count; sensitive to outliers"],
+      ["Median (P50)", "Middle value; robust"],
+      ["P90 / P95", "Value 90% / 95% of cases are below"],
+      ["Std deviation", "Typical distance from the mean"],
+      ["IQR = P75 − P25", "Robust spread"]
+    ]},
+    { "group": "Relationships", "items": [
+      ["Correlation r", "−1 to 1, linear association only"],
+      ["Confounder", "Third factor driving both variables"],
+      ["Simpson's paradox", "Trend reverses when groups are combined"]
+    ]},
+    { "group": "Experiments", "items": [
+      ["Null hypothesis", "No difference between A and B"],
+      ["p-value < 0.05", "Unlikely under no effect (not 'proof')"],
+      ["Confidence interval", "Plausible range for the true effect"],
+      ["Statistical power", "Chance to detect a real effect (aim 80%)"],
+      ["MDE", "Minimum detectable effect, sets sample size"]
+    ]}
+  ],
+  "pitfalls": [
+    "Reporting the mean of a skewed distribution as 'typical'.",
+    "Stopping an A/B test early because it 'looks significant'.",
+    "Testing many metrics and only reporting the one that came out significant.",
+    "Concluding causation from a correlation in observational data."
+  ],
+  "exercises": [
+    { "q": "Average delivery time is 3 days but customers complain. What would you look at?", "answer": "The distribution: median and P90/P95. A long tail (some deliveries taking 10+ days) can hide behind a good average. Then segment by region, carrier and product." },
+    { "q": "Variant B has 4.7% conversion vs 4.1% for A, p = 0.04, on 10,000 users each. What do you tell the product manager?", "answer": "B likely improves conversion: the difference is unlikely to be noise. The estimated lift is about +0.6 points, and the confidence interval should be shared because the true lift could be smaller. Check guardrail metrics and that the test ran its planned duration before rolling out." },
+    { "q": "Why compute a conversion rate as total conversions / total visitors rather than the average of daily rates?", "answer": "Days have different traffic. Averaging daily rates gives a small day the same weight as a big one, which biases the result. The ratio of totals weights every visitor equally." }
+  ],
+  "interview": [
+    { "q": "Explain a p-value to a non-technical person.", "a": "If the change really had no effect, the p-value is how often we would still see a difference this big just by chance. A small value means chance alone is an unlikely explanation. It does not tell us how big or valuable the effect is." },
+    { "q": "Mean or median for salaries?", "a": "Median, because salaries are skewed by a few very high values. The median describes the typical salary; I would add percentiles to show the spread." },
+    { "q": "What can go wrong in an A/B test?", "a": "Too small a sample, peeking and stopping early, multiple metrics without correction, sample ratio mismatch from a bug, novelty effects, and running it during an unusual period." }
+  ]
+}

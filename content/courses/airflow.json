@@ -1,0 +1,100 @@
+{
+  "why": "Airflow is the most common orchestrator in data engineering job offers. It schedules pipelines, retries failures and shows what ran when.",
+  "outcome": "write a DAG with dependent tasks, schedule it, pass data between tasks correctly and debug a failed run.",
+  "lessons": [
+    {
+      "title": "DAGs, tasks and schedules",
+      "minutes": 40,
+      "text": [
+        "A DAG (directed acyclic graph) is a pipeline: tasks and the order they run in. Airflow reads Python files in the dags folder and runs each DAG on its schedule.",
+        "Each run has a logical date (the data interval it processes). Pipelines should process that interval, not 'now', so re-running an old day gives the same result."
+      ],
+      "points": [
+        "schedule='@daily' or a cron string like '0 6 * * *' (every day at 06:00).",
+        "catchup=False avoids running every missed interval since start_date.",
+        "retries and retry_delay handle temporary failures.",
+        "Tasks should be idempotent: running them twice gives the same result."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from datetime import datetime, timedelta\nfrom airflow.decorators import dag, task\n\n@dag(schedule=\"0 6 * * *\", start_date=datetime(2026, 1, 1), catchup=False,\n     default_args={\"retries\": 2, \"retry_delay\": timedelta(minutes=5)})\ndef job_offers():\n    @task\n    def extract(ds=None):\n        return f\"s3://raw/offers/{ds}.json\"\n\n    @task\n    def load(path: str):\n        print(f\"loading {path} into the warehouse\")\n\n    load(extract())\n\njob_offers()",
+        "note": "TaskFlow API (Airflow 2+). ds is the run's logical date as YYYY-MM-DD."
+      }
+    },
+    {
+      "title": "Operators, connections and passing data",
+      "minutes": 45,
+      "text": [
+        "Operators are ready-made task types: BashOperator, PythonOperator, SQL operators, cloud transfers. Connections store credentials (database, cloud) outside the code.",
+        "Tasks pass small values through XCom (what @task functions return). Large data never goes through XCom: write it to storage and pass the path."
+      ],
+      "points": [
+        "Set dependencies with >>: extract >> transform >> load.",
+        "Create connections in the UI (Admin → Connections) or with environment variables.",
+        "Variables hold small configuration; never put secrets in DAG code.",
+        "Use templating ({{ ds }}) to inject the run date into SQL or commands."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from airflow.operators.bash import BashOperator\nfrom airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator\n\ndownload = BashOperator(\n    task_id=\"download\",\n    bash_command=\"python /opt/jobs/download.py --date {{ ds }}\",\n)\naggregate = SQLExecuteQueryOperator(\n    task_id=\"aggregate\",\n    conn_id=\"warehouse\",\n    sql=\"INSERT INTO daily_offers SELECT '{{ ds }}', COUNT(*) FROM raw_offers WHERE day = '{{ ds }}'\",\n)\ndownload >> aggregate"
+      }
+    },
+    {
+      "title": "Run, monitor and debug",
+      "minutes": 35,
+      "text": [
+        "The UI shows each DAG run and the state of every task. When something fails, open the task logs first: most errors are a missing connection, a wrong path or bad input data.",
+        "After fixing, clear the failed task (and downstream tasks) to re-run only what is needed."
+      ],
+      "points": [
+        "airflow dags test <dag_id> 2026-10-01 runs a DAG once locally without the scheduler.",
+        "airflow tasks test <dag_id> <task_id> <date> runs a single task.",
+        "Backfill re-runs past intervals after a bug fix.",
+        "Alert on failure (email, Slack callback) so you are not the last to know."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "airflow dags list\nairflow dags test job_offers 2026-10-01\nairflow tasks test job_offers load 2026-10-01"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "DAG settings", "items": [
+      ["schedule=\"@daily\" / \"0 6 * * *\"", "When it runs"],
+      ["start_date=datetime(2026,1,1)", "First interval"],
+      ["catchup=False", "Do not run missed intervals"],
+      ["default_args={\"retries\": 2}", "Retries for every task"],
+      ["max_active_runs=1", "One run at a time"]
+    ]},
+    { "group": "Tasks", "items": [
+      ["@task def f(): ...", "Python task (TaskFlow)"],
+      ["BashOperator(bash_command=...)", "Run a shell command"],
+      ["a >> b >> c", "Dependencies"],
+      ["[a, b] >> c", "c waits for a and b"],
+      ["{{ ds }}", "Logical date in templates"]
+    ]},
+    { "group": "CLI", "items": [
+      ["airflow dags list", "Known DAGs"],
+      ["airflow dags test <dag> <date>", "Run once locally"],
+      ["airflow tasks test <dag> <task> <date>", "Run one task"],
+      ["airflow dags backfill -s D1 -e D2 <dag>", "Re-run a date range"]
+    ]}
+  ],
+  "pitfalls": [
+    "Heavy code at the top level of the DAG file (API calls, queries): it runs every time the scheduler parses the file.",
+    "Using datetime.now() inside tasks instead of the logical date, which breaks re-runs.",
+    "Passing DataFrames through XCom.",
+    "Dynamic start_date (datetime.now()) that makes the DAG never run."
+  ],
+  "exercises": [
+    { "q": "Write the dependency line for: extract runs first, then clean and enrich in parallel, then load.",
+      "code": "python", "answer": "extract >> [clean, enrich] >> load" },
+    { "q": "A daily DAG failed for 3 days because of a bug, now fixed. How do you re-process those days?", "answer": "Clear the failed runs in the UI (with downstream tasks) or run a backfill for that date range: airflow dags backfill -s 2026-10-01 -e 2026-10-03 <dag_id>. This works because tasks use the logical date and are idempotent." },
+    { "q": "Write a cron schedule for every Monday at 07:30.", "code": "text", "answer": "30 7 * * 1" }
+  ],
+  "interview": [
+    { "q": "What does idempotent mean for a pipeline task?", "a": "Running it several times for the same interval gives the same result, for example by overwriting the partition for that date instead of appending. It makes retries and backfills safe." },
+    { "q": "What is XCom and when should you avoid it?", "a": "A mechanism to pass small values between tasks, stored in Airflow's metadata database. Avoid it for large data such as DataFrames or files: write them to storage and pass the path." },
+    { "q": "Airflow vs cron?", "a": "Cron only triggers commands at times. Airflow adds dependencies between tasks, retries, backfills, a UI with history and logs, and connections management." }
+  ]
+}

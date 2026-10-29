@@ -1,0 +1,101 @@
+{
+  "why": "Application support is judged on how incidents are handled: speed, communication and preventing repeats. ITIL vocabulary and ServiceNow appear in most support job offers.",
+  "outcome": "classify and prioritise incidents, run an incident calmly with clear updates, write a post-mortem, and use ITIL terms correctly.",
+  "lessons": [
+    {
+      "title": "ITIL essentials",
+      "minutes": 35,
+      "text": [
+        "ITIL is a framework of good practices for IT services. In support roles you will mostly use four practices: incident, problem, change and service request management.",
+        "The key difference: an incident is about restoring service fast; a problem is about finding and removing the underlying cause."
+      ],
+      "points": [
+        "Incident: unplanned interruption or degradation of a service.",
+        "Service request: a normal request (access, password reset), not a failure.",
+        "Problem: the cause of one or more incidents; a known error has a documented workaround.",
+        "Change: any modification to production, assessed for risk (standard, normal, emergency).",
+        "SLA: agreed targets with the client, e.g. P1 response in 15 min, resolution in 4 h."
+      ]
+    },
+    {
+      "title": "Handle an incident",
+      "minutes": 45,
+      "text": [
+        "Priority = impact (how many users or how critical the service) × urgency (how fast it hurts). Agree the matrix in advance so nobody debates it at 3 a.m.",
+        "During a major incident, separate roles: someone fixes, someone coordinates and communicates. Regular updates calm everyone, even when there is no news yet."
+      ],
+      "points": [
+        "Log the ticket first, with time, symptoms, impact and who reported it.",
+        "Check what changed recently: deployments, config, certificates, data volumes.",
+        "Restore first (rollback, restart, failover, workaround), investigate deeply later.",
+        "Update stakeholders on a fixed rhythm (every 30 min for a P1) with: impact, what we know, next step, next update time.",
+        "Escalate early with facts, not late with excuses."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "[P1 UPDATE 10:30] Job search unavailable for all users since 09:52.\nCause under investigation; a deployment at 09:45 is the main suspect.\nAction: rollback in progress, ETA 10:45.\nNext update: 11:00 or earlier if resolved."
+      }
+    },
+    {
+      "title": "Root cause and post-mortem",
+      "minutes": 40,
+      "text": [
+        "Once service is back, open a problem to find the root cause so it does not happen again. Techniques: 5 Whys, timeline reconstruction, fishbone (Ishikawa) diagram.",
+        "A blameless post-mortem focuses on how the system allowed the failure, not on who made a mistake. It ends with concrete actions, owners and dates."
+      ],
+      "points": [
+        "Timeline: detection, response, mitigation, resolution, with timestamps.",
+        "Measure MTTD (time to detect) and MTTR (time to restore).",
+        "Actions: fix the cause, improve detection (alerts), improve response (runbooks).",
+        "Write the known error and workaround in the knowledge base."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "5 Whys\n1. Why was search down? The API returned 500 errors.\n2. Why? It could not connect to the database.\n3. Why? The connection pool was exhausted.\n4. Why? A new feature opened connections without closing them.\n5. Why? No load test or code review check covered connection handling.\nActions: fix the leak, add a pool-usage alert, add a load test to CI."
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "ITIL terms", "items": [
+      ["Incident", "Service broken or degraded → restore fast"],
+      ["Problem", "Underlying cause → remove it"],
+      ["Known error", "Problem with a documented workaround"],
+      ["Service request", "Standard ask (access, info)"],
+      ["Change (standard / normal / emergency)", "Controlled modification"]
+    ]},
+    { "group": "Priority", "items": [
+      ["Impact", "How many users / how critical"],
+      ["Urgency", "How fast it becomes damaging"],
+      ["P1", "Critical service down for many users"],
+      ["P4", "Minor issue with a workaround"]
+    ]},
+    { "group": "Metrics", "items": [
+      ["SLA", "Agreed target with the client"],
+      ["OLA", "Internal agreement between teams"],
+      ["MTTD / MTTR", "Mean time to detect / restore"],
+      ["First contact resolution", "Solved without escalation"]
+    ]},
+    { "group": "Status update", "items": [
+      ["Impact", "Who / what is affected since when"],
+      ["Known", "What we know so far"],
+      ["Action", "What we are doing, ETA"],
+      ["Next update", "Time of the next message"]
+    ]}
+  ],
+  "pitfalls": [
+    "Investigating root cause for an hour while users are still blocked: restore first.",
+    "Silence during an incident; stakeholders assume the worst.",
+    "Closing the incident without opening a problem for recurring issues.",
+    "Blame in post-mortems, which makes people hide information next time."
+  ],
+  "exercises": [
+    { "q": "Payroll export fails for one office the day before payday; others work. What priority and why?", "answer": "High (P2, possibly P1 depending on the matrix): impact is limited to one office, but urgency is very high because salaries are due tomorrow. Priority combines both." },
+    { "q": "Write a first status message for a login outage affecting all users since 14:05.", "answer": "[P1] Since 14:05, users cannot log in to the application. The team is investigating; recent changes are being checked. Workaround: none yet. Next update at 14:45." },
+    { "q": "The same disk-full incident happened 4 times this month. What do you do?", "answer": "Open a problem record, find the root cause (log rotation missing, growing table, temp files), apply a permanent fix, add an alert at 80% disk usage, and document the known error and workaround meanwhile." }
+  ],
+  "interview": [
+    { "q": "Incident vs problem?", "a": "An incident is an unplanned interruption that we restore as quickly as possible. A problem is the underlying cause of one or more incidents, which we investigate to prevent them from happening again." },
+    { "q": "Tell me how you handled a critical incident.", "a": "Use STAR: the situation and impact, your role, the actions (log, assess, communicate, restore, escalate), and the result with numbers (restored in 40 minutes), then what you improved afterwards." },
+    { "q": "How do you prioritise tickets?", "a": "With an impact × urgency matrix agreed with the business and aligned with SLAs, then by SLA deadline. I re-evaluate when new information changes the impact." }
+  ]
+}

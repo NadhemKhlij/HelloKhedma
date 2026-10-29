@@ -1,0 +1,110 @@
+{
+  "why": "Application support and data engineering jobs run on Linux servers. Interviews often ask you to find something in a log from the command line.",
+  "outcome": "navigate a server, read and search files and logs, check processes and disk, and write a small Bash script.",
+  "lessons": [
+    {
+      "title": "Navigate and manage files",
+      "minutes": 35,
+      "text": [
+        "Everything is a file in a tree starting at /. Your shell has a current directory; commands act relative to it unless you give an absolute path.",
+        "Permissions say who can read (r), write (w) and execute (x) a file: the owner, the group, everyone else."
+      ],
+      "points": [
+        "pwd, ls -lah, cd, mkdir -p, cp, mv, rm (no undo).",
+        "~ is your home directory; . is here; .. is the parent.",
+        "chmod +x script.sh makes a script executable; chown changes the owner.",
+        "Tab completes names; the up arrow recalls commands; Ctrl+C stops a command."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "cd /var/log/myapp\nls -lah            # sizes and dates\nmkdir -p ~/backup/2026-10\ncp app.log ~/backup/2026-10/\nchmod 640 ~/backup/2026-10/app.log"
+      }
+    },
+    {
+      "title": "Read and search logs",
+      "minutes": 45,
+      "text": [
+        "Most investigations are: find the time of the problem, find the error lines, read the context around them.",
+        "Commands combine with the pipe |: the output of one becomes the input of the next."
+      ],
+      "points": [
+        "less file (search with /text, quit with q); tail -n 100 file; tail -f file to follow live.",
+        "grep -i \"error\" file, grep -n for line numbers, grep -C 5 for 5 lines of context.",
+        "grep -c counts matches; sort | uniq -c | sort -nr counts distinct lines.",
+        "zgrep searches compressed .gz logs."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# errors in the last 1000 lines, with context\ntail -n 1000 app.log | grep -i -C 3 \"error\"\n\n# most frequent error messages today\ngrep \"2026-10-29\" app.log | grep ERROR | cut -d' ' -f4- | sort | uniq -c | sort -nr | head"
+      }
+    },
+    {
+      "title": "Processes, disk, network and scripts",
+      "minutes": 50,
+      "text": [
+        "When an application is slow or down, check if the process runs, how much CPU and memory it uses, whether the disk is full, and whether the port answers.",
+        "A Bash script saves a sequence of commands. Start it with a shebang and make it stop on errors."
+      ],
+      "points": [
+        "ps aux | grep java; top or htop for live usage; kill <pid> (kill -9 only as last resort).",
+        "df -h for disk space; du -sh * | sort -h to find big folders; free -h for memory.",
+        "systemctl status myapp; journalctl -u myapp --since \"1 hour ago\".",
+        "curl -I http://localhost:8080/health checks an HTTP endpoint; ss -tlnp lists listening ports.",
+        "set -euo pipefail at the top of a script stops on the first error."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "#!/usr/bin/env bash\nset -euo pipefail\n# health.sh: quick health check for an app\nAPP=myapp\nsystemctl is-active --quiet \"$APP\" && echo \"$APP running\" || echo \"$APP DOWN\"\ndf -h / | tail -1\ncurl -s -o /dev/null -w \"health: %{http_code}\\n\" http://localhost:8080/health"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Files", "items": [
+      ["ls -lah", "List with sizes, hidden files"],
+      ["cd -", "Go back to the previous directory"],
+      ["find / -name \"*.log\" -mtime -1", "Logs changed in the last day"],
+      ["chmod +x f / chmod 640 f", "Make executable / set permissions"],
+      ["tar -czf a.tgz dir/", "Compress a folder"]
+    ]},
+    { "group": "Logs & text", "items": [
+      ["tail -f app.log", "Follow a log live"],
+      ["grep -i -C 3 \"error\" f", "Case-insensitive search with context"],
+      ["grep -c \"timeout\" f", "Count matching lines"],
+      ["cut -d',' -f2", "Second comma-separated field"],
+      ["sort | uniq -c | sort -nr", "Count and rank identical lines"],
+      ["awk '{print $1}' f", "First column"]
+    ]},
+    { "group": "System", "items": [
+      ["ps aux | grep name", "Find a process"],
+      ["top / htop", "CPU and memory live"],
+      ["df -h / du -sh *", "Disk free / folder sizes"],
+      ["free -h", "Memory"],
+      ["systemctl status|restart svc", "Service state / restart"],
+      ["journalctl -u svc -n 100", "Service logs"]
+    ]},
+    { "group": "Network", "items": [
+      ["curl -I url", "HTTP status and headers"],
+      ["ss -tlnp", "Listening ports and processes"],
+      ["ping host / nslookup host", "Reachability / DNS"]
+    ]}
+  ],
+  "pitfalls": [
+    "rm -rf with a variable that turns out empty: always quote variables and double-check paths.",
+    "Restarting a service before saving the logs that explain the crash.",
+    "Using kill -9 first: the process cannot clean up.",
+    "Scripts without set -e that keep going after a failed step."
+  ],
+  "exercises": [
+    { "q": "Show the 20 most recent lines that contain 'ERROR' or 'FATAL' in app.log.",
+      "code": "bash", "answer": "grep -E \"ERROR|FATAL\" app.log | tail -n 20" },
+    { "q": "The disk is full. Find the 10 biggest folders under /var.",
+      "code": "bash", "answer": "sudo du -sh /var/* 2>/dev/null | sort -h | tail -n 10" },
+    { "q": "Count requests per HTTP status code in an access log where the status is the 9th field.",
+      "code": "bash", "answer": "awk '{print $9}' access.log | sort | uniq -c | sort -nr" }
+  ],
+  "interview": [
+    { "q": "An application is slow. What do you check on the server?", "a": "Is the process up (systemctl / ps)? CPU and memory (top), disk space and I/O (df -h, iostat), recent errors in logs (tail, grep), dependencies such as the database and network (curl, ping), and what changed recently (deployments, config)." },
+    { "q": "What does chmod 755 mean?", "a": "Owner can read, write, execute (7); group and others can read and execute (5). Typical for scripts and directories." },
+    { "q": "How do you follow a log in real time and only see errors?", "a": "tail -f app.log | grep --line-buffered -i error" }
+  ]
+}

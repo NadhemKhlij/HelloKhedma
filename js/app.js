@@ -5,6 +5,7 @@ import { searchJobs, boardLinks } from "./jobs.js";
 import { renderBoard } from "./tracker.js";
 import { extractSkills, matchSkills, addKeywords, readCvFile } from "./ats.js";
 import { initAuth } from "./auth.js";
+import { loadCourseIndex, renderCourseList, renderCourse, courseForSkill } from "./courses.js";
 
 const PATH_KEY = "hk.path", LOC_KEY = "hk.location", PROG_KEY = "hk.progress.v2";
 const CV_KEY = "hk.cv.text"; // the CV text stays in this browser only, even for signed-in users
@@ -36,22 +37,28 @@ function toggleTheme() {
   renderThemeToggle();
 }
 
-/* ---------- pages (hash routes: #/, #/offers, #/training, #/cv, #/applications) ---------- */
-const ROUTES = { home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications" };
+/* ---------- pages (hash routes: #/, #/offers, #/training, #/cv, #/applications, #/course/<id>) ---------- */
+const ROUTES = { home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course" };
+const NAV_OF = { course: "training" }; // which nav tab is highlighted for sub-pages
+const coursesReady = loadCourseIndex();
 // Anything that is not "#/<route>" (e.g. Supabase's "#access_token=..." after a magic link) shows Home
 // and is left untouched so supabase-js can read it.
 const routeOf = () => {
-  const r = location.hash.match(/^#\/([a-z]*)/)?.[1] || "home";
-  return r in ROUTES ? r : "home";
+  const [, r = "home", param = null] = location.hash.match(/^#\/([a-z]*)(?:\/([a-z0-9-]+))?/) || [];
+  return r in ROUTES ? { r: r || "home", param } : { r: "home", param: null };
 };
 function showRoute(moveFocus) {
-  const r = routeOf();
+  const { r, param } = routeOf();
+  const nav = NAV_OF[r] || r;
   document.querySelectorAll("[data-page]").forEach((s) => { s.hidden = s.dataset.page !== r; });
   document.querySelectorAll("[data-route]").forEach((a) => {
-    if (a.dataset.route === r) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    if (a.dataset.route === nav) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   });
   document.title = r === "home" ? "HelloKhedma" : `${ROUTES[r]} · HelloKhedma`;
-  if (moveFocus) { window.scrollTo(0, 0); $(`#h-${r}`)?.focus({ preventScroll: true }); }
+  if (moveFocus) window.scrollTo(0, 0);
+  if (r === "course") {
+    coursesReady.then(() => renderCourse(param)).then(() => { if (moveFocus) $("#h-course")?.focus({ preventScroll: true }); });
+  } else if (moveFocus) $(`#h-${r}`)?.focus({ preventScroll: true });
 }
 
 /* ---------- data loading (all content comes from Supabase) ---------- */
@@ -200,6 +207,7 @@ function renderLearn() {
   renderTracks();
   $("#tools").replaceChildren(...byKind("tool").map((t) => h("li", {}, h("b", {}, t.title), h("small", { class: "mute block" }, t.description))));
   $("#tips").replaceChildren(...byKind("tip").map((t) => h("li", { class: "rounded-lg p-3 text-sm", style: "background:var(--bg);border:1px solid var(--line)" }, t.title)));
+  renderCourseList($("#courseList"), state.pathId);
   renderHome();
 }
 
@@ -249,7 +257,13 @@ async function track(job, btn) {
 
 /* ---------- CV skills (the CV text is kept in this browser only) ---------- */
 const fitColor = (score) => (score >= 70 ? "#18a999" : score >= 40 ? "#f08a24" : "#e0508b");
-const skillChip = (name, inCv) => h("span", { class: `chip text-xs ${inCv ? "chip-ok" : "mute"}` }, inCv ? `✓ ${name}` : name);
+// A skill you have shows ✓; a missing skill with a HelloKhedma course links to it (📘).
+const skillChip = (name, inCv) => {
+  const course = inCv ? null : courseForSkill(name);
+  return course
+    ? h("a", { href: `#/course/${course}`, class: "chip text-xs mute hover:opacity-80", title: `Learn ${name}: HelloKhedma course` }, `📘 ${name}`)
+    : h("span", { class: `chip text-xs ${inCv ? "chip-ok" : "mute"}` }, inCv ? `✓ ${name}` : name);
+};
 
 function setCv(text) {
   const skills = extractSkills(text);
@@ -317,7 +331,7 @@ function onAts() {
       h("span", { class: "mute text-sm font-normal" }, ` · ${r.matched.length} of ${r.total} ${usedJd ? "skills from the offer" : "path keywords"} are in your CV`)),
     h("p", { class: "mute text-sm mt-3 mb-1" }, "In your CV"),
     h("div", { class: "flex flex-wrap gap-2" }, r.matched.length ? chips(r.matched, true) : h("span", { class: "mute text-sm" }, "None yet.")),
-    h("p", { class: "mute text-sm mt-3 mb-1" }, "Missing: add the ones you genuinely have"),
+    h("p", { class: "mute text-sm mt-3 mb-1" }, "Missing: add the ones you genuinely have · 📘 = open the HelloKhedma course"),
     h("div", { class: "flex flex-wrap gap-2" }, r.missing.length ? chips(r.missing, false) : h("span", { class: "mute text-sm" }, "Nothing missing.")),
   );
 }
@@ -454,7 +468,7 @@ async function init() {
     const saved = ls.get(PATH_KEY);
     state.pathId = state.paths.some((p) => p.id === saved) ? saved : state.paths[0]?.id;
     if (!state.pathId) throw new Error("No career paths found. Did you run supabase/seed.sql?");
-    await Promise.all([loadResources(), loadTracks()]);
+    await Promise.all([loadResources(), loadTracks(), coursesReady]);
   } catch (e) { fail(e); return; }
 
   $("#loc").value = ls.get(LOC_KEY) || "";

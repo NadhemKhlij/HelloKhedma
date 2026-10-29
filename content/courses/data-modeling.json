@@ -1,0 +1,97 @@
+{
+  "why": "Good models make dashboards fast and numbers consistent. Interviews for data and BI roles often ask you to design a schema on a whiteboard.",
+  "outcome": "identify entities, keys and relationships, normalise an operational model, and design a star schema for analytics.",
+  "lessons": [
+    {
+      "title": "Entities, keys and relationships",
+      "minutes": 40,
+      "text": [
+        "Start from the business: which things exist (customers, offers, applications) and how they relate. Each becomes a table; each row needs a stable unique identifier, the primary key.",
+        "A foreign key stores the primary key of a related row (applications.offer_id → offers.id). Cardinality says how many rows relate: one-to-many, many-to-many."
+      ],
+      "points": [
+        "One-to-many: put the foreign key on the 'many' side.",
+        "Many-to-many: add a bridge table (application_skills with application_id and skill_id).",
+        "Prefer surrogate keys (generated ids) over business values that can change (emails, names).",
+        "Draw it first: an ER diagram with tables, keys and arrows."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "create table companies (id bigint primary key, name text not null);\ncreate table offers (\n  id bigint primary key,\n  company_id bigint not null references companies(id),\n  title text not null,\n  posted_on date not null\n);\ncreate table skills (id bigint primary key, name text unique not null);\ncreate table offer_skills (\n  offer_id bigint references offers(id),\n  skill_id bigint references skills(id),\n  primary key (offer_id, skill_id)\n);"
+      }
+    },
+    {
+      "title": "Normalisation for operational systems",
+      "minutes": 35,
+      "text": [
+        "Normalisation removes duplicated facts so each piece of information lives in one place. Applications that write a lot (OLTP) use normalised models to avoid inconsistent updates.",
+        "In practice, aiming for third normal form (3NF) is enough: every column depends on the key, the whole key, and nothing but the key."
+      ],
+      "points": [
+        "1NF: one value per cell, no repeating groups (no 'skill1, skill2, skill3' columns).",
+        "2NF: in a table with a composite key, no column depends on only part of it.",
+        "3NF: no column depends on another non-key column (company_city belongs in companies, not offers).",
+        "Denormalise on purpose, for reading speed, in analytics models."
+      ]
+    },
+    {
+      "title": "Star schemas for analytics",
+      "minutes": 45,
+      "text": [
+        "Analytics models (OLAP) are optimised for reading. A star schema has one fact table of events or measurements surrounded by dimension tables that describe them.",
+        "Always define the grain of a fact table first, in one sentence: 'one row per application per day'."
+      ],
+      "points": [
+        "Facts: numeric measures and foreign keys to dimensions (fact_applications: date_key, candidate_key, offer_key, status).",
+        "Dimensions: descriptive attributes used to filter and group (dim_date, dim_company, dim_offer).",
+        "Slowly changing dimensions: type 1 overwrites, type 2 keeps history with valid_from / valid_to.",
+        "Power BI and most BI tools work best with a star schema."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "              dim_date\n                 |\ndim_company -- fact_applications -- dim_offer\n                 |\n            dim_candidate\n\nGrain: one row per application status change."
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Keys", "items": [
+      ["Primary key", "Unique, not null identifier of a row"],
+      ["Foreign key", "Points to a primary key in another table"],
+      ["Surrogate key", "Generated id with no business meaning"],
+      ["Composite key", "Several columns together are unique"]
+    ]},
+    { "group": "Relationships", "items": [
+      ["1 → N", "Foreign key on the N side"],
+      ["N ↔ N", "Bridge table with both keys"],
+      ["1 → 1", "Same key, or merge the tables"]
+    ]},
+    { "group": "Normal forms", "items": [
+      ["1NF", "Atomic values, no repeating columns"],
+      ["2NF", "No partial dependency on a composite key"],
+      ["3NF", "No dependency between non-key columns"]
+    ]},
+    { "group": "Analytics", "items": [
+      ["Fact table", "Events / measures at a stated grain"],
+      ["Dimension", "Descriptive attributes to slice by"],
+      ["Star schema", "Facts in the middle, dimensions around"],
+      ["SCD type 2", "History rows with valid_from / valid_to"],
+      ["OLTP vs OLAP", "Write-optimised vs read-optimised"]
+    ]}
+  ],
+  "pitfalls": [
+    "Not stating the grain of a fact table, then double counting.",
+    "Storing lists in one column ('SQL, Python') instead of a bridge table.",
+    "Using names or emails as primary keys.",
+    "Snowflaking dimensions everywhere, which makes BI models slower and harder to use."
+  ],
+  "exercises": [
+    { "q": "Model candidates who apply to offers, where an application has a status that changes over time.", "answer": "Tables candidates(id, ...), offers(id, company_id, ...), applications(id, candidate_id, offer_id, created_at) and application_status_history(application_id, status, changed_at). History is a separate table because one application has many status changes." },
+    { "q": "What is the grain of a fact table that stores daily counts of offers per city and skill?", "answer": "One row per day, per city, per skill." },
+    { "q": "An offers table has columns company_name and company_city. Which normal form is broken and how do you fix it?", "answer": "3NF: company_city depends on the company, not on the offer. Move company attributes to a companies table and keep company_id in offers." }
+  ],
+  "interview": [
+    { "q": "Star schema vs snowflake schema?", "a": "In a star schema each dimension is one denormalised table joined directly to the fact. In a snowflake schema dimensions are normalised into several tables. Stars are simpler and faster for BI; snowflakes save space and avoid duplication." },
+    { "q": "What is a slowly changing dimension?", "a": "A dimension whose attributes change over time, such as a customer's city. Type 1 overwrites the value (no history); type 2 adds a new row with validity dates so past facts keep the old value." },
+    { "q": "OLTP vs OLAP?", "a": "OLTP systems handle many small reads and writes for applications and use normalised models. OLAP systems handle large analytical queries and use denormalised models like star schemas, often in columnar warehouses." }
+  ]
+}

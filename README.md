@@ -27,6 +27,10 @@ Auth settings (Dashboard → Authentication → URL Configuration): add your loc
 
 ## 2. Job APIs
 
+- France Travail (recommended for France: free, full descriptions + structured skills, which makes the
+  CV fit score much more accurate): on https://francetravail.io create an account and an application,
+  subscribe it to the API "Offres d'emploi v2", then set `FRANCE_TRAVAIL_CLIENT_ID` and
+  `FRANCE_TRAVAIL_CLIENT_SECRET` as secrets. It only covers France.
 - Adzuna: create an app at https://developer.adzuna.com to get an app id and key.
 - JSearch: subscribe to the JSearch API on RapidAPI to get a key.
   You only need one of the two; the free tiers have quotas, so check each provider's current limits.

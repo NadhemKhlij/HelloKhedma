@@ -332,8 +332,9 @@ function renderJob({ j, skills, fit }) {
     h("p", { class: "text-sm mt-2 mute" }, j.snippet),
     h("div", { class: "flex items-center gap-2 mt-2" },
       url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn" }, "View offer") : null,
-      btn, h("span", { class: "mute text-xs ml-auto" }, j.source)));
+      btn, h("span", { class: "mute text-xs ml-auto" }, SOURCE_NAMES[j.source] || j.source)));
 }
+const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch" };
 
 function renderOffers() {
   const hasCv = state.cv.skills.length > 0;

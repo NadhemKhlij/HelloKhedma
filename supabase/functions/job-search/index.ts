@@ -1,10 +1,13 @@
 // Supabase Edge Function: job-search
-// Proxies Adzuna and RapidAPI JSearch so API keys never reach the browser.
+// Proxies France Travail, Adzuna and RapidAPI JSearch so API keys never reach the browser.
 //
-// Secrets (supabase secrets set ...):
+// Secrets (supabase secrets set ...), each source is optional:
+//   FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET
+//                                   (francetravail.io, API "Offres d'emploi v2"; France only, full descriptions)
 //   ADZUNA_APP_ID, ADZUNA_APP_KEY   (https://developer.adzuna.com)
 //   RAPIDAPI_KEY                    (subscribe to "JSearch" on RapidAPI)
-//   DEFAULT_PROVIDER                optional: adzuna | jsearch | both (default adzuna)
+//   DEFAULT_PROVIDER                optional: all | francetravail | adzuna | jsearch (default all)
+//                                   "all" uses every source whose secrets are set.
 //   CACHE_TTL_HOURS                 optional: how long identical searches are served from cache (default 6)
 //   RATE_LIMIT_GUEST                optional: searches per hour per IP for guests (default 20)
 //   RATE_LIMIT_USER                 optional: searches per hour per signed-in user (default 60)
@@ -21,7 +24,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Source = "adzuna" | "jsearch";
+type Source = "francetravail" | "adzuna" | "jsearch";
 type Job = {
   id: string;
   title: string;
@@ -69,6 +72,75 @@ async function rateBucket(req: Request): Promise<{ bucket: string; limit: number
 
 // deno-lint-ignore no-explicit-any
 type Raw = any;
+
+const configured: Record<Source, () => boolean> = {
+  francetravail: () => Boolean(Deno.env.get("FRANCE_TRAVAIL_CLIENT_ID") && Deno.env.get("FRANCE_TRAVAIL_CLIENT_SECRET")),
+  adzuna: () => Boolean(Deno.env.get("ADZUNA_APP_ID") && Deno.env.get("ADZUNA_APP_KEY")),
+  jsearch: () => Boolean(Deno.env.get("RAPIDAPI_KEY")),
+};
+
+// France Travail: OAuth2 client-credentials token, reused until shortly before it expires.
+let ftToken: { value: string; expires: number } | null = null;
+async function franceTravailToken(): Promise<string> {
+  if (ftToken && ftToken.expires > Date.now()) return ftToken.value;
+  const res = await fetch("https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: Deno.env.get("FRANCE_TRAVAIL_CLIENT_ID") ?? "",
+      client_secret: Deno.env.get("FRANCE_TRAVAIL_CLIENT_SECRET") ?? "",
+      scope: "api_offresdemploiv2 o2dsoffre",
+    }),
+  });
+  if (!res.ok) throw new Error(`France Travail login failed (${res.status}). Check the client id/secret and the API subscription.`);
+  const data = await res.json();
+  ftToken = { value: data.access_token, expires: Date.now() + (Number(data.expires_in) || 1400) * 1000 - 60_000 };
+  return ftToken.value;
+}
+
+// France Travail filters by département, not free text: turn "Lyon", "69" or "69003" into a département code.
+async function departementOf(where: string): Promise<string | null> {
+  if (/^(\d{2}|2[ab]|97\d)$/i.test(where)) return where.toUpperCase();
+  const q = /^\d{5}$/.test(where) ? `codePostal=${where}` : `nom=${encodeURIComponent(where)}&boost=population`;
+  const res = await fetch(`https://geo.api.gouv.fr/communes?${q}&fields=codeDepartement&limit=1`);
+  if (!res.ok) return null;
+  return (await res.json())[0]?.codeDepartement ?? null;
+}
+
+async function franceTravail(q: string, where: string, country: string, page: number): Promise<Job[]> {
+  if (!configured.francetravail()) throw new Error("France Travail is not configured (FRANCE_TRAVAIL_CLIENT_ID / _SECRET).");
+  if (country !== "fr") throw new Error("France Travail only covers France.");
+  const params = new URLSearchParams({ motsCles: q, range: `${(page - 1) * 20}-${page * 20 - 1}`, sort: "1" });
+  if (where) {
+    const dep = await departementOf(where);
+    if (!dep) throw new Error(`France Travail: location "${where}" not recognised. Try a city, a postcode or a département number.`);
+    params.set("departement", dep);
+  }
+  const res = await fetch(`https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search?${params}`, {
+    headers: { Authorization: `Bearer ${await franceTravailToken()}`, Accept: "application/json" },
+  });
+  if (res.status === 204) return []; // no offers
+  if (!res.ok) throw new Error(`France Travail returned ${res.status}.`);
+  const data = await res.json();
+  return (data.resultats ?? []).map((x: Raw): Job => ({
+    id: String(x.id),
+    title: strip(x.intitule),
+    company: x.entreprise?.nom ?? "",
+    location: x.lieuTravail?.libelle ?? "",
+    url: x.origineOffre?.urlOrigine || `https://candidat.francetravail.fr/offres/recherche/detail/${x.id}`,
+    posted: x.dateCreation ?? null,
+    snippet: strip(x.description),
+    // Full description plus the structured skills and training fields.
+    text: strip([
+      x.description,
+      ...(x.competences ?? []).map((c: Raw) => c.libelle),
+      ...(x.formations ?? []).map((f: Raw) => [f.domaineLibelle, f.niveauLibelle].filter(Boolean).join(" ")),
+      ...(x.langues ?? []).map((l: Raw) => l.libelle),
+    ].filter(Boolean).join(" "), 6000),
+    source: "francetravail",
+  }));
+}
 
 async function adzuna(q: string, where: string, country: string, page: number): Promise<Job[]> {
   const appId = Deno.env.get("ADZUNA_APP_ID");
@@ -150,9 +222,13 @@ Deno.serve(async (req) => {
   const where = String(body.location ?? "").trim().slice(0, 100);
   const country = COUNTRIES.has(String(body.country)) ? String(body.country) : "fr";
   const page = Math.min(Math.max(parseInt(body.page, 10) || 1, 1), 5);
-  const wanted = String(body.provider ?? Deno.env.get("DEFAULT_PROVIDER") ?? "adzuna");
-  const providers: Source[] =
-    wanted === "both" ? ["adzuna", "jsearch"] : wanted === "jsearch" ? ["jsearch"] : ["adzuna"];
+  const wanted = String(body.provider ?? Deno.env.get("DEFAULT_PROVIDER") ?? "all");
+  // France Travail comes first so that, for an offer listed on several sources, its full description wins the dedupe.
+  const ALL: Source[] = ["francetravail", "adzuna", "jsearch"];
+  const providers: Source[] = wanted === "all" || wanted === "both"
+    ? ALL.filter((p) => configured[p]() && !(p === "francetravail" && country !== "fr"))
+    : ALL.includes(wanted as Source) ? [wanted as Source] : ["adzuna"];
+  if (!providers.length) return json({ error: "No job source is configured for this country." }, 502);
 
   // Guard and cache need the migration 20261028000200_job_search_guard.sql; if it is missing we log and carry on.
   // "v2": results now carry `text`; bumping the key skips entries cached before that change.
@@ -173,9 +249,8 @@ Deno.serve(async (req) => {
     else if (hit) return json({ ...hit.results, cached: true });
   }
 
-  const results = await Promise.allSettled(
-    providers.map((p) => (p === "adzuna" ? adzuna(query, where, country, page) : jsearch(query, where, country, page))),
-  );
+  const fetchers = { francetravail: franceTravail, adzuna, jsearch };
+  const results = await Promise.allSettled(providers.map((p) => fetchers[p](query, where, country, page)));
 
   const warnings: string[] = [];
   const seen = new Set<string>();

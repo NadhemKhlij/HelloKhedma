@@ -77,7 +77,7 @@ Read the header comment of any file before modifying it; update the header if be
 ## Routes (`#/<route>[/<param>]`, router in js/router.js)
 - `#/` → home → home.js (path cards: app.js)
 - `#/offers` → offers → offers.js + jobs.js, companies.js, remote.js (three tabs)
-- `#/training` → training → training.js (tracks, study plan) + courses.js (course list)
+- `#/training` → training → training.js (My learning, roadmap of tracks, study plan) + courses.js (course list)
 - `#/course/<id>` → course → courses.js
 - `#/cv` → cv → cvpage.js + cvs.js, ats.js
 - `#/interview` → interview → interview.js
@@ -107,7 +107,9 @@ Read the header comment of any file before modifying it; update the header if be
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
 - js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
 - js/tailor.js — "Tailor my CV" dialog: honest gap analysis + prompt to copy for the user's own AI (nothing sent)
-- js/courses.js — course list and course page
+- js/courses.js — course list and course page (tabs: lessons one at a time, quiz, flashcards, practice, interview, cheat sheet)
+- js/practice.js — quiz (generated from the cheat sheet), flashcards, self-graded exercises, interview reveal
+- js/activity.js — XP, study streak, 7-day strip, last course for "Resume" (local only, "hk.activity")
 - js/interview.js — interview prep page
 - sw.js, manifest.json, icons/ — installable app and offline cache
 - content/courses/, content/interview/ — course and interview content (JSON)

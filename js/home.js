@@ -1,12 +1,13 @@
-// Home page (#/): greeting (time of day + first name when signed in), the summary cards for Training (progress ring),
+// Home page (#/): greeting (time of day + first name when signed in), the summary cards for Training (progress ring, streak),
 // Applications and Offers, then "Next actions" (follow-ups due, interviews this week, from tracker.js; an empty state
 // when nothing is due). The path cards are drawn by app.js (renderPaths).
 import { $, h } from "./lib.js";
-import { t } from "./i18n.js";
+import { t, tn } from "./i18n.js";
 import { state, path } from "./state.js";
 import { nextActions } from "./tracker.js";
 import { stepsOf } from "./training.js";
 import { progressRing } from "./icons.js";
+import { streak } from "./activity.js";
 
 // First name from the account: profile name if the provider gave one, else the start of the email address.
 function firstName(user) {
@@ -37,7 +38,8 @@ export function renderHome() {
     h("span", { class: "btn-ghost !py-1.5 self-start mt-2" }, `${t(cta)} →`));
   $("#homeSummary").replaceChildren(
     card(t("Training"), all.length ? t("{done}/{all} steps", { done, all: all.length }) : t("No tracks yet"),
-      next ? t("Next up: {title}", { title: next.title }) : all.length ? t("Every step is done. Time to apply!") : "", "#/training", "Continue learning",
+      [next ? t("Next up: {title}", { title: next.title }) : all.length ? t("Every step is done. Time to apply!") : "",
+        streak() ? `🔥 ${tn(streak(), "{n} day", "{n} days")}` : ""].filter(Boolean).join(" · "), "#/training", "Continue learning",
       all.length ? progressRing(done / all.length) : null),
     card(t("Applications"), String(state.cards.length),
       t("{applied} applied · {interview} interview · {offer} offer", { applied: count("applied"), interview: count("interview"), offer: count("offer") }),

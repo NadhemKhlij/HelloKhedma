@@ -74,7 +74,8 @@ dialog[open] { animation:hk-pop .2s ease-out; }
 .legal a { color:var(--accent); text-decoration:underline; }
 
 /* Courses */
-.codeblock { background:var(--code); border:1px solid var(--line); border-radius:.5rem; padding:.75rem; overflow-x:auto;
+/* width:0 + min-width:100%: long lines scroll inside the block instead of widening grid parents on phones. */
+.codeblock { width:0; min-width:100%; background:var(--code); border:1px solid var(--line); border-radius:.5rem; padding:.75rem; overflow-x:auto;
   font-size:.8rem; line-height:1.5; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre; }
 .inline-code { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:.8rem; background:var(--code);
   border-radius:.25rem; padding:0 .3rem; white-space:pre-wrap; word-break:break-word; }
@@ -101,3 +102,27 @@ dialog { color:inherit; }
 [role="tablist"] > .btn { background:var(--panel); color:var(--text); box-shadow:var(--shadow-hover); opacity:1; }
 /* Page titles get focus on navigation (router.js) for screen readers; no visible ring for that programmatic focus. */
 [tabindex="-1"]:focus { outline:none; }
+
+/* Learning: roadmap line, round step checks, quiz options, flip cards */
+.roadmap { position:relative; }
+.roadmap-item::before { content:""; position:absolute; left:17px; top:0; bottom:-.75rem; width:2px; background:var(--line); }
+.roadmap-item:first-child::before { top:1.5rem; }
+.roadmap-item:last-child::before { bottom:auto; height:1.5rem; }
+details > summary.list-none::-webkit-details-marker { display:none; }
+.check { width:1.6rem; height:1.6rem; flex-shrink:0; margin-top:.1rem; border-radius:999px; border:2px solid var(--line);
+  display:grid; place-items:center; font-size:.8rem; font-weight:700; color:#fff; background:var(--panel); }
+.check:hover { border-color:var(--accent); }
+.check.on { background:#18a999; border-color:#18a999; animation:hk-check .3s ease-out; }
+@keyframes hk-check { 0% { transform:scale(.7); } 60% { transform:scale(1.15); } 100% { transform:scale(1); } }
+.opt { text-align:left; border-radius:.9rem; padding:.75rem 1rem; border:1px solid var(--line); background:var(--panel); font-size:.9rem; }
+.opt:not(:disabled):hover { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 6%, var(--panel)); }
+.opt:disabled { cursor:default; opacity:.7; }
+.opt.opt-ok { opacity:1; border-color:#18a999; background:color-mix(in srgb, #18a999 14%, var(--panel)); }
+.opt.opt-bad { opacity:1; border-color:#e0508b; background:color-mix(in srgb, #e0508b 12%, var(--panel)); animation:hk-shake .3s; }
+@keyframes hk-shake { 25% { transform:translateX(-4px); } 75% { transform:translateX(4px); } }
+.flip { perspective:1200px; display:block; }
+.flip-inner { position:relative; min-height:220px; transition:transform .5s cubic-bezier(.2,.7,.2,1); transform-style:preserve-3d; }
+.flip.on .flip-inner { transform:rotateY(180deg); }
+.flip .face { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:.75rem; padding:1.5rem; text-align:center;
+  border-radius:1rem; border:1px solid var(--line); background:var(--panel); box-shadow:var(--shadow-hover); backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+.flip .face.back { transform:rotateY(180deg); background:color-mix(in srgb, var(--accent) 8%, var(--panel)); }

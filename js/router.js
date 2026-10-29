@@ -6,7 +6,8 @@ import { t } from "./i18n.js";
 import { state, path } from "./state.js";
 import { loadCourseIndex, renderCourse } from "./courses.js";
 import { renderInterview } from "./interview.js";
-import { renderStudyPlan } from "./training.js";
+import { refreshLearning } from "./training.js";
+import { renderHome } from "./home.js";
 
 const ROUTES = {
   home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course",
@@ -33,7 +34,8 @@ export function showRoute(moveFocus) {
     coursesReady.then(() => renderCourse(param)).then(() => { if (moveFocus) $("#h-course")?.focus({ preventScroll: true }); });
   } else if (moveFocus) $(`#h-${r}`)?.focus({ preventScroll: true });
   if (r === "interview") refreshInterview();
-  if (r === "training" && path()) renderStudyPlan(); // lesson progress may have changed on a course page
+  if (r === "training" && path()) refreshLearning(); // lessons, quiz scores and XP may have changed on a course page
+  if (r === "home" && path()) renderHome(); // streak
 }
 
 // The interview page depends on the path (role questions, courses) and the tracker (upcoming interviews).

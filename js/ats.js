@@ -3,6 +3,10 @@
 // SKILLS is a dictionary of [canonical name, category, aliases]. Aliases are matched case- and
 // accent-insensitively on word boundaries, in English and French. The career-path keywords from the
 // database are added at runtime (addKeywords), so every path keyword is detectable too.
+// Course index entries (content/courses/index.json) must use these canonical names so missing skills link to a course.
+//
+// CV files: readCvFile() reads PDF (pdf.js 4.4.168 from cdnjs, loaded only when needed) or plain text.
+// The CV text is stored by app.js in localStorage ("hk.cv.text") only; never send it to Supabase or any API.
 
 export const SKILLS = [
   // Languages

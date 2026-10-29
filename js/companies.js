@@ -3,6 +3,8 @@
 // directly (no Edge Function, no quota). Jobs are normalised to the same shape as job-search results:
 //   { id, title, company, location, url, posted, snippet, text, source }
 // The watchlist is stored in this browser ("hk.watchlist").
+// Providers: Greenhouse, Lever, Ashby, Workable, SmartRecruiters. Adding one: a FETCH entry + parseCareersLink rule,
+// and add it to the privacy policy in index.html (the browser calls it directly, so it sees the user's IP).
 import { ls } from "./lib.js";
 import { norm } from "./ats.js";
 

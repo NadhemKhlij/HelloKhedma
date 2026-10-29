@@ -1,6 +1,9 @@
+// Job search ("Job search" tab): calls the job-search Edge Function, which queries France Travail, Adzuna and
+// JSearch server-side (only the providers whose secrets are set), so API keys never reach the browser.
+// boardLinks() builds direct links to job boards as a fallback when the function is unavailable.
 import { sb } from "./supabase.js";
 
-// Calls the job-search Edge Function (Adzuna / JSearch). Keys stay server-side.
+// Calls the job-search Edge Function. Keys stay server-side.
 export async function searchJobs({ query, location, provider, country, page = 1 }) {
   const { data, error } = await sb.functions.invoke("job-search", {
     body: { query, location, provider, country, page },

@@ -15,6 +15,10 @@
 //
 // Request  (POST JSON): { query, location?, provider?, country?, page? }
 // Response (JSON):      { jobs: Job[], warnings: string[], cached?: true }   429 when rate limited
+//
+// Cache (job_search_cache, 6 h) and rate limit (job_search_hits) come from migration 20261028000200. Guests are
+// limited per IP stored only as a SHA-256 hash, purged after 24 h, as stated in the privacy policy.
+// Deploying from the dashboard: paste from a commit-pinned raw GitHub link (the plain raw link is cached ~5 min).
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 

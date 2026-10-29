@@ -1,4 +1,11 @@
 // Two stores with the same interface: LocalStore (guests) and CloudStore (signed in).
+// Interface: list(), add(app), update(id, patch), move(id, stage), remove(id), detailsSupported().
+// - LocalStore keeps applications in localStorage ("hk.applications.v1").
+// - CloudStore uses the RLS-protected `applications` table (rows scoped to auth.uid()).
+// - importLocalToCloud() runs once after sign-in: copies guest cards into the account, then clears them locally.
+// Detail columns (salary, contact, next_action, follow_up_on, interview_at, history) come from migration
+// 20261029000000_application_details.sql. CloudStore.detailsSupported() checks the column exists and only sends
+// those fields once it does, so signed-in users keep working before the owner runs the migration (CHECKLIST O6).
 import { ls } from "./lib.js";
 
 export const STAGES = [

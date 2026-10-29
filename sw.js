@@ -4,6 +4,8 @@
 // - Google Fonts: cache first.
 // - Everything else (sign-in, account data, job searches, Edge Functions): not touched, never cached.
 // Bump VERSION to drop old caches after a big change.
+// New JS files: add them to SHELL. New top-level files (like this one): add them to the "Assemble site" step of
+// .github/workflows/deploy.yml, or they are not published.
 const VERSION = "hk-v1";
 const SHELL = [
   "./", "index.html", "css/app.css", "manifest.json", "icons/icon-192.png",

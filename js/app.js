@@ -1,3 +1,14 @@
+// App entry point: state, hash router, and the rendering of Home, Offers, Training, CV check and Account.
+// - Router: #/<route>[/<param>] → shows <section data-page="route"> (ROUTES, NAV_OF). Anything else shows Home,
+//   untouched, so supabase-js can read "#access_token=..." after a magic link.
+// - Data: path content from Supabase (career_paths, path_resources, training_tracks/steps); applications through
+//   state.store (LocalStore for guests, CloudStore when signed in, see store.js); onUser() imports guest data on sign-in.
+// - Offers has three tabs feeding one results list (state.jobs): Job search (jobs.js → job-search function),
+//   Companies I follow (companies.js), Remote jobs (remote.js). Each tab keeps state.<mode>Jobs / <mode>Msg.
+//   Source credits required by providers' terms: CREDITS. Offer tags, hide/seen and saved searches: this browser.
+// - CV: text kept only in localStorage ("hk.cv.text", never sent to Supabase); skills via ats.js.
+// - Also here: theme toggle ("hk.theme"), weekly study plan, account export/delete (delete-account function),
+//   error toasts + optional Sentry (CONFIG.SENTRY_DSN), PWA registration (sw.js) and the "Install the app" link.
 import { $, h, safeUrl, safeColor, ls, toast, download } from "./lib.js";
 import { sb, configured, CONFIG } from "./supabase.js";
 import { LocalStore, CloudStore, importLocalToCloud, STAGES } from "./store.js";

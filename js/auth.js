@@ -1,3 +1,6 @@
+// Sign-in dialog (#authDialog): password sign-in, account creation and email magic link, via Supabase Auth.
+// Email links redirect to this page (must be listed in Supabase → Auth → URL Configuration). onUser(user | null) is
+// called on load (INITIAL_SESSION) and on every sign-in / sign-out; app.js then switches LocalStore ↔ CloudStore.
 import { sb } from "./supabase.js";
 import { $ } from "./lib.js";
 

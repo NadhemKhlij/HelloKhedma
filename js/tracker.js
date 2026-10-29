@@ -1,4 +1,10 @@
 // Application tracker UI: Kanban board, details dialog, stats, follow-ups, CSV and calendar files.
+// - Board: drag and drop + arrow buttons; "Details" opens #appDialog (fields read via form.elements, since
+//   form.title is the form's own attribute). Interview-stage cards get a "Prepare" link to #/interview.
+// - Stage changes append to `history` (timeline, stats). nextActions() feeds Home: due follow-ups, interviews in 7 days.
+// - Stats + weekly goal ("hk.weeklyGoal"), CSV export/import (accepts "," or ";"), .ics file for interviews.
+// - Detail fields need migration 20261029000000 for signed-in users; keep the detailsSupported() fallback in store.js
+//   (the dialog shows a notice when details are not synced).
 import { $, h, safeUrl, safeColor, download } from "./lib.js";
 import { STAGES } from "./store.js";
 

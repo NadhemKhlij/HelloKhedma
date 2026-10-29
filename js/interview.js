@@ -1,7 +1,9 @@
 // Interview prep page (#/interview): practice decks, STAR stories, checklist, upcoming interviews.
 // Content: content/interview/common.json (behavioral questions, themes, checklist, questions to ask, salary tips)
 // and content/interview/<path id>.json (role questions). Technical questions come from the path's courses.
-// Practice ratings, stories and checklist ticks are kept in this browser.
+// Practice ratings, stories and checklist ticks are kept in this browser ("hk.iv.ratings", "hk.iv.stories",
+// "hk.iv.checklist", "hk.iv.tab"). A new career path needs content/interview/<path id>.json ({ role: [{ id, q, why, model }] });
+// behavioral questions carry a `theme` from common.json "themes", which links them to STAR stories.
 import { $, h, ls, toast } from "./lib.js";
 import { courseInterviewQuestions } from "./courses.js";
 

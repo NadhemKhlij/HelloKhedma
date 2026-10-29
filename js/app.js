@@ -38,7 +38,10 @@ function toggleTheme() {
 }
 
 /* ---------- pages (hash routes: #/, #/offers, #/training, #/cv, #/applications, #/course/<id>) ---------- */
-const ROUTES = { home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course" };
+const ROUTES = {
+  home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course",
+  account: "Your account & data", legal: "Legal notice", privacy: "Privacy policy",
+};
 const NAV_OF = { course: "training" }; // which nav tab is highlighted for sub-pages
 const coursesReady = loadCourseIndex();
 // Anything that is not "#/<route>" (e.g. Supabase's "#access_token=..." after a magic link) shows Home
@@ -212,9 +215,83 @@ function renderLearn() {
 }
 
 function renderStatus() {
-  $("#status").textContent = state.user ? `Synced · ${state.user.email}` : "Guest mode · saved on this device";
-  $("#authOpen").hidden = Boolean(state.user);
-  $("#signOut").hidden = !state.user;
+  const u = state.user;
+  $("#status").textContent = u ? `Synced · ${u.email}` : "Guest mode · saved on this device";
+  $("#authOpen").hidden = Boolean(u);
+  $("#accountLink").hidden = !u;
+  $("#signOut").hidden = !u;
+  $("#accountWho").textContent = u
+    ? `Signed in as ${u.email}. Your applications, training progress and path are synced to your account; your CV stays on this device.`
+    : "You are using HelloKhedma as a guest: everything is stored in this browser only, nothing on our servers.";
+  $("#deleteInfo").textContent = u
+    ? "Permanently deletes your account and everything linked to it (applications, progress, profile), then clears this browser. This cannot be undone."
+    : "Clears every HelloKhedma data from this browser: applications, progress, CV text and settings. This cannot be undone.";
+  $("#deleteData").textContent = u ? "Delete my account" : "Delete data on this device";
+}
+
+/* ---------- account & data (GDPR: access, portability, erasure) ---------- */
+const localData = () => Object.fromEntries(
+  Object.keys(localStorage).filter((k) => k.startsWith("hk.")).map((k) => [k, ls.get(k)]));
+const clearLocalData = () => Object.keys(localStorage).filter((k) => k.startsWith("hk.")).forEach((k) => ls.del(k));
+
+async function onExport() {
+  const out = { exported_at: new Date().toISOString(), app: "HelloKhedma", this_device: localData() };
+  if (state.user) {
+    const [profile, applications, progress] = await Promise.all([
+      sb.from("profiles").select("*"), sb.from("applications").select("*"), sb.from("step_progress").select("*")]);
+    const err = profile.error || applications.error || progress.error;
+    if (err) { fail(err); return; }
+    out.account = { email: state.user.email, created_at: state.user.created_at,
+      profile: profile.data, applications: applications.data, training_progress: progress.data };
+  }
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const a = h("a", { href: URL.createObjectURL(blob), download: `hellokhedma-data-${new Date().toISOString().slice(0, 10)}.json` });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function onDelete() {
+  const signedIn = Boolean(state.user);
+  const ok = confirm(signedIn
+    ? "Delete your HelloKhedma account and all its data permanently?"
+    : "Delete all HelloKhedma data stored in this browser?");
+  if (!ok) return;
+  const btn = $("#deleteData");
+  btn.disabled = true;
+  try {
+    if (signedIn) {
+      const { error } = await sb.functions.invoke("delete-account", { body: {} });
+      if (error) {
+        let msg = error.message;
+        try { msg = (await error.context.json()).error || msg; } catch { /* keep message */ }
+        throw new Error(`Could not delete the account: ${msg}`);
+      }
+      await sb.auth.signOut().catch(() => {}); // the session belongs to a deleted user
+    }
+    clearLocalData();
+    toast(signedIn ? "Your account and data were deleted." : "Data on this device was deleted.");
+    setTimeout(() => { location.hash = "#/"; location.reload(); }, 1200);
+  } catch (e) { fail(e); btn.disabled = false; }
+}
+
+/* ---------- errors: friendly message + optional Sentry (CONFIG.SENTRY_DSN) ---------- */
+let lastErrorToast = 0;
+function onUnexpectedError(err) {
+  console.error(err);
+  if (Date.now() - lastErrorToast > 10_000) { // at most one message every 10 s
+    lastErrorToast = Date.now();
+    toast("Something went wrong. Please try again; if it persists, reload the page.");
+  }
+}
+function initMonitoring() {
+  window.addEventListener("error", (e) => onUnexpectedError(e.error || e.message));
+  window.addEventListener("unhandledrejection", (e) => onUnexpectedError(e.reason));
+  if (!CONFIG.SENTRY_DSN) return;
+  const s = document.createElement("script");
+  s.src = "https://browser.sentry-cdn.com/8.38.0/bundle.min.js";
+  s.crossOrigin = "anonymous";
+  s.onload = () => window.Sentry?.init({ dsn: CONFIG.SENTRY_DSN, tracesSampleRate: 0, sendDefaultPii: false });
+  document.head.append(s);
 }
 
 function renderAll() {
@@ -368,7 +445,7 @@ const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearc
 
 function renderOffers() {
   const hasCv = state.cv.skills.length > 0;
-  if (!state.jobs.length) { $("#offerTools").hidden = true; $("#results").replaceChildren(); return; }
+  if (!state.jobs.length) { $("#offerTools").hidden = true; $("#results").replaceChildren(); $("#sourceCredits").replaceChildren(); return; }
   let list = state.jobs.map((j) => {
     const skills = extractSkills(jobText(j)).map((s) => s.name);
     let fit = hasCv ? matchSkills(skills, state.cv.names) : null;
@@ -400,6 +477,19 @@ function renderOffers() {
   if (hasCv && $("#sortBy").value === "fit") list = [...list].sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1));
   $("#offerTools").hidden = false;
   $("#results").replaceChildren(...list.map(renderJob));
+  renderSourceCredits();
+}
+
+// Attribution required by the job providers' terms, for the sources present in the results.
+const CREDITS = {
+  adzuna: ["Jobs by Adzuna", "https://www.adzuna.fr"],
+  jsearch: ["JSearch by OpenWeb Ninja", "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch"],
+  francetravail: ["France Travail", "https://www.francetravail.fr"],
+};
+function renderSourceCredits() {
+  const used = [...new Set(state.jobs.map((j) => j.source))].filter((s) => CREDITS[s]);
+  $("#sourceCredits").replaceChildren(...(used.length ? ["Job offers: ", ...used.flatMap((s, i) => [
+    i ? " · " : "", h("a", { href: CREDITS[s][1], target: "_blank", rel: "noopener noreferrer", class: "underline" }, CREDITS[s][0])])] : []));
 }
 
 async function onSearch(e) {
@@ -458,8 +548,13 @@ async function onUser(user) {
 
 /* ---------- init ---------- */
 async function init() {
+  initMonitoring();
   renderThemeToggle();
   $("#themeToggle").addEventListener("click", toggleTheme);
+  document.querySelectorAll(".contact-email").forEach((el) => {
+    const m = CONFIG.CONTACT_EMAIL;
+    el.replaceChildren(m ? h("a", { href: `mailto:${m}`, class: "underline" }, m) : "contact address coming soon");
+  });
   showRoute(false);
   window.addEventListener("hashchange", () => showRoute(true));
   if (!configured) { $("#setup").hidden = false; $("#status").textContent = "Setup needed"; return; }
@@ -482,6 +577,8 @@ async function init() {
   $("#cvClear").addEventListener("click", onCvClear);
   $("#sortBy").addEventListener("change", renderOffers);
   $("#addForm").addEventListener("submit", onAdd);
+  $("#exportData").addEventListener("click", () => onExport().catch(fail));
+  $("#deleteData").addEventListener("click", onDelete);
   $("#cv").value = ls.get(CV_KEY) || "";
   setCv($("#cv").value);
   renderCvSkills();

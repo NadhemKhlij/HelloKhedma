@@ -12,6 +12,11 @@ Effort: **S** ≈ under a day · **M** ≈ 1–3 days · **L** ≈ a week or mor
 | 0.2 | 17 HelloKhedma courses with lessons, printable cheat sheets, exercises, common mistakes and interview questions; missing skills link to them | ✅ live. Still missing: Spark, Kafka, Snowflake/BigQuery, cloud (AWS/Azure/GCP), CI/CD, Tableau, Looker, ServiceNow, Jira deep-dive, data storytelling (see 4.1) |
 
 ## Phase 1: ready for real users (trust, legal, reliability)
+Done in code: 1.2 legal notice + privacy policy (contact email via the `CONTACT_EMAIL` variable), 1.3 Account & data page
+(export JSON, delete account / device data), 1.4 source credits, 1.5 friendly error messages + optional Sentry (`SENTRY_DSN`),
+1.6 SEO tags and favicon. IP addresses for rate limiting are now hashed and purged after 24 h.
+Still to do by you: 1.1 SMTP, own domain, cookie-free analytics (optional). Next in code: 1.7 FR/EN, 1.8 PWA, 1.9 accessibility pass.
+
 | # | Item | Why | Effort |
 |---|---|---|---|
 | 1.1 | Custom email (Resend/Brevo SMTP) + "Confirm email" back on | Sign-up emails reach real people | S |

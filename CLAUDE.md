@@ -45,4 +45,6 @@ trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 - supabase/migrations   schema + RLS
 - supabase/seed.sql     paths, learning tracks + steps, tools, tips, keywords (idempotent)
 - scripts/check-links.mjs   checks every URL in seed.sql (node 18+)
-- supabase/functions/job-search   Edge Function proxy for Adzuna / JSearch
+- supabase/functions/job-search   Edge Function proxy for France Travail / Adzuna / JSearch (cache + rate limit, IPs hashed)
+- supabase/functions/delete-account   Edge Function: deletes the signed-in user (cascades to their rows)
+- index.html legal / privacy sections: keep the privacy policy in sync when adding a provider or new personal data

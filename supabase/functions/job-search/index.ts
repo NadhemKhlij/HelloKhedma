@@ -59,7 +59,12 @@ const admin = supabaseUrl && serviceKey
   ? createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } })
   : null;
 
-// Signed-in users are limited per account, guests (anon key) per IP.
+// Signed-in users are limited per account, guests (anon key) per IP. IPs are stored only as a SHA-256 hash
+// (privacy policy: no raw IP addresses kept), and rows older than 24 h are purged.
+async function sha256(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 async function rateBucket(req: Request): Promise<{ bucket: string; limit: number }> {
   const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
   if (admin && token) {
@@ -67,11 +72,17 @@ async function rateBucket(req: Request): Promise<{ bucket: string; limit: number
     if (data?.user) return { bucket: `user:${data.user.id}`, limit: LIMIT_USER };
   }
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
-  return { bucket: `ip:${ip}`, limit: LIMIT_GUEST };
+  return { bucket: `ip:${await sha256(ip)}`, limit: LIMIT_GUEST };
 }
 
 // deno-lint-ignore no-explicit-any
 type Raw = any;
+
+// The provider's own error text (shortened), so a failing source says why in the app's search message.
+async function providerMessage(res: Response): Promise<string> {
+  const text = await res.text().catch(() => "");
+  try { const j = JSON.parse(text); return String(j.message ?? j.error ?? j.exception ?? text).slice(0, 160); } catch { return text.slice(0, 160) || "no details"; }
+}
 
 const configured: Record<Source, () => boolean> = {
   francetravail: () => Boolean(Deno.env.get("FRANCE_TRAVAIL_CLIENT_ID") && Deno.env.get("FRANCE_TRAVAIL_CLIENT_SECRET")),
@@ -157,7 +168,7 @@ async function adzuna(q: string, where: string, country: string, page: number): 
   }).toString();
 
   const res = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`Adzuna returned ${res.status}.`);
+  if (!res.ok) throw new Error(`Adzuna returned ${res.status}: ${await providerMessage(res)}`);
   const data = await res.json();
   return (data.results ?? []).map((x: Raw): Job => ({
     id: String(x.id),
@@ -187,7 +198,7 @@ async function jsearch(q: string, where: string, country: string, page: number):
   const res = await fetch(url, {
     headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" },
   });
-  if (!res.ok) throw new Error(`JSearch returned ${res.status}.`);
+  if (!res.ok) throw new Error(`JSearch returned ${res.status}: ${await providerMessage(res)}`);
   const data = await res.json();
   return (data.data ?? []).map((x: Raw): Job => ({
     id: String(x.job_id),
@@ -279,6 +290,7 @@ Deno.serve(async (req) => {
       .upsert({ key: cacheKey, results: { jobs, warnings }, created_at: new Date().toISOString() });
     if (error) console.error("cache write failed:", error.message);
     await admin.from("job_search_cache").delete().lt("created_at", new Date(Date.now() - CACHE_TTL_MS).toISOString());
+    await admin.from("job_search_hits").delete().lt("window_start", new Date(Date.now() - 24 * 3600_000).toISOString());
   }
   return json({ jobs, warnings });
 });

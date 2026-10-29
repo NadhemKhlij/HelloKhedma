@@ -15,6 +15,7 @@
 //
 // Request  (POST JSON): { query, location?, provider?, country?, page? }
 // Response (JSON):      { jobs: Job[], warnings: string[], cached?: true }   429 when rate limited
+// Each Job carries the provider's salary as text (`salary`, Adzuna estimates flagged), read by js/salary.js.
 //
 // Cache (job_search_cache, 6 h) and rate limit (job_search_hits) come from migration 20261028000200. Guests are
 // limited per IP stored only as a SHA-256 hash, purged after 24 h, as stated in the privacy policy.
@@ -39,6 +40,21 @@ type Job = {
   snippet: string;
   text: string; // longer description, used by the app to detect skills
   source: Source;
+  // The provider's own salary, as text the app reads (js/salary.js), e.g. "40000-45000 EUR per year". Empty when the
+  // provider gives none; the app then looks for a salary in the description. Estimated = computed by the job site.
+  salary: string;
+  salaryEstimated?: boolean;
+};
+
+// Currencies the app's salary reader understands; other currencies are left out rather than shown wrongly.
+const SALARY_CURRENCIES = new Set(["EUR", "USD", "GBP", "CHF"]);
+const salaryText = (min: unknown, max: unknown, currency: string, period = "year") => {
+  const lo = Number(min), hi = Number(max) || lo;
+  return lo > 0 && SALARY_CURRENCIES.has(currency) ? `${Math.round(lo)}-${Math.round(hi)} ${currency} per ${period.toLowerCase()}` : "";
+};
+// Adzuna gives amounts in the country's currency, per year.
+const ADZUNA_CURRENCY: Record<string, string> = {
+  fr: "EUR", de: "EUR", nl: "EUR", be: "EUR", es: "EUR", it: "EUR", at: "EUR", gb: "GBP", us: "USD", ch: "CHF",
 };
 
 const COUNTRIES = new Set([
@@ -154,6 +170,7 @@ async function franceTravail(q: string, where: string, country: string, page: nu
       ...(x.langues ?? []).map((l: Raw) => l.libelle),
     ].filter(Boolean).join(" "), 6000),
     source: "francetravail",
+    salary: strip(x.salaire?.libelle ?? ""), // e.g. "Annuel de 40000.0 Euros à 45000.0 Euros sur 12.0 mois"
   }));
 }
 
@@ -184,6 +201,8 @@ async function adzuna(q: string, where: string, country: string, page: number): 
     snippet: strip(x.description),
     text: strip(x.description, 4000), // Adzuna itself only returns the first ~500 characters
     source: "adzuna",
+    salary: salaryText(x.salary_min, x.salary_max, ADZUNA_CURRENCY[country] ?? ""),
+    salaryEstimated: String(x.salary_is_predicted) === "1", // Adzuna's own estimate, not the employer's figure
   }));
 }
 
@@ -235,6 +254,7 @@ async function jsearch(q: string, where: string, country: string, page: number):
       x.job_is_remote ? "full remote" : "",
     ].filter(Boolean).join(" "), 6000),
     source: "jsearch",
+    salary: salaryText(x.job_min_salary, x.job_max_salary, String(x.job_salary_currency ?? ""), String(x.job_salary_period || "year")),
   }));
 }
 

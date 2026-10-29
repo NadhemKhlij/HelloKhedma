@@ -3,7 +3,8 @@
 // poll often (Remotive: max ~4 calls a day), so results are cached in this browser for 6 hours per path.
 // Keyword search on these boards is loose, so we read Jobicy by category for each path (checked 2026-10-29) and the
 // app keeps only titles matching the path. Remotive's free feed is small (~a dozen jobs, delayed 24 h) but costs one call.
-// Jobs are normalised to the job-search shape: { id, title, company, location, url, posted, snippet, text, source }.
+// Jobs are normalised to the job-search shape: { id, title, company, location, url, posted, snippet, text, source,
+// salary } (salary: the board's own salary text, read by salary.js).
 // The required credit links are rendered under the results by offers.js (CREDITS). Cache key: "hk.remoteCache".
 import { ls } from "./lib.js";
 
@@ -22,7 +23,7 @@ async function remotive() {
   const d = await res.json();
   return (d.jobs || []).map((x) => job({
     id: String(x.id), title: x.title, company: x.company_name, location: x.candidate_required_location || "Remote",
-    url: x.url, posted: x.publication_date, source: "remotive",
+    url: x.url, posted: x.publication_date, source: "remotive", salary: x.salary || "", // free text, read by salary.js
     tags: `full remote ${x.job_type === "contract" ? "contractor" : x.job_type === "internship" ? "internship" : ""}`, desc: textOf(x.description),
   }));
 }
@@ -33,6 +34,7 @@ async function jobicy(industry) {
   return (d.jobs || []).map((x) => job({
     id: String(x.id), title: textOf(x.jobTitle), company: x.companyName, location: x.jobGeo || "Remote",
     url: x.url, posted: x.pubDate, source: "jobicy",
+    salary: x.annualSalaryMin ? `${x.annualSalaryMin}-${x.annualSalaryMax || x.annualSalaryMin} ${x.salaryCurrency || "USD"} per year` : "",
     tags: `full remote ${[].concat(x.jobType || []).join(" ").replace(/contract/i, "contractor")}`, desc: textOf(x.jobDescription || x.jobExcerpt),
   }));
 }

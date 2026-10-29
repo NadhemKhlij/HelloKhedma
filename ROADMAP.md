@@ -56,7 +56,7 @@ application (2.7b).
 | 2.7b | Cover letter used per application (text kept locally like the CV, or a short note) | Know what was sent to whom | S |
 
 ## Phase 3: find better offers faster
-Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text; salary/date filters still to do),
+Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text; date filter still to do),
 3.3 hide / "not interested", seen marker, "Tracked ✓", 3.4 minimum CV-fit filter, saved searches (this browser; email alerts still to do).
 Done (2026-10-29): "Companies I follow" (career pages on Greenhouse, Lever, Ashby, Workable, SmartRecruiters; full descriptions,
 "New since last visit"). Done (2026-10-29): "Remote jobs" tab (Jobicy by category + Remotive; Himalayas blocks browser
@@ -132,3 +132,7 @@ Note: these have a cost per use; add per-user limits (like the search rate limit
 - 2026-10-29: Interface translation: English is the source language and the key (js/i18n-fr.js maps English → French,
   missing keys fall back to English); no i18n library, no build step. Switching language reloads the page. The choice
   is kept in this browser only ("hk.lang"), not in the profile, to avoid a migration. CSV columns and .ics files stay English.
+- 2026-10-29: Salary (3.1): read from the provider's field (France Travail, Adzuna, JSearch, Jobicy, Remotive) or from
+  the description, in the browser (js/salary.js). Company figures, bonuses and benefits are ignored. Yearly amount =
+  12 months, 218 days, 1,607 hours (French references). The "≥ N k€" filter compares euros only (no currency
+  conversion); Adzuna estimates are marked "≈". Rights tip based on EU directive 2023/970 (France: expected 2027).

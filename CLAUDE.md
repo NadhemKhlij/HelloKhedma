@@ -99,6 +99,7 @@ Read the header comment of any file before modifying it; update the header if be
 - js/remote.js — "Remote jobs" (Jobicy, Remotive)
 - js/cvs.js — CV versions (local only): list, active version, version linked to a path
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
+- js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
 - js/courses.js — course list and course page
 - js/interview.js — interview prep page
 - sw.js, manifest.json, icons/ — installable app and offline cache

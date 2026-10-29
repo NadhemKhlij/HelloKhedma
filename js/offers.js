@@ -3,7 +3,8 @@
 // - Job search: jobs.js → job-search Edge Function (France Travail, Adzuna, JSearch); job-board links as fallback.
 // - Companies I follow: companies.js (career-page APIs, watchlist in this browser, "New since last visit").
 // - Remote jobs: remote.js (Jobicy, Remotive; titles filtered to the path).
-// Every offer gets its skills, contract / remote tags (from the text) and a fit score against the active CV.
+// Every offer gets its skills, contract / remote tags (from the text), a fit score against the active CV and its salary
+// (salary.js: provider field or description; the "≥ N k€" filter and the salary sort use the yearly amount, euros only).
 // Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode").
 // Source credits required by the providers' terms: CREDITS.
 import { $, h, safeUrl, ls, toast } from "./lib.js";
@@ -12,6 +13,7 @@ import { CONFIG } from "./supabase.js";
 import { state, path, fitColor, skillChip } from "./state.js";
 import { searchJobs, boardLinks } from "./jobs.js";
 import { extractSkills, matchSkills, norm } from "./ats.js";
+import { offerSalary, formatSalary } from "./salary.js";
 import { searchRemote } from "./remote.js";
 import {
   loadWatchlist, saveWatchlist, entryKey, PROVIDER_NAMES, SUGGESTED, titleMatcher, findCompany, fetchCompanyJobs, clearCompanyCache,
@@ -87,14 +89,15 @@ function markSeen(key) {
 async function track(job, btn) {
   try {
     await state.store.add({ path_id: state.pathId, title: job.title, company: job.company, location: job.location,
-      url: job.url, source: job.source, external_id: job.id, stage: "saved", cv_version: cvUsed() });
+      url: job.url, source: job.source, external_id: job.id, stage: "saved", cv_version: cvUsed(),
+      salary: job.salaryInfo ? formatSalary(job.salaryInfo) : undefined }); // shown on the tracker card
     btn.disabled = true; btn.textContent = t("Tracked");
     toast(t("Added to Saved"));
     await refreshTracker();
   } catch (e) { toast(e.code === "DUPLICATE" ? t("Already in your tracker") : e.message); }
 }
 
-function renderJob({ j, skills, fit, tags, key }) {
+function renderJob({ j, skills, fit, tags, key, salary }) {
   const url = safeUrl(j.url);
   const tracked = state.cards.some((c) => c.external_id === j.id && c.source === j.source);
   const hidden = state.hidden.has(key), seen = state.seen.has(key);
@@ -116,7 +119,10 @@ function renderJob({ j, skills, fit, tags, key }) {
         h("b", { class: "block" }, j.title),
         h("span", { class: "mute text-sm block" }, [j.company, j.location].filter(Boolean).join(" · "))),
       badge),
-    tags.contract || tags.remote || seen || hidden || j.isNew ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
+    salary || tags.contract || tags.remote || seen || hidden || j.isNew ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
+      salary ? h("span", { class: "chip chip-ok !py-0 text-xs font-medium",
+        title: salary.estimated ? t("Estimated by the job site, not given by the employer") : t("Salary given in the offer") },
+        `💶 ${formatSalary(salary)}`) : null,
       j.isNew ? h("span", { class: "chip chip-ok !py-0 text-xs font-bold", style: "color:var(--accent)" }, t("New")) : null,
       tags.contract ? tag(t(tags.contract)) : null,
       tags.remote ? tag(tags.remote === "Remote" ? t("Full remote") : t("Hybrid / remote")) : null,
@@ -140,7 +146,9 @@ export function renderOffers() {
     const skills = extractSkills(jobText(j)).map((s) => s.name);
     let fit = hasCv ? matchSkills(skills, state.cv.names) : null;
     if (fit && fit.total < MIN_SKILLS_FOR_FIT) fit = { ...fit, score: null };
-    return { j, skills, fit, tags: offerTags(j), key: offerKey(j) };
+    const salary = offerSalary(j);
+    j.salaryInfo = salary; // kept for Track, which copies it into the application
+    return { j, skills, fit, tags: offerTags(j), key: offerKey(j), salary };
   });
   const total = list.length, showHidden = $("#fHidden").checked;
   const hiddenCount = list.filter((x) => state.hidden.has(x.key)).length;
@@ -166,16 +174,25 @@ export function renderOffers() {
         h("a", { href: "#/cv", class: "underline", style: "color:var(--accent)" }, t("CV check")), t(" page to see how well you fit each offer."),
         cvSwitcher()));
 
-  $("#sortBy").disabled = $("#fFit").disabled = !hasCv;
+  $("#fFit").disabled = !hasCv;
   const contract = $("#fContract").value, remote = $("#fRemote").value, minFit = hasCv ? Number($("#fFit").value) : 0;
+  const salaryFilter = $("#fSalary").value, withSalary = list.filter((x) => x.salary).length;
+  // "≥ N k€" compares yearly amounts in euros: offers in another currency are not converted, so they are left out.
+  const salaryOk = (x) => !salaryFilter || (salaryFilter === "shown" ? Boolean(x.salary)
+    : x.salary?.currency === "EUR" && x.salary.yearMax >= Number(salaryFilter));
   list = list.filter((x) =>
     (!state.skillFilter || x.skills.includes(state.skillFilter))
     && (!contract || x.tags.contract === contract)
     && (!remote || (remote === "Remote" ? x.tags.remote === "Remote" : Boolean(x.tags.remote)))
-    && (!minFit || (x.fit?.score ?? -1) >= minFit));
-  if (hasCv && $("#sortBy").value === "fit") list = [...list].sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1));
+    && (!minFit || (x.fit?.score ?? -1) >= minFit)
+    && salaryOk(x));
+  const sort = $("#sortBy").value;
+  if (hasCv && sort === "fit") list = [...list].sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1));
+  if (sort === "salary") list = [...list].sort((a, b) => (b.salary?.yearMax ?? -1) - (a.salary?.yearMax ?? -1));
   $("#fitNote").append(h("span", { class: "mute" }, t(" · Showing {shown} of {total}", { shown: list.length, total })
-    + (hiddenCount ? t(" ({n} hidden)", { n: hiddenCount }) : "")));
+    + (hiddenCount ? t(" ({n} hidden)", { n: hiddenCount }) : "")),
+    h("span", { class: "mute", title: t("An EU directive will require a pay range in every job ad; France plans to apply it in 2027.") },
+      t(" · {n} with a salary", { n: withSalary })));
   $("#offerTools").hidden = false;
   $("#results").replaceChildren(...(list.length ? list.map(renderJob)
     : [h("li", { class: "mute text-sm" }, t("No offer matches these filters. Loosen a filter to see more."))]));
@@ -376,7 +393,7 @@ export function initOffers() {
   $("#role").addEventListener("change", renderBoards);
   $("#loc").addEventListener("input", renderBoards);
   $("#searchForm").addEventListener("submit", onSearch);
-  for (const id of ["#sortBy", "#fContract", "#fRemote", "#fFit", "#fHidden"]) $(id).addEventListener("change", renderOffers);
+  for (const id of ["#sortBy", "#fContract", "#fRemote", "#fFit", "#fSalary", "#fHidden"]) $(id).addEventListener("change", renderOffers);
   $("#saveSearch").addEventListener("click", onSaveSearch);
   renderSavedSearches();
   $("#tabSearch").addEventListener("click", () => setOfferMode("search"));

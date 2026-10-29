@@ -204,7 +204,17 @@ async function jsearch(q: string, where: string, country: string, page: number):
   if (res.status === 404) res = await call("/search", { query, country, page: String(page), num_pages: "1" });
   if (!res.ok) throw new Error(`JSearch returned ${res.status}: ${await providerMessage(res)}`);
   const data = await res.json();
-  return (data.data ?? data.jobs ?? []).map((x: Raw): Job => ({
+  // /search returned { data: [jobs] }; /search-v2 nests the list (e.g. { data: { jobs: [...], cursor } }).
+  // Take the first array of job objects found up to two levels deep.
+  const isJobs = (v: Raw) => Array.isArray(v) && (v.length === 0 || (v[0] && typeof v[0] === "object" && "job_id" in v[0]));
+  const candidates = [data, data?.data, ...Object.values(data ?? {}), ...Object.values(data?.data ?? {})];
+  const list: Raw[] | undefined = candidates.find(isJobs) ??
+    candidates.flatMap((v) => (v && typeof v === "object" ? Object.values(v) : [])).find(isJobs);
+  if (!list) {
+    throw new Error(`JSearch: unexpected response shape (top keys: ${Object.keys(data ?? {}).join(", ")}; data keys: ${
+      data?.data && typeof data.data === "object" ? Object.keys(data.data).join(", ") : typeof data?.data})`);
+  }
+  return list.map((x: Raw): Job => ({
     id: String(x.job_id),
     title: strip(x.job_title),
     company: x.employer_name ?? "",

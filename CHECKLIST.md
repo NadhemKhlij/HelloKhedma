@@ -1,14 +1,13 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-29)
-- **Just finished:** several CV versions (ROADMAP 3.7, CV check page): named versions, one linked per path (it becomes
-  active when you pick that path), switch the scoring CV on the Offers page, the CV match compares every version. An
-  existing CV becomes "My CV" automatically. Local only, like before. Before that: French / English interface (1.7).
-  Both tested as a guest in both languages and at phone width; not tested signed in.
-- **Owner, first:** check "Confirm email" is OFF in Supabase (the Resend test sender only reaches the owner), and
-  delete the Resend key that was pasted in the chat (O5b). Then try the live site in French and English (O12).
-- **Next in code (owner's choice):** accessibility pass (1.9), French content (1.7b) or attaching the CV version used
-  to each application (2.7); also consider splitting js/app.js (ROADMAP, Engineering hygiene).
+- **Just finished:** "CV sent" per application (ROADMAP 2.7): recorded on Track / Add, editable in the details, card
+  badge, response rate per CV, CSV column. Signed-in sync needs migration O13. Before that: several CV versions (3.7)
+  and the French / English interface (1.7). All tested as a guest in both languages and at phone width; not signed in.
+- **Owner, first:** run migration O13 (one line of SQL), check "Confirm email" is OFF in Supabase, delete the Resend
+  key that was pasted in the chat (O5b). Then try the live site in French and English (O12).
+- **Next in code (owner's choice):** accessibility pass (1.9), French content (1.7b) or cover letter per application
+  (2.7b); also consider splitting js/app.js and updating supabase/setup-all.sql (ROADMAP, Engineering hygiene).
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
   local preview without Node: scripts/preview-cdn.sh + scripts/serve.ps1.
 
@@ -26,6 +25,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | O8 | Domain (needed for O5 with Resend; not needed with the Gmail option) | `hellokhedma.com` was available on 2026-10-29 (also .fr/.app/.io/.co). Suggested: Cloudflare Registrar (~$10–11/yr, one-click Resend DNS). Then: GitHub Pages custom domain + HTTPS, Supabase Site/Redirect URLs, Resend `mail.` subdomain. Free option: eu.org (slow manual approval). Guest data is per address: sign in / export before switching | Professional email sender, credibility, shareable links | — |
 | O9 | Legal (before a big launch) | Have the legal notice and privacy policy reviewed | Templates, not legal advice | — |
 | O10 | Your phone | Install the app (Android: "Install the app" link in the footer; iPhone: Safari → Share → Add to Home Screen) and check it opens offline | PWA install was only tested in a desktop browser | — |
+| O13 | Supabase → SQL Editor | Run migration `20261029000100_application_cv.sql` (one line: adds the "CV sent" column to applications; safe to run twice) | Until then, signed-in users can't save which CV they sent (guests can); the dialog shows a notice | [SQL file at commit a26b743](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/a26b74375e5410242d30263c7dc5f33700cdf147/supabase/migrations/20261029000100_application_cv.sql) |
 | O12 | Live site | Sign in and use the app in French, then press **EN** and back: check nothing is left in the wrong language and the French reads naturally (report odd wording) | Translations were written by Claude and only tested as a guest | js/i18n-fr.js |
 | O11 | Content (before promoting) | Have the 17 courses, interview questions and model answers reviewed by people in each field | Written by Claude: realistic but unreviewed | content/courses/, content/interview/ |
 
@@ -48,6 +48,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | 2026-10-29 | Installable app (PWA, offline), "Remote jobs" tab, weekly study plan; no setup needed |
 | 2026-10-29 | Interview prep page (practice, STAR stories, checklist); no setup needed |
 | 2026-10-29 | "Companies I follow" on the Offers page (no setup needed: career-page APIs are called from the browser) |
+| 2026-10-29 | "CV sent" per application (2.7); signed-in sync needs O13 |
 | 2026-10-29 | Several CV versions (3.7); no setup needed |
 | 2026-10-29 | French / English interface (FR/EN button, French legal pages); no setup needed |
 | 2026-10-29 | O2 done: latest `job-search` deployed. **JSearch works**: 10 full offers per search (~6,000 characters each), "All sources" = Adzuna + JSearch with no warnings. Tip: deploy from a commit-pinned raw link, the plain raw link is cached ~5 min |

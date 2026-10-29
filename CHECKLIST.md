@@ -1,13 +1,14 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-29)
-- **Just finished:** "CV sent" per application (ROADMAP 2.7): recorded on Track / Add, editable in the details, card
+- **Just finished:** js/app.js split into one module per page (housekeeping, no visible change; every page re-tested).
+  Before that: "CV sent" per application (ROADMAP 2.7): recorded on Track / Add, editable in the details, card
   badge, response rate per CV, CSV column. Signed-in sync needs migration O13. Before that: several CV versions (3.7)
   and the French / English interface (1.7). All tested as a guest in both languages and at phone width; not signed in.
 - **Owner, first:** run migration O13 (one line of SQL), check "Confirm email" is OFF in Supabase, delete the Resend
   key that was pasted in the chat (O5b). Then try the live site in French and English (O12).
 - **Next in code (owner's choice):** accessibility pass (1.9), French content (1.7b) or cover letter per application
-  (2.7b); also consider splitting js/app.js and updating supabase/setup-all.sql (ROADMAP, Engineering hygiene).
+  (2.7b); also update supabase/setup-all.sql (ROADMAP, Engineering hygiene).
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
   local preview without Node: scripts/preview-cdn.sh + scripts/serve.ps1.
 
@@ -48,6 +49,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | 2026-10-29 | Installable app (PWA, offline), "Remote jobs" tab, weekly study plan; no setup needed |
 | 2026-10-29 | Interview prep page (practice, STAR stories, checklist); no setup needed |
 | 2026-10-29 | "Companies I follow" on the Offers page (no setup needed: career-page APIs are called from the browser) |
+| 2026-10-29 | js/app.js split into one module per page (no change for users) |
 | 2026-10-29 | "CV sent" per application (2.7); signed-in sync needs O13 |
 | 2026-10-29 | Several CV versions (3.7); no setup needed |
 | 2026-10-29 | French / English interface (FR/EN button, French legal pages); no setup needed |

@@ -107,7 +107,8 @@ Note: these have a cost per use; add per-user limits (like the search rate limit
 
 ## Engineering hygiene (ongoing)
 - Smoke tests (Playwright) in the GitHub workflow before each deploy.
-- Consider splitting js/app.js: router / offers / home (it is ~1,000 lines: router + Home + Offers tabs + CV + Account).
+- Done (2026-10-29): js/app.js split into one module per page (state, router, home, offers, training, cvpage,
+  applications, account); app.js keeps start-up, path selection and sign-in (~200 lines).
 - Sync the data that is still local-only to the account: followed companies, saved searches, hidden/seen offers,
   lesson progress, interview ratings and STAR stories, weekly goal (needs a migration with RLS per table). CV versions stay local by design.
 - Self-host the Bricolage Grotesque font instead of Google Fonts (removes a third party from the privacy policy).

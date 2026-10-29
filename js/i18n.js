@@ -5,7 +5,7 @@
 //   ("stage|Interview") when one English word needs two French translations; English shows the part after "|".
 //   A text missing from the dictionary shows in English, so a forgotten key never breaks the page.
 // - tn(n, one, many, vars): plural (French: 0 and 1 are singular). {n} is filled automatically.
-// - Static HTML is translated once at load (text nodes + placeholder / aria-label / title), before app.js renders.
+// - Static HTML is translated once at load (text nodes + placeholder / aria-label / title), before the page modules render.
 //   Elements with data-lang="en" / "fr" are shown only in that language (legal notice, privacy policy) and skipped.
 // - Switching language reloads the page (setLang), so every module renders again in the new language.
 // Course, interview and career-path content (content/, supabase/seed.sql) is English only for now.
@@ -38,7 +38,7 @@ const norm = (s) => s.replace(/\s+/g, " ").trim();
 const ATTRS = ["placeholder", "aria-label", "title"];
 const SKIP = new Set(["SCRIPT", "STYLE", "CODE", "PRE", "TEXTAREA"]);
 
-// Translates the static page once. Remote data is never in the page at this point (app.js renders it later).
+// Translates the static page once. Remote data is never in the page at this point (the page modules render it later).
 function translateStatic(root) {
   root.querySelectorAll("[data-lang]").forEach((el) => { el.hidden = el.dataset.lang !== lang; });
   if (lang === "en") return;

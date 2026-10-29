@@ -65,22 +65,24 @@ Read the header comment of any file before modifying it; update the header if be
 - Seed / content JSON / migrations updated instead of hardcoded data.
 - CHECKLIST.md updated with any new owner task (migration to run, function to deploy, secret to set).
 
-## Routes (`#/<route>[/<param>]`, router in js/app.js)
-- `#/` → home → app.js
-- `#/offers` → offers → app.js + jobs.js, companies.js, remote.js (three tabs)
-- `#/training` → training → app.js (tracks, study plan) + courses.js (course list)
+## Routes (`#/<route>[/<param>]`, router in js/router.js)
+- `#/` → home → home.js (path cards: app.js)
+- `#/offers` → offers → offers.js + jobs.js, companies.js, remote.js (three tabs)
+- `#/training` → training → training.js (tracks, study plan) + courses.js (course list)
 - `#/course/<id>` → course → courses.js
-- `#/cv` → cv → app.js + ats.js
+- `#/cv` → cv → cvpage.js + cvs.js, ats.js
 - `#/interview` → interview → interview.js
-- `#/applications` → applications → tracker.js + store.js
-- `#/account` → account → app.js
+- `#/applications` → applications → applications.js + tracker.js, store.js
+- `#/account` → account → account.js
 - `#/legal`, `#/privacy` → legal, privacy → static HTML in index.html
 - Anything else → home (keeps Supabase's `#access_token=` for supabase-js)
 
 ## Layout
 - index.html — page shell, nav, one `<section data-page>` per route, dialogs, legal and privacy text
 - css/input.css — Tailwind source and theme variables (css/app.css is generated, gitignored)
-- js/app.js — entry point: state, router, Home / Offers / Training / CV / Account rendering
+- js/app.js — entry point: start-up, career path selection, sign-in, theme / language, error monitoring, PWA
+- js/state.js — shared state (state, path(), fail(), skill chips); js/router.js — routes and page focus
+- js/home.js, js/offers.js, js/training.js, js/cvpage.js, js/applications.js, js/account.js — one module per page
 - js/lib.js — DOM helpers (h, $), localStorage wrapper, toast, download
 - js/i18n.js — interface language (t, tn, FR/EN switch, static page translation); js/i18n-fr.js — French texts
 - js/supabase.js — Supabase client and runtime CONFIG

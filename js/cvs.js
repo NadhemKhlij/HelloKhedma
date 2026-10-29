@@ -2,7 +2,7 @@
 // - "hk.cvs": [{ id, name, text, path_id (career path that uses this version automatically, or null), updated_at }]
 // - "hk.cv.active": id of the version that scores offers, the CV match and the study plan.
 // - The single CV of earlier versions ("hk.cv.text") is moved into a first version named "My CV" on first load.
-// At most one version is linked to a given path; app.js activates it when that path is selected.
+// At most one version is linked to a given path; cvpage.js (useCvForPath) activates it when that path is selected.
 import { ls } from "./lib.js";
 import { t } from "./i18n.js";
 

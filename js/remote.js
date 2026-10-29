@@ -4,7 +4,7 @@
 // Keyword search on these boards is loose, so we read Jobicy by category for each path (checked 2026-10-29) and the
 // app keeps only titles matching the path. Remotive's free feed is small (~a dozen jobs, delayed 24 h) but costs one call.
 // Jobs are normalised to the job-search shape: { id, title, company, location, url, posted, snippet, text, source }.
-// The required credit links are rendered under the results by app.js (CREDITS). Cache key: "hk.remoteCache".
+// The required credit links are rendered under the results by offers.js (CREDITS). Cache key: "hk.remoteCache".
 import { ls } from "./lib.js";
 
 const CACHE_KEY = "hk.remoteCache", TTL = 6 * 3600_000;

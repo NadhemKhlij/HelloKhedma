@@ -1,12 +1,12 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-29)
-- **Just finished:** "Tailor my CV" (ROADMAP 5.2 step 1) on every offer and after a CV match: gap analysis + a prompt
-  to copy into the user's own AI; the in-app AI button is shown disabled (later: signed-in only, owner needs an
-  Anthropic API key). Before that: salary on offers (3.1), French content (1.7b), app.js split, "CV sent" (2.7), CV
-  versions (3.7), FR/EN interface (1.7). O13–O15 done. Everything tested as a guest in both languages; not signed in.
-- **Owner, first:** check "Confirm email" is OFF in Supabase, delete the Resend key that was pasted in the chat (O5b).
-  Then sign in on the live site and try it in French and English (O12).
+- **Just finished:** "Rewrite with AI" in Tailor my CV (ROADMAP 5.2): cv-tailor function (Claude Opus 5.5), signed-in
+  only, 5 a day, notice before every send, privacy policy updated. It needs O16 (API key + deploy); the function code
+  was not run by Claude (no Deno/key here), only the app side. Before that: "Tailor my CV" prompt, salary on offers,
+  French content, app.js split, "CV sent", CV versions, FR/EN interface. O13–O15 done. Not tested signed in.
+- **Owner, first:** O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). Also check
+  "Confirm email" is OFF in Supabase and delete the Resend key that was pasted in the chat (O5b).
 - **Next in code (owner's choice):** smoke tests in CI (ROADMAP, Engineering hygiene), accessibility pass (1.9),
   cover letter prompt (same approach as Tailor, 5.1), networking contacts; also update supabase/setup-all.sql.
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
@@ -26,6 +26,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | O8 | Domain (needed for O5 with Resend; not needed with the Gmail option) | `hellokhedma.com` was available on 2026-10-29 (also .fr/.app/.io/.co). Suggested: Cloudflare Registrar (~$10–11/yr, one-click Resend DNS). Then: GitHub Pages custom domain + HTTPS, Supabase Site/Redirect URLs, Resend `mail.` subdomain. Free option: eu.org (slow manual approval). Guest data is per address: sign in / export before switching | Professional email sender, credibility, shareable links | — |
 | O9 | Legal (before a big launch) | Have the legal notice and privacy policy reviewed | Templates, not legal advice | — |
 | O10 | Your phone | Install the app (Android: "Install the app" link in the footer; iPhone: Safari → Share → Add to Home Screen) and check it opens offline | PWA install was only tested in a desktop browser | — |
+| O16 | console.anthropic.com + Supabase | **1.** Anthropic Console → API keys → create a key named "hellokhedma-cv-tailor"; set a monthly spend limit (Settings → Limits). **2.** Supabase → Edge Functions → Secrets → add `ANTHROPIC_API_KEY` = that key (never paste it in a chat). **3.** Edge Functions → Deploy a new function named `cv-tailor`, paste the file below, keep "Verify JWT" on, Deploy. Optional secrets: `CV_TAILOR_DAILY_LIMIT` (default 5), `CV_TAILOR_MODEL` (default `claude-opus-5-5`, about 8 cents a rewrite; `claude-sonnet-5-5` about half) | "Rewrite with AI" answers "not set up yet" until then; the copy-prompt option works meanwhile | [cv-tailor/index.ts at fdc6405](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/fdc640575f9d687f88d56629550bbad490611933/supabase/functions/cv-tailor/index.ts) |
 | O12 | Live site | Sign in and use the app in French, then press **EN** and back: check nothing is left in the wrong language and the French reads naturally (report odd wording) | Translations were written by Claude and only tested as a guest | js/i18n-fr.js |
 | O11 | Content (before promoting) | Have the 17 courses, interview questions and model answers reviewed by people in each field, in English **and French** | Written and translated by Claude: realistic but unreviewed | content/courses/, content/interview/ (French in fr/ subfolders) |
 
@@ -49,6 +50,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | 2026-10-29 | Interview prep page (practice, STAR stories, checklist); no setup needed |
 | 2026-10-29 | "Companies I follow" on the Offers page (no setup needed: career-page APIs are called from the browser) |
 | 2026-10-29 | Salary on offers: chip, filter, sort, copied to the tracker, rights tip |
+| 2026-10-29 | "Rewrite with AI" (cv-tailor + Claude) built; live once O16 is done |
 | 2026-10-29 | "Tailor my CV": gap analysis + prompt to copy (no API, no setup); in-app AI button disabled for later |
 | 2026-10-29 | O13 and O14 done by owner. Verified in the live database: cv_version column exists; French texts for 4 paths, 12 tracks, 56 steps, 20 tools, 12 tips (keywords stay English); the live Training and Home pages show them |
 | 2026-10-29 | O15 done: job-search redeployed by owner. Verified: every result carries the salary field; an Adzuna salary (64–85 k€) shows on the offer |

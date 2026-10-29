@@ -65,7 +65,16 @@ async function loadCourse(id) {
   return c;
 }
 
-const codeBlock = (lang, code) => h("pre", { class: "codeblock", "data-lang": lang || "" }, h("code", {}, code));
+// Interview questions of every course of a path, for the Interview prep "Technical" deck.
+export async function courseInterviewQuestions(pathId) {
+  if (!index.length) await loadCourseIndex();
+  const mine = index.filter((c) => c.paths.includes(pathId));
+  const loaded = await Promise.all(mine.map((c) => loadCourse(c.id).then((x) => ({ c, x })).catch(() => null)));
+  return loaded.filter(Boolean).flatMap(({ c, x }) => (x.interview || []).map((iv, i) =>
+    ({ id: `tech:${c.id}:${i}`, q: iv.q, model: iv.a, course: { id: c.id, name: c.name } })));
+}
+
+const codeBlock =(lang, code) => h("pre", { class: "codeblock", "data-lang": lang || "" }, h("code", {}, code));
 
 function lessonBlock(course, l, i, done) {
   const key = `${course.id}:${i}`;

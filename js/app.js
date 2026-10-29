@@ -6,6 +6,7 @@ import { renderBoard, renderStats, openDetails, nextActions, toCsv, parseCsv } f
 import { extractSkills, matchSkills, addKeywords, readCvFile, norm } from "./ats.js";
 import { initAuth } from "./auth.js";
 import { loadCourseIndex, renderCourseList, renderCourse, courseForSkill } from "./courses.js";
+import { renderInterview } from "./interview.js";
 import {
   loadWatchlist, saveWatchlist, entryKey, PROVIDER_NAMES, SUGGESTED, titleMatcher, findCompany, fetchCompanyJobs, clearCompanyCache,
 } from "./companies.js";
@@ -51,7 +52,7 @@ function toggleTheme() {
 /* ---------- pages (hash routes: #/, #/offers, #/training, #/cv, #/applications, #/course/<id>) ---------- */
 const ROUTES = {
   home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course",
-  account: "Your account & data", legal: "Legal notice", privacy: "Privacy policy",
+  account: "Your account & data", legal: "Legal notice", privacy: "Privacy policy", interview: "Interview prep",
 };
 const NAV_OF = { course: "training" }; // which nav tab is highlighted for sub-pages
 const coursesReady = loadCourseIndex();
@@ -73,6 +74,11 @@ function showRoute(moveFocus) {
   if (r === "course") {
     coursesReady.then(() => renderCourse(param)).then(() => { if (moveFocus) $("#h-course")?.focus({ preventScroll: true }); });
   } else if (moveFocus) $(`#h-${r}`)?.focus({ preventScroll: true });
+  if (r === "interview") refreshInterview();
+}
+// The interview page depends on the path (role questions, courses) and the tracker (upcoming interviews).
+function refreshInterview() {
+  if (routeOf().r === "interview" && path()) renderInterview({ path: path(), cards: state.cards });
 }
 
 /* ---------- data loading (all content comes from Supabase) ---------- */
@@ -122,6 +128,7 @@ async function refreshTracker() {
   drawStats();
   renderHome();
   if (state.jobs.length) renderOffers(); // refresh the "Tracked" markers
+  refreshInterview();
 }
 
 function onCsvExport() {
@@ -181,7 +188,8 @@ function renderHome() {
     h("h2", { class: "!mb-2" }, "Next actions"),
     h("ul", { class: "grid gap-2 text-sm" }, actions.map(({ c, kind, text }) => h("li", { class: "flex flex-wrap items-baseline gap-2" },
       h("span", { style: `color:${ICON[kind][1]}` }, `${ICON[kind][0]} ${kind === "overdue" ? "Overdue · " : kind === "today" ? "Today · " : ""}${text}`),
-      h("a", { href: "#/applications", class: "mute underline" }, [c.title, c.company].filter(Boolean).join(" · "))))))] : []));
+      h("a", { href: "#/applications", class: "mute underline" }, [c.title, c.company].filter(Boolean).join(" · ")),
+      kind === "interview" ? h("a", { href: "#/interview", class: "underline text-xs", style: "color:var(--accent)" }, "Prepare →") : null))))] : []));
   $("#homeSummary").replaceChildren(
     card("Training", all.length ? `${done}/${all.length} steps` : "No tracks yet",
       next ? `Next up: ${next.title}` : all.length ? "Every step is done. Time to apply!" : "", "#/training", "Continue learning"),
@@ -368,6 +376,7 @@ async function selectPath(id) {
   setCv(state.cv.text); // new path keywords may now be detectable
   renderAll(); renderCvSkills(); renderOffers();
   if (state.offerMode === "companies") loadCompanyJobs(); // "only roles for my path" depends on the path
+  refreshInterview();
   if (state.user) sb.from("profiles").upsert({ user_id: state.user.id, selected_path: id });
 }
 
@@ -826,6 +835,7 @@ async function init() {
   $("#companyRefresh").addEventListener("click", () => loadCompanyJobs({ force: true }));
   renderWatchlist();
   setOfferMode(ls.get(MODE_KEY) === "companies" ? "companies" : "search");
+  refreshInterview();
   $("#csvExport").addEventListener("click", onCsvExport);
   $("#csvImport").addEventListener("change", onCsvImport);
   $("#addForm").addEventListener("submit", onAdd);

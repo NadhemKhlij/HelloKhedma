@@ -78,6 +78,7 @@ function card(c, stageIndex, { onMove, onOpen, colorOf }) {
       btn("←", "Move back", stageIndex === 0, () => move(-1)),
       btn("→", "Move forward", stageIndex === STAGES.length - 1, () => move(1)),
       btn("Details", "Edit details, notes, follow-up and interview", false, () => onOpen(c)),
+      c.stage === "interview" ? h("a", { href: "#/interview", class: "btn-ghost !px-2 !py-0", title: "Practise for this interview" }, "Prepare") : null,
     ),
   );
   el.addEventListener("dragstart", (e) => e.dataTransfer.setData("text/plain", c.id));

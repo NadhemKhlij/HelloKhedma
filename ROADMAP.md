@@ -63,6 +63,10 @@ Done (2026-10-29): "Companies I follow" (career pages on Greenhouse, Lever, Ashb
 | 3.7 | Several CV versions (one per path) and pick which one scores offers | Different roles, different CVs | M |
 
 ## Phase 4: learning that leads to a job
+Done (2026-10-29): 4.4 Interview prep page: 55 questions per path on average (14 behavioral, 8 role-specific, plus the
+technical questions of the path's courses) with example answers, 2-minute timer, "got it / to review" decks; STAR story
+builder linked to question themes; before/during/after checklist, questions to ask, salary tips; upcoming interviews from
+the tracker and "Prepare" buttons. Still to do: sync stories and ratings to the account, AI feedback on answers (Phase 5.3).
 | # | Item | Why | Effort |
 |---|---|---|---|
 | 4.1 | Courses for every path keyword (continue Phase 0.2) | Close every gap in-app | L |

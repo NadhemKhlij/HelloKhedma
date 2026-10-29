@@ -1,0 +1,28 @@
+{
+  "role": [
+    { "id": "de-1", "q": "Walk me through a data pipeline you built, end to end.",
+      "why": "The core of the job: they want sources, tools, scale and how you ensured quality.",
+      "model": "I built a daily pipeline that loads orders from our PostgreSQL database and a payment API into Snowflake. Airflow extracts incrementally on updated_at, lands raw JSON in S3, then dbt builds staging, intermediate and mart models with tests on keys and amounts. It processes about 2 million rows a day in 15 minutes, and failures alert the team on Slack. The marts feed the finance dashboards." },
+    { "id": "de-2", "q": "How do you make sure the data in your pipelines is correct?",
+      "why": "Reliability is what separates a good data engineer.",
+      "model": "Tests at each layer: uniqueness and not-null on keys, accepted values, referential integrity, and business rules such as no negative amounts. I monitor freshness and row volumes against previous days to catch silent failures, reconcile totals with the source system, and block downstream models when a critical test fails." },
+    { "id": "de-3", "q": "Batch or streaming: how do you choose?",
+      "why": "Checks you pick tools for the need, not for fashion.",
+      "model": "I start from the latency the business really needs. Most reporting is fine with hourly or daily batch, which is simpler and cheaper to run and debug. Streaming with Kafka or similar makes sense for fraud detection, real-time pricing or operational alerts. A hybrid is common: stream events into storage, process in micro-batches." },
+    { "id": "de-4", "q": "A daily job that used to take 20 minutes now takes 3 hours. How do you investigate?",
+      "why": "Performance debugging is everyday work.",
+      "model": "First check what changed: data volume, code deployments, infrastructure, concurrent jobs. Then find the slow step from task durations and the query plans: full scans, exploding joins, skew, spills to disk. Typical fixes: incremental processing, filtering early, partitioning or clustering on the filter column, fixing a join on a non-unique key, or right-sizing the warehouse." },
+    { "id": "de-5", "q": "How do you handle a schema change in a source system?",
+      "why": "Sources change without warning; robustness matters.",
+      "model": "Detect it with schema checks or contracts at ingestion, so it fails loudly instead of corrupting data. Land raw data in a flexible format, map columns explicitly in staging, and treat new columns as additive. For breaking changes, agree a data contract and a migration window with the source team, and version models if consumers need time." },
+    { "id": "de-6", "q": "What is an idempotent pipeline and why does it matter?",
+      "why": "Key concept behind retries and backfills.",
+      "model": "Running it again for the same period gives the same result, for example by overwriting the partition for that date or using MERGE on a key instead of blind inserts. It makes retries, reruns after bug fixes and backfills safe, without duplicates." },
+    { "id": "de-7", "q": "How would you design a data warehouse for an e-commerce company?",
+      "why": "Classic design question: modelling and trade-offs.",
+      "model": "Ingest sources (orders, products, customers, web events, payments) into a raw layer. Model a star schema: facts such as fact_orders at order-line grain and fact_sessions, with dimensions for customer, product, date and channel, keeping history for customers with SCD type 2. Add tests, documentation and access rules, and build marts for finance and marketing." },
+    { "id": "de-8", "q": "How do you manage costs in a cloud data warehouse?",
+      "why": "Cloud bills are a real concern for employers.",
+      "model": "Measure first: cost per warehouse, user and query. Then use incremental models, partitioning and clustering, auto-suspend for compute, smaller warehouses for light jobs, avoid SELECT * on wide tables, cache results, and drop unused tables and dashboards. Set budgets and alerts." }
+  ]
+}

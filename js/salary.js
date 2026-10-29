@@ -95,7 +95,7 @@ export function offerSalary(j) {
 // "45–55 k€ /an", "2 500–3 000 € /mois", "450 € /jour" (fr) · "€45–55k /yr" (en). "≈" marks a provider estimate.
 export function formatSalary(x) {
   const fmt = new Intl.NumberFormat(LOCALE, { style: "currency", currency: x.currency, maximumFractionDigits: x.min < 100 ? 2 : 0,
-    ...(x.period === "year" ? { notation: "compact", maximumSignificantDigits: 3 } : {}) });
+    ...(x.period === "year" ? { notation: "compact", maximumFractionDigits: 0 } : {}) }); // whole thousands: "64–85 k€"
   const amount = x.min === x.max ? fmt.format(x.min) : fmt.formatRange ? fmt.formatRange(x.min, x.max) : `${fmt.format(x.min)} – ${fmt.format(x.max)}`;
   return `${x.estimated ? "≈ " : ""}${amount} ${t(`salary|/${x.period}`)}`;
 }

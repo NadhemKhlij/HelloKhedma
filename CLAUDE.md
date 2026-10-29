@@ -7,7 +7,12 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 ## Commands
 - `npm install` then `npm run build`: writes js/config.js from env vars (scripts/write-config.mjs) and compiles Tailwind.
 - Local dev: `npm run watch:css` + a static server, e.g. `npx serve -l 5173 .` (ES modules need http, not file://).
+- No Node on the machine: `sh scripts/preview-cdn.sh`, then `scripts/serve.ps1` (or the "hellokhedma" entry of
+  .claude/launch.json) and open /preview-test.html. Never commit preview-test.html. The real build runs in CI.
 - `npm run check-links`: checks every URL in supabase/seed.sql (Node 18+).
+- Windows: deep checkout paths need `git config core.longpaths true`.
+- When the owner deploys a function or runs SQL from the dashboard, give commit-pinned raw links
+  (raw.githubusercontent.com/<owner>/<repo>/<commit>/…): the branch link is cached for ~5 minutes.
 - Supabase CLI (or the dashboard equivalents):
   - `npx supabase link --project-ref <ref>`, then `npx supabase db push` (migrations); seed: run supabase/seed.sql.
   - `npx supabase functions deploy job-search --use-api` and `npx supabase functions deploy delete-account --use-api`
@@ -89,9 +94,9 @@ Read the header comment of any file before modifying it; update the header if be
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)
 - supabase/functions/job-search/, supabase/functions/delete-account/ — Edge Functions
-- scripts/write-config.mjs, scripts/check-links.mjs — build config, link checker
+- scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node)
 - .github/workflows/deploy.yml — build and publish to GitHub Pages
-- CHECKLIST.md — owner tasks and done log; ROADMAP.md — product roadmap; README.md, GO-LIVE.md — setup guides
+- CHECKLIST.md — next-session note, owner tasks, done log; ROADMAP.md — roadmap + decisions log; README.md, GO-LIVE.md — setup guides
 
 ## Owner checklist
 CHECKLIST.md tracks what is done and what the owner still has to do outside the code (Supabase, GitHub, providers).

@@ -99,6 +99,20 @@ Note: these have a cost per use; add per-user limits (like the search rate limit
 
 ## Engineering hygiene (ongoing)
 - Smoke tests (Playwright) in the GitHub workflow before each deploy.
-- Split `js/app.js` into one module per page as it grows.
+- Consider splitting js/app.js: router / offers / home (it is ~1,000 lines: router + Home + Offers tabs + CV + Account).
+- Sync the data that is still local-only to the account: followed companies, saved searches, hidden/seen offers,
+  lesson progress, interview ratings and STAR stories, weekly goal (needs a migration with RLS per table).
+- Self-host the Bricolage Grotesque font instead of Google Fonts (removes a third party from the privacy policy).
 - Database backups (Supabase Pro) once real users rely on it.
-- Watch API quotas and the rate limits in the Supabase dashboard.
+- Watch API quotas (JSearch free plan, Adzuna) and the rate limits in the Supabase dashboard.
+
+## Decisions log (so they are not reopened by accident)
+- 2026-10-29: Courses and interview content are static JSON in content/ (deployed with the site), not database rows.
+- 2026-10-29: The CV text never leaves the browser (localStorage only), even for signed-in users.
+- 2026-10-29: France Travail "Offres d'emploi" API is supported in code but unused: the owner's francetravail.io
+  account does not offer it. La Bonne Boite and Marché du travail are available on that account (see 3.5, 3.6).
+- 2026-10-29: Owner declined a bookmarklet ("Analyze with HelloKhedma" from any job page). Do not propose it again.
+- 2026-10-29: Remote boards: Himalayas blocks browser calls (no CORS) and Arbeitnow has no search; not used.
+  Remotive's free feed is ~a dozen jobs; Jobicy by category is the useful one.
+- 2026-10-29: Adzuna returns only ~500 characters per offer, so many Adzuna offers show "Fit: n/a" and few tags;
+  JSearch and career pages give full descriptions.

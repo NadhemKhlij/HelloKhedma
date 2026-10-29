@@ -48,6 +48,9 @@ Still to do: 2.2 email reminders, 2.7 attach CV / cover letter.
 ## Phase 3: find better offers faster
 Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text; salary/date filters still to do),
 3.3 hide / "not interested", seen marker, "Tracked ✓", 3.4 minimum CV-fit filter, saved searches (this browser; email alerts still to do).
+Done (2026-10-29): "Companies I follow" (career pages on Greenhouse, Lever, Ashby, Workable, SmartRecruiters; full descriptions,
+"New since last visit"). Next sources to consider: remote boards (Himalayas, Jobicy, Remotive, Arbeitnow), Jooble / Careerjet
+(key on request, France + Tunisia), La Bonne Alternance, Recruitee / Teamtailor career pages, syncing the watchlist to the account.
 
 | # | Item | Why | Effort |
 |---|---|---|---|

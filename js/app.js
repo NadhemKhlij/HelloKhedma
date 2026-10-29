@@ -6,6 +6,9 @@ import { renderBoard, renderStats, openDetails, nextActions, toCsv, parseCsv } f
 import { extractSkills, matchSkills, addKeywords, readCvFile, norm } from "./ats.js";
 import { initAuth } from "./auth.js";
 import { loadCourseIndex, renderCourseList, renderCourse, courseForSkill } from "./courses.js";
+import {
+  loadWatchlist, saveWatchlist, entryKey, PROVIDER_NAMES, SUGGESTED, titleMatcher, findCompany, fetchCompanyJobs, clearCompanyCache,
+} from "./companies.js";
 
 const PATH_KEY = "hk.path", LOC_KEY = "hk.location", PROG_KEY = "hk.progress.v2";
 const CV_KEY = "hk.cv.text"; // the CV text stays in this browser only, even for signed-in users
@@ -358,11 +361,13 @@ function renderAll() {
 async function selectPath(id) {
   state.pathId = id;
   ls.set(PATH_KEY, id);
-  state.jobs = []; state.skillFilter = null;
+  state.jobs = []; state.searchJobs = []; state.companyJobs = []; state.companyLoaded = false; state.skillFilter = null;
+  state.searchMsg = state.companyMsg = "";
   $("#searchMsg").textContent = ""; $("#atsOut").replaceChildren();
   try { state.openInit = false; await Promise.all([loadResources(), loadTracks()]); } catch (e) { fail(e); }
   setCv(state.cv.text); // new path keywords may now be detectable
   renderAll(); renderCvSkills(); renderOffers();
+  if (state.offerMode === "companies") loadCompanyJobs(); // "only roles for my path" depends on the path
   if (state.user) sb.from("profiles").upsert({ user_id: state.user.id, selected_path: id });
 }
 
@@ -524,7 +529,8 @@ function renderJob({ j, skills, fit, tags, key }) {
         h("b", { class: "block" }, j.title),
         h("span", { class: "mute text-sm block" }, [j.company, j.location].filter(Boolean).join(" · "))),
       badge),
-    tags.contract || tags.remote || seen || hidden ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
+    tags.contract || tags.remote || seen || hidden || j.isNew ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
+      j.isNew ? h("span", { class: "chip chip-ok !py-0 text-xs font-bold", style: "color:var(--accent)" }, "New") : null,
       tags.contract ? tag(tags.contract) : null,
       tags.remote ? tag(tags.remote === "Remote" ? "Full remote" : "Hybrid / remote") : null,
       seen ? h("span", { class: "mute text-xs" }, "Seen") : null,
@@ -535,7 +541,8 @@ function renderJob({ j, skills, fit, tags, key }) {
     h("p", { class: "text-sm mt-2 mute" }, j.snippet),
     h("div", { class: "flex flex-wrap items-center gap-2 mt-2" },
       url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn", onClick: () => markSeen(key) }, "View offer") : null,
-      btn, hideBtn, h("span", { class: "mute text-xs ml-auto" }, SOURCE_NAMES[j.source] || j.source)));
+      btn, hideBtn, h("span", { class: "mute text-xs ml-auto" },
+        SOURCE_NAMES[j.source] || (PROVIDER_NAMES[j.source] ? "Careers page" : j.source))));
 }
 const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch" };
 
@@ -639,7 +646,108 @@ async function onSearch(e) {
   } catch (err) {
     msg.textContent = `Live search is unavailable (${err.message}). Use the job board links below.`;
   } finally { btn.disabled = false; }
+  state.searchJobs = state.jobs; state.searchMsg = msg.textContent; // kept while switching to "Companies I follow"
   renderOffers();
+}
+
+/* ---------- Offers tabs: "Job search" vs "Companies I follow" (both feed the same results list) ---------- */
+const MODE_KEY = "hk.offerMode";
+function setOfferMode(mode) {
+  const comp = mode === "companies";
+  state.offerMode = comp ? "companies" : "search";
+  ls.set(MODE_KEY, state.offerMode);
+  $("#companiesPanel").hidden = !comp;
+  $("#searchPanel").hidden = $("#boardsBlock").hidden = comp;
+  for (const [id, on] of [["#tabSearch", !comp], ["#tabCompanies", comp]]) {
+    $(id).className = on ? "btn" : "btn-ghost";
+    $(id).setAttribute("aria-selected", String(on));
+  }
+  state.skillFilter = null;
+  state.jobs = (comp ? state.companyJobs : state.searchJobs) || [];
+  $("#searchMsg").textContent = (comp ? state.companyMsg : state.searchMsg) || "";
+  renderOffers();
+  if (comp) { renderWatchlist(); if (!state.companyLoaded) loadCompanyJobs(); }
+}
+
+function renderWatchlist() {
+  const list = loadWatchlist();
+  $("#tabCompanies").textContent = `Companies I follow${list.length ? ` (${list.length})` : ""}`;
+  $("#companyList").replaceChildren(...(list.length ? list.map((e) => h("span", { class: "chip text-xs flex items-center gap-2" },
+    h("span", {}, e.name, h("span", { class: "mute" }, ` · ${PROVIDER_NAMES[e.provider]}${e.count ? ` · ${e.count} jobs` : ""}`)),
+    h("button", { type: "button", class: "mute", "aria-label": `Stop following ${e.name}`, title: "Stop following", onClick: () => unfollow(e) }, "×")))
+    : [h("p", { class: "mute text-sm" }, "You don't follow any company yet. Add one above or pick a suggestion.")]));
+  const followed = new Set(list.map(entryKey));
+  const sugg = SUGGESTED.filter((s) => !followed.has(entryKey(s)));
+  $("#companySuggest").replaceChildren(...(sugg.length ? [
+    h("p", { class: "mute text-xs mb-1" }, "Popular in France, one click to follow:"),
+    h("div", { class: "flex flex-wrap gap-1.5" }, sugg.map((s) =>
+      h("button", { type: "button", class: "chip text-xs hover:opacity-80", onClick: () => follow(s) }, `+ ${s.name}`)))] : []));
+}
+
+function follow(e) {
+  const list = loadWatchlist();
+  if (!list.some((x) => entryKey(x) === entryKey(e))) {
+    list.push({ provider: e.provider, slug: e.slug, name: e.name, count: e.count ?? null, added: new Date().toISOString() });
+    saveWatchlist(list);
+  }
+  renderWatchlist();
+  loadCompanyJobs();
+}
+function unfollow(e) {
+  saveWatchlist(loadWatchlist().filter((x) => entryKey(x) !== entryKey(e)));
+  renderWatchlist();
+  loadCompanyJobs();
+}
+
+async function onCompanyFind(ev) {
+  ev.preventDefault();
+  const input = $("#companyInput").value.trim(), btn = $("#companyFind"), msg = $("#companyMsg");
+  if (!input) return;
+  btn.disabled = true; msg.textContent = `Looking for ${input}'s careers page…`;
+  try {
+    const found = (await findCompany(input)).sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
+    if (!found.length) {
+      msg.textContent = `No careers page found for "${input}" on Greenhouse, Lever, Ashby, Workable or SmartRecruiters. `
+        + "Try the exact company name, or paste the link of a job on their careers site.";
+      return;
+    }
+    const best = found[0]; // a company present on two systems (during a migration) keeps the one with most jobs
+    follow(best);
+    msg.textContent = `Following ${best.name} (${PROVIDER_NAMES[best.provider]}${best.count ? `, ${best.count} open jobs in total` : ""}).`;
+    $("#companyInput").value = "";
+  } catch (e) { msg.textContent = e.message; } finally { btn.disabled = false; }
+}
+
+// Loads every followed company's jobs into the shared results list. "New" = published since the previous session.
+async function loadCompanyJobs({ force = false } = {}) {
+  const list = loadWatchlist();
+  const run = (state.companyRun = (state.companyRun || 0) + 1); // only the latest load may update the screen
+  if (force) clearCompanyCache();
+  state.companyLoaded = true;
+  state.prevChecked ??= Object.fromEntries(list.map((e) => [entryKey(e), e.lastChecked]));
+  const pathOnly = $("#companyPathOnly").checked, p = path();
+  const show = (m) => { state.companyMsg = m; if (state.offerMode === "companies") { state.jobs = state.companyJobs; $("#searchMsg").textContent = m; renderOffers(); } };
+  if (!list.length) { state.companyJobs = []; show(""); return; }
+  if (state.offerMode === "companies") $("#searchMsg").textContent = `Loading jobs from ${list.length} compan${list.length > 1 ? "ies" : "y"}…`;
+  const results = await Promise.allSettled(list.map((e) =>
+    fetchCompanyJobs(e, pathOnly ? titleMatcher(p) : () => true, pathOnly ? state.pathId : "all")));
+  const jobs = [], errors = [];
+  results.forEach((r, i) => {
+    const prev = state.prevChecked[entryKey(list[i])];
+    if (r.status === "fulfilled") {
+      jobs.push(...r.value.map((j) => ({ ...j, isNew: Boolean(prev && j.posted && new Date(j.posted) > new Date(prev)) })));
+    } else errors.push(r.reason?.message || list[i].name);
+  });
+  // Re-read the watchlist: companies may have been followed / unfollowed while this load was running.
+  const checked = new Set(list.filter((_, i) => results[i].status === "fulfilled").map(entryKey)), now = new Date().toISOString();
+  saveWatchlist(loadWatchlist().map((e) => (checked.has(entryKey(e)) ? { ...e, lastChecked: now } : e)));
+  if (run !== state.companyRun) return;
+  state.companyJobs = jobs.sort((a, b) => new Date(b.posted || 0) - new Date(a.posted || 0));
+  const fresh = jobs.filter((j) => j.isNew).length, n = list.length, where = `at ${n} compan${n > 1 ? "ies" : "y"}`;
+  show((jobs.length
+    ? `${jobs.length} open role${jobs.length > 1 ? "s" : ""}${pathOnly ? ` for ${p?.name}` : ""} ${where}${fresh ? ` · ${fresh} new since your last visit` : ""}.`
+    : pathOnly ? `No open ${p?.name} roles ${where} right now. Untick "Only roles for my path" to see every job.` : `No open roles ${where} right now.`)
+    + (errors.length ? ` Could not load: ${errors.join("; ")}.` : ""));
 }
 
 async function onAdd(e) {
@@ -711,6 +819,13 @@ async function init() {
   for (const id of ["#sortBy", "#fContract", "#fRemote", "#fFit", "#fHidden"]) $(id).addEventListener("change", renderOffers);
   $("#saveSearch").addEventListener("click", onSaveSearch);
   renderSavedSearches();
+  $("#tabSearch").addEventListener("click", () => setOfferMode("search"));
+  $("#tabCompanies").addEventListener("click", () => setOfferMode("companies"));
+  $("#companyForm").addEventListener("submit", onCompanyFind);
+  $("#companyPathOnly").addEventListener("change", () => loadCompanyJobs());
+  $("#companyRefresh").addEventListener("click", () => loadCompanyJobs({ force: true }));
+  renderWatchlist();
+  setOfferMode(ls.get(MODE_KEY) === "companies" ? "companies" : "search");
   $("#csvExport").addEventListener("click", onCsvExport);
   $("#csvImport").addEventListener("change", onCsvImport);
   $("#addForm").addEventListener("submit", onAdd);

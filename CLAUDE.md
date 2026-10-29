@@ -43,6 +43,9 @@ owner task you create (e.g. a migration or function to deploy), and move items t
                         CSV import/export, .ics files. New application columns: migration 20261029000000; CloudStore
                         only sends them once the migration ran (detailsSupported), so keep that fallback.
 - js/jobs.js            calls the job-search function; fallback deep links
+- js/companies.js       "Companies I follow": reads Greenhouse / Lever / Ashby / Workable / SmartRecruiters public job
+                        APIs directly from the browser (CORS, no key), normalised to the job-search result shape.
+                        Watchlist in localStorage ("hk.watchlist"). Keep the privacy policy in sync if a provider is added.
 - js/ats.js             skills dictionary (EN + FR aliases) + extraction, CV ↔ offer matching, PDF/TXT CV reading (pdf.js from cdnjs).
                         The CV text is stored only in localStorage ("hk.cv.text"); never send it to Supabase.
 - js/courses.js         course list (Training page) and course page (#/course/<id>), lesson progress in localStorage

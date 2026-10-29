@@ -57,6 +57,8 @@ Done (2026-10-29): "Companies I follow" (career pages on Greenhouse, Lever, Ashb
 "New since last visit"). Done (2026-10-29): "Remote jobs" tab (Jobicy by category + Remotive; Himalayas blocks browser
 calls and Arbeitnow has no search, so they are not used). Next sources to consider: Jooble / Careerjet
 (key on request, France + Tunisia), La Bonne Alternance, Recruitee / Teamtailor career pages, syncing the watchlist to the account.
+Done (2026-10-29): 3.7 several CV versions (named, one can be linked to each path and becomes active with it; switch
+the scoring CV on the Offers page; the CV match compares every version). Local only, like the CV itself.
 
 | # | Item | Why | Effort |
 |---|---|---|---|
@@ -104,7 +106,7 @@ Note: these have a cost per use; add per-user limits (like the search rate limit
 - Smoke tests (Playwright) in the GitHub workflow before each deploy.
 - Consider splitting js/app.js: router / offers / home (it is ~1,000 lines: router + Home + Offers tabs + CV + Account).
 - Sync the data that is still local-only to the account: followed companies, saved searches, hidden/seen offers,
-  lesson progress, interview ratings and STAR stories, weekly goal (needs a migration with RLS per table).
+  lesson progress, interview ratings and STAR stories, weekly goal (needs a migration with RLS per table). CV versions stay local by design.
 - Self-host the Bricolage Grotesque font instead of Google Fonts (removes a third party from the privacy policy).
 - Database backups (Supabase Pro) once real users rely on it.
 - Watch API quotas (JSearch free plan, Adzuna) and the rate limits in the Supabase dashboard.

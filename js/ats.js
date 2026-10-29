@@ -6,7 +6,7 @@
 // Course index entries (content/courses/index.json) must use these canonical names so missing skills link to a course.
 //
 // CV files: readCvFile() reads PDF (pdf.js 4.4.168 from cdnjs, loaded only when needed) or plain text.
-// The CV text is stored by app.js in localStorage ("hk.cv.text") only; never send it to Supabase or any API.
+// CV texts are stored by js/cvs.js in localStorage ("hk.cvs") only; never send them to Supabase or any API.
 
 export const SKILLS = [
   // Languages

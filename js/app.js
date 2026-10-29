@@ -6,7 +6,9 @@
 // - Offers has three tabs feeding one results list (state.jobs): Job search (jobs.js → job-search function),
 //   Companies I follow (companies.js), Remote jobs (remote.js). Each tab keeps state.<mode>Jobs / <mode>Msg.
 //   Source credits required by providers' terms: CREDITS. Offer tags, hide/seen and saved searches: this browser.
-// - CV: text kept only in localStorage ("hk.cv.text", never sent to Supabase); skills via ats.js.
+// - CV: several versions kept only in localStorage (cvs.js, never sent to Supabase); the active one (state.cv) scores
+//   offers, the CV match and the study plan; a version linked to a path becomes active when that path is selected.
+//   Skills via ats.js.
 // - Also here: theme toggle ("hk.theme"), weekly study plan, account export/delete (delete-account function),
 //   error toasts + optional Sentry (CONFIG.SENTRY_DSN), PWA registration (sw.js) and the "Install the app" link.
 // - Every user-facing text goes through t() / tn() (i18n.js, imported first so the static page is translated
@@ -22,12 +24,12 @@ import { initAuth } from "./auth.js";
 import { loadCourseIndex, renderCourseList, renderCourse, courseForSkill, courseMeta } from "./courses.js";
 import { renderInterview } from "./interview.js";
 import { searchRemote } from "./remote.js";
+import { loadCvs, activeCv, setActiveCv, addCv, updateCv, removeCv, linkCvToPath, cvForPath } from "./cvs.js";
 import {
   loadWatchlist, saveWatchlist, entryKey, PROVIDER_NAMES, SUGGESTED, titleMatcher, findCompany, fetchCompanyJobs, clearCompanyCache,
 } from "./companies.js";
 
 const PATH_KEY = "hk.path", LOC_KEY = "hk.location", PROG_KEY = "hk.progress.v2";
-const CV_KEY = "hk.cv.text"; // the CV text stays in this browser only, even for signed-in users
 const COUNTRIES = ["fr", "gb", "us", "de", "nl", "ca", "au", "be", "ch", "es", "it"];
 
 const state = {
@@ -461,7 +463,7 @@ function initPwa() {
 
 function renderAll() {
   document.documentElement.style.setProperty("--accent", safeColor(path()?.color));
-  renderPaths(); renderSearchControls(); renderLearn(); renderStatus();
+  renderPaths(); renderSearchControls(); renderLearn(); renderStatus(); renderCvVersions();
 }
 
 /* ---------- actions ---------- */
@@ -472,7 +474,10 @@ async function selectPath(id) {
   state.searchMsg = state.companyMsg = state.remoteMsg = ""; state.remoteJobs = [];
   $("#searchMsg").textContent = ""; $("#atsOut").replaceChildren();
   try { state.openInit = false; await Promise.all([loadResources(), loadTracks()]); } catch (e) { fail(e); }
-  setCv(state.cv.text); // new path keywords may now be detectable
+  // The CV version linked to this path (if any) becomes active; skills are re-extracted with the new path keywords.
+  const linked = cvForPath(id);
+  if (linked) setActiveCv(linked.id);
+  loadActiveCv(); $("#cv").value = state.cv.text;
   renderAll(); renderCvSkills(); renderOffers();
   if (state.offerMode === "companies") loadCompanyJobs(); // "only roles for my path" depends on the path
   refreshInterview();
@@ -510,15 +515,45 @@ const skillChip = (name, inCv) => {
     : h("span", { class: `chip text-xs ${inCv ? "chip-ok" : "mute"}` }, inCv ? `✓ ${name}` : name);
 };
 
-function setCv(text) {
-  const skills = extractSkills(text);
-  state.cv = { text, skills, names: new Set(skills.map((s) => s.name)) };
+// Loads the active CV version (js/cvs.js) into state.cv. Skills are re-extracted each time: path keywords may have changed.
+function loadActiveCv() {
+  const cv = activeCv(), text = cv?.text || "", skills = extractSkills(text);
+  state.cv = { id: cv?.id || null, name: cv?.name || "", text, skills, names: new Set(skills.map((s) => s.name)) };
+}
+// Redraws everything that depends on the active CV; fillEditor also puts its text in the CV box.
+function refreshCv({ fillEditor = false } = {}) {
+  loadActiveCv();
+  if (fillEditor) { $("#cv").value = state.cv.text; $("#atsOut").replaceChildren(); $("#cvFileMsg").textContent = ""; }
+  renderCvVersions(); renderCvSkills(); renderOffers(); renderStudyPlan();
+}
+function switchCv(id) { setActiveCv(id); refreshCv({ fillEditor: true }); }
+
+const pathName = (id) => state.paths.find((p) => p.id === id)?.name || id;
+function renderCvVersions() {
+  const list = loadCvs(), cur = list.find((c) => c.id === state.cv.id);
+  $("#cvVersions").hidden = !list.length;
+  $("#cvPick").replaceChildren(...list.map((c) => h("option", { value: c.id, selected: c.id === state.cv.id },
+    c.path_id ? `${c.name} · ${pathName(c.path_id)}` : c.name)));
+  // Keep what is being typed, unless another version became active (path switch) while the field had focus.
+  const nameField = $("#cvName");
+  if (document.activeElement !== nameField || nameField.dataset.id !== state.cv.id) {
+    nameField.value = state.cv.name; nameField.dataset.id = state.cv.id || "";
+  }
+  $("#cvForPath").checked = Boolean(cur && cur.path_id === state.pathId);
+  $("#cvForPathLabel").textContent = t("Use this version automatically for the {path} path", { path: path()?.name || "" });
+}
+// A select to change the CV that scores offers (only when there are several versions).
+function cvSwitcher() {
+  const list = loadCvs();
+  if (list.length < 2) return null;
+  return h("label", { class: "mute" }, t(" · scored with "),
+    h("select", { class: "input !py-0 !px-1 text-sm", "aria-label": t("CV version"), onChange: (e) => switchCv(e.target.value) },
+      list.map((c) => h("option", { value: c.id, selected: c.id === state.cv.id }, c.name))));
 }
 
 function saveCv(text) {
-  setCv(text);
-  if (text.trim()) ls.set(CV_KEY, text); else ls.del(CV_KEY);
-  renderCvSkills(); renderOffers(); renderStudyPlan();
+  if (state.cv.id) updateCv(state.cv.id, { text }); else addCv({ name: t("My CV"), text });
+  refreshCv();
 }
 
 function renderCvSkills() {
@@ -558,9 +593,29 @@ function onCvSave() {
 }
 
 function onCvClear() {
-  $("#cv").value = ""; $("#atsOut").replaceChildren(); $("#cvFileMsg").textContent = "";
-  saveCv("");
-  toast(t("Your CV was removed from this device."));
+  if (!state.cv.id) { $("#cv").value = ""; return; }
+  if (state.cv.text.trim() && !confirm(t("Delete the CV \"{name}\" from this device?", { name: state.cv.name }))) return;
+  removeCv(state.cv.id);
+  refreshCv({ fillEditor: true });
+  toast(t("CV deleted from this device."));
+}
+
+// A new version starts as a copy of the current one, ready to be tailored.
+function onCvNew() {
+  addCv(state.cv.id ? { name: t("{name} (copy)", { name: state.cv.name }), text: state.cv.text } : {});
+  refreshCv({ fillEditor: true });
+  $("#cvName").focus(); $("#cvName").select();
+  toast(t("New version created from a copy. Rename it and edit the text."));
+}
+function onCvRename(e) {
+  if (!state.cv.id) return;
+  updateCv(state.cv.id, { name: e.target.value.trim() || t("Untitled CV") });
+  loadActiveCv(); renderCvVersions();
+}
+function onCvForPath(e) {
+  if (!state.cv.id) return;
+  linkCvToPath(state.cv.id, e.target.checked ? state.pathId : null);
+  renderCvVersions();
 }
 
 function onAts() {
@@ -572,16 +627,25 @@ function onAts() {
   if (!r.total) { $("#atsOut").replaceChildren(h("p", { class: "mute text-sm" }, t("No known skills found in this job description."))); return; }
   const chips = (list, inCv) => list.map((n) => skillChip(n, inCv));
   const vars = { matched: r.matched.length, total: r.total };
-  $("#atsOut").replaceChildren(
+  // Same comparison for every CV version, best first; clicking one makes it the active version.
+  const versions = loadCvs().filter((c) => c.text.trim())
+    .map((c) => ({ c, score: matchSkills(required, new Set(extractSkills(c.text).map((s) => s.name))).score }))
+    .sort((a, b) => b.score - a.score);
+  $("#atsOut").replaceChildren(...[
     h("p", { class: "text-lg font-bold", style: `color:${fitColor(r.score)}` }, t("{score}% match", { score: r.score }),
       h("span", { class: "mute text-sm font-normal" }, usedJd
         ? t(" · {matched} of {total} skills from the offer are in your CV", vars)
         : t(" · {matched} of {total} path keywords are in your CV", vars))),
+    versions.length > 1 ? h("p", { class: "text-sm mt-1" }, h("span", { class: "mute" }, t("Your CV versions: ")),
+      ...versions.flatMap(({ c, score }, i) => [i ? " · " : "", c.id === state.cv.id
+        ? h("b", { style: `color:${fitColor(score)}` }, t("{name} {score}%", { name: c.name, score }))
+        : h("button", { type: "button", class: "underline", style: `color:${fitColor(score)}`, title: t("Use this version"),
+            onClick: () => { switchCv(c.id); onAts(); } }, t("{name} {score}%", { name: c.name, score }))])) : null,
     h("p", { class: "mute text-sm mt-3 mb-1" }, t("In your CV")),
     h("div", { class: "flex flex-wrap gap-2" }, r.matched.length ? chips(r.matched, true) : h("span", { class: "mute text-sm" }, t("None yet."))),
     h("p", { class: "mute text-sm mt-3 mb-1" }, t("Missing: add the ones you genuinely have · 📘 = open the HelloKhedma course")),
     h("div", { class: "flex flex-wrap gap-2" }, r.missing.length ? chips(r.missing, false) : h("span", { class: "mute text-sm" }, t("Nothing missing."))),
-  );
+  ].filter(Boolean));
 }
 
 /* ---------- offers: skills per offer + CV fit ---------- */
@@ -685,10 +749,11 @@ function renderOffers() {
   const scored = list.filter((x) => x.fit?.score != null);
   const avg = scored.length ? Math.round(scored.reduce((a, x) => a + x.fit.score, 0) / scored.length) : null;
   $("#fitNote").replaceChildren(hasCv
-    ? h("span", {}, t("Average CV fit: "), h("b", { style: avg == null ? "" : `color:${fitColor(avg)}` }, avg == null ? t("n/a") : `${avg}%`),
-        h("span", { class: "mute" }, t(" · ✓ = skill found in your CV")))
+    ? h("span", {}, t("Average CV fit: "), h("b", { style: avg == null ? "" : `color:${fitColor(avg)}` }, avg == null ? t("n/a") : t("{n}%", { n: avg })),
+        cvSwitcher(), h("span", { class: "mute" }, t(" · ✓ = skill found in your CV")))
     : h("span", { class: "mute" }, t("Add your CV on the "),
-        h("a", { href: "#/cv", class: "underline", style: "color:var(--accent)" }, t("CV check")), t(" page to see how well you fit each offer.")));
+        h("a", { href: "#/cv", class: "underline", style: "color:var(--accent)" }, t("CV check")), t(" page to see how well you fit each offer."),
+        cvSwitcher()));
 
   $("#sortBy").disabled = $("#fFit").disabled = !hasCv;
   const contract = $("#fContract").value, remote = $("#fRemote").value, minFit = hasCv ? Number($("#fFit").value) : 0;
@@ -964,6 +1029,10 @@ async function init() {
   $("#cvFile").addEventListener("change", onCvFile);
   $("#cvSave").addEventListener("click", onCvSave);
   $("#cvClear").addEventListener("click", onCvClear);
+  $("#cvNew").addEventListener("click", onCvNew);
+  $("#cvPick").addEventListener("change", (e) => switchCv(e.target.value));
+  $("#cvName").addEventListener("input", onCvRename);
+  $("#cvForPath").addEventListener("change", onCvForPath);
   for (const id of ["#sortBy", "#fContract", "#fRemote", "#fFit", "#fHidden"]) $(id).addEventListener("change", renderOffers);
   $("#saveSearch").addEventListener("click", onSaveSearch);
   renderSavedSearches();
@@ -982,8 +1051,10 @@ async function init() {
   $("#addForm").addEventListener("submit", onAdd);
   $("#exportData").addEventListener("click", () => onExport().catch(fail));
   $("#deleteData").addEventListener("click", onDelete);
-  $("#cv").value = ls.get(CV_KEY) || "";
-  setCv($("#cv").value);
+  const linked = cvForPath(state.pathId); // e.g. the path came back from another device's profile
+  if (linked) setActiveCv(linked.id);
+  loadActiveCv();
+  $("#cv").value = state.cv.text;
   renderCvSkills();
   $("#hoursPerWeek").value = ls.get("hk.hours") || "5";
   $("#hoursPerWeek").addEventListener("input", (e) => { ls.set("hk.hours", e.target.value); renderTracks(); });

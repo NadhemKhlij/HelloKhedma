@@ -1,13 +1,14 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-29)
-- **Just finished:** French / English interface (ROADMAP 1.7): FR/EN button in the top bar, French by default for
-  French-speaking browsers, French legal notice and privacy policy. Tested as a guest in both languages and at phone
-  width; not tested signed in (only texts changed there). Course, interview and path content is still English (1.7b).
+- **Just finished:** several CV versions (ROADMAP 3.7, CV check page): named versions, one linked per path (it becomes
+  active when you pick that path), switch the scoring CV on the Offers page, the CV match compares every version. An
+  existing CV becomes "My CV" automatically. Local only, like before. Before that: French / English interface (1.7).
+  Both tested as a guest in both languages and at phone width; not tested signed in.
 - **Owner, first:** check "Confirm email" is OFF in Supabase (the Resend test sender only reaches the owner), and
   delete the Resend key that was pasted in the chat (O5b). Then try the live site in French and English (O12).
-- **Next in code (owner's choice):** several CV versions (ROADMAP 3.7), accessibility pass (1.9) or French content
-  (1.7b); also consider splitting js/app.js (ROADMAP, Engineering hygiene).
+- **Next in code (owner's choice):** accessibility pass (1.9), French content (1.7b) or attaching the CV version used
+  to each application (2.7); also consider splitting js/app.js (ROADMAP, Engineering hygiene).
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
   local preview without Node: scripts/preview-cdn.sh + scripts/serve.ps1.
 
@@ -47,5 +48,6 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | 2026-10-29 | Installable app (PWA, offline), "Remote jobs" tab, weekly study plan; no setup needed |
 | 2026-10-29 | Interview prep page (practice, STAR stories, checklist); no setup needed |
 | 2026-10-29 | "Companies I follow" on the Offers page (no setup needed: career-page APIs are called from the browser) |
+| 2026-10-29 | Several CV versions (3.7); no setup needed |
 | 2026-10-29 | French / English interface (FR/EN button, French legal pages); no setup needed |
 | 2026-10-29 | O2 done: latest `job-search` deployed. **JSearch works**: 10 full offers per search (~6,000 characters each), "All sources" = Adzuna + JSearch with no warnings. Tip: deploy from a commit-pinned raw link, the plain raw link is cached ~5 min |

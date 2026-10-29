@@ -47,7 +47,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   public by design; RLS protects the data.
 - Every user-owned table needs RLS policies scoped to auth.uid(); add schema changes as a new migration file.
 - Build DOM with the h() helper (textContent), never innerHTML with remote data (course text included).
-- The CV text stays in localStorage ("hk.cv.text") only; never send it to Supabase or any API.
+- CV texts (every version, "hk.cvs" via js/cvs.js) stay in localStorage only; never send them to Supabase or any API.
 - Keep the privacy policy (index.html, #/privacy) in sync when adding a provider or any new personal data.
 - Every user-facing text is written in English and goes through t() / tn() (js/i18n.js); add its French to
   js/i18n-fr.js. Static text in index.html is translated automatically if its English is a key there. The legal notice
@@ -91,6 +91,7 @@ Read the header comment of any file before modifying it; update the header if be
 - js/jobs.js — client for the job-search function, job-board fallback links
 - js/companies.js — "Companies I follow" (career-page APIs)
 - js/remote.js — "Remote jobs" (Jobicy, Remotive)
+- js/cvs.js — CV versions (local only): list, active version, version linked to a path
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
 - js/courses.js — course list and course page
 - js/interview.js — interview prep page

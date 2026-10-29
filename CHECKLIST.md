@@ -8,7 +8,6 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | # | Where | Task | Why it matters | Links / details |
 |---|---|---|---|---|
 | O1 | Supabase → Edge Functions | Create **`delete-account`** (Via Editor) with the code from `supabase/functions/delete-account/index.ts` | "Delete my account" fails until it exists | [raw code](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/main/supabase/functions/delete-account/index.ts) |
-| O2 | Supabase → Edge Functions | Redeploy **`job-search`** again with the latest code (JSearch `/search-v2` fix, 2026-10-29) | JSearch fails with "Endpoint '/search' does not exist" until then | [raw code](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/main/supabase/functions/job-search/index.ts) |
 | O4 | GitHub → Settings → Secrets and variables → Actions → Variables | Add **`CONTACT_EMAIL`** (dedicated address), then re-run the deploy | Legal pages show "contact address coming soon" | — |
 | O5 | Supabase → Authentication → SMTP Settings | Set up **Resend or Brevo** SMTP, then turn **Confirm email** back on | Real users do not receive sign-up / magic-link emails | — |
 | O6 | Supabase → SQL Editor | Run **`supabase/migrations/20261029000000_application_details.sql`** | Signed-in users: syncs application details (salary, contact, follow-up, interview, history). Guests work without it | [raw SQL](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/main/supabase/migrations/20261029000000_application_details.sql) |
@@ -29,4 +28,5 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | 2026-10-29 | 17 skill courses with cheat sheets, linked from missing skills |
 | 2026-10-29 | Legal notice, privacy policy, Account & data page (export / delete), source credits, error handling, SEO tags |
 | 2026-10-29 | Tracker 2.0 and offer filters (see ROADMAP.md, Phase 2 and 3) |
-| 2026-10-29 | Owner redeployed `job-search` (IP hashing, detailed errors). Diagnosis: JSearch removed `/search`; code moved to `/search-v2` (needs O2 again) |
+| 2026-10-29 | Owner redeployed `job-search` (IP hashing, detailed errors). Diagnosis: JSearch removed `/search`; code moved to `/search-v2` |
+| 2026-10-29 | O2 done: latest `job-search` deployed. **JSearch works**: 10 full offers per search (~6,000 characters each), "All sources" = Adzuna + JSearch with no warnings. Tip: deploy from a commit-pinned raw link, the plain raw link is cached ~5 min |

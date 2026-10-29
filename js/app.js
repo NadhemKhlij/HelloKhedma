@@ -20,6 +20,22 @@ const path = () => state.paths.find((p) => p.id === state.pathId);
 const byKind = (k) => state.resources.filter((r) => r.kind === k);
 const fail = (e) => toast(e?.message || "Something went wrong.");
 
+/* ---------- theme (the inline script in index.html applies it before first paint) ---------- */
+const THEME_KEY = "hk.theme";
+function renderThemeToggle() {
+  const light = document.documentElement.dataset.theme === "light";
+  const btn = $("#themeToggle");
+  btn.textContent = light ? "☾" : "☀";
+  btn.title = light ? "Switch to dark theme" : "Switch to light theme";
+  btn.setAttribute("aria-label", btn.title);
+}
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = next;
+  ls.set(THEME_KEY, next);
+  renderThemeToggle();
+}
+
 /* ---------- pages (hash routes: #/, #/offers, #/training, #/cv, #/applications) ---------- */
 const ROUTES = { home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications" };
 // Anything that is not "#/<route>" (e.g. Supabase's "#access_token=..." after a magic link) shows Home
@@ -428,6 +444,8 @@ async function onUser(user) {
 
 /* ---------- init ---------- */
 async function init() {
+  renderThemeToggle();
+  $("#themeToggle").addEventListener("click", toggleTheme);
   showRoute(false);
   window.addEventListener("hashchange", () => showRoute(true));
   if (!configured) { $("#setup").hidden = false; $("#status").textContent = "Setup needed"; return; }

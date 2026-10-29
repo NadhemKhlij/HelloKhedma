@@ -6,9 +6,11 @@
 //                    cheatsheet: [{ group, items: [[syntax, meaning]] }],
 //                    exercises: [{ q, hint?, answer, code?: "sql" | "python" | ... (answer shown as code) }],
 //                    pitfalls: [..], interview: [{ q, a }] }
+// French: content/courses/fr/<id>.json (same structure and lesson order: progress is stored by lesson index) and
+// fr/index.json ([{ id, name, summary }], merged over index.json). Missing French files fall back to English.
 // Lesson progress is kept in this browser ("hk.lessons").
 import { $, h, ls, toast } from "./lib.js";
-import { t } from "./i18n.js";
+import { t, lang, fetchContent } from "./i18n.js";
 
 const BASE = "content/courses/";
 const LESSONS_KEY = "hk.lessons";
@@ -23,6 +25,11 @@ export async function loadCourseIndex() {
     const res = await fetch(`${BASE}index.json`);
     if (res.ok) index = await res.json();
   } catch { index = []; }
+  if (lang === "fr") { // French names and summaries; ids, skills, paths and hours stay in index.json
+    const fr = await fetch(`${BASE}fr/index.json`).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+    const byId = new Map(fr.map((x) => [x.id, x]));
+    index = index.map((c) => ({ ...c, ...(byId.get(c.id) ? { name: byId.get(c.id).name, summary: byId.get(c.id).summary } : {}) }));
+  }
   return index;
 }
 
@@ -67,9 +74,7 @@ export function renderCourseList(root, pathId) {
 
 async function loadCourse(id) {
   if (cache.has(id)) return cache.get(id);
-  const res = await fetch(`${BASE}${encodeURIComponent(id)}.json`);
-  if (!res.ok) throw new Error(t("This course does not exist (yet)."));
-  const c = await res.json();
+  const c = await fetchContent(BASE, `${encodeURIComponent(id)}.json`).catch(() => { throw new Error(t("This course does not exist (yet).")); });
   cache.set(id, c);
   return c;
 }

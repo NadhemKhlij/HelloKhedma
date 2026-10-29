@@ -1,0 +1,98 @@
+{
+  "why": "Les ingénieurs support et data passent une grande partie de leur temps à comprendre pourquoi quelque chose a cassé. Maîtriser les logs, les métriques et les alertes vous rend plus rapide et plus serein en astreinte.",
+  "outcome": "lire des logs structurés, les interroger dans Kibana, Splunk ou Grafana, choisir les bonnes métriques et écrire des alertes réellement actionnables.",
+  "lessons": [
+    {
+      "title": "Les logs : les lire et les interroger",
+      "minutes": 40,
+      "text": [
+        "Une ligne de log enregistre un événement : horodatage, niveau, composant, message et, idéalement, un identifiant de requête ou de corrélation. Les logs structurés (JSON) sont bien plus faciles à interroger que du texte libre.",
+        "Pour investiguer, réduisez la fenêtre de temps, filtrez par niveau et par service, puis suivez un identifiant de requête à travers les composants."
+      ],
+      "points": [
+        "Niveaux : DEBUG < INFO < WARN < ERROR < FATAL.",
+        "Lisez la première erreur, pas la dernière : les erreurs suivantes en sont souvent des conséquences.",
+        "Vérifiez les fuseaux horaires : les serveurs journalisent souvent en UTC.",
+        "Comptez les erreurs dans le temps pour voir quand le problème a commencé."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "{\"ts\":\"2026-10-29T09:52:13Z\",\"level\":\"ERROR\",\"service\":\"search-api\",\n \"request_id\":\"a81f\",\"msg\":\"database timeout after 5000 ms\",\"route\":\"/offers\"}\n\nKibana (KQL):   service : \"search-api\" and level : \"ERROR\" and msg : *timeout*\nSplunk (SPL):   index=app service=search-api level=ERROR | timechart count\nGrafana Loki:   {service=\"search-api\"} |= \"timeout\""
+      }
+    },
+    {
+      "title": "Métriques et tableaux de bord",
+      "minutes": 40,
+      "text": [
+        "Les métriques sont des valeurs dans le temps : débit de requêtes, taux d’erreur, latence, CPU, longueur de file d’attente. Elles montrent les tendances et coûtent peu à conserver, tandis que les logs expliquent les événements individuels.",
+        "Deux grilles simples : RED pour les services (Rate, Errors, Duration) et USE pour les ressources (Utilisation, Saturation, Errors)."
+      ],
+      "points": [
+        "Latence : surveillez le P95 / P99, pas seulement la moyenne.",
+        "Taux d’erreur = erreurs / requêtes, en pourcentage.",
+        "Golden signals : latence, trafic, erreurs, saturation.",
+        "Un tableau de bord par service, avec les graphiques les plus importants en haut."
+      ],
+      "example": {
+        "lang": "promql",
+        "code": "# error rate (%) over 5 minutes\n100 * sum(rate(http_requests_total{status=~\"5..\"}[5m]))\n    / sum(rate(http_requests_total[5m]))\n\n# 95th percentile latency\nhistogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))"
+      }
+    },
+    {
+      "title": "Des alertes dignes de confiance",
+      "minutes": 35,
+      "text": [
+        "Une alerte doit signifier : un humain doit agir maintenant. Avec trop d’alertes, les gens finissent par les ignorer (fatigue d’alerte).",
+        "Alertez sur les symptômes ressentis par les utilisateurs (erreurs, latence, disponibilité) plutôt que sur les causes (CPU à 80 %), et associez chaque alerte à un runbook."
+      ],
+      "points": [
+        "Utilisez une durée : « taux d’erreur > 5 % pendant 5 minutes », pas un pic isolé.",
+        "Niveaux de gravité : appeler l’astreinte ou créer un ticket.",
+        "Chaque alerte a un responsable et un lien vers un runbook : quoi vérifier, comment atténuer.",
+        "Revoyez les alertes chaque mois : supprimez celles qui n’ont donné lieu à aucune action."
+      ]
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Investiguer", "items": [
+      ["Réduire la fenêtre de temps", "Commencer juste avant la première erreur"],
+      ["Filtrer service + niveau", "Réduire le bruit"],
+      ["Suivre le request_id", "Tracer une requête à travers les services"],
+      ["Compter dans le temps", "Voir quand cela a commencé"]
+    ]},
+    { "group": "Requêtes", "items": [
+      ["Kibana KQL: level : \"ERROR\"", "Filtrer sur un champ"],
+      ["Splunk: ... | stats count by host", "Nombre par hôte"],
+      ["Splunk: ... | timechart count", "Erreurs dans le temps"],
+      ["Loki: {app=\"x\"} |= \"timeout\"", "Filtre texte sur un flux"]
+    ]},
+    { "group": "Métriques", "items": [
+      ["RED", "Rate, Errors, Duration (services)"],
+      ["USE", "Utilisation, Saturation, Errors (ressources)"],
+      ["Latence P95 / P99", "Ce que vivent les utilisateurs les plus lents"],
+      ["rate(x[5m])", "Débit par seconde (Prometheus)"]
+    ]},
+    { "group": "Alerting", "items": [
+      ["Basée sur les symptômes", "Alerter sur ce que ressentent les utilisateurs"],
+      ["for: 5m", "Ignorer les pics brefs"],
+      ["Lien vers le runbook", "Que faire quand elle se déclenche"],
+      ["Astreinte vs ticket", "Urgent vs peut attendre"]
+    ]}
+  ],
+  "pitfalls": [
+    "Lire la dernière erreur du log au lieu de la première.",
+    "Comparer des horodatages de systèmes situés dans des fuseaux horaires différents.",
+    "Alerter sur chaque warning, si bien que les vraies alertes sont ignorées.",
+    "Des tableaux de bord de latence moyenne qui masquent les requêtes lentes."
+  ],
+  "exercises": [
+    { "q": "Des utilisateurs signalent que le site était lent entre 10 h et 10 h 30. Quelles métriques ouvrez-vous en premier ?", "answer": "La latence P95/P99 et le taux d’erreur du service frontal sur cette fenêtre, puis le débit de requêtes (pic de trafic ?), puis la saturation des dépendances : latence et connexions de la base de données, CPU et mémoire." },
+    { "q": "Écrivez une recherche Splunk qui compte les lignes ERROR par service sur la dernière heure.", "code": "text", "answer": "index=app level=ERROR earliest=-1h | stats count by service | sort -count" },
+    { "q": "Transformez ceci en bonne alerte : « CPU > 80 % ».", "answer": "Alertez plutôt sur le symptôme : « latence P95 > 2 s pendant 10 minutes sur search-api », avec un lien vers le runbook. Gardez le CPU comme graphique de tableau de bord ou comme ticket de faible gravité pour la planification de capacité." }
+  ],
+  "interview": [
+    { "q": "Logs, métriques ou traces ?", "a": "Les métriques sont des valeurs dans le temps qui montrent les tendances et déclenchent les alertes. Les logs enregistrent des événements individuels avec les détails qui expliquent ce qui s’est passé. Les traces suivent une requête à travers les services pour montrer où le temps est passé." },
+    { "q": "Comment investiguez-vous une erreur que vous n’avez jamais vue ?", "a": "Je définis l’impact et l’heure de début, je restreins les logs à cette fenêtre et à ce service, je trouve la première erreur, je suis son identifiant de requête, je vérifie les changements récents et les dépendances, je reproduis si possible, et je note mes constats au fur et à mesure." },
+    { "q": "Qu’est-ce qu’une bonne alerte ?", "a": "Elle ne se déclenche que lorsqu’un humain doit agir, repose sur des symptômes visibles par les utilisateurs avec un seuil de durée, a un responsable et une gravité clairs, et renvoie vers un runbook." }
+  ]
+}

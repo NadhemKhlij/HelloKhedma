@@ -1,0 +1,113 @@
+{
+  "why": "Power BI est l’outil de BI le plus demandé dans les offres d’emploi françaises pour les analystes et de nombreux postes de BA. Un bon rapport dans votre portfolio est une preuve solide.",
+  "outcome": "importer et nettoyer des données avec Power Query, construire un modèle en schéma en étoile, écrire les mesures DAX essentielles et concevoir un rapport lisible.",
+  "lessons": [
+    {
+      "title": "Récupérer et nettoyer les données avec Power Query",
+      "minutes": 40,
+      "text": [
+        "Power Query (Transformer les données) est l’endroit où vous vous connectez aux sources (Excel, CSV, SQL, SharePoint) et les nettoyez avant qu’elles n’arrivent dans le modèle. Chaque étape est enregistrée et rejouée à chaque actualisation.",
+        "Faites le nettoyage ici, pas dans les visuels : définir les types, supprimer des colonnes, fractionner, dépivoter, fusionner des requêtes."
+      ],
+      "points": [
+        "Définissez le type de données de chaque colonne ; les dates en Date, les montants en Nombre décimal.",
+        "Supprimez les colonnes dont vous n’avez pas besoin : modèle plus léger, rapport plus rapide.",
+        "Le dépivotage (Unpivot) transforme des colonnes de mois (Jan, Fév, ...) en lignes, la forme dont les modèles ont besoin.",
+        "Nommez clairement les requêtes : Fact_Sales, Dim_Product."
+      ]
+    },
+    {
+      "title": "Modèle : relations et table de dates",
+      "minutes": 40,
+      "text": [
+        "Dans la vue Modèle, reliez les tables de faits aux tables de dimensions par des relations un-à-plusieurs, avec un filtrage de la dimension vers les faits. C’est un schéma en étoile.",
+        "Ajoutez une table de dates dédiée, marquée comme table de dates, pour que les fonctions de time intelligence (cumul annuel, année précédente) fonctionnent."
+      ],
+      "points": [
+        "Évitez les filtres bidirectionnels, sauf si vous en avez vraiment besoin.",
+        "Masquez les colonnes techniques (clés) dans la vue Rapport.",
+        "Une seule table de dates, reliée à chaque colonne de date des faits que vous analysez.",
+        "Les mesures vont dans le modèle ; réservez les colonnes calculées aux attributs au niveau de la ligne."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Dim_Date =\nADDCOLUMNS (\n    CALENDAR ( DATE ( 2024, 1, 1 ), DATE ( 2026, 12, 31 ) ),\n    \"Year\", YEAR ( [Date] ),\n    \"Month\", FORMAT ( [Date], \"MMM\" ),\n    \"MonthNum\", MONTH ( [Date] )\n)"
+      }
+    },
+    {
+      "title": "Mesures DAX et CALCULATE",
+      "minutes": 50,
+      "text": [
+        "Une mesure est calculée au moment de la requête, dans le contexte de filtre courant (tout ce que sélectionnent le visuel, les segments et les filtres). C’est pourquoi la même mesure affiche une valeur différente dans chaque cellule.",
+        "CALCULATE modifie le contexte de filtre : c’est la fonction DAX la plus importante."
+      ],
+      "points": [
+        "SUM / AVERAGE / DISTINCTCOUNT pour les mesures de base.",
+        "DIVIDE(a, b) évite les erreurs de division par zéro.",
+        "CALCULATE([Sales], Dim_Product[Category] = \"Bikes\") filtre une mesure.",
+        "Time intelligence : TOTALYTD, SAMEPERIODLASTYEAR, DATEADD.",
+        "Utilisez VAR pour rendre lisibles les mesures longues."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Total Sales = SUM ( Fact_Sales[Amount] )\n\nSales LY = CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( Dim_Date[Date] ) )\n\nSales YoY % =\nVAR cur = [Total Sales]\nVAR prev = [Sales LY]\nRETURN DIVIDE ( cur - prev, prev )"
+      }
+    },
+    {
+      "title": "Concevoir des rapports vraiment utilisés",
+      "minutes": 35,
+      "text": [
+        "Partez des questions que se pose votre public et placez la réponse en haut : 3 à 5 cartes KPI, puis les ventilations, puis le détail.",
+        "La cohérence l’emporte sur la décoration : mêmes couleurs pour le même sens, visuels alignés, titres clairs qui énoncent l’enseignement clé."
+      ],
+      "points": [
+        "Histogrammes et graphiques à barres pour comparer, courbes pour les tendances, tableaux pour le détail ; évitez les camemberts à nombreuses parts.",
+        "Utilisez les segments avec parcimonie et synchronisez-les entre les pages.",
+        "Les info-bulles et l’extraction (drill-through) ajoutent du détail sans surcharger.",
+        "Publiez sur le service Power BI, planifiez une actualisation et partagez via une application ou un espace de travail."
+      ]
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Power Query", "items": [
+      ["Change type", "Définir d’abord les bons types de données"],
+      ["Unpivot columns", "Colonnes → lignes (dépivoter)"],
+      ["Merge queries", "Joindre deux tables"],
+      ["Append queries", "Empiler des tables"],
+      ["Group by", "Agréger avant le chargement"]
+    ]},
+    { "group": "Modélisation", "items": [
+      ["1 → * relationship", "La dimension filtre les faits"],
+      ["Mark as date table", "Active la time intelligence"],
+      ["Hide in report view", "Garder les clés hors de vue"],
+      ["Measure vs calculated column", "Calcul à la requête vs au niveau ligne, stocké"]
+    ]},
+    { "group": "DAX", "items": [
+      ["SUM / AVERAGE / DISTINCTCOUNT", "Agrégations de base"],
+      ["DIVIDE(a, b)", "Division sécurisée"],
+      ["CALCULATE(m, filter)", "Modifier le contexte de filtre"],
+      ["ALL(table)", "Supprimer les filtres (ex. : % du total)"],
+      ["TOTALYTD(m, Dim_Date[Date])", "Cumul depuis le début de l’année"],
+      ["SAMEPERIODLASTYEAR(Dim_Date[Date])", "Même période l’année précédente"],
+      ["VAR x = ... RETURN ...", "Mesures lisibles"]
+    ]}
+  ],
+  "pitfalls": [
+    "Une grande table plate au lieu d’un schéma en étoile : lenteur et totaux faux.",
+    "Des colonnes calculées là où il faut une mesure (elles ne réagissent pas aux filtres).",
+    "Utiliser la hiérarchie de dates automatique au lieu d’une vraie table de dates.",
+    "Des relations bidirectionnelles partout, qui produisent des résultats ambigus."
+  ],
+  "exercises": [
+    { "q": "Écrivez une mesure donnant la part de chaque catégorie dans les ventes totales (pourcentage du total général).",
+      "code": "dax", "answer": "% of Total =\nDIVIDE ( [Total Sales], CALCULATE ( [Total Sales], ALL ( Dim_Product[Category] ) ) )" },
+    { "q": "Écrivez une mesure qui compte les clients distincts ayant acheté sur la période sélectionnée.",
+      "code": "dax", "answer": "Active Customers = DISTINCTCOUNT ( Fact_Sales[CustomerID] )" },
+    { "q": "Les données de ventes ont une colonne par mois. Que faites-vous dans Power Query ?", "answer": "Sélectionnez les colonnes d’identifiant, puis « Supprimer le tableau croisé dynamique des autres colonnes » (Unpivot Other Columns) : vous obtenez une ligne par mois avec Attribut (le mois) et Valeur (les ventes), puis définissez les types et renommez." }
+  ],
+  "interview": [
+    { "q": "Colonne calculée ou mesure ?", "a": "Une colonne calculée est calculée ligne par ligne à l’actualisation et stockée dans le modèle ; elle ne réagit pas aux segments. Une mesure est calculée au moment de la requête dans le contexte de filtre courant : c’est ce qu’on utilise pour les agrégations dans les visuels." },
+    { "q": "Que fait CALCULATE ?", "a": "Elle évalue une expression dans un contexte de filtre modifié : elle peut ajouter, remplacer ou supprimer des filtres. C’est la base de la plupart des mesures avancées, comme l’évolution d’une année sur l’autre ou le pourcentage du total." },
+    { "q": "Comment accélérer un rapport lent ?", "a": "Supprimez les colonnes et les lignes inutiles, utilisez un schéma en étoile, préférez les mesures aux colonnes calculées, évitez les relations bidirectionnelles, réduisez le nombre de visuels par page et vérifiez avec l’Analyseur de performances (Performance Analyzer)." }
+  ]
+}

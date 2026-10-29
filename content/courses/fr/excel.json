@@ -1,0 +1,106 @@
+{
+  "why": "Excel est partout en entreprise. Les entretiens d’analyste et de BA comportent souvent un test Excel chronométré avec des recherches et des tableaux croisés dynamiques.",
+  "outcome": "structurer des données sous forme de tableau, utiliser les fonctions de recherche et les formules conditionnelles, créer des tableaux croisés dynamiques et un dashboard simple.",
+  "lessons": [
+    {
+      "title": "Tableaux propres et formules essentielles",
+      "minutes": 40,
+      "text": [
+        "Convertissez votre plage en Tableau (Ctrl+T) : il s’agrandit automatiquement, les formules utilisent les noms de colonnes et les tableaux croisés dynamiques suivent les nouvelles lignes.",
+        "La plupart des formules métier sont des sommes et des comptages conditionnels. Apprenez par cœur la famille des « IFS » (SOMME.SI.ENS, NB.SI.ENS dans Excel en français)."
+      ],
+      "points": [
+        "SUMIFS(sum_range, criteria_range1, criteria1, ...) et COUNTIFS pour des totaux multicritères.",
+        "IF et IFS pour créer des catégories ; IFERROR pour afficher une valeur propre au lieu de #N/A.",
+        "TEXT, LEFT, RIGHT, TRIM, PROPER nettoient le texte ; DATE, EOMONTH, NETWORKDAYS gèrent les dates.",
+        "$A$1 est une référence absolue : elle ne bouge pas quand on la copie."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=SUMIFS(Sales[Amount], Sales[City], \"Paris\", Sales[Date], \">=\"&DATE(2026,1,1))\n=COUNTIFS(Offers[Status], \"Applied\", Offers[Path], $B$2)\n=IFS([@Salary]<35000, \"Junior\", [@Salary]<55000, \"Mid\", TRUE, \"Senior\")"
+      }
+    },
+    {
+      "title": "Recherches : XLOOKUP et INDEX/MATCH",
+      "minutes": 35,
+      "text": [
+        "Une recherche ramène une valeur d’une autre table à partir d’une clé, comme une jointure. XLOOKUP (RECHERCHEX en français) est la fonction moderne ; INDEX/MATCH fonctionne dans toutes les versions ; VLOOKUP (RECHERCHEV) reste courant dans les anciens fichiers.",
+        "Utilisez toujours la correspondance exacte et gérez le cas « non trouvé »."
+      ],
+      "points": [
+        "XLOOKUP(key, lookup_column, return_column, \"not found\").",
+        "INDEX(return_column, MATCH(key, lookup_column, 0)).",
+        "VLOOKUP(key, table, col_number, FALSE) : FALSE signifie correspondance exacte.",
+        "Les recherches ne renvoient que la première correspondance : vérifiez que les clés sont uniques."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=XLOOKUP([@CompanyID], Companies[ID], Companies[Name], \"Unknown\")\n=INDEX(Companies[Name], MATCH([@CompanyID], Companies[ID], 0))"
+      }
+    },
+    {
+      "title": "Tableaux croisés dynamiques et dashboards",
+      "minutes": 40,
+      "text": [
+        "Un tableau croisé dynamique résume un tableau en faisant glisser des champs dans Lignes, Colonnes, Valeurs et Filtres. Il répond en quelques secondes à « combien par X et par Y ».",
+        "Ajoutez des segments et un graphique croisé dynamique pour construire un dashboard interactif simple."
+      ],
+      "points": [
+        "Insertion → Tableau croisé dynamique à partir d’un Tableau, pour que les nouvelles lignes soient incluses après Actualiser.",
+        "Paramètres des champs de valeurs : Somme, Nombre, Moyenne, % du total général.",
+        "Regroupez les dates par mois ou par trimestre (clic droit → Grouper).",
+        "Les versions récentes d’Excel proposent aussi les fonctions FILTER, UNIQUE et SORT pour des listes dynamiques."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=UNIQUE(Offers[City])\n=FILTER(Offers, Offers[Fit]>=60, \"None\")\n=SORT(FILTER(Offers[[Title]:[Fit]], Offers[Path]=\"da\"), 2, -1)"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Conditions", "items": [
+      ["SUMIFS / COUNTIFS / AVERAGEIFS", "Agrégation multicritère"],
+      ["IF / IFS", "Valeurs conditionnelles"],
+      ["IFERROR(x, \"\")", "Masquer les erreurs"],
+      ["AND(...) / OR(...)", "Combiner des conditions"]
+    ]},
+    { "group": "Recherche", "items": [
+      ["XLOOKUP(k, col, ret, \"n/a\")", "Recherche moderne"],
+      ["INDEX(ret, MATCH(k, col, 0))", "Fonctionne partout"],
+      ["VLOOKUP(k, tbl, n, FALSE)", "Ancienne recherche, en correspondance exacte"]
+    ]},
+    { "group": "Texte et dates", "items": [
+      ["TRIM / PROPER / UPPER", "Nettoyer le texte"],
+      ["TEXTSPLIT / TEXTJOIN", "Fractionner / concaténer du texte"],
+      ["EOMONTH(d, 0)", "Fin de mois"],
+      ["NETWORKDAYS(start, end)", "Jours ouvrés entre deux dates"]
+    ]},
+    { "group": "Tableaux dynamiques", "items": [
+      ["UNIQUE(range)", "Valeurs distinctes"],
+      ["FILTER(range, cond)", "Lignes qui remplissent une condition"],
+      ["SORT(range, col, -1)", "Tri décroissant"]
+    ]},
+    { "group": "Raccourcis", "items": [
+      ["Ctrl+T", "Mettre sous forme de tableau"],
+      ["Ctrl+Shift+L", "Activer / désactiver les filtres"],
+      ["F4", "Basculer la référence absolue $"],
+      ["Alt+=", "Somme automatique"]
+    ]}
+  ],
+  "pitfalls": [
+    "VLOOKUP sans FALSE : la correspondance approximative renvoie des valeurs fausses sans prévenir.",
+    "Cellules fusionnées et lignes vides au milieu des données : elles cassent les tris, les filtres et les tableaux croisés dynamiques.",
+    "Des nombres saisis en dur dans les formules au lieu d’une référence de cellule ou de tableau.",
+    "Oublier d’actualiser un tableau croisé dynamique après avoir modifié les données."
+  ],
+  "exercises": [
+    { "q": "Comptez les candidatures au statut « Interview » pour le parcours indiqué en cellule B2.", "code": "excel", "answer": "=COUNTIFS(Apps[Status], \"Interview\", Apps[Path], $B$2)" },
+    { "q": "Renvoyez le salaire de l’offre dont l’ID est en A2 depuis le tableau Offers, ou « missing » si elle est introuvable.", "code": "excel", "answer": "=XLOOKUP(A2, Offers[ID], Offers[Salary], \"missing\")" },
+    { "q": "Comment afficher le nombre d’offres par ville et par mois ?", "answer": "Insérez un tableau croisé dynamique à partir du tableau Offers : City en Lignes, la date de publication en Colonnes groupée par Mois, Title en Valeurs avec la synthèse Nombre." }
+  ],
+  "interview": [
+    { "q": "VLOOKUP, XLOOKUP ou INDEX/MATCH ?", "a": "VLOOKUP ne cherche que vers la droite et utilise un numéro de colonne qui casse quand les colonnes bougent. INDEX/MATCH cherche dans toutes les directions et est robuste. XLOOKUP fait la même chose en une seule fonction, avec la correspondance exacte par défaut et une valeur « non trouvé »." },
+    { "q": "Comment vérifiez-vous la qualité des données dans un tableur ?", "a": "Supprimez les doublons, repérez les cellules vides et les erreurs avec des filtres ou COUNTBLANK/ISERROR, vérifiez les types (nombres stockés en texte), contrôlez les plages de valeurs avec la mise en forme conditionnelle et rapprochez les totaux de la source." },
+    { "q": "Quand utiliser un tableau croisé dynamique plutôt que des formules ?", "a": "Pour explorer et résumer rapidement des données selon plusieurs dimensions, surtout quand la présentation change souvent. Les formules conviennent mieux à un rapport à la mise en page fixe ou à des calculs qu’un tableau croisé dynamique ne sait pas exprimer." }
+  ]
+}

@@ -8,7 +8,8 @@
 // - Static HTML is translated once at load (text nodes + placeholder / aria-label / title), before the page modules render.
 //   Elements with data-lang="en" / "fr" are shown only in that language (legal notice, privacy policy) and skipped.
 // - Switching language reloads the page (setLang), so every module renders again in the new language.
-// Course, interview and career-path content (content/, supabase/seed.sql) is English only for now.
+// - Content: localize() for database rows (<field>_fr columns), fetchContent() for content/ JSON (fr/ copies).
+//   Skill keywords and job titles stay English: CV matching and the offer search rely on them.
 import { ls } from "./lib.js";
 import FR from "./i18n-fr.js";
 
@@ -28,6 +29,27 @@ export function t(key, vars) {
   return s;
 }
 export const tn = (n, one, many, vars) => t((lang === "fr" ? n <= 1 : n === 1) ? one : many, { n, ...vars });
+
+// Database rows with French columns (<field>_fr, see migration 20261029000200 and the end of seed.sql): in French,
+// copies the French text over the English one when it exists. The English stays the key for ids and matching,
+// so only display fields are listed by the callers (never job_titles or keywords).
+export function localize(rows, fields) {
+  if (lang !== "fr") return rows;
+  for (const r of rows || []) for (const f of fields) if (r[`${f}_fr`]) r[f] = r[`${f}_fr`];
+  return rows;
+}
+
+// Content files (content/courses, content/interview): the French copy under fr/ when the interface is French,
+// otherwise (or when that copy is missing) the English one.
+export async function fetchContent(base, file) {
+  if (lang === "fr") {
+    const res = await fetch(`${base}fr/${file}`).catch(() => null);
+    if (res?.ok) return res.json();
+  }
+  const res = await fetch(`${base}${file}`);
+  if (!res.ok) throw new Error(`${base}${file}: ${res.status}`);
+  return res.json();
+}
 
 export function setLang(next) {
   ls.set(LANG_KEY, next);

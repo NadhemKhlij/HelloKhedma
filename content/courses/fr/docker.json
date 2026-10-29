@@ -1,0 +1,107 @@
+{
+  "why": "Docker rend reproductible le fameux « ça marche sur ma machine ». Dans la plupart des équipes, les pipelines de données, les API et les bases de données locales tournent dans des conteneurs.",
+  "outcome": "écrire un Dockerfile, construire et lancer une image, passer de la configuration, persister des données et lancer plusieurs services avec Docker Compose.",
+  "lessons": [
+    {
+      "title": "Images et conteneurs",
+      "minutes": 35,
+      "text": [
+        "Une image est un package en lecture seule : un système de base, votre code, ses dépendances et la commande de démarrage. Un conteneur est une instance d’une image en cours d’exécution.",
+        "Les images proviennent d’un registry (Docker Hub, GitHub Container Registry) ou vous les construisez à partir d’un Dockerfile."
+      ],
+      "points": [
+        "docker run -d --name db -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:16 démarre une base de données en quelques secondes.",
+        "-p host:container publie un port ; -e définit une variable d’environnement ; -d lance en arrière-plan.",
+        "docker ps liste les conteneurs en cours d’exécution ; docker logs -f name suit leur sortie.",
+        "Fixez les versions (postgres:16) et évitez :latest dans les vrais projets."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "docker run -d --name jobs-db -p 5432:5432 \\\n  -e POSTGRES_PASSWORD=dev -v jobs-data:/var/lib/postgresql/data postgres:16\ndocker ps\ndocker logs -f jobs-db",
+        "note": "-v jobs-data:... conserve les fichiers de la base dans un volume nommé : ils survivent aux redémarrages du conteneur."
+      }
+    },
+    {
+      "title": "Écrire un Dockerfile",
+      "minutes": 45,
+      "text": [
+        "Un Dockerfile liste les étapes de construction de votre image. Chaque instruction crée une couche mise en cache : placez ce qui change le moins (les dépendances) avant ce qui change le plus (votre code).",
+        "Gardez des images légères et sûres : images de base slim, aucun secret intégré, un utilisateur non root."
+      ],
+      "points": [
+        "FROM choisit l’image de base ; WORKDIR définit le dossier ; COPY ajoute des fichiers ; RUN s’exécute au build ; CMD est la commande de démarrage par défaut.",
+        "Copiez requirements.txt et installez les dépendances avant de copier le reste, pour réutiliser le cache.",
+        "Utilisez un .dockerignore (comme un .gitignore) pour exclure .venv, les données et .git de l’image.",
+        "Passez les secrets à l’exécution avec -e ou un fichier d’environnement, jamais avec COPY."
+      ],
+      "example": {
+        "lang": "dockerfile",
+        "code": "FROM python:3.12-slim\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nRUN useradd -m appuser\nUSER appuser\nCMD [\"python\", \"pipeline.py\"]"
+      }
+    },
+    {
+      "title": "Plusieurs services avec Docker Compose",
+      "minutes": 40,
+      "text": [
+        "Les vrais projets ont besoin de plusieurs conteneurs : une application, une base de données, parfois un ordonnanceur. docker compose les décrit dans un seul fichier YAML et les démarre ensemble sur un réseau partagé.",
+        "Les services se joignent par leur nom de service (l’application se connecte à l’hôte « db », pas à localhost)."
+      ],
+      "points": [
+        "docker compose up -d démarre tout ; docker compose down arrête tout.",
+        "depends_on ordonne le démarrage ; les healthchecks indiquent quand un service est réellement prêt.",
+        "env_file: .env charge la configuration sans l’écrire en dur.",
+        "docker compose logs -f app suit un seul service."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "services:\n  db:\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: dev\n    volumes:\n      - db-data:/var/lib/postgresql/data\n  app:\n    build: .\n    env_file: .env\n    environment:\n      DATABASE_URL: postgresql://postgres:dev@db:5432/postgres\n    depends_on:\n      - db\nvolumes:\n  db-data:"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Exécuter", "items": [
+      ["docker run -d -p 8080:80 --name web nginx", "Démarrer un conteneur en arrière-plan"],
+      ["docker ps / docker ps -a", "Conteneurs actifs / tous les conteneurs"],
+      ["docker logs -f name", "Suivre les logs"],
+      ["docker exec -it name sh", "Ouvrir un shell à l’intérieur"],
+      ["docker stop name / docker rm name", "Arrêter / supprimer"]
+    ]},
+    { "group": "Construire", "items": [
+      ["docker build -t myapp:1.0 .", "Construire une image à partir de ./Dockerfile"],
+      ["docker images", "Lister les images locales"],
+      ["docker push registry/myapp:1.0", "Publier une image"],
+      ["docker system prune", "Nettoyer les données inutilisées (avec prudence)"]
+    ]},
+    { "group": "Dockerfile", "items": [
+      ["FROM python:3.12-slim", "Image de base"],
+      ["COPY requirements.txt . + RUN pip install", "Installer les dépendances avant le code (cache)"],
+      ["ENV KEY=value", "Variable d’environnement par défaut"],
+      ["EXPOSE 8000", "Documenter le port"],
+      ["CMD [\"python\", \"app.py\"]", "Commande de démarrage"]
+    ]},
+    { "group": "Compose", "items": [
+      ["docker compose up -d", "Démarrer tous les services"],
+      ["docker compose down", "Arrêter et supprimer (volumes conservés)"],
+      ["docker compose ps / logs -f svc", "État / logs"],
+      ["docker compose build", "Reconstruire les images"]
+    ]}
+  ],
+  "pitfalls": [
+    "Se connecter à localhost d’un conteneur à un autre : utilisez le nom du service.",
+    "Perdre les données de la base parce qu’aucun volume n’était monté.",
+    "Copier tout le projet avant d’installer les dépendances, ce qui reconstruit tout à chaque modification du code.",
+    "Intégrer des mots de passe dans l’image avec COPY .env ou ENV."
+  ],
+  "exercises": [
+    { "q": "Lancez un serveur Redis en arrière-plan sur le port 6379 et consultez ses logs.",
+      "code": "bash", "answer": "docker run -d --name cache -p 6379:6379 redis:7\ndocker logs cache" },
+    { "q": "Votre conteneur s’arrête immédiatement. Comment en trouver la cause ?", "answer": "docker ps -a pour voir le code de sortie, puis docker logs <name> pour lire l’erreur. Le lancer en mode interactif (docker run -it image sh) permet de tester la commande de démarrage à la main." },
+    { "q": "Écrivez un .dockerignore pour un projet Python.",
+      "code": "text", "answer": ".git\n.venv\n__pycache__\n*.pyc\n.env\ndata/" }
+  ],
+  "interview": [
+    { "q": "Image ou conteneur ?", "a": "Une image est le modèle immuable (code, dépendances, commande de démarrage). Un conteneur est une instance isolée en cours d’exécution, créée à partir d’une image ; on peut lancer de nombreux conteneurs à partir d’une même image." },
+    { "q": "Docker ou machine virtuelle ?", "a": "Les conteneurs partagent le noyau de l’hôte et n’embarquent que l’application et ses bibliothèques : ils démarrent en quelques secondes et sont légers. Une VM émule une machine complète avec son propre système d’exploitation, ce qui est plus lourd mais mieux isolé." },
+    { "q": "Comment persister des données avec Docker ?", "a": "Avec des volumes (volumes nommés gérés par Docker) ou des bind mounts (un dossier de l’hôte). Le système de fichiers du conteneur est perdu quand le conteneur est supprimé." }
+  ]
+}

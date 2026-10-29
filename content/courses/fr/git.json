@@ -1,0 +1,105 @@
+{
+  "why": "Toutes les équipes versionnent leur code, leur SQL et leurs pipelines avec Git. Un profil GitHub soigné est aussi la première chose qu’ouvrent les recruteurs.",
+  "outcome": "créer un dépôt, faire des commits propres, travailler sur des branches, ouvrir une pull request et résoudre un conflit simple.",
+  "lessons": [
+    {
+      "title": "Les commits : l’historique de votre projet",
+      "minutes": 35,
+      "text": [
+        "Git prend des instantanés (snapshots) de vos fichiers. Vous choisissez ce qui entre dans le prochain instantané (le staging, avec git add), puis vous l’enregistrez avec un message (git commit).",
+        "Un bon commit fait une seule chose et son message explique pourquoi. En anglais, on l’écrit à l’impératif présent : 'Add salary filter to search'."
+      ],
+      "points": [
+        "git status indique ce qui a changé et ce qui est indexé (staged).",
+        "git diff montre les modifications non indexées ; git diff --staged montre ce qui sera commité.",
+        "git log --oneline donne un historique compact.",
+        "Utilisez un .gitignore pour les secrets, les exports de données et les fichiers générés."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "git init\ngit add README.md src/\ngit commit -m \"Add first version of the job scraper\"\ngit log --oneline"
+      }
+    },
+    {
+      "title": "Branches et pull requests",
+      "minutes": 40,
+      "text": [
+        "Une branche est un pointeur mobile vers une ligne de travail. Créez-en une par fonctionnalité ou correctif pour que main reste toujours fonctionnelle.",
+        "Sur GitHub, poussez la branche et ouvrez une pull request (PR) : vos collègues relisent le diff, la CI lance les tests, puis vous mergez."
+      ],
+      "points": [
+        "git switch -c feature/salary-filter crée une branche et s’y place.",
+        "git push -u origin feature/salary-filter la publie.",
+        "Gardez des PR petites : elles sont relues plus vite et cassent moins de choses.",
+        "Dans la description de la PR, expliquez ce qui a changé, pourquoi, et comment vous l’avez testé."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "git switch -c feature/salary-filter\n# ... edit files ...\ngit add -A\ngit commit -m \"Filter offers by minimum salary\"\ngit push -u origin feature/salary-filter\n# then open a Pull Request on GitHub"
+      }
+    },
+    {
+      "title": "Rester synchronisé et résoudre les conflits",
+      "minutes": 40,
+      "text": [
+        "Les autres modifient main pendant que vous travaillez. git pull ramène leurs commits dans votre branche ; si vous avez modifié les mêmes lignes, Git vous demande de résoudre un conflit.",
+        "Un conflit n’est que du texte avec des marqueurs. Gardez la bonne version, supprimez les marqueurs, puis faites add et commit."
+      ],
+      "points": [
+        "git fetch télécharge les modifications sans toucher à vos fichiers ; git pull = fetch + merge.",
+        "Marqueurs de conflit : <<<<<<< votre version, ======= , >>>>>>> leur version.",
+        "git restore file annule les modifications locales d’un fichier (attention).",
+        "git revert <commit> annule un commit en toute sécurité en ajoutant un nouveau commit."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "git switch feature/salary-filter\ngit pull origin main      # conflict in search.py\n# edit search.py, keep the right lines, remove <<<<<<< ======= >>>>>>>\ngit add search.py\ngit commit                # completes the merge"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Au quotidien", "items": [
+      ["git status", "Ce qui a changé"],
+      ["git add <file> / git add -A", "Indexer un fichier / tout"],
+      ["git commit -m \"msg\"", "Enregistrer un instantané"],
+      ["git log --oneline --graph", "Historique compact"],
+      ["git diff / git diff --staged", "Voir les modifications"]
+    ]},
+    { "group": "Branches", "items": [
+      ["git switch -c name", "Créer une branche et s’y placer"],
+      ["git switch main", "Revenir sur main"],
+      ["git branch -d name", "Supprimer une branche mergée"],
+      ["git merge name", "Merger une branche dans la branche courante"]
+    ]},
+    { "group": "Dépôt distant (GitHub)", "items": [
+      ["git clone <url>", "Copier un dépôt"],
+      ["git push -u origin name", "Publier une branche"],
+      ["git pull", "Récupérer et merger les modifications distantes"],
+      ["git remote -v", "Afficher les dépôts distants"]
+    ]},
+    { "group": "Annuler", "items": [
+      ["git restore <file>", "Annuler les modifications locales d’un fichier"],
+      ["git restore --staged <file>", "Retirer un fichier de l’index"],
+      ["git revert <sha>", "Annuler un commit par un nouveau commit"],
+      ["git commit --amend", "Corriger le dernier commit (avant le push)"]
+    ]}
+  ],
+  "pitfalls": [
+    "Commiter des mots de passe ou des clés d’API. Même supprimés, ils restent dans l’historique : changez la clé.",
+    "Travailler directement sur main et pousser du code cassé.",
+    "Des commits énormes qui mélangent des changements sans rapport, avec des messages comme « update ».",
+    "Utiliser git push --force sur une branche partagée."
+  ],
+  "exercises": [
+    { "q": "Vous avez commité sur main par erreur mais vous n’avez pas encore poussé. Comment déplacer ce commit vers une nouvelle branche ?",
+      "code": "bash", "answer": "git branch my-feature        # new branch points at your commit\ngit reset --hard HEAD~1      # move main back one commit\ngit switch my-feature" },
+    { "q": "Comment savoir quel commit a modifié une ligne donnée d’un fichier ?", "answer": "git blame <file> affiche, pour chaque ligne, le dernier commit et l’auteur qui l’a modifiée. Sur GitHub, le bouton « Blame » fait la même chose." },
+    { "q": "Écrivez un .gitignore pour un projet data en Python.",
+      "code": "text", "answer": ".venv/\n__pycache__/\n*.pyc\n.env\ndata/raw/\n*.csv\n.ipynb_checkpoints/" }
+  ],
+  "interview": [
+    { "q": "merge ou rebase ?", "a": "Les deux intègrent les modifications d’une branche dans une autre. merge conserve l’historique tel qu’il s’est déroulé et ajoute un commit de merge ; rebase rejoue vos commits par-dessus l’autre branche pour obtenir un historique linéaire. Ne faites jamais de rebase sur des commits que d’autres utilisent déjà." },
+    { "q": "Comment annuler un commit déjà poussé ?", "a": "Avec git revert <sha> : cela crée un nouveau commit qui inverse la modification, sans réécrire l’historique partagé." },
+    { "q": "Qu’est-ce qu’une bonne pull request ?", "a": "Petite et ciblée, avec un titre clair, une description du quoi et du pourquoi, la manière dont elle a été testée, des captures d’écran pour l’interface, et une CI au vert." }
+  ]
+}

@@ -2,7 +2,7 @@
 // (guests: "hk.progress.v2"; signed in: step_progress, guest progress imported on sign-in by app.js), the weekly
 // study plan ("hk.hours" h/week), tools, tips and the course list (courses.js).
 import { $, h, safeUrl, ls } from "./lib.js";
-import { t, tn, LOCALE } from "./i18n.js";
+import { t, tn, LOCALE, localize } from "./i18n.js";
 import { sb } from "./supabase.js";
 import { state, byKind, fail } from "./state.js";
 import { extractSkills } from "./ats.js";
@@ -19,7 +19,8 @@ export async function loadTracks() {
     .select("*, training_steps(*)").eq("path_id", state.pathId)
     .order("sort_order").order("sort_order", { referencedTable: "training_steps" });
   if (error) throw error;
-  state.tracks = data;
+  state.tracks = localize(data, ["title", "summary", "outcome"]);
+  for (const tr of state.tracks) localize(tr.training_steps, ["title", "description"]);
 }
 
 export async function loadProgress() {
@@ -52,7 +53,7 @@ function stepRow(s) {
     url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "font-medium underline", style: "color:var(--accent)" }, s.title) : h("b", {}, s.title),
     h("p", { class: "mute text-sm" }, s.description),
     h("div", { class: "flex flex-wrap gap-1.5 mt-1" },
-      badge(KIND[s.kind] ? t(KIND[s.kind]) : s.kind, true), s.provider ? badge(s.provider) : null,
+      badge(KIND[s.kind] ? t(KIND[s.kind]) : s.kind, true), s.provider ? badge(t(s.provider)) : null, // "Your repo", "Your notes"… are translated; real providers stay
       badge(`${Number(s.est_hours)} h`), badge(s.is_free ? t("Free") : t("Paid")))));
 }
 

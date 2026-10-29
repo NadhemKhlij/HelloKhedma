@@ -1,0 +1,100 @@
+{
+  "why": "Airflow est l’orchestrateur le plus cité dans les offres de data engineering. Il planifie les pipelines, relance les tâches en échec et montre ce qui a tourné et quand.",
+  "outcome": "écrire un DAG avec des tâches dépendantes, le planifier, passer correctement des données entre les tâches et déboguer une exécution en échec.",
+  "lessons": [
+    {
+      "title": "DAG, tâches et planification",
+      "minutes": 40,
+      "text": [
+        "Un DAG (graphe orienté acyclique) est un pipeline : des tâches et l’ordre dans lequel elles s’exécutent. Airflow lit les fichiers Python du dossier dags et exécute chaque DAG selon sa planification.",
+        "Chaque exécution a une date logique (l’intervalle de données qu’elle traite). Les pipelines doivent traiter cet intervalle, et non « maintenant », pour qu’une relance d’un jour passé donne le même résultat."
+      ],
+      "points": [
+        "schedule='@daily' ou une expression cron comme '0 6 * * *' (tous les jours à 06:00).",
+        "catchup=False évite d’exécuter tous les intervalles manqués depuis start_date.",
+        "retries et retry_delay gèrent les échecs temporaires.",
+        "Les tâches doivent être idempotentes : les exécuter deux fois donne le même résultat."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from datetime import datetime, timedelta\nfrom airflow.decorators import dag, task\n\n@dag(schedule=\"0 6 * * *\", start_date=datetime(2026, 1, 1), catchup=False,\n     default_args={\"retries\": 2, \"retry_delay\": timedelta(minutes=5)})\ndef job_offers():\n    @task\n    def extract(ds=None):\n        return f\"s3://raw/offers/{ds}.json\"\n\n    @task\n    def load(path: str):\n        print(f\"loading {path} into the warehouse\")\n\n    load(extract())\n\njob_offers()",
+        "note": "API TaskFlow (Airflow 2+). ds est la date logique de l’exécution au format YYYY-MM-DD."
+      }
+    },
+    {
+      "title": "Opérateurs, connexions et passage de données",
+      "minutes": 45,
+      "text": [
+        "Les opérateurs sont des types de tâches prêts à l’emploi : BashOperator, PythonOperator, opérateurs SQL, transferts cloud. Les connexions stockent les identifiants (base de données, cloud) en dehors du code.",
+        "Les tâches se transmettent de petites valeurs via XCom (ce que renvoient les fonctions @task). Les gros volumes de données ne passent jamais par XCom : écrivez-les dans un stockage et transmettez le chemin."
+      ],
+      "points": [
+        "Définissez les dépendances avec >> : extract >> transform >> load.",
+        "Créez les connexions dans l’interface (Admin → Connections) ou avec des variables d’environnement.",
+        "Les Variables contiennent de la configuration légère ; ne mettez jamais de secrets dans le code du DAG.",
+        "Utilisez le templating ({{ ds }}) pour injecter la date d’exécution dans du SQL ou des commandes."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from airflow.operators.bash import BashOperator\nfrom airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator\n\ndownload = BashOperator(\n    task_id=\"download\",\n    bash_command=\"python /opt/jobs/download.py --date {{ ds }}\",\n)\naggregate = SQLExecuteQueryOperator(\n    task_id=\"aggregate\",\n    conn_id=\"warehouse\",\n    sql=\"INSERT INTO daily_offers SELECT '{{ ds }}', COUNT(*) FROM raw_offers WHERE day = '{{ ds }}'\",\n)\ndownload >> aggregate"
+      }
+    },
+    {
+      "title": "Exécuter, superviser et déboguer",
+      "minutes": 35,
+      "text": [
+        "L’interface affiche chaque exécution de DAG et l’état de chaque tâche. En cas d’échec, ouvrez d’abord les logs de la tâche : la plupart des erreurs viennent d’une connexion manquante, d’un mauvais chemin ou de données d’entrée invalides.",
+        "Après correction, faites un clear de la tâche en échec (et des tâches en aval) pour ne relancer que le nécessaire."
+      ],
+      "points": [
+        "airflow dags test <dag_id> 2026-10-01 exécute un DAG une fois en local, sans le scheduler.",
+        "airflow tasks test <dag_id> <task_id> <date> exécute une seule tâche.",
+        "Un backfill relance des intervalles passés après la correction d’un bug.",
+        "Configurez des alertes en cas d’échec (e-mail, callback Slack) pour ne pas être le dernier informé."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "airflow dags list\nairflow dags test job_offers 2026-10-01\nairflow tasks test job_offers load 2026-10-01"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Paramètres du DAG", "items": [
+      ["schedule=\"@daily\" / \"0 6 * * *\"", "Quand il s’exécute"],
+      ["start_date=datetime(2026,1,1)", "Premier intervalle"],
+      ["catchup=False", "Ne pas exécuter les intervalles manqués"],
+      ["default_args={\"retries\": 2}", "Relances pour chaque tâche"],
+      ["max_active_runs=1", "Une seule exécution à la fois"]
+    ]},
+    { "group": "Tâches", "items": [
+      ["@task def f(): ...", "Tâche Python (TaskFlow)"],
+      ["BashOperator(bash_command=...)", "Exécuter une commande shell"],
+      ["a >> b >> c", "Dépendances"],
+      ["[a, b] >> c", "c attend a et b"],
+      ["{{ ds }}", "Date logique dans les templates"]
+    ]},
+    { "group": "CLI", "items": [
+      ["airflow dags list", "DAG connus"],
+      ["airflow dags test <dag> <date>", "Exécuter une fois en local"],
+      ["airflow tasks test <dag> <task> <date>", "Exécuter une seule tâche"],
+      ["airflow dags backfill -s D1 -e D2 <dag>", "Relancer une plage de dates"]
+    ]}
+  ],
+  "pitfalls": [
+    "Du code lourd au niveau principal du fichier de DAG (appels d’API, requêtes) : il s’exécute à chaque fois que le scheduler analyse le fichier.",
+    "Utiliser datetime.now() dans les tâches au lieu de la date logique, ce qui casse les relances.",
+    "Faire passer des DataFrames par XCom.",
+    "Une start_date dynamique (datetime.now()) qui empêche le DAG de s’exécuter."
+  ],
+  "exercises": [
+    { "q": "Écrivez la ligne de dépendances pour : extract s’exécute d’abord, puis clean et enrich en parallèle, puis load.",
+      "code": "python", "answer": "extract >> [clean, enrich] >> load" },
+    { "q": "Un DAG quotidien a échoué pendant 3 jours à cause d’un bug, désormais corrigé. Comment retraiter ces jours ?", "answer": "Faites un clear des exécutions en échec dans l’interface (avec les tâches en aval) ou lancez un backfill sur cette plage de dates : airflow dags backfill -s 2026-10-01 -e 2026-10-03 <dag_id>. Cela fonctionne parce que les tâches utilisent la date logique et sont idempotentes." },
+    { "q": "Écrivez une planification cron pour tous les lundis à 07:30.", "code": "text", "answer": "30 7 * * 1" }
+  ],
+  "interview": [
+    { "q": "Que signifie « idempotent » pour une tâche de pipeline ?", "a": "L’exécuter plusieurs fois pour le même intervalle donne le même résultat, par exemple en écrasant la partition de cette date au lieu d’ajouter des lignes. Cela rend les relances et les backfills sans risque." },
+    { "q": "Qu’est-ce que XCom et quand faut-il l’éviter ?", "a": "Un mécanisme pour passer de petites valeurs entre tâches, stockées dans la base de métadonnées d’Airflow. Évitez-le pour les gros volumes comme les DataFrames ou les fichiers : écrivez-les dans un stockage et transmettez le chemin." },
+    { "q": "Airflow ou cron ?", "a": "Cron se contente de déclencher des commandes à heure fixe. Airflow ajoute les dépendances entre tâches, les relances, les backfills, une interface avec l’historique et les logs, et la gestion des connexions." }
+  ]
+}

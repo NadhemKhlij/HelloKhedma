@@ -1,0 +1,28 @@
+{
+  "role": [
+    { "id": "de-1", "q": "Présentez-moi un pipeline de données que vous avez construit, de bout en bout.",
+      "why": "C’est le cœur du métier : le recruteur veut connaître les sources, les outils, la volumétrie et la façon dont vous avez garanti la qualité.",
+      "model": "J’ai construit un pipeline quotidien qui charge les commandes depuis notre base PostgreSQL et une API de paiement vers Snowflake. Airflow fait une extraction incrémentale sur updated_at et dépose le JSON brut dans S3, puis dbt construit les modèles staging, intermediate et mart, avec des tests sur les clés et les montants. Il traite environ 2 millions de lignes par jour en 15 minutes, et en cas d’échec l’équipe est alertée sur Slack. Les marts alimentent les dashboards de la finance." },
+    { "id": "de-2", "q": "Comment vous assurez-vous que les données de vos pipelines sont correctes ?",
+      "why": "La fiabilité, c’est ce qui distingue un bon data engineer.",
+      "model": "Avec des tests à chaque couche : unicité et non-nullité sur les clés, valeurs acceptées, intégrité référentielle, et règles métier comme l’absence de montants négatifs. Je surveille la fraîcheur et les volumes de lignes par rapport aux jours précédents pour repérer les échecs silencieux, je rapproche les totaux avec le système source, et je bloque les modèles en aval quand un test critique échoue." },
+    { "id": "de-3", "q": "Batch ou streaming : comment choisissez-vous ?",
+      "why": "Le recruteur vérifie que vous choisissez vos outils selon le besoin, pas selon la mode.",
+      "model": "Je pars de la latence dont le métier a réellement besoin. La plupart du reporting se contente d’un batch horaire ou quotidien, plus simple et moins cher à exploiter et à déboguer. Le streaming avec Kafka ou équivalent a du sens pour la détection de fraude, la tarification en temps réel ou les alertes opérationnelles. Une approche hybride est courante : on streame les événements vers le stockage et on les traite en micro-batchs." },
+    { "id": "de-4", "q": "Un job quotidien qui prenait 20 minutes en prend maintenant 3 heures. Comment enquêtez-vous ?",
+      "why": "Le débogage de performance fait partie du quotidien.",
+      "model": "D’abord, je regarde ce qui a changé : volume de données, déploiements de code, infrastructure, jobs concurrents. Ensuite, je trouve l’étape lente grâce aux durées des tâches et aux plans d’exécution : full scans, jointures qui explosent, skew, débordements sur disque. Les corrections typiques : traitement incrémental, filtrer le plus tôt possible, partitionner ou clusteriser sur la colonne de filtre, corriger une jointure sur une clé non unique, ou redimensionner le warehouse." },
+    { "id": "de-5", "q": "Comment gérez-vous un changement de schéma dans un système source ?",
+      "why": "Les sources changent sans prévenir ; la robustesse compte.",
+      "model": "Je le détecte avec des contrôles de schéma ou des contrats à l’ingestion, pour que ça échoue de façon visible au lieu de corrompre les données. Je dépose les données brutes dans un format souple, je mappe les colonnes explicitement en staging, et je traite les nouvelles colonnes comme des ajouts. Pour les changements cassants, je m’accorde avec l’équipe source sur un data contract et une fenêtre de migration, et je versionne les modèles si les consommateurs ont besoin de temps." },
+    { "id": "de-6", "q": "Qu’est-ce qu’un pipeline idempotent et pourquoi est-ce important ?",
+      "why": "C’est un concept clé derrière les relances et les backfills.",
+      "model": "Le relancer sur la même période donne le même résultat, par exemple en écrasant la partition de cette date ou en utilisant un MERGE sur une clé plutôt que des insertions à l’aveugle. Ça rend sûrs les relances, les rejeux après correction de bug et les backfills, sans doublons." },
+    { "id": "de-7", "q": "Comment concevriez-vous un data warehouse pour une entreprise de e-commerce ?",
+      "why": "Question de conception classique : modélisation et compromis.",
+      "model": "J’ingère les sources (commandes, produits, clients, événements web, paiements) dans une couche raw. Je modélise un schéma en étoile : des tables de faits comme fact_orders à la maille ligne de commande et fact_sessions, avec des dimensions client, produit, date et canal, en historisant les clients en SCD de type 2. J’ajoute des tests, de la documentation et des règles d’accès, et je construis des marts pour la finance et le marketing." },
+    { "id": "de-8", "q": "Comment maîtrisez-vous les coûts d’un data warehouse cloud ?",
+      "why": "La facture cloud est une vraie préoccupation pour les employeurs.",
+      "model": "D’abord mesurer : coût par warehouse, par utilisateur et par requête. Ensuite, utiliser des modèles incrémentaux, le partitionnement et le clustering, l’auto-suspend du compute, des warehouses plus petits pour les jobs légers, éviter les SELECT * sur les tables larges, mettre les résultats en cache, et supprimer les tables et dashboards inutilisés. Enfin, définir des budgets et des alertes." }
+  ]
+}

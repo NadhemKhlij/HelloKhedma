@@ -1,0 +1,100 @@
+{
+  "why": "dbt est la référence pour construire et tester des transformations SQL dans les entrepôts de données modernes (Snowflake, BigQuery, Databricks, Postgres). Il figure dans la plupart des offres d’Analytics Engineer et dans de nombreuses offres de Data Engineer.",
+  "outcome": "organiser un projet dbt en couches, écrire des models avec ref() et des sources, ajouter des tests et de la documentation, et construire des models incrémentaux.",
+  "lessons": [
+    {
+      "title": "Models, ref() et sources",
+      "minutes": 40,
+      "text": [
+        "Un model dbt est une requête SELECT dans un fichier .sql. dbt la transforme en vue ou en table dans l’entrepôt et exécute les models dans le bon ordre.",
+        "ref('model') pointe vers un autre model et construit le graphe de dépendances ; source('system', 'table') pointe vers des données brutes chargées par un autre outil."
+      ],
+      "points": [
+        "Couches typiques : staging (nettoyer et renommer une source), intermediate (logique métier), marts (tables pour le reporting).",
+        "dbt run construit les models ; dbt build exécute les models et les tests dans l’ordre.",
+        "Sélectionnez une partie du projet : dbt run -s stg_offers+ (un model et tout ce qui en dépend).",
+        "Jinja ({{ }}) ajoute des variables et des boucles au SQL."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- models/staging/stg_offers.sql\nselect\n    id as offer_id,\n    lower(trim(title)) as title,\n    company_name as company,\n    cast(posted_at as date) as posted_date\nfrom {{ source('job_api', 'raw_offers') }}\nwhere id is not null"
+      }
+    },
+    {
+      "title": "Tests et documentation",
+      "minutes": 35,
+      "text": [
+        "Les tests sont des assertions sur vos données. Les tests génériques se déclarent en YAML ; les tests singuliers sont des requêtes SQL qui doivent renvoyer zéro ligne.",
+        "Les descriptions en YAML génèrent un site de documentation avec le graphe de lignage."
+      ],
+      "points": [
+        "Tests génériques intégrés : unique, not_null, accepted_values, relationships.",
+        "Des packages comme dbt_utils en ajoutent d’autres (par ex. expression_is_true).",
+        "dbt docs generate puis dbt docs serve pour parcourir la documentation.",
+        "Exécutez les tests en CI à chaque pull request."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "version: 2\nmodels:\n  - name: stg_offers\n    description: One row per job offer from the job API.\n    columns:\n      - name: offer_id\n        tests: [unique, not_null]\n      - name: contract_type\n        tests:\n          - accepted_values:\n              values: ['CDI', 'CDD', 'freelance', 'internship']"
+      }
+    },
+    {
+      "title": "Matérialisations et models incrémentaux",
+      "minutes": 40,
+      "text": [
+        "La matérialisation détermine comment un model est stocké : view (peu coûteuse, toujours à jour), table (rapide à interroger), incremental (seules les nouvelles lignes sont traitées), ephemeral (intégré comme CTE).",
+        "Les models incrémentaux sont essentiels pour les grosses tables : la première exécution construit tout, les suivantes n’ajoutent ou ne mettent à jour que les lignes récentes."
+      ],
+      "points": [
+        "Configurez-le dans le model : {{ config(materialized='incremental', unique_key='offer_id') }}.",
+        "is_incremental() est vrai lors des exécutions suivantes ; filtrez les nouvelles lignes à l’intérieur.",
+        "dbt run --full-refresh reconstruit un model incrémental de zéro.",
+        "Les snapshots conservent l’historique des données à évolution lente (type 2)."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "{{ config(materialized='incremental', unique_key='offer_id') }}\n\nselect offer_id, title, company, posted_date\nfrom {{ ref('stg_offers') }}\n{% if is_incremental() %}\nwhere posted_date > (select max(posted_date) from {{ this }})\n{% endif %}"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Commandes", "items": [
+      ["dbt run", "Construire les models"],
+      ["dbt test", "Exécuter les tests"],
+      ["dbt build", "Run + test dans l’ordre des dépendances"],
+      ["dbt run -s model+", "Un model et ses enfants"],
+      ["dbt run -s +model", "Un model et ses parents"],
+      ["dbt docs generate && dbt docs serve", "Site de documentation"]
+    ]},
+    { "group": "Dans le SQL", "items": [
+      ["{{ ref('model') }}", "Dépendre d’un autre model"],
+      ["{{ source('src', 'table') }}", "Lire des données brutes"],
+      ["{{ config(materialized='table') }}", "Stocker sous forme de table"],
+      ["{{ this }}", "La relation du model courant"],
+      ["{% if is_incremental() %}", "Uniquement lors des exécutions incrémentales"]
+    ]},
+    { "group": "Tests (YAML)", "items": [
+      ["unique / not_null", "Contrôles de clé"],
+      ["accepted_values: values: [...]", "Valeurs autorisées"],
+      ["relationships: to: ref('x'), field: id", "Contrôle de clé étrangère"]
+    ]}
+  ],
+  "pitfalls": [
+    "Écrire en dur des noms schema.table au lieu de ref() / source() : dbt ne peut plus ordonner les models.",
+    "Mettre de la logique métier dans les models de staging : limitez le staging au nettoyage et au renommage.",
+    "Des models incrémentaux sans unique_key, qui créent des doublons lors des relances.",
+    "Aucun test sur les clés primaires."
+  ],
+  "exercises": [
+    { "q": "Écrivez un model de mart qui compte les offres par entreprise et par mois à partir de stg_offers.",
+      "code": "sql", "answer": "select\n    company,\n    date_trunc('month', posted_date) as month,\n    count(*) as offers\nfrom {{ ref('stg_offers') }}\ngroup by 1, 2" },
+    { "q": "Écrivez un test singulier qui échoue si une offre est publiée à une date future.",
+      "code": "sql", "answer": "-- tests/no_future_offers.sql\nselect * from {{ ref('stg_offers') }}\nwhere posted_date > current_date" },
+    { "q": "Quelle commande construit et teste uniquement les models que vous avez modifiés et leurs enfants ?", "answer": "Avec la comparaison d’état : dbt build -s state:modified+ --state path/to/prod_artifacts. C’est la configuration habituelle en CI." }
+  ],
+  "interview": [
+    { "q": "Quel problème dbt résout-il ?", "a": "Il apporte les pratiques du génie logiciel aux transformations SQL : models versionnés, gestion des dépendances avec ref(), tests automatisés, documentation et lignage, environnements et CI, le tout directement dans l’entrepôt de données." },
+    { "q": "View, table ou incremental ?", "a": "View pour les models légers qui doivent toujours être à jour, table pour les models souvent interrogés ou coûteux à calculer, incremental pour les très grosses tables alimentées surtout par ajout, quand tout reconstruire serait trop lent ou trop coûteux." },
+    { "q": "Comment testez-vous la qualité des données avec dbt ?", "a": "Avec des tests génériques en YAML (unique, not_null, accepted_values, relationships), des tests SQL singuliers pour les règles métier et des packages comme dbt_utils ou dbt-expectations, exécutés en CI et en production avec dbt build." }
+  ]
+}

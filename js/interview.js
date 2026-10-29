@@ -4,8 +4,9 @@
 // Practice ratings, stories and checklist ticks are kept in this browser ("hk.iv.ratings", "hk.iv.stories",
 // "hk.iv.checklist", "hk.iv.tab"). A new career path needs content/interview/<path id>.json ({ role: [{ id, q, why, model }] });
 // behavioral questions carry a `theme` from common.json "themes", which links them to STAR stories.
+// French: same files under content/interview/fr/ (keep ids, themes and list lengths: ratings and ticks use them).
 import { $, h, ls, toast } from "./lib.js";
-import { t, LOCALE } from "./i18n.js";
+import { t, LOCALE, fetchContent } from "./i18n.js";
 import { courseInterviewQuestions } from "./courses.js";
 
 const RATINGS_KEY = "hk.iv.ratings", STORIES_KEY = "hk.iv.stories", CHECK_KEY = "hk.iv.checklist", TAB_KEY = "hk.iv.tab";
@@ -16,14 +17,12 @@ const ui = { tab: ls.get(TAB_KEY) || "practice", deck: "all", index: 0, timer: n
 let common = null;
 const roleCache = new Map(), techCache = new Map();
 
-async function getJson(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(t("Could not load {url}", { url }));
-  return res.json();
-}
+// French copies in content/interview/fr/ (same ids, themes and list lengths), English when missing.
+const getJson = (file) => fetchContent("content/interview/", file)
+  .catch(() => { throw new Error(t("Could not load {url}", { url: `content/interview/${file}` })); });
 async function loadContent(pathId) {
-  common ??= await getJson("content/interview/common.json");
-  if (!roleCache.has(pathId)) roleCache.set(pathId, await getJson(`content/interview/${pathId}.json`).catch(() => ({ role: [] })));
+  common ??= await getJson("common.json");
+  if (!roleCache.has(pathId)) roleCache.set(pathId, await getJson(`${pathId}.json`).catch(() => ({ role: [] })));
   if (!techCache.has(pathId)) techCache.set(pathId, await courseInterviewQuestions(pathId).catch(() => []));
   return { common, role: roleCache.get(pathId).role, tech: techCache.get(pathId) };
 }

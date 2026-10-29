@@ -1,0 +1,110 @@
+{
+  "why": "Les postes de support applicatif et de data engineering tournent sur des serveurs Linux. En entretien, on vous demande souvent de retrouver une information dans un log en ligne de commande.",
+  "outcome": "naviguer sur un serveur, lire et rechercher dans des fichiers et des logs, vérifier les processus et le disque, et écrire un petit script Bash.",
+  "lessons": [
+    {
+      "title": "Naviguer et gérer les fichiers",
+      "minutes": 35,
+      "text": [
+        "Tout est fichier, dans une arborescence qui part de /. Votre shell a un répertoire courant ; les commandes agissent par rapport à lui, sauf si vous donnez un chemin absolu.",
+        "Les permissions indiquent qui peut lire (r), écrire (w) et exécuter (x) un fichier : le propriétaire, le groupe, et tous les autres."
+      ],
+      "points": [
+        "pwd, ls -lah, cd, mkdir -p, cp, mv, rm (sans retour possible).",
+        "~ est votre répertoire personnel ; . est le répertoire courant ; .. est le répertoire parent.",
+        "chmod +x script.sh rend un script exécutable ; chown change le propriétaire.",
+        "Tab complète les noms ; la flèche du haut rappelle les commandes ; Ctrl+C arrête une commande."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "cd /var/log/myapp\nls -lah            # sizes and dates\nmkdir -p ~/backup/2026-10\ncp app.log ~/backup/2026-10/\nchmod 640 ~/backup/2026-10/app.log"
+      }
+    },
+    {
+      "title": "Lire et rechercher dans les logs",
+      "minutes": 45,
+      "text": [
+        "La plupart des investigations consistent à : trouver l’heure du problème, trouver les lignes d’erreur, lire le contexte autour.",
+        "Les commandes se combinent avec le pipe | : la sortie de l’une devient l’entrée de la suivante."
+      ],
+      "points": [
+        "less file (recherche avec /texte, quitter avec q) ; tail -n 100 file ; tail -f file pour suivre en direct.",
+        "grep -i \"error\" file, grep -n pour les numéros de ligne, grep -C 5 pour 5 lignes de contexte.",
+        "grep -c compte les correspondances ; sort | uniq -c | sort -nr compte les lignes distinctes.",
+        "zgrep recherche dans les logs compressés .gz."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# errors in the last 1000 lines, with context\ntail -n 1000 app.log | grep -i -C 3 \"error\"\n\n# most frequent error messages today\ngrep \"2026-10-29\" app.log | grep ERROR | cut -d' ' -f4- | sort | uniq -c | sort -nr | head"
+      }
+    },
+    {
+      "title": "Processus, disque, réseau et scripts",
+      "minutes": 50,
+      "text": [
+        "Quand une application est lente ou indisponible, vérifiez si le processus tourne, combien de CPU et de mémoire il consomme, si le disque est plein et si le port répond.",
+        "Un script Bash enregistre une suite de commandes. Commencez-le par un shebang et faites-le s’arrêter en cas d’erreur."
+      ],
+      "points": [
+        "ps aux | grep java ; top ou htop pour la consommation en direct ; kill <pid> (kill -9 seulement en dernier recours).",
+        "df -h pour l’espace disque ; du -sh * | sort -h pour trouver les gros dossiers ; free -h pour la mémoire.",
+        "systemctl status myapp ; journalctl -u myapp --since \"1 hour ago\".",
+        "curl -I http://localhost:8080/health vérifie un endpoint HTTP ; ss -tlnp liste les ports en écoute.",
+        "set -euo pipefail en haut d’un script l’arrête à la première erreur."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "#!/usr/bin/env bash\nset -euo pipefail\n# health.sh: quick health check for an app\nAPP=myapp\nsystemctl is-active --quiet \"$APP\" && echo \"$APP running\" || echo \"$APP DOWN\"\ndf -h / | tail -1\ncurl -s -o /dev/null -w \"health: %{http_code}\\n\" http://localhost:8080/health"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Fichiers", "items": [
+      ["ls -lah", "Lister avec les tailles et les fichiers cachés"],
+      ["cd -", "Revenir au répertoire précédent"],
+      ["find / -name \"*.log\" -mtime -1", "Logs modifiés depuis moins d’un jour"],
+      ["chmod +x f / chmod 640 f", "Rendre exécutable / définir les permissions"],
+      ["tar -czf a.tgz dir/", "Compresser un dossier"]
+    ]},
+    { "group": "Logs et texte", "items": [
+      ["tail -f app.log", "Suivre un log en direct"],
+      ["grep -i -C 3 \"error\" f", "Recherche insensible à la casse, avec contexte"],
+      ["grep -c \"timeout\" f", "Compter les lignes correspondantes"],
+      ["cut -d',' -f2", "Deuxième champ séparé par des virgules"],
+      ["sort | uniq -c | sort -nr", "Compter et classer les lignes identiques"],
+      ["awk '{print $1}' f", "Première colonne"]
+    ]},
+    { "group": "Système", "items": [
+      ["ps aux | grep name", "Trouver un processus"],
+      ["top / htop", "CPU et mémoire en direct"],
+      ["df -h / du -sh *", "Espace disque libre / taille des dossiers"],
+      ["free -h", "Mémoire"],
+      ["systemctl status|restart svc", "État du service / redémarrage"],
+      ["journalctl -u svc -n 100", "Logs du service"]
+    ]},
+    { "group": "Réseau", "items": [
+      ["curl -I url", "Code de statut et en-têtes HTTP"],
+      ["ss -tlnp", "Ports en écoute et processus associés"],
+      ["ping host / nslookup host", "Joignabilité / DNS"]
+    ]}
+  ],
+  "pitfalls": [
+    "Lancer rm -rf avec une variable qui s’avère vide : mettez toujours les variables entre guillemets et vérifiez deux fois les chemins.",
+    "Redémarrer un service avant d’avoir sauvegardé les logs qui expliquent le crash.",
+    "Utiliser kill -9 en premier : le processus ne peut pas faire son nettoyage.",
+    "Des scripts sans set -e qui continuent après une étape en échec."
+  ],
+  "exercises": [
+    { "q": "Affichez les 20 lignes les plus récentes de app.log qui contiennent 'ERROR' ou 'FATAL'.",
+      "code": "bash", "answer": "grep -E \"ERROR|FATAL\" app.log | tail -n 20" },
+    { "q": "Le disque est plein. Trouvez les 10 plus gros dossiers sous /var.",
+      "code": "bash", "answer": "sudo du -sh /var/* 2>/dev/null | sort -h | tail -n 10" },
+    { "q": "Comptez les requêtes par code de statut HTTP dans un access log où le statut est le 9e champ.",
+      "code": "bash", "answer": "awk '{print $9}' access.log | sort | uniq -c | sort -nr" }
+  ],
+  "interview": [
+    { "q": "Une application est lente. Que vérifiez-vous sur le serveur ?", "a": "Le processus tourne-t-il (systemctl / ps) ? Le CPU et la mémoire (top), l’espace disque et les I/O (df -h, iostat), les erreurs récentes dans les logs (tail, grep), les dépendances comme la base de données et le réseau (curl, ping), et ce qui a changé récemment (déploiements, configuration)." },
+    { "q": "Que signifie chmod 755 ?", "a": "Le propriétaire peut lire, écrire et exécuter (7) ; le groupe et les autres peuvent lire et exécuter (5). C’est la valeur typique pour les scripts et les répertoires." },
+    { "q": "Comment suivre un log en temps réel en ne voyant que les erreurs ?", "a": "tail -f app.log | grep --line-buffered -i error" }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "why": "pandas est l’outil des analystes et des data engineers pour explorer et nettoyer des données en Python. Les tests techniques à faire chez soi sont très souvent un notebook pandas.",
+  "outcome": "charger un fichier désordonné, le nettoyer, l’agréger et exporter un résultat fiable.",
+  "lessons": [
+    {
+      "title": "Charger et inspecter un DataFrame",
+      "minutes": 40,
+      "text": [
+        "Un DataFrame est un tableau : les colonnes ont un nom et un type, les lignes ont un index. Commencez chaque analyse par regarder la forme, les types et quelques lignes.",
+        "read_csv, read_excel et read_parquet couvrent la plupart des sources. Parsez les dates au chargement pour pouvoir filtrer par période ensuite."
+      ],
+      "points": [
+        "df.shape, df.dtypes, df.head(), df.info(), df.describe().",
+        "df[\"col\"] est une colonne (une Series) ; df[[\"a\", \"b\"]] est un DataFrame plus petit.",
+        "df.loc[rows, cols] sélectionne par libellés ; df.iloc[...] par position.",
+        "Filtrez les lignes avec un masque booléen : df[df[\"salary\"] > 40000]."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import pandas as pd\n\ndf = pd.read_csv(\"jobs.csv\", parse_dates=[\"posted_at\"])\nprint(df.shape)\nprint(df.dtypes)\nparis = df[(df[\"city\"] == \"Paris\") & (df[\"salary\"] >= 45000)]\nprint(paris[[\"title\", \"company\", \"salary\"]].head())"
+      }
+    },
+    {
+      "title": "Nettoyer : valeurs manquantes, types, doublons",
+      "minutes": 50,
+      "text": [
+        "Les données réelles contiennent des valeurs manquantes, des nombres stockés en texte, des espaces en trop et des doublons. Nettoyez par petites étapes explicites que vous pouvez justifier.",
+        "Décidez colonne par colonne ce que signifie une valeur manquante : supprimer la ligne, mettre une valeur par défaut ou la garder comme inconnue."
+      ],
+      "points": [
+        "df.isna().sum() compte les valeurs manquantes par colonne.",
+        "df[\"salary\"] = pd.to_numeric(df[\"salary\"], errors=\"coerce\") transforme le texte invalide en NaN.",
+        "df[\"city\"] = df[\"city\"].str.strip().str.title() normalise le texte.",
+        "df.drop_duplicates(subset=[\"title\", \"company\"]) supprime les offres en double.",
+        "Enchaînez les étapes avec .assign() pour laisser les données d’origine intactes."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "clean = (\n    df.drop_duplicates(subset=[\"title\", \"company\"])\n      .assign(\n          city=lambda d: d[\"city\"].str.strip().str.title(),\n          salary=lambda d: pd.to_numeric(d[\"salary\"], errors=\"coerce\"),\n      )\n      .dropna(subset=[\"title\"])\n)\nprint(clean.isna().sum())"
+      }
+    },
+    {
+      "title": "Agréger, joindre et restructurer",
+      "minutes": 50,
+      "text": [
+        "groupby + agg répond à la plupart des questions métier : par ville, par mois, par catégorie. merge joint deux DataFrames comme un JOIN SQL.",
+        "pivot_table transforme des lignes en colonnes pour obtenir une vue de type reporting."
+      ],
+      "points": [
+        "df.groupby(\"city\").agg(offers=(\"id\", \"count\"), avg_salary=(\"salary\", \"mean\")).",
+        "pd.merge(a, b, on=\"company_id\", how=\"left\") conserve toutes les lignes de a.",
+        "df[\"month\"] = df[\"posted_at\"].dt.to_period(\"M\") permet de regrouper par mois.",
+        "Vérifiez le nombre de lignes après un merge, comme en SQL.",
+        "df.to_csv(\"out.csv\", index=False) ou df.to_excel(...) pour partager."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "summary = (\n    clean.groupby(\"city\")\n         .agg(offers=(\"title\", \"count\"), avg_salary=(\"salary\", \"mean\"))\n         .sort_values(\"offers\", ascending=False)\n         .round(0)\n)\nsummary.to_csv(\"offers_by_city.csv\")"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Charger et explorer", "items": [
+      ["pd.read_csv(p, parse_dates=[\"d\"])", "Lire un CSV en parsant les dates"],
+      ["df.head() / df.info() / df.describe()", "Premières lignes / types / statistiques"],
+      ["df[\"c\"].value_counts()", "Fréquence de chaque valeur"],
+      ["df.isna().sum()", "Valeurs manquantes par colonne"]
+    ]},
+    { "group": "Sélectionner et filtrer", "items": [
+      ["df[[\"a\", \"b\"]]", "Certaines colonnes"],
+      ["df[df[\"x\"] > 5]", "Lignes qui vérifient une condition"],
+      ["df.query(\"x > 5 and city == 'Paris'\")", "Idem, sous forme de texte"],
+      ["df.loc[r, c] / df.iloc[i, j]", "Par libellé / par position"]
+    ]},
+    { "group": "Nettoyer", "items": [
+      ["pd.to_numeric(s, errors=\"coerce\")", "Texte en nombre, valeurs invalides en NaN"],
+      ["s.str.strip().str.lower()", "Normaliser le texte"],
+      ["df.fillna({\"c\": 0})", "Remplir les valeurs manquantes"],
+      ["df.drop_duplicates(subset=[...])", "Supprimer les doublons"],
+      ["df.rename(columns={\"old\": \"new\"})", "Renommer des colonnes"]
+    ]},
+    { "group": "Agréger et combiner", "items": [
+      ["df.groupby(\"g\").agg(n=(\"id\", \"count\"))", "Agrégations nommées"],
+      ["pd.merge(a, b, on=\"k\", how=\"left\")", "Joindre deux tables"],
+      ["df.pivot_table(index=\"a\", columns=\"b\", values=\"v\", aggfunc=\"sum\")", "Tableau croisé"],
+      ["df.sort_values(\"v\", ascending=False)", "Trier"]
+    ]}
+  ],
+  "pitfalls": [
+    "Modifier une sélection filtrée et obtenir un SettingWithCopyWarning : utilisez .loc ou .assign sur une copie.",
+    "Oublier les parenthèses autour de chaque condition quand on les combine avec & et |.",
+    "Calculer la moyenne d’une colonne qui contient encore du texte ou des types incorrects.",
+    "Perdre des lignes sans s’en rendre compte avec un merge inner."
+  ],
+  "exercises": [
+    { "q": "Renvoyez les 3 entreprises qui ont le plus d’offres dans le DataFrame df.",
+      "code": "python", "answer": "df[\"company\"].value_counts().head(3)" },
+    { "q": "Ajoutez une colonne « is_remote » qui vaut True quand le titre ou la description contient « remote » ou « télétravail » (sans tenir compte de la casse).",
+      "code": "python", "answer": "text = (df[\"title\"] + \" \" + df[\"description\"]).str.lower()\ndf[\"is_remote\"] = text.str.contains(\"remote|télétravail\", regex=True)" },
+    { "q": "Comptez les offres par mois et par ville, avec les mois en lignes et les villes en colonnes.",
+      "code": "python", "answer": "df[\"month\"] = df[\"posted_at\"].dt.to_period(\"M\")\ndf.pivot_table(index=\"month\", columns=\"city\", values=\"title\", aggfunc=\"count\", fill_value=0)" }
+  ],
+  "interview": [
+    { "q": "Comment gérez-vous les valeurs manquantes ?", "a": "D’abord, je les mesure par colonne et je cherche à comprendre pourquoi elles manquent. Ensuite, je choisis colonne par colonne : supprimer les lignes si elles sont peu nombreuses et aléatoires, remplir avec une valeur par défaut pertinente (0, médiane, « unknown ») si c’est justifié, ou les garder et les traiter explicitement. Je documente ce choix, car il modifie les résultats." },
+    { "q": "loc ou iloc ?", "a": "loc sélectionne par libellés (valeurs d’index et noms de colonnes, borne de fin incluse) ; iloc sélectionne par position entière, comme le slicing Python (borne de fin exclue)." },
+    { "q": "Quelle différence entre merge et concat ?", "a": "merge joint des tables côte à côte sur des colonnes clés, comme un JOIN SQL. concat empile des tables les unes sous les autres (ou côte à côte selon l’index) sans faire correspondre de clés." }
+  ]
+}

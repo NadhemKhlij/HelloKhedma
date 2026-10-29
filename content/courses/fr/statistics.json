@@ -1,0 +1,93 @@
+{
+  "why": "On recrute des analystes pour distinguer le signal du bruit. Les questions sur les moyennes, les distributions et les A/B tests sont des classiques des entretiens de data analyst.",
+  "outcome": "décrire correctement un jeu de données, définir de bons KPI, expliquer l’incertitude et lire le résultat d’un A/B test sans les erreurs courantes.",
+  "lessons": [
+    {
+      "title": "Décrire les données : tendance centrale, dispersion, distribution",
+      "minutes": 40,
+      "text": [
+        "Avant toute conclusion, regardez la distribution : un histogramme en dit plus qu’une simple moyenne. Les salaires, les délais de livraison et les chiffres d’affaires sont généralement asymétriques, avec une longue traîne de valeurs élevées.",
+        "Avec des données asymétriques, la médiane et les percentiles décrivent mieux le cas « typique » que la moyenne."
+      ],
+      "points": [
+        "La moyenne est sensible aux valeurs aberrantes ; la médiane ne l’est pas.",
+        "L’écart-type mesure la dispersion autour de la moyenne ; l’écart interquartile (P75 − P25) est robuste.",
+        "Utilisez des percentiles pour ce que les gens ressentent (temps de réponse P90).",
+        "Corrélation n’est pas causalité : un troisième facteur peut influencer les deux."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import pandas as pd\nsalaries = pd.Series([32000, 35000, 38000, 41000, 45000, 120000])\nprint(salaries.mean())    # 51833: pulled up by one outlier\nprint(salaries.median())  # 39500: closer to the typical salary\nprint(salaries.quantile([0.25, 0.75]))"
+      }
+    },
+    {
+      "title": "Des KPI et des indicateurs qui ont du sens",
+      "minutes": 35,
+      "text": [
+        "Un bon KPI est lié à un objectif, clairement défini (numérateur, dénominateur, période, filtres), et il bouge quand l’activité change réellement.",
+        "Un taux n’a de sens qu’avec son volume : « 50 % de conversion » sur 4 visiteurs, ce n’est pas la même chose que sur 40 000."
+      ],
+      "points": [
+        "Écrivez la définition : « Taux de candidature = candidatures / vues d’offres, par semaine, hors trafic interne ».",
+        "Associez un indicateur principal à des indicateurs garde-fous (ex. : la conversion augmente, mais les remboursements ne doivent pas augmenter).",
+        "Méfiez-vous des moyennes de ratios ; calculez plutôt le ratio des totaux.",
+        "Segmentez les résultats (appareil, pays) avant de conclure, mais attention au paradoxe de Simpson."
+      ]
+    },
+    {
+      "title": "A/B tests et significativité",
+      "minutes": 50,
+      "text": [
+        "Un A/B test répartit aléatoirement les utilisateurs entre la version actuelle (A) et une modification (B), puis compare un indicateur. C’est la randomisation qui permet de parler de causalité.",
+        "La p-value est la probabilité d’observer une différence au moins aussi grande s’il n’y avait en réalité aucun effet. Une p-value faible (souvent < 0,05) signifie que le résultat a peu de chances d’être du simple bruit ; elle ne mesure ni la taille ni l’importance de l’effet."
+      ],
+      "points": [
+        "Fixez l’indicateur, l’effet minimal qui vaut la peine d’être détecté et la taille d’échantillon avant de commencer.",
+        "N’arrêtez pas le test dès qu’il semble significatif (le « peeking » gonfle les faux positifs).",
+        "Présentez l’effet avec un intervalle de confiance, par exemple +2,1 pts [+0,4 ; +3,8].",
+        "Vérifiez le déséquilibre de répartition (sample ratio mismatch) : un partage 50/50 qui finit en 46/54 signale un bug."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from statsmodels.stats.proportion import proportions_ztest\n# conversions and visitors for A and B\nstat, p_value = proportions_ztest([410, 470], [10000, 10000])\nprint(round(p_value, 4))  # about 0.04 -> unlikely to be noise at the 5% level"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Décrire", "items": [
+      ["Mean", "Somme / effectif ; sensible aux valeurs aberrantes"],
+      ["Median (P50)", "Valeur du milieu ; robuste"],
+      ["P90 / P95", "Valeur sous laquelle se trouvent 90 % / 95 % des cas"],
+      ["Std deviation", "Écart-type : distance typique à la moyenne"],
+      ["IQR = P75 − P25", "Écart interquartile : dispersion robuste"]
+    ]},
+    { "group": "Relations", "items": [
+      ["Correlation r", "De −1 à 1, association linéaire uniquement"],
+      ["Confounder", "Facteur de confusion qui influence les deux variables"],
+      ["Simpson's paradox", "La tendance s’inverse quand on regroupe les groupes"]
+    ]},
+    { "group": "Expérimentation", "items": [
+      ["Null hypothesis", "Hypothèse nulle : aucune différence entre A et B"],
+      ["p-value < 0.05", "Peu probable en l’absence d’effet (pas une « preuve »)"],
+      ["Confidence interval", "Intervalle plausible pour le véritable effet"],
+      ["Statistical power", "Chance de détecter un effet réel (visez 80 %)"],
+      ["MDE", "Effet minimal détectable, fixe la taille d’échantillon"]
+    ]}
+  ],
+  "pitfalls": [
+    "Présenter la moyenne d’une distribution asymétrique comme une valeur « typique ».",
+    "Arrêter un A/B test trop tôt parce qu’il « semble significatif ».",
+    "Tester de nombreux indicateurs et ne présenter que celui qui est ressorti significatif.",
+    "Conclure à une causalité à partir d’une corrélation dans des données observationnelles."
+  ],
+  "exercises": [
+    { "q": "Le délai de livraison moyen est de 3 jours, mais les clients se plaignent. Qu’examineriez-vous ?", "answer": "La distribution : la médiane et les P90/P95. Une longue traîne (des livraisons de 10 jours ou plus) peut se cacher derrière une bonne moyenne. Segmentez ensuite par région, transporteur et produit." },
+    { "q": "La variante B a 4,7 % de conversion contre 4,1 % pour A, p = 0,04, sur 10 000 utilisateurs chacune. Que dites-vous au product manager ?", "answer": "B améliore probablement la conversion : la différence a peu de chances d’être du bruit. Le gain estimé est d’environ +0,6 point, et il faut partager l’intervalle de confiance, car le gain réel pourrait être plus faible. Vérifiez les indicateurs garde-fous et que le test a bien duré le temps prévu avant de déployer." },
+    { "q": "Pourquoi calculer un taux de conversion comme total des conversions / total des visiteurs plutôt que comme la moyenne des taux quotidiens ?", "answer": "Les jours n’ont pas le même trafic. Faire la moyenne des taux quotidiens donne à un petit jour le même poids qu’un gros, ce qui biaise le résultat. Le ratio des totaux donne le même poids à chaque visiteur." }
+  ],
+  "interview": [
+    { "q": "Expliquez une p-value à une personne non technique.", "a": "Si la modification n’avait vraiment aucun effet, la p-value indique à quelle fréquence on verrait quand même une différence aussi grande, par simple hasard. Une valeur faible signifie que le hasard seul est une explication peu probable. Elle ne dit pas quelle est la taille ou la valeur de l’effet." },
+    { "q": "Moyenne ou médiane pour les salaires ?", "a": "La médiane, car les salaires sont tirés vers le haut par quelques valeurs très élevées. La médiane décrit le salaire typique ; j’ajouterais des percentiles pour montrer la dispersion." },
+    { "q": "Qu’est-ce qui peut mal tourner dans un A/B test ?", "a": "Un échantillon trop petit, le « peeking » et l’arrêt prématuré, plusieurs indicateurs sans correction, un déséquilibre de répartition dû à un bug, l’effet de nouveauté, et un test mené pendant une période inhabituelle." }
+  ]
+}

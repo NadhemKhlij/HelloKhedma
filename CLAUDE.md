@@ -52,6 +52,10 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Every user-facing text is written in English and goes through t() / tn() (js/i18n.js); add its French to
   js/i18n-fr.js. Static text in index.html is translated automatically if its English is a key there. The legal notice
   and privacy policy exist twice in index.html (data-lang="fr" / "en"): update both.
+- Content is bilingual too: courses and interview JSON have French copies under content/courses/fr/ and
+  content/interview/fr/ (same ids, same array lengths and order: lesson progress, ratings and ticks use them; code
+  stays identical); path content has `_fr` columns filled by the French block at the end of supabase/seed.sql
+  (matched on the English title). Missing French falls back to English. Keywords and job titles stay English.
 
 ## Before editing a file
 Read the header comment of any file before modifying it; update the header if behaviour changes.

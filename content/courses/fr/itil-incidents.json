@@ -1,0 +1,101 @@
+{
+  "why": "Le support applicatif est jugé sur la gestion des incidents : rapidité, communication et prévention des récidives. Le vocabulaire ITIL et ServiceNow figurent dans la plupart des offres de support.",
+  "outcome": "classer et prioriser les incidents, piloter un incident avec calme et des points réguliers clairs, rédiger un post-mortem et employer correctement les termes ITIL.",
+  "lessons": [
+    {
+      "title": "L’essentiel d’ITIL",
+      "minutes": 35,
+      "text": [
+        "ITIL est un référentiel de bonnes pratiques pour les services informatiques. En support, vous utiliserez surtout quatre pratiques : la gestion des incidents, des problèmes, des changements et des demandes de service.",
+        "La différence clé : un incident consiste à rétablir le service vite ; un problème consiste à trouver et supprimer la cause sous-jacente."
+      ],
+      "points": [
+        "Incident : interruption ou dégradation non planifiée d’un service.",
+        "Demande de service : une demande normale (accès, réinitialisation de mot de passe), pas une panne.",
+        "Problème : la cause d’un ou plusieurs incidents ; une erreur connue dispose d’un contournement documenté.",
+        "Changement : toute modification de la production, évaluée selon son risque (standard, normal, urgent).",
+        "SLA : objectifs convenus avec le client, par exemple prise en charge d’un P1 en 15 min, résolution en 4 h."
+      ]
+    },
+    {
+      "title": "Gérer un incident",
+      "minutes": 45,
+      "text": [
+        "Priorité = impact (nombre d’utilisateurs ou criticité du service) × urgence (à quelle vitesse cela devient dommageable). Convenez de la matrice à l’avance pour que personne n’en débatte à 3 h du matin.",
+        "Pendant un incident majeur, séparez les rôles : une personne corrige, une autre coordonne et communique. Des points réguliers rassurent tout le monde, même quand il n’y a encore rien de nouveau."
+      ],
+      "points": [
+        "Créez d’abord le ticket, avec l’heure, les symptômes, l’impact et la personne qui l’a signalé.",
+        "Vérifiez ce qui a changé récemment : déploiements, configuration, certificats, volumes de données.",
+        "Rétablissez d’abord (rollback, redémarrage, bascule, contournement), investiguez en profondeur ensuite.",
+        "Informez les parties prenantes à un rythme fixe (toutes les 30 min pour un P1) avec : l’impact, ce que l’on sait, la prochaine étape, l’heure du prochain point.",
+        "Escaladez tôt avec des faits, pas tard avec des excuses."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "[P1 UPDATE 10:30] Job search unavailable for all users since 09:52.\nCause under investigation; a deployment at 09:45 is the main suspect.\nAction: rollback in progress, ETA 10:45.\nNext update: 11:00 or earlier if resolved."
+      }
+    },
+    {
+      "title": "Cause racine et post-mortem",
+      "minutes": 40,
+      "text": [
+        "Une fois le service rétabli, ouvrez un problème pour trouver la cause racine afin que cela ne se reproduise pas. Techniques : les 5 pourquoi, la reconstitution de la chronologie, le diagramme d’Ishikawa (en arêtes de poisson).",
+        "Un post-mortem sans reproche (blameless) s’intéresse à la façon dont le système a permis la panne, pas à qui a commis une erreur. Il se termine par des actions concrètes, avec des responsables et des dates."
+      ],
+      "points": [
+        "Chronologie : détection, réponse, atténuation, résolution, avec horodatage.",
+        "Mesurez le MTTD (délai de détection) et le MTTR (délai de rétablissement).",
+        "Actions : corriger la cause, améliorer la détection (alertes), améliorer la réponse (runbooks).",
+        "Consignez l’erreur connue et son contournement dans la base de connaissances."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "5 Whys\n1. Why was search down? The API returned 500 errors.\n2. Why? It could not connect to the database.\n3. Why? The connection pool was exhausted.\n4. Why? A new feature opened connections without closing them.\n5. Why? No load test or code review check covered connection handling.\nActions: fix the leak, add a pool-usage alert, add a load test to CI."
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Termes ITIL", "items": [
+      ["Incident", "Service en panne ou dégradé → rétablir vite"],
+      ["Problème", "Cause sous-jacente → la supprimer"],
+      ["Erreur connue", "Problème avec un contournement documenté"],
+      ["Demande de service", "Demande standard (accès, information)"],
+      ["Changement (standard / normal / urgent)", "Modification maîtrisée"]
+    ]},
+    { "group": "Priorité", "items": [
+      ["Impact", "Combien d’utilisateurs / quelle criticité"],
+      ["Urgence", "À quelle vitesse cela devient dommageable"],
+      ["P1", "Service critique indisponible pour de nombreux utilisateurs"],
+      ["P4", "Problème mineur avec un contournement"]
+    ]},
+    { "group": "Indicateurs", "items": [
+      ["SLA", "Objectif convenu avec le client"],
+      ["OLA", "Accord interne entre équipes"],
+      ["MTTD / MTTR", "Délai moyen de détection / de rétablissement"],
+      ["Résolution au premier contact", "Résolu sans escalade"]
+    ]},
+    { "group": "Point de situation", "items": [
+      ["Impact", "Qui / quoi est touché, depuis quand"],
+      ["Ce que l’on sait", "Ce que l’on sait à ce stade"],
+      ["Action", "Ce que l’on fait, heure estimée (ETA)"],
+      ["Prochain point", "Heure du prochain message"]
+    ]}
+  ],
+  "pitfalls": [
+    "Chercher la cause racine pendant une heure alors que les utilisateurs sont toujours bloqués : rétablissez d’abord.",
+    "Le silence pendant un incident ; les parties prenantes imaginent le pire.",
+    "Clôturer l’incident sans ouvrir de problème pour les incidents récurrents.",
+    "Chercher des coupables dans les post-mortems, ce qui pousse les gens à cacher des informations la fois suivante."
+  ],
+  "exercises": [
+    { "q": "L’export de paie échoue pour une agence la veille du jour de paie ; les autres fonctionnent. Quelle priorité et pourquoi ?", "answer": "Haute (P2, voire P1 selon la matrice) : l’impact se limite à une agence, mais l’urgence est très forte car les salaires sont dus demain. La priorité combine les deux." },
+    { "q": "Rédigez un premier message de situation pour une panne de connexion touchant tous les utilisateurs depuis 14 h 05.", "answer": "[P1] Depuis 14 h 05, les utilisateurs ne peuvent plus se connecter à l’application. L’équipe investigue ; les changements récents sont en cours de vérification. Contournement : aucun pour l’instant. Prochain point à 14 h 45." },
+    { "q": "Le même incident « disque plein » s’est produit 4 fois ce mois-ci. Que faites-vous ?", "answer": "Ouvrir un problème, trouver la cause racine (rotation des logs absente, table qui grossit, fichiers temporaires), appliquer une correction définitive, ajouter une alerte à 80 % d’occupation disque, et documenter entre-temps l’erreur connue et son contournement." }
+  ],
+  "interview": [
+    { "q": "Incident ou problème ?", "a": "Un incident est une interruption non planifiée que l’on rétablit le plus vite possible. Un problème est la cause sous-jacente d’un ou plusieurs incidents, que l’on analyse pour éviter qu’ils ne se reproduisent." },
+    { "q": "Racontez-moi comment vous avez géré un incident critique.", "a": "Utilisez la méthode STAR : la situation et l’impact, votre rôle, les actions (enregistrer, évaluer, communiquer, rétablir, escalader) et le résultat chiffré (rétabli en 40 minutes), puis ce que vous avez amélioré ensuite." },
+    { "q": "Comment priorisez-vous les tickets ?", "a": "Avec une matrice impact × urgence convenue avec le métier et alignée sur les SLA, puis par échéance SLA. Je réévalue quand une nouvelle information modifie l’impact." }
+  ]
+}

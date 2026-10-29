@@ -9,7 +9,7 @@
 //   PWA registration (sw.js) and the "Install the app" link.
 // - Every user-facing text goes through t() / tn(). i18n.js is imported first so the static page is translated
 //   before anything renders; the FR / EN button reloads the page in the other language.
-import { t, tn, lang, setLang } from "./i18n.js";
+import { t, tn, lang, setLang, localize } from "./i18n.js";
 import { $, h, safeColor, ls, toast } from "./lib.js";
 import { sb, configured, CONFIG } from "./supabase.js";
 import { LocalStore, CloudStore, importLocalToCloud } from "./store.js";
@@ -54,12 +54,12 @@ function renderLangToggle() {
 async function loadPaths() {
   const { data, error } = await sb.from("career_paths").select("*").order("sort_order");
   if (error) throw error;
-  state.paths = data;
+  state.paths = localize(data, ["name", "blurb"]);
 }
 async function loadResources() {
   const { data, error } = await sb.from("path_resources").select("*").eq("path_id", state.pathId).order("sort_order");
   if (error) throw error;
-  state.resources = data;
+  state.resources = localize(data, ["title", "description"]); // keywords have no French: they stay English for matching
   addKeywords(byKind("keyword").map((k) => k.title)); // make every path keyword detectable in CVs and offers
 }
 

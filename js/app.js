@@ -138,7 +138,7 @@ async function loadProgress() {
 }
 async function refreshTracker() {
   try { state.cards = await state.store.list(); } catch (e) { fail(e); state.cards = []; }
-  const detailsOk = await state.store.detailsSupported();
+  const [detailsOk, cvOk] = await Promise.all([state.store.detailsSupported(), state.store.cvSupported()]);
   $("#detailsNotice").hidden = detailsOk;
   // Run a store action, then redraw everything that depends on the cards.
   const act = (fn) => async (...args) => { try { await fn(...args); await refreshTracker(); } catch (e) { fail(e); } };
@@ -146,7 +146,7 @@ async function refreshTracker() {
     colorOf: (id) => state.paths.find((p) => p.id === id)?.color,
     onMove: act((id, stage) => state.store.move(id, stage)),
     onOpen: (c) => openDetails(c, {
-      detailsOk,
+      detailsOk, cvOk, cvNames: loadCvs().map((v) => v.name),
       onSave: act((patch) => state.store.update(c.id, patch)),
       onRemove: act(() => state.store.remove(c.id)),
     }),
@@ -498,7 +498,7 @@ async function toggleStep(id, done) {
 async function track(job, btn) {
   try {
     await state.store.add({ path_id: state.pathId, title: job.title, company: job.company, location: job.location,
-      url: job.url, source: job.source, external_id: job.id, stage: "saved" });
+      url: job.url, source: job.source, external_id: job.id, stage: "saved", cv_version: cvUsed() });
     btn.disabled = true; btn.textContent = t("Tracked");
     toast(t("Added to Saved"));
     await refreshTracker();
@@ -527,6 +527,8 @@ function refreshCv({ fillEditor = false } = {}) {
   renderCvVersions(); renderCvSkills(); renderOffers(); renderStudyPlan();
 }
 function switchCv(id) { setActiveCv(id); refreshCv({ fillEditor: true }); }
+// Name of the active CV version, recorded on new applications ("" when no CV is saved).
+const cvUsed = () => (state.cv.text.trim() ? state.cv.name : "");
 
 const pathName = (id) => state.paths.find((p) => p.id === id)?.name || id;
 function renderCvVersions() {
@@ -966,7 +968,7 @@ async function onAdd(e) {
   const url = $("#cUrl").value.trim();
   if (url && !safeUrl(url)) { toast(t("The offer link must start with http:// or https://")); return; }
   try {
-    await state.store.add({ path_id: state.pathId, title: $("#cTitle").value.trim(), company: $("#cCo").value.trim(), url: url || undefined, stage: "saved" });
+    await state.store.add({ path_id: state.pathId, title: $("#cTitle").value.trim(), company: $("#cCo").value.trim(), url: url || undefined, stage: "saved", cv_version: cvUsed() });
     e.target.reset();
     await refreshTracker();
   } catch (err) { fail(err); }

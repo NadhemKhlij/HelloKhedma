@@ -1,11 +1,13 @@
 // Two stores with the same interface: LocalStore (guests) and CloudStore (signed in).
-// Interface: list(), add(app), update(id, patch), move(id, stage), remove(id), detailsSupported().
+// Interface: list(), add(app), update(id, patch), move(id, stage), remove(id), detailsSupported(), cvSupported().
 // - LocalStore keeps applications in localStorage ("hk.applications.v1").
 // - CloudStore uses the RLS-protected `applications` table (rows scoped to auth.uid()).
 // - importLocalToCloud() runs once after sign-in: copies guest cards into the account, then clears them locally.
 // Detail columns (salary, contact, next_action, follow_up_on, interview_at, history) come from migration
 // 20261029000000_application_details.sql. CloudStore.detailsSupported() checks the column exists and only sends
 // those fields once it does, so signed-in users keep working before the owner runs the migration (CHECKLIST O6).
+// cv_version (name of the CV version sent) works the same way with migration 20261029000100_application_cv.sql
+// and cvSupported() (CHECKLIST O13).
 import { ls } from "./lib.js";
 import { t } from "./i18n.js";
 
@@ -21,6 +23,8 @@ export const STAGES = [
 const BASE_FIELDS = ["path_id", "title", "company", "location", "url", "source", "external_id", "stage", "notes"];
 // Added by migration 20261029000000_application_details.sql. CloudStore only sends them once that migration has run.
 const DETAIL_FIELDS = ["salary", "contact", "next_action", "follow_up_on", "interview_at", "history"];
+// Name of the CV version sent (js/cvs.js; the CV text itself stays in the browser). Migration 20261029000100_application_cv.sql.
+const CV_FIELDS = ["cv_version"];
 const NULLABLE = new Set(["follow_up_on", "interview_at", "url"]);
 
 // For inserts: drop empty values. For updates: keep "" (clears a field) but turn empty dates into null.
@@ -37,6 +41,7 @@ const LOCAL_KEY = "hk.applications.v1";
 
 export class LocalStore {
   detailsSupported() { return true; }
+  cvSupported() { return true; }
   async list() {
     try { return JSON.parse(ls.get(LOCAL_KEY) || "[]"); } catch { return []; }
   }
@@ -46,7 +51,7 @@ export class LocalStore {
     if (a.external_id && rows.some((r) => r.source === a.source && r.external_id === a.external_id)) throw dup();
     const stage = a.stage || "saved";
     const row = { stage, company: "", location: "", history: [{ stage, at: now() }],
-      ...pick(a, [...BASE_FIELDS, ...DETAIL_FIELDS]), id: crypto.randomUUID(), created_at: now() };
+      ...pick(a, [...BASE_FIELDS, ...DETAIL_FIELDS, ...CV_FIELDS]), id: crypto.randomUUID(), created_at: now() };
     rows.unshift(row);
     await this.#save(rows);
     return row;
@@ -54,7 +59,7 @@ export class LocalStore {
   async update(id, patch) {
     const rows = await this.list();
     const r = rows.find((x) => x.id === id);
-    if (r) Object.assign(r, pick(patch, [...BASE_FIELDS, ...DETAIL_FIELDS], { keepEmpty: true }), { updated_at: now() });
+    if (r) Object.assign(r, pick(patch, [...BASE_FIELDS, ...DETAIL_FIELDS, ...CV_FIELDS], { keepEmpty: true }), { updated_at: now() });
     await this.#save(rows);
   }
   async move(id, stage) {
@@ -66,16 +71,21 @@ export class LocalStore {
 }
 
 export class CloudStore {
-  constructor(sb) { this.sb = sb; this.details = null; }
-  // True once the details migration has run (the "history" column exists).
-  async detailsSupported() {
-    if (this.details === null) {
-      const { error } = await this.sb.from("applications").select("history").limit(1);
-      this.details = !error;
+  constructor(sb) { this.sb = sb; this.columns = {}; }
+  // True once the migration adding `column` has run (checked once per column).
+  async #has(column) {
+    if (!(column in this.columns)) {
+      const { error } = await this.sb.from("applications").select(column).limit(1);
+      this.columns[column] = !error;
     }
-    return this.details;
+    return this.columns[column];
   }
-  async #fields() { return (await this.detailsSupported()) ? [...BASE_FIELDS, ...DETAIL_FIELDS] : BASE_FIELDS; }
+  detailsSupported() { return this.#has("history"); }
+  cvSupported() { return this.#has("cv_version"); }
+  async #fields() {
+    const [details, cv] = await Promise.all([this.detailsSupported(), this.cvSupported()]);
+    return [...BASE_FIELDS, ...(details ? DETAIL_FIELDS : []), ...(cv ? CV_FIELDS : [])];
+  }
   async list() {
     const { data, error } = await this.sb.from("applications").select("*").order("created_at", { ascending: false });
     if (error) throw error;

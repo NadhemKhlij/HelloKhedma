@@ -38,7 +38,9 @@ privacy policy). Course, interview and career-path content is still English only
 Done (2026-10-29): 2.1 details (notes, salary, contact, next action), 2.2 follow-up dates with in-app reminders
 (Home "Next actions", card badges; email reminders still to do), 2.3 interview dates + .ics, 2.4 timeline,
 2.5 stats + weekly goal, 2.6 CSV export/import. Signed-in sync of the new fields needs migration O6 (CHECKLIST.md).
-Still to do: 2.2 email reminders, 2.7 attach CV / cover letter.
+Done (2026-10-29): 2.7 CV version sent per application (recorded on Track / Add, editable in the details, card badge,
+response rate per CV, CSV column; signed-in sync needs migration O13). Still to do: 2.2 email reminders, cover letter per
+application (2.7b).
 
 | # | Item | Why | Effort |
 |---|---|---|---|
@@ -49,6 +51,7 @@ Still to do: 2.2 email reminders, 2.7 attach CV / cover letter.
 | 2.5 | Dashboard: applications/week, response rate, interview rate, weekly goal | Motivation and honest feedback on the strategy | M |
 | 2.6 | CSV export / import | Bring an existing spreadsheet in, take data out | S |
 | 2.7 | Attach the CV version + cover letter used per application | Know what was sent to whom | M |
+| 2.7b | Cover letter used per application (text kept locally like the CV, or a short note) | Know what was sent to whom | S |
 
 ## Phase 3: find better offers faster
 Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text; salary/date filters still to do),
@@ -110,6 +113,8 @@ Note: these have a cost per use; add per-user limits (like the search rate limit
 - Self-host the Bricolage Grotesque font instead of Google Fonts (removes a third party from the privacy policy).
 - Database backups (Supabase Pro) once real users rely on it.
 - Watch API quotas (JSearch free plan, Adzuna) and the rate limits in the Supabase dashboard.
+- supabase/setup-all.sql (one-shot setup for a new project) stops at the first three migrations: add the two
+  20261029 migrations to it.
 
 ## Decisions log (so they are not reopened by accident)
 - 2026-10-29: Courses and interview content are static JSON in content/ (deployed with the site), not database rows.

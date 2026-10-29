@@ -3,6 +3,8 @@
 //   form.title is the form's own attribute). Interview-stage cards get a "Prepare" link to #/interview.
 // - Stage changes append to `history` (timeline, stats). nextActions() feeds Home: due follow-ups, interviews in 7 days.
 // - Stats + weekly goal ("hk.weeklyGoal"), CSV export/import (accepts "," or ";"), .ics file for interviews.
+// - CV sent (cv_version, the version name from js/cvs.js): card badge, select in the dialog, response rate per CV.
+//   Signed-in users need migration 20261029000100 (cvSupported() in store.js; the dialog shows a notice until then).
 // - Detail fields need migration 20261029000000 for signed-in users; keep the detailsSupported() fallback in store.js
 //   (the dialog shows a notice when details are not synced).
 // - Texts go through t() (i18n.js). The .ics file and CSV columns stay in English (machine-readable / shared files).
@@ -78,6 +80,7 @@ function card(c, stageIndex, { onMove, onOpen, colorOf }) {
     h("span", { class: "mute" }, c.company || t("No company")),
     h("div", { class: "flex flex-wrap gap-1 mt-1" },
       c.salary ? badge(c.salary) : null,
+      c.cv_version ? h("span", { class: "chip !py-0 !px-2 text-xs mute", title: t("CV sent") }, `📄 ${c.cv_version}`) : null,
       c.interview_at && new Date(c.interview_at).getTime() > Date.now() - 2 * 3600_000 ? badge(`📅 ${fmtDateTime(c.interview_at)}`, "var(--accent)") : null,
       f ? badge(`⏰ ${FOLLOW[f][0]}`, FOLLOW[f][1]) : null),
     c.next_action ? h("p", { class: "mute text-xs mt-1" }, t("Next: {action}", { action: c.next_action })) : null,
@@ -106,6 +109,16 @@ export function renderStats(root, cards, goal, onGoal) {
   const pct = Math.min(100, Math.round((thisWeek / Math.max(1, goal)) * 100));
   const goalInput = h("input", { type: "number", min: "1", max: "50", value: String(goal), class: "input !w-16 !py-0.5", "aria-label": t("Weekly goal"),
     onChange: (e) => onGoal(Math.max(1, Math.min(50, Number(e.target.value) || 5))) });
+  // Response rate per CV version sent (applications without a recorded CV are left out), best first.
+  const byCv = new Map();
+  for (const c of applied) {
+    if (!c.cv_version) continue;
+    const s = byCv.get(c.cv_version) || { sent: 0, ok: 0 };
+    s.sent++; if (responses.includes(c)) s.ok++;
+    byCv.set(c.cv_version, s);
+  }
+  const cvRates = [...byCv].map(([name, s]) => ({ name, ...s, rate: Math.round((s.ok / s.sent) * 100) }))
+    .sort((a, b) => b.rate - a.rate || b.sent - a.sent);
   root.replaceChildren(
     h("div", { class: "grid gap-2 grid-cols-2 md:grid-cols-5" },
       tile(t("Applications"), String(cards.length), t("{n} saved, not sent", { n: cards.filter((c) => c.stage === "saved").length })),
@@ -113,6 +126,9 @@ export function renderStats(root, cards, goal, onGoal) {
       tile(t("Response rate"), applied.length ? `${rate}%` : "–", t("interview or offer / sent")),
       tile(t("Interviews"), String(cards.filter((c) => reached(c, "interview")).length)),
       tile(t("Offers"), String(cards.filter((c) => reached(c, "offer")).length))),
+    cvRates.length ? h("p", { class: "mt-3 text-sm" }, h("span", { class: "mute" }, t("Response rate by CV: ")),
+      ...cvRates.flatMap((x, i) => [i ? " · " : "", h("span", {}, `📄 ${x.name} `,
+        h("b", {}, t("{n}%", { n: x.rate })), h("span", { class: "mute" }, ` (${x.ok}/${x.sent})`))])) : null,
     h("div", { class: "mt-3 text-sm" },
       h("div", { class: "flex flex-wrap items-center gap-2 mb-1" },
         h("span", {}, t("Weekly goal: {n} / ", { n: thisWeek })), goalInput, h("span", { class: "mute" }, t("applications sent in the last 7 days"))),
@@ -128,12 +144,18 @@ const toLocalInput = (iso) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
-// opts: { detailsOk, onSave(patch), onRemove(), colorOf }
-export function openDetails(c, { detailsOk, onSave, onRemove }) {
+// opts: { detailsOk, cvOk, cvNames (CV versions in this browser), onSave(patch), onRemove() }
+export function openDetails(c, { detailsOk, cvOk, cvNames = [], onSave, onRemove }) {
   const dlg = $("#appDialog"), form = $("#appForm");
   form.reset();
   const fe = form.elements; // not form.title: that is the form's own title attribute
   fe.stage.replaceChildren(...STAGES.map((s) => h("option", { value: s.id, selected: s.id === c.stage }, s.label)));
+  // CV versions of this browser, plus the recorded one if it was renamed, deleted or recorded on another device.
+  const names = [...new Set([...cvNames, c.cv_version].filter(Boolean))];
+  fe.cv_version.replaceChildren(h("option", { value: "" }, t("Not recorded")),
+    ...names.map((n) => h("option", { value: n, selected: n === c.cv_version }, n)));
+  fe.cv_version.disabled = !cvOk;
+  $("#appCvNote").hidden = cvOk;
   for (const k of ["title", "company", "location", "url", "salary", "contact", "next_action", "notes"]) fe[k].value = c[k] || "";
   fe.follow_up_on.value = c.follow_up_on || "";
   fe.interview_at.value = toLocalInput(c.interview_at);
@@ -160,6 +182,7 @@ export function openDetails(c, { detailsOk, onSave, onRemove }) {
       salary: fe.salary.value.trim(), contact: fe.contact.value.trim(), next_action: fe.next_action.value.trim(),
       notes: fe.notes.value, follow_up_on: fe.follow_up_on.value,
       interview_at: fe.interview_at.value ? new Date(fe.interview_at.value).toISOString() : "",
+      ...(cvOk ? { cv_version: fe.cv_version.value } : {}),
     };
     if (fe.stage.value !== c.stage) {
       patch.stage = fe.stage.value;
@@ -188,7 +211,7 @@ export function icsFor(c) {
 }
 
 /* ---------- CSV ---------- */
-export const CSV_COLUMNS = ["title", "company", "location", "url", "stage", "salary", "contact", "next_action", "follow_up_on", "interview_at", "notes", "created_at"];
+export const CSV_COLUMNS = ["title", "company", "location", "url", "stage", "cv_version", "salary", "contact", "next_action", "follow_up_on", "interview_at", "notes", "created_at"];
 const csvCell = (v) => { const s = String(v ?? ""); return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 export const toCsv = (cards) => [CSV_COLUMNS.join(","), ...cards.map((c) => CSV_COLUMNS.map((k) => csvCell(c[k])).join(","))].join("\n");
 

@@ -34,6 +34,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-10-29 | New look (warm ivory / charcoal, serif titles, greeting + summary cards, illustrated path cards, segmented tabs, page fade-in); no setup needed |
 | 2026-10-28 | App renamed HelloKhedma; Supabase project, tables and seed; GitHub Pages deploy; Adzuna search with cache + rate limit |
 | 2026-10-28 | Multi-page app (Home, Offers, Training, CV check, Applications) |
 | 2026-10-28 | CV skills extraction, offer skill highlights and CV fit score |

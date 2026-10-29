@@ -128,7 +128,7 @@ export function renderStats(root, cards, goal, onGoal) {
       tile(t("Offers"), String(cards.filter((c) => reached(c, "offer")).length))),
     cvRates.length ? h("p", { class: "mt-3 text-sm" }, h("span", { class: "mute" }, t("Response rate by CV: ")),
       ...cvRates.flatMap((x, i) => [i ? " · " : "", h("span", {}, `📄 ${x.name} `,
-        h("b", {}, t("{n}%", { n: x.rate })), h("span", { class: "mute" }, ` (${x.ok}/${x.sent})`))])) : null,
+        h("b", {}, t("{n}%", { n: x.rate })), h("span", { class: "mute" }, ` (${x.ok}/${x.sent})`))])) : "", // replaceChildren would print null
     h("div", { class: "mt-3 text-sm" },
       h("div", { class: "flex flex-wrap items-center gap-2 mb-1" },
         h("span", {}, t("Weekly goal: {n} / ", { n: thisWeek })), goalInput, h("span", { class: "mute" }, t("applications sent in the last 7 days"))),

@@ -46,3 +46,11 @@ export function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
 }
+
+// SVG version of h() (icons, progress ring): attributes only, children are SVG nodes.
+export function svg(tag, attrs = {}, ...kids) {
+  const n = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) if (v != null) n.setAttribute(k, v);
+  n.append(...kids.flat().filter(Boolean));
+  return n;
+}

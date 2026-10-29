@@ -2,39 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dark is the default. [data-theme="light"] on <html> switches; it is set before first paint by the
-   inline script in index.html (saved choice, otherwise the system preference). --accent follows the path color. */
-:root { --accent:#7c5cff; --bg:#14131a; --panel:#1d1c26; --line:#2d2b3a; --mute:#9a98ad; --text:#ecebf5; --code:#0d0c12; color-scheme: dark; }
-:root[data-theme="light"] { --bg:#f5f4fa; --panel:#ffffff; --line:#dcdae6; --mute:#5c5a6e; --text:#1b1a24; --code:#f0eff6; color-scheme: light; }
+/* Warm, quiet look: ivory / charcoal surfaces, serif titles, soft cards, ink buttons (accent for highlights).
+   Dark is the default. [data-theme="light"] on <html> switches; it is set before first paint by the inline script in
+   index.html (saved choice, otherwise the system preference). --accent follows the path color.
+   --soft is the filled background of chips, hovers and the active nav pill. */
+:root { --accent:#7c5cff; --bg:#1f1e1d; --panel:#262624; --line:#3a3936; --soft:#33322f; --mute:#a6a39a; --text:#f5f4ef;
+  --code:#191918; --shadow:0 1px 2px rgba(0,0,0,.25); --shadow-hover:0 6px 20px rgba(0,0,0,.35); color-scheme: dark; }
+:root[data-theme="light"] { --bg:#faf9f5; --panel:#ffffff; --line:#e6e3d9; --soft:#f0eee6; --mute:#6b6a63; --text:#1f1e1d;
+  --code:#f3f1ea; --shadow:0 1px 2px rgba(31,30,29,.04); --shadow-hover:0 8px 24px rgba(31,30,29,.08); color-scheme: light; }
 /* Language blocks (legal pages): only the interface language shows, even before js/i18n.js runs. */
 html:not([lang="fr"]) [data-lang="fr"], html[lang="fr"] [data-lang="en"] { display:none; }
 @layer base {
-  body { @apply antialiased; background:var(--bg); color:var(--text); font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif; }
-  h2 { @apply text-xl font-bold mb-3; }
+  html { scroll-behavior:smooth; }
+  body { @apply antialiased; background:var(--bg); color:var(--text);
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif; font-feature-settings:"cv11","ss01"; }
+  h2 { @apply text-lg font-semibold mb-3 tracking-tight; }
+  a, button, .input, .chip, .panel { transition:background-color .15s ease, border-color .15s ease, color .15s ease,
+    box-shadow .2s ease, transform .2s ease, opacity .15s ease; }
 }
 @layer components {
-  .panel { @apply rounded-xl p-5; background:var(--panel); border:1px solid var(--line); }
-  .input { @apply rounded-lg px-3 py-2 min-w-0 text-sm; background:var(--bg); border:1px solid var(--line); color:inherit; }
-  .btn { @apply rounded-lg px-4 py-2 text-sm font-medium text-white; background:var(--accent); }
+  .serif { font-family:"Source Serif 4",Georgia,"Times New Roman",serif; font-weight:500; letter-spacing:-.01em; }
+  .panel { @apply rounded-2xl p-5 sm:p-6; background:var(--panel); border:1px solid var(--line); box-shadow:var(--shadow); }
+  /* Cards that are links or buttons lift slightly on hover. */
+  a.panel:hover, button.panel:hover { box-shadow:var(--shadow-hover); transform:translateY(-1px); border-color:color-mix(in srgb, var(--text) 18%, var(--line)); }
+  .input { @apply rounded-xl px-3 py-2 min-w-0 text-sm; background:var(--panel); border:1px solid var(--line); color:inherit; }
+  .input:hover { border-color:color-mix(in srgb, var(--text) 22%, var(--line)); }
+  .input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  /* Primary: ink on ivory (light), ivory on charcoal (dark). Ghost: outlined, fills softly on hover. */
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium; background:var(--text); color:var(--bg); }
+  .btn:hover { opacity:.86; }
+  .btn:active, .btn-ghost:active { transform:scale(.98); }
   .btn:disabled { @apply opacity-50 cursor-not-allowed; }
-  .btn-ghost { @apply rounded-lg px-3 py-2 text-sm; border:1px solid var(--line); }
+  .btn-ghost { @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium; background:var(--panel); border:1px solid var(--line); }
+  .btn-ghost:hover { background:var(--soft); }
+  .btn-ghost[aria-selected="true"], .btn-ghost[aria-pressed="true"] { background:var(--soft); border-color:color-mix(in srgb, var(--text) 25%, var(--line)); }
   .mute { color:var(--mute); }
-  .chip { @apply rounded-full px-3 py-0.5 text-sm; border:1px solid var(--line); }
-  .chip-ok { border-color:var(--accent); }
-  .page-title { @apply text-2xl font-bold mb-3; }
+  .chip { @apply inline-flex items-center rounded-lg px-2.5 py-0.5 text-sm; background:var(--soft); border:1px solid transparent; }
+  .chip-ok { background:color-mix(in srgb, var(--accent) 14%, var(--panel)); border-color:color-mix(in srgb, var(--accent) 35%, transparent); }
+  .badge { @apply inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-medium; background:color-mix(in srgb, var(--accent) 16%, var(--panel)); color:color-mix(in srgb, var(--accent) 70%, var(--text)); }
+  .page-title { @apply text-3xl sm:text-[2.1rem] leading-tight mb-3; font-family:"Source Serif 4",Georgia,serif; font-weight:500; letter-spacing:-.01em; }
+  .eyebrow { @apply text-sm flex items-center gap-1.5; color:var(--mute); }
 
-  /* Navigation: bottom tab bar on phones, inline links in the top bar from sm up */
+  /* Navigation: bottom tab bar on phones, inline pills in the top bar from sm up */
   /* Solid background on purpose: backdrop-filter would trap the fixed mobile tab bar inside the header. */
   .topbar { background:var(--bg); border-bottom:1px solid var(--line); }
-  .nav { @apply fixed bottom-0 inset-x-0 z-20 grid grid-cols-6 sm:static sm:flex sm:gap-0.5; background:var(--panel); border-top:1px solid var(--line); }
-  .navlink { @apply flex flex-col items-center gap-0.5 py-2 text-[11px] sm:flex-row sm:px-2.5 sm:py-1.5 sm:text-sm sm:rounded-lg; color:var(--mute); }
+  .nav { @apply fixed bottom-0 inset-x-0 z-20 grid grid-cols-6 sm:static sm:flex sm:gap-1; background:var(--panel); border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom); }
+  .navlink { @apply flex flex-col items-center gap-0.5 py-2 text-[11px] sm:flex-row sm:px-3 sm:py-1.5 sm:text-sm sm:rounded-lg; color:var(--mute); }
   .navlink .nav-ico { @apply text-base leading-none sm:hidden; }
   .navlink:hover { color:var(--text); }
-  .navlink[aria-current="page"] { color:var(--accent); font-weight:500; }
+  .navlink[aria-current="page"] { color:var(--text); font-weight:500; }
+  .navlink[aria-current="page"] .nav-ico { color:var(--accent); }
 }
 @media (min-width: 640px) {
-  .nav { background:transparent; border-top:0; }
-  .navlink[aria-current="page"] { background:var(--panel); color:var(--text); box-shadow:inset 0 -2px 0 var(--accent); }
+  .nav { background:transparent; border-top:0; padding-bottom:0; }
+  .navlink:hover { background:var(--soft); }
+  .navlink[aria-current="page"] { background:var(--soft); }
+}
+/* Pages fade in when the route changes. */
+@keyframes hk-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes hk-pop { from { opacity:0; transform:translateY(8px) scale(.98); } to { opacity:1; transform:none; } }
+[data-page]:not([hidden]) { animation:hk-in .28s ease-out; }
+dialog[open] { animation:hk-pop .2s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; }
 }
 /* Legal pages */
 .legal h2 { margin-top:1.25rem; font-size:1.1rem; }
@@ -53,11 +84,20 @@ html:not([lang="fr"]) [data-lang="fr"], html[lang="fr"] [data-lang="en"] { displ
   .print-cheatsheet [data-print-hide] { display:none !important; }
   :root { --bg:#fff; --panel:#fff; --line:#ccc; --mute:#444; --text:#000; --code:#f3f3f3; }
   body { background:#fff; color:#000; }
-  .panel { border:0; padding:0; }
+  .panel { border:0; padding:0; box-shadow:none; }
   main { padding:0 !important; }
 }
 /* `hidden` must win over display utilities like .grid (pages and the setup banner rely on it). */
 [hidden] { display:none !important; }
 :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-dialog::backdrop { background:rgba(0,0,0,.6); }
+dialog::backdrop { background:rgba(20,20,19,.45); backdrop-filter:blur(2px); }
 dialog { color:inherit; }
+/* Tabs (Offers, Interview): a segmented control. The selected tab is a raised "panel" pill. */
+[role="tablist"] { display:inline-flex; max-width:100%; overflow-x:auto; gap:.25rem; padding:.25rem; border-radius:.9rem;
+  background:var(--soft); justify-self:start; align-self:flex-start; }
+[role="tablist"] > .btn, [role="tablist"] > .btn-ghost { white-space:nowrap; border:1px solid transparent; border-radius:.65rem; padding:.4rem .85rem; }
+[role="tablist"] > .btn-ghost { background:transparent; color:var(--mute); }
+[role="tablist"] > .btn-ghost:hover { color:var(--text); background:color-mix(in srgb, var(--panel) 50%, transparent); }
+[role="tablist"] > .btn { background:var(--panel); color:var(--text); box-shadow:var(--shadow-hover); opacity:1; }
+/* Page titles get focus on navigation (router.js) for screen readers; no visible ring for that programmatic focus. */
+[tabindex="-1"]:focus { outline:none; }

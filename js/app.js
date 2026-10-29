@@ -16,6 +16,7 @@ import { LocalStore, CloudStore, importLocalToCloud } from "./store.js";
 import { addKeywords } from "./ats.js";
 import { initAuth } from "./auth.js";
 import { state, path, byKind, fail } from "./state.js";
+import { pathArt } from "./icons.js";
 import { showRoute, refreshInterview, coursesReady } from "./router.js";
 import { PROG_KEY, loadTracks, loadProgress, renderLearn, initTraining } from "./training.js";
 import { renderSearchControls, renderOffers, resetOffers, loadCompanyJobs, initOffers } from "./offers.js";
@@ -64,14 +65,21 @@ async function loadResources() {
 }
 
 /* ---------- career path ---------- */
+// Path cards: a colored band with the path illustration (icons.js), name + "Selected" badge, blurb, job titles as chips.
 function renderPaths() {
   $("#paths").replaceChildren(...state.paths.map((p) => {
     const on = p.id === state.pathId, c = safeColor(p.color);
     return h("button", {
-      type: "button", class: "panel text-left", "aria-pressed": String(on),
-      style: on ? `border-color:${c};box-shadow:inset 0 0 0 1px ${c}` : "",
+      type: "button", class: "panel !p-0 overflow-hidden text-left flex flex-col", "aria-pressed": String(on),
+      style: on ? `border-color:${c};box-shadow:0 0 0 1px ${c}` : "",
       onClick: () => selectPath(p.id),
-    }, h("b", { class: "block text-lg" }, p.name), h("span", { class: "mute text-sm" }, p.blurb));
+    },
+      h("div", { class: "grid place-items-center h-24 sm:h-32", style: `background:color-mix(in srgb, ${c} 62%, #fff)` }, pathArt(p.id)),
+      h("div", { class: "p-5 grid gap-2" },
+        h("div", { class: "flex items-center gap-2 flex-wrap" }, h("b", { class: "text-lg font-semibold" }, p.name),
+          on ? h("span", { class: "badge" }, t("Selected")) : null),
+        h("span", { class: "mute text-sm" }, p.blurb),
+        h("div", { class: "flex flex-wrap gap-1.5 mt-1" }, (p.job_titles || []).slice(1, 4).map((j) => h("span", { class: "chip !text-xs" }, j)))));
   }));
   $("#pathSelect").replaceChildren(...state.paths.map((p) => h("option", { value: p.id, selected: p.id === state.pathId }, p.name)));
 }

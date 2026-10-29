@@ -37,7 +37,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 | SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (functions) | Provided automatically by Supabase; never in frontend |
 
 ## Rules for Claude Code
-- Keep the UI responsive and clean, in both the dark and light themes (HelloKhedma modern aesthetic).
+- Keep the UI responsive and clean, in both the dark and light themes: warm ivory / charcoal surfaces, serif page
+  titles (Source Serif 4, `.serif` / `.page-title`), Inter text, soft `.panel` cards, ink `.btn`, filled `.chip` pills;
+  the path color (--accent) is for highlights. Use the tokens in css/input.css rather than new colors.
 - Keep persistence intact: guests use localStorage, signed-in users use Supabase, and guest data is imported into
   Supabase on first sign-in (js/store.js).
 - No permanent mock data. Path content lives in the database (career_paths, path_resources, training_tracks,
@@ -90,7 +92,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/app.js — entry point: start-up, career path selection, sign-in, theme / language, error monitoring, PWA
 - js/state.js — shared state (state, path(), fail(), skill chips); js/router.js — routes and page focus
 - js/home.js, js/offers.js, js/training.js, js/cvpage.js, js/applications.js, js/account.js — one module per page
-- js/lib.js — DOM helpers (h, $), localStorage wrapper, toast, download
+- js/lib.js — DOM helpers (h, svg, $), localStorage wrapper, toast, download
+- js/icons.js — path card illustrations and the progress ring (Home)
 - js/i18n.js — interface language (t, tn, FR/EN switch, static page translation); js/i18n-fr.js — French texts
 - js/supabase.js — Supabase client and runtime CONFIG
 - js/config.example.js — template for js/config.js (generated in production, gitignored)

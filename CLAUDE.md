@@ -43,6 +43,11 @@ owner task you create (e.g. a migration or function to deploy), and move items t
                         CSV import/export, .ics files. New application columns: migration 20261029000000; CloudStore
                         only sends them once the migration ran (detailsSupported), so keep that fallback.
 - js/jobs.js            calls the job-search function; fallback deep links
+- js/remote.js          "Remote jobs" tab: Jobicy (category per path) + Remotive, browser-side, cached 6 h in localStorage.
+                        Credit + link to the original job are required by their terms (see CREDITS in app.js).
+- sw.js, manifest.json, icons/   installable app (PWA). sw.js: network-first for app files and public Supabase
+                        content tables, never caches auth / account / job-search calls. Add new JS files to SHELL in sw.js,
+                        and new top-level files to the "Assemble site" step of the deploy workflow.
 - js/companies.js       "Companies I follow": reads Greenhouse / Lever / Ashby / Workable / SmartRecruiters public job
                         APIs directly from the browser (CORS, no key), normalised to the job-search result shape.
                         Watchlist in localStorage ("hk.watchlist"). Keep the privacy policy in sync if a provider is added.

@@ -15,7 +15,9 @@ Effort: **S** ≈ under a day · **M** ≈ 1–3 days · **L** ≈ a week or mor
 Done in code: 1.2 legal notice + privacy policy (contact email via the `CONTACT_EMAIL` variable), 1.3 Account & data page
 (export JSON, delete account / device data), 1.4 source credits, 1.5 friendly error messages + optional Sentry (`SENTRY_DSN`),
 1.6 SEO tags and favicon. IP addresses for rate limiting are now hashed and purged after 24 h.
-Still to do by you: 1.1 SMTP, own domain, cookie-free analytics (optional). Next in code: 1.7 FR/EN, 1.8 PWA, 1.9 accessibility pass.
+Still to do by you: 1.1 SMTP, own domain, cookie-free analytics (optional). Next in code: 1.7 FR/EN, 1.9 accessibility pass.
+Done (2026-10-29): 1.8 installable app (manifest, icons, service worker; works offline for training, courses, interview
+prep and the guest tracker; "Install the app" link in the footer).
 
 | # | Item | Why | Effort |
 |---|---|---|---|
@@ -49,7 +51,8 @@ Still to do: 2.2 email reminders, 2.7 attach CV / cover letter.
 Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text; salary/date filters still to do),
 3.3 hide / "not interested", seen marker, "Tracked ✓", 3.4 minimum CV-fit filter, saved searches (this browser; email alerts still to do).
 Done (2026-10-29): "Companies I follow" (career pages on Greenhouse, Lever, Ashby, Workable, SmartRecruiters; full descriptions,
-"New since last visit"). Next sources to consider: remote boards (Himalayas, Jobicy, Remotive, Arbeitnow), Jooble / Careerjet
+"New since last visit"). Done (2026-10-29): "Remote jobs" tab (Jobicy by category + Remotive; Himalayas blocks browser
+calls and Arbeitnow has no search, so they are not used). Next sources to consider: Jooble / Careerjet
 (key on request, France + Tunisia), La Bonne Alternance, Recruitee / Teamtailor career pages, syncing the watchlist to the account.
 
 | # | Item | Why | Effort |
@@ -67,6 +70,7 @@ Done (2026-10-29): 4.4 Interview prep page: 55 questions per path on average (14
 technical questions of the path's courses) with example answers, 2-minute timer, "got it / to review" decks; STAR story
 builder linked to question themes; before/during/after checklist, questions to ask, salary tips; upcoming interviews from
 the tracker and "Prepare" buttons. Still to do: sync stories and ratings to the account, AI feedback on answers (Phase 5.3).
+Done (2026-10-29): 4.3 weekly study plan on the Training page (courses for CV gaps first, then track steps, packed by h/week).
 | # | Item | Why | Effort |
 |---|---|---|---|
 | 4.1 | Courses for every path keyword (continue Phase 0.2) | Close every gap in-app | L |

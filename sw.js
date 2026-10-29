@@ -1,0 +1,57 @@
+// HelloKhedma service worker: makes the app installable and usable offline.
+// - App files (same origin): network first, cache as fallback, so deploys show up immediately when online.
+// - Public Supabase content (paths, resources, tracks): network first, cached for offline use.
+// - Google Fonts: cache first.
+// - Everything else (sign-in, account data, job searches, Edge Functions): not touched, never cached.
+// Bump VERSION to drop old caches after a big change.
+const VERSION = "hk-v1";
+const SHELL = [
+  "./", "index.html", "css/app.css", "manifest.json", "icons/icon-192.png",
+  "js/app.js", "js/lib.js", "js/supabase.js", "js/config.js", "js/store.js", "js/jobs.js", "js/tracker.js", "js/ats.js",
+  "js/auth.js", "js/courses.js", "js/interview.js", "js/companies.js", "js/remote.js",
+  "content/courses/index.json", "content/interview/common.json",
+];
+const PUBLIC_CONTENT = /\/rest\/v1\/(career_paths|path_resources|training_tracks)\b/;
+
+self.addEventListener("install", (e) => {
+  e.waitUntil(caches.open(VERSION).then((c) =>
+    Promise.all(SHELL.map((url) => c.add(url).catch(() => { /* a missing file must not block install */ })))));
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (e) => {
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+    .then(() => self.clients.claim()));
+});
+
+async function networkFirst(req) {
+  const cache = await caches.open(VERSION);
+  try {
+    const res = await fetch(req);
+    if (res.ok) cache.put(req, res.clone());
+    return res;
+  } catch (err) {
+    const hit = await cache.match(req, { ignoreSearch: req.mode === "navigate" });
+    if (hit) return hit;
+    if (req.mode === "navigate") return (await cache.match("index.html")) || Response.error();
+    throw err;
+  }
+}
+
+async function cacheFirst(req) {
+  const cache = await caches.open(VERSION);
+  const hit = await cache.match(req);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.ok || res.type === "opaque") cache.put(req, res.clone());
+  return res;
+}
+
+self.addEventListener("fetch", (e) => {
+  const req = e.request;
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+  if (url.origin === self.location.origin) e.respondWith(networkFirst(req));
+  else if (PUBLIC_CONTENT.test(url.pathname)) e.respondWith(networkFirst(req));
+  else if (/fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) e.respondWith(cacheFirst(req));
+});

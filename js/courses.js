@@ -25,6 +25,14 @@ export async function loadCourseIndex() {
   return index;
 }
 
+// Course metadata + share of lessons done in this browser (0..1), for the weekly study plan.
+export function courseMeta(id) {
+  const c = index.find((x) => x.id === id);
+  if (!c) return null;
+  const d = [...doneSet()].filter((k) => k.startsWith(`${id}:`)).length;
+  return { ...c, done: c.lessonCount ? Math.min(1, d / c.lessonCount) : 0 };
+}
+
 // Skill name (as extracted by js/ats.js) -> course id, so missing skills can link to a course.
 export function courseForSkill(name) {
   return index.find((c) => c.skills.includes(name))?.id || null;

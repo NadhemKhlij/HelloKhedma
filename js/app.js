@@ -5,8 +5,9 @@ import { searchJobs, boardLinks } from "./jobs.js";
 import { renderBoard, renderStats, openDetails, nextActions, toCsv, parseCsv } from "./tracker.js";
 import { extractSkills, matchSkills, addKeywords, readCvFile, norm } from "./ats.js";
 import { initAuth } from "./auth.js";
-import { loadCourseIndex, renderCourseList, renderCourse, courseForSkill } from "./courses.js";
+import { loadCourseIndex, renderCourseList, renderCourse, courseForSkill, courseMeta } from "./courses.js";
 import { renderInterview } from "./interview.js";
+import { searchRemote } from "./remote.js";
 import {
   loadWatchlist, saveWatchlist, entryKey, PROVIDER_NAMES, SUGGESTED, titleMatcher, findCompany, fetchCompanyJobs, clearCompanyCache,
 } from "./companies.js";
@@ -75,6 +76,7 @@ function showRoute(moveFocus) {
     coursesReady.then(() => renderCourse(param)).then(() => { if (moveFocus) $("#h-course")?.focus({ preventScroll: true }); });
   } else if (moveFocus) $(`#h-${r}`)?.focus({ preventScroll: true });
   if (r === "interview") refreshInterview();
+  if (r === "training" && path()) renderStudyPlan(); // lesson progress may have changed on a course page
 }
 // The interview page depends on the path (role questions, courses) and the tracker (upcoming interviews).
 function refreshInterview() {
@@ -203,6 +205,7 @@ function renderHome() {
 function renderSearchControls() {
   const p = path();
   $("#role").replaceChildren(...(p?.job_titles || []).map((t) => h("option", { value: t }, t)));
+  renderRemoteRoles();
   if (!$("#country").children.length) {
     $("#country").replaceChildren(...COUNTRIES.map((c) => h("option", { value: c, selected: c === (CONFIG.DEFAULT_COUNTRY || "fr") }, c.toUpperCase())));
   }
@@ -270,6 +273,57 @@ function renderTracks() {
         h("span", { class: "mute" }, ` · ${Number(next.est_hours)} h`))]
     : all.length ? [h("p", { class: "text-sm" }, "Every step is done. Time to apply!")] : []));
   $("#tracks").replaceChildren(...state.tracks.map(trackCard));
+  renderStudyPlan();
+}
+
+// Weekly study plan: courses for skills the CV lacks (path keywords) first, then unfinished track steps,
+// packed into weeks of `h/week` hours. Items longer than the time left in a week continue the next week.
+function renderStudyPlan() {
+  const perWeek = Math.max(1, Number($("#hoursPerWeek").value) || 5);
+  const items = [];
+  if (state.cv.skills.length) {
+    const required = extractSkills(byKind("keyword").map((k) => k.title).join(" ; ")).map((s) => s.name);
+    const seen = new Set();
+    for (const skill of required.filter((s) => !state.cv.names.has(s))) {
+      const id = courseForSkill(skill), c = id && courseMeta(id);
+      if (!c || seen.has(id) || c.done >= 1) continue;
+      seen.add(id);
+      items.push({ title: c.name, hours: Math.max(1, Math.round(c.hours * (1 - c.done))), href: `#/course/${id}`, why: `missing in your CV: ${skill}`, gap: true });
+    }
+  }
+  for (const t of state.tracks) for (const s of stepsOf(t)) {
+    if (!state.done.has(s.id)) items.push({ title: s.title, hours: Number(s.est_hours) || 1, href: safeUrl(s.url), why: t.title });
+  }
+  const weeks = [];
+  let week = [], room = perWeek;
+  for (const it of items) {
+    let left = it.hours, part = 0;
+    while (left > 0) {
+      const take = Math.min(left, room);
+      week.push({ ...it, hours: take, part: left > take || part ? ++part : 0 });
+      left -= take; room -= take;
+      if (room <= 0) { weeks.push(week); week = []; room = perWeek; }
+    }
+  }
+  if (week.length) weeks.push(week);
+
+  const monday = new Date(); monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() + ((8 - monday.getDay()) % 7 || 7)); // next Monday
+  const label = (i) => new Date(monday.getTime() + i * 7 * 86_400_000).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const SHOW = 4;
+  $("#studyPlan").replaceChildren(...(weeks.length ? [h("details", { class: "rounded-lg mb-3", style: "background:var(--bg);border:1px solid var(--line)", open: true },
+    h("summary", { class: "cursor-pointer p-3 font-bold" }, `📅 Your study plan: ${weeks.length} week${weeks.length > 1 ? "s" : ""} at ${perWeek} h/week`,
+      h("span", { class: "mute font-normal text-sm" }, state.cv.skills.length ? " · CV gaps first" : " · add your CV to put your skill gaps first")),
+    h("div", { class: "px-3 pb-3 grid gap-3 md:grid-cols-2" }, weeks.slice(0, SHOW).map((w, i) => h("div", {},
+      h("p", { class: "text-sm font-medium mb-1" }, `Week ${i + 1} · from ${label(i)}`),
+      h("ul", { class: "grid gap-1 text-sm" }, w.map((x) => h("li", { class: "flex gap-2" },
+        h("span", { class: "mute shrink-0 w-10 text-right" }, `${Math.round(x.hours * 10) / 10} h`),
+        h("span", { class: "min-w-0" },
+          x.href ? h("a", { href: x.href, class: "underline", style: x.gap ? "color:var(--accent)" : "", ...(x.href.startsWith("#") ? {} : { target: "_blank", rel: "noopener noreferrer" }) },
+            `${x.gap ? "📘 " : ""}${x.title}`) : h("span", {}, x.title),
+          x.part ? h("span", { class: "mute" }, ` (part ${x.part})`) : null,
+          h("span", { class: "mute text-xs block" }, x.why)))))))),
+    weeks.length > SHOW ? h("p", { class: "px-3 pb-3 mute text-sm" }, `…then ${weeks.length - SHOW} more week${weeks.length - SHOW > 1 ? "s" : ""}. Tick steps and lessons as you go: the plan updates.`) : null)] : []));
 }
 
 function renderLearn() {
@@ -360,6 +414,23 @@ function initMonitoring() {
   document.head.append(s);
 }
 
+/* ---------- installable app (PWA): service worker + "Install the app" link ---------- */
+function initPwa() {
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    navigator.serviceWorker.register("sw.js").catch((e) => console.warn("Service worker not registered:", e));
+  }
+  // Chrome / Edge / Android offer installation through this event; Safari users use Share → Add to Home Screen.
+  let deferred = null;
+  window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; $("#installApp").hidden = false; });
+  window.addEventListener("appinstalled", () => { $("#installApp").hidden = true; toast("HelloKhedma is installed."); });
+  $("#installApp").addEventListener("click", async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    await deferred.userChoice.catch(() => null);
+    deferred = null; $("#installApp").hidden = true;
+  });
+}
+
 function renderAll() {
   document.documentElement.style.setProperty("--accent", safeColor(path()?.color));
   renderPaths(); renderSearchControls(); renderLearn(); renderStatus();
@@ -370,7 +441,7 @@ async function selectPath(id) {
   state.pathId = id;
   ls.set(PATH_KEY, id);
   state.jobs = []; state.searchJobs = []; state.companyJobs = []; state.companyLoaded = false; state.skillFilter = null;
-  state.searchMsg = state.companyMsg = "";
+  state.searchMsg = state.companyMsg = state.remoteMsg = ""; state.remoteJobs = [];
   $("#searchMsg").textContent = ""; $("#atsOut").replaceChildren();
   try { state.openInit = false; await Promise.all([loadResources(), loadTracks()]); } catch (e) { fail(e); }
   setCv(state.cv.text); // new path keywords may now be detectable
@@ -419,7 +490,7 @@ function setCv(text) {
 function saveCv(text) {
   setCv(text);
   if (text.trim()) ls.set(CV_KEY, text); else ls.del(CV_KEY);
-  renderCvSkills(); renderOffers();
+  renderCvSkills(); renderOffers(); renderStudyPlan();
 }
 
 function renderCvSkills() {
@@ -553,7 +624,7 @@ function renderJob({ j, skills, fit, tags, key }) {
       btn, hideBtn, h("span", { class: "mute text-xs ml-auto" },
         SOURCE_NAMES[j.source] || (PROVIDER_NAMES[j.source] ? "Careers page" : j.source))));
 }
-const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch" };
+const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch", remotive: "Remotive", jobicy: "Jobicy" };
 
 function renderOffers() {
   const hasCv = state.cv.skills.length > 0;
@@ -604,6 +675,8 @@ function renderOffers() {
 
 // Attribution required by the job providers' terms, for the sources present in the results.
 const CREDITS = {
+  remotive: ["Remotive", "https://remotive.com"],
+  jobicy: ["Jobicy", "https://jobicy.com"],
   adzuna: ["Jobs by Adzuna", "https://www.adzuna.fr"],
   jsearch: ["JSearch by OpenWeb Ninja", "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch"],
   francetravail: ["France Travail", "https://www.francetravail.fr"],
@@ -661,21 +734,46 @@ async function onSearch(e) {
 
 /* ---------- Offers tabs: "Job search" vs "Companies I follow" (both feed the same results list) ---------- */
 const MODE_KEY = "hk.offerMode";
+// Each tab keeps its own results and message: state.<mode>Jobs / state.<mode>Msg.
+const OFFER_MODES = { search: ["#tabSearch", "#searchPanel"], companies: ["#tabCompanies", "#companiesPanel"], remote: ["#tabRemote", "#remotePanel"] };
 function setOfferMode(mode) {
-  const comp = mode === "companies";
-  state.offerMode = comp ? "companies" : "search";
+  state.offerMode = mode in OFFER_MODES ? mode : "search";
   ls.set(MODE_KEY, state.offerMode);
-  $("#companiesPanel").hidden = !comp;
-  $("#searchPanel").hidden = $("#boardsBlock").hidden = comp;
-  for (const [id, on] of [["#tabSearch", !comp], ["#tabCompanies", comp]]) {
-    $(id).className = on ? "btn" : "btn-ghost";
-    $(id).setAttribute("aria-selected", String(on));
+  for (const [m, [tab, panel]] of Object.entries(OFFER_MODES)) {
+    const on = m === state.offerMode;
+    $(panel).hidden = !on;
+    $(tab).className = on ? "btn" : "btn-ghost";
+    $(tab).setAttribute("aria-selected", String(on));
   }
+  $("#boardsBlock").hidden = state.offerMode !== "search";
   state.skillFilter = null;
-  state.jobs = (comp ? state.companyJobs : state.searchJobs) || [];
-  $("#searchMsg").textContent = (comp ? state.companyMsg : state.searchMsg) || "";
+  state.jobs = state[`${state.offerMode === "companies" ? "company" : state.offerMode}Jobs`] || [];
+  $("#searchMsg").textContent = state[`${state.offerMode === "companies" ? "company" : state.offerMode}Msg`] || "";
   renderOffers();
-  if (comp) { renderWatchlist(); if (!state.companyLoaded) loadCompanyJobs(); }
+  if (state.offerMode === "companies") { renderWatchlist(); if (!state.companyLoaded) loadCompanyJobs(); }
+}
+
+/* ---------- remote jobs (Remotive + Jobicy, browser-side, cached 6 h) ---------- */
+function renderRemoteRoles() {
+  $("#remoteBtn").textContent = `Find remote ${path()?.name || ""} jobs`;
+}
+async function onRemoteSearch(e) {
+  e.preventDefault();
+  const btn = $("#remoteBtn"), msg = $("#searchMsg");
+  btn.disabled = true; msg.textContent = "Searching remote job boards…";
+  try {
+    const { jobs, warnings, cached } = await searchRemote(state.pathId, $("#remoteRegion").value);
+    // The boards' keyword search is loose: keep titles that match the path (as for "Companies I follow").
+    const matches = titleMatcher(path()), relevant = jobs.filter((j) => matches(j.title));
+    state.remoteJobs = relevant;
+    state.remoteMsg = (relevant.length
+      ? `${relevant.length} remote ${path()?.name || ""} offers${jobs.length > relevant.length ? ` (${jobs.length - relevant.length} unrelated titles left out)` : ""}${cached ? " · from the last 6 hours" : ""}.`
+      : `No remote ${path()?.name || ""} offers right now${$("#remoteRegion").value ? " for this region: try 'Anywhere'" : ": these boards list few roles for this path, check back in a few days"}.`)
+      + (warnings.length ? ` ${warnings.join(" ")}` : "");
+  } catch (err) {
+    state.remoteJobs = []; state.remoteMsg = `Remote job boards are unavailable (${err.message}).`;
+  } finally { btn.disabled = false; }
+  if (state.offerMode === "remote") { state.jobs = state.remoteJobs; msg.textContent = state.remoteMsg; state.skillFilter = null; renderOffers(); }
 }
 
 function renderWatchlist() {
@@ -799,6 +897,7 @@ async function onUser(user) {
 /* ---------- init ---------- */
 async function init() {
   initMonitoring();
+  initPwa();
   renderThemeToggle();
   $("#themeToggle").addEventListener("click", toggleTheme);
   document.querySelectorAll(".contact-email").forEach((el) => {
@@ -830,11 +929,13 @@ async function init() {
   renderSavedSearches();
   $("#tabSearch").addEventListener("click", () => setOfferMode("search"));
   $("#tabCompanies").addEventListener("click", () => setOfferMode("companies"));
+  $("#tabRemote").addEventListener("click", () => setOfferMode("remote"));
+  $("#remoteForm").addEventListener("submit", onRemoteSearch);
   $("#companyForm").addEventListener("submit", onCompanyFind);
   $("#companyPathOnly").addEventListener("change", () => loadCompanyJobs());
   $("#companyRefresh").addEventListener("click", () => loadCompanyJobs({ force: true }));
   renderWatchlist();
-  setOfferMode(ls.get(MODE_KEY) === "companies" ? "companies" : "search");
+  setOfferMode(ls.get(MODE_KEY));
   refreshInterview();
   $("#csvExport").addEventListener("click", onCsvExport);
   $("#csvImport").addEventListener("change", onCsvImport);

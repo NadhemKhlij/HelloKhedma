@@ -1,4 +1,5 @@
-// CV versions, kept in this browser only (never sent to Supabase or any API, even for signed-in users).
+// CV versions, kept in this browser only (never sent to Supabase or any API, even for signed-in users, except when
+// a signed-in user confirms "Rewrite with AI": see tailor.js).
 // - "hk.cvs": [{ id, name, text, path_id (career path that uses this version automatically, or null), updated_at }]
 // - "hk.cv.active": id of the version that scores offers, the CV match and the study plan.
 // - The single CV of earlier versions ("hk.cv.text") is moved into a first version named "My CV" on first load.

@@ -98,7 +98,7 @@ Done (2026-10-29): 4.3 weekly study plan on the Training page (courses for CV ga
 | 5.3 | Mock interview chat for a given offer | Practice anytime | M |
 | 5.4 | Smarter skill extraction (synonyms, seniority, must-have vs nice-to-have) | Better fit scores | M |
 Note: these have a cost per use; add per-user limits (like the search rate limit) before launching them.
-Done (2026-10-29): 5.2 step 1, "Tailor my CV" on offers and the CV match: gap analysis + a prompt to copy into your own AI (no API, CV stays local). The in-app AI button is shown disabled: Claude API, signed-in users only, daily limit, notice before sending the CV (owner: Anthropic API key + privacy policy update when built).
+Done (2026-10-29): 5.2, "Tailor my CV" on offers and the CV match: gap analysis + a prompt to copy into your own AI (CV stays local), and "Rewrite with AI" in the app (cv-tailor function, Claude Opus 5.5 at medium effort, signed-in users only, 5 a day per account, notice before every send, nothing stored). Needs the owner's Anthropic API key and the function deployed (CHECKLIST O16).
 
 ## Phase 6: grow
 | # | Item | Why | Effort |
@@ -140,3 +140,7 @@ Done (2026-10-29): 5.2 step 1, "Tailor my CV" on offers and the CV match: gap an
 - 2026-10-29: CV tailoring (5.2): owner chose a copy-paste prompt first (the CV never leaves the browser through
   HelloKhedma). In-app AI comes later, for signed-in users only, with a per-account daily limit and an explicit notice
   each time before the CV and offer are sent to Claude.
+- 2026-10-29: In-app AI rewrite (5.2): Claude Opus 5.5 (the recommended default; CV_TAILOR_MODEL can switch to
+  claude-sonnet-5-5 at about half the cost), effort medium, server-side refusal fallback on. Plain-text answer in four
+  sections rather than structured output. Daily limit counted before the call (failed calls count) to bound costs.
+  Privacy policy (FR + EN) lists Anthropic as a processor; the CV leaves the browser only on that confirmed click.

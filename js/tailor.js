@@ -2,12 +2,14 @@
 // - Honest gap analysis, computed in the browser (ats.js): skills of the offer found in the active CV, the lines of
 //   the CV that mention them (to put forward) and the missing skills (with course links).
 // - A ready-made prompt for the user's own AI assistant (Claude, ChatGPT…): CV + offer + skills + strict honesty
-//   rules (never invent experience, skills or numbers). It is copied to the clipboard only: HelloKhedma never sends
-//   the CV anywhere. The prompt templates (PROMPTS) are content, written in English and French like the interface.
-// - "Rewrite with AI" is shown disabled: in-app AI (Claude API, signed-in users, daily limit) is planned for later
-//   (ROADMAP 5.2) and would need an explicit notice before sending the CV.
+//   rules (never invent experience, skills or numbers). It is copied to the clipboard only.
+//   The prompt templates (PROMPTS) are content, written in English and French like the interface.
+// - "Rewrite with AI" (aiSection): signed-in users only. After a notice shown before every send, the CV and the offer
+//   go to the cv-tailor Edge Function (Claude API, daily limit per account), which stores nothing. This is the only
+//   place where the CV text leaves the browser, and only on that explicit click.
 import { $, h, toast } from "./lib.js";
 import { t, lang } from "./i18n.js";
+import { sb } from "./supabase.js";
 import { state, path, fitColor, skillChip } from "./state.js";
 import { extractSkills, matchSkills } from "./ats.js";
 
@@ -70,9 +72,73 @@ function linesToPutForward(cvText, wanted) {
     .slice(0, 6);
 }
 
-async function copy(text, area) {
-  try { await navigator.clipboard.writeText(text); } catch { area.select(); document.execCommand("copy"); }
-  toast(t("Prompt copied. Paste it into your AI assistant."));
+async function copy(text, area, message = t("Prompt copied. Paste it into your AI assistant.")) {
+  try { await navigator.clipboard.writeText(text); } catch { area?.select(); document.execCommand("copy"); }
+  toast(message);
+}
+
+// Messages for the error codes of the cv-tailor function.
+const AI_ERRORS = {
+  signed_out: "Sign in to use AI rewriting.",
+  limit: "Daily limit reached (5 AI rewrites a day). Use the prompt to copy, or try again tomorrow.",
+  not_configured: "AI rewriting is not set up yet. Use the prompt to copy meanwhile.",
+  refusal: "The AI declined this request. Use the prompt to copy instead.",
+  too_long: "Your CV or the offer is too long for AI rewriting. Use the prompt to copy.",
+  busy: "The AI service is busy. Try again in a minute.",
+  unreachable: "The AI service can't be reached (no connection, or not set up yet). Use the prompt to copy meanwhile.",
+};
+
+// "Rewrite with AI": signed-in users only, a notice before every send, then the answer with a copy button.
+// The CV and the offer go to the cv-tailor function (Claude API) only when the user confirms the notice.
+function aiSection({ offer, r }) {
+  const box = h("div", { class: "grid gap-2 pt-3", style: "border-top:1px solid var(--line)" },
+    h("p", { class: "text-sm font-medium" }, t("✨ Rewrite with AI in HelloKhedma")));
+  if (!state.user) {
+    box.append(h("p", { class: "mute text-xs" }, t("For signed-in users: up to 5 rewrites a day.")),
+      h("button", { type: "button", class: "btn-ghost justify-self-start",
+        onClick: () => { $("#tailorDialog").close(); $("#authOpen").click(); } }, t("Sign in to use it")));
+    return box;
+  }
+  const out = h("div", { class: "grid gap-2", "aria-live": "polite" });
+  const start = h("button", { type: "button", class: "btn justify-self-start", onClick: () => showNotice() }, t("✨ Rewrite with AI"));
+
+  function showNotice() {
+    out.replaceChildren(h("div", { class: "rounded-lg p-3 text-sm grid gap-2", style: "background:var(--bg);border:1px solid var(--accent)" },
+      h("p", {}, t("Your CV and this offer will be sent to Claude, Anthropic's AI, to write the suggestions. HelloKhedma does not store them. Up to 5 rewrites a day.")),
+      h("div", { class: "flex flex-wrap gap-2" },
+        h("button", { type: "button", class: "btn", onClick: run }, t("Send and rewrite")),
+        h("button", { type: "button", class: "btn-ghost", onClick: () => out.replaceChildren() }, t("Cancel")))));
+  }
+
+  async function run() {
+    start.disabled = true;
+    out.replaceChildren(h("p", { class: "mute text-sm" }, t("Rewriting… this can take up to a minute.")));
+    try {
+      const { data, error } = await sb.functions.invoke("cv-tailor", { body: {
+        cv: state.cv.text.slice(0, 12000), offer: { title: offer.title, company: offer.company, text: String(offer.text || "").slice(0, 6000) },
+        matched: r.matched, missing: r.missing, role: path()?.name || offer.title, lang,
+      } });
+      if (error) {
+        let msg = error.message, code;
+        try { const j = await error.context.json(); msg = j.error || msg; code = j.code; } catch { /* keep message */ }
+        if (error.context?.status === 404) code = "not_configured"; // function not deployed yet
+        if (error.name === "FunctionsFetchError") code = "unreachable"; // no connection, or not deployed (no CORS answer)
+        throw Object.assign(new Error(msg), { code });
+      }
+      const result = h("div", { class: "rounded-lg p-3 text-sm whitespace-pre-wrap", style: "background:var(--bg);border:1px solid var(--line)" }, data.text);
+      out.replaceChildren(
+        h("p", { class: "text-xs", style: "color:#f08a24" }, t("Check every line before using it: the AI can make mistakes, and only you know what is true.")),
+        data.truncated ? h("p", { class: "mute text-xs" }, t("The answer was cut short: try again with a shorter offer.")) : null,
+        result,
+        h("button", { type: "button", class: "btn-ghost justify-self-start", onClick: () => copy(data.text, null, t("Rewrite copied.")) }, t("📋 Copy the rewrite")));
+    } catch (e) {
+      out.replaceChildren(h("p", { class: "text-sm", style: "color:#e0508b" },
+        AI_ERRORS[e.code] ? t(AI_ERRORS[e.code]) : t("AI rewriting failed: {msg}", { msg: e.message })));
+    } finally { start.disabled = false; }
+  }
+
+  box.append(h("p", { class: "mute text-xs" }, t("Claude rewrites your bullet points for this offer, with the same honesty rules.")), start, out);
+  return box;
 }
 
 // offer: { title, company, text }
@@ -122,10 +188,8 @@ export function openTailor(offer) {
       h("div", { class: "flex flex-wrap gap-2" },
         h("button", { type: "button", class: "btn", onClick: () => copy(prompt, area) }, t("📋 Copy the prompt")),
         ext("https://claude.ai/new", t("Open Claude ↗")), ext("https://chatgpt.com/", t("Open ChatGPT ↗")))),
-    h("div", { class: "flex flex-wrap items-center gap-2 pt-2", style: "border-top:1px solid var(--line)" },
-      h("button", { type: "button", class: "btn-ghost", disabled: true, title: t("Coming later, for signed-in users") }, t("✨ Rewrite with AI in HelloKhedma")),
-      h("span", { class: "mute text-xs" }, t("Coming soon, for signed-in users.")),
-      h("span", { class: "ml-auto" }, close)),
+    aiSection({ offer, r }),
+    h("div", { class: "flex justify-end" }, close),
   );
   dlg.showModal();
   body.scrollTop = 0;

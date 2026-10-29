@@ -15,13 +15,13 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   (raw.githubusercontent.com/<owner>/<repo>/<commit>/…): the branch link is cached for ~5 minutes.
 - Supabase CLI (or the dashboard equivalents):
   - `npx supabase link --project-ref <ref>`, then `npx supabase db push` (migrations); seed: run supabase/seed.sql.
-  - `npx supabase functions deploy job-search --use-api` and `npx supabase functions deploy delete-account --use-api`
+  - `npx supabase functions deploy <name> --use-api` for job-search, delete-account and cv-tailor
   - `npx supabase secrets set NAME=value`
 - Deploy: push to `main`; .github/workflows/deploy.yml builds and publishes to GitHub Pages.
 
 ## Tech stack
 - Frontend: HTML, Tailwind CSS 3 (css/input.css → css/app.css), vanilla JS ES modules, no bundler; installable PWA.
-- Backend: Supabase (PostgreSQL, Auth, Row Level Security, Edge Functions `job-search`, `delete-account`).
+- Backend: Supabase (PostgreSQL, Auth, Row Level Security, Edge Functions `job-search`, `delete-account`, `cv-tailor`).
 - Job data: France Travail, Adzuna and JSearch through the `job-search` function (only providers with secrets set run);
   company career pages (Greenhouse, Lever, Ashby, Workable, SmartRecruiters) and remote boards (Jobicy, Remotive)
   are called directly from the browser (public, key-less APIs).
@@ -33,6 +33,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 | DEFAULT_COUNTRY, CONTACT_EMAIL, SENTRY_DSN (optional) | GitHub → Actions → Variables; local js/config.js |
 | ADZUNA_APP_ID, ADZUNA_APP_KEY, RAPIDAPI_KEY, FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET | Supabase → Edge Functions → Secrets |
 | DEFAULT_PROVIDER, CACHE_TTL_HOURS, RATE_LIMIT_GUEST, RATE_LIMIT_USER (optional) | Supabase → Edge Functions → Secrets |
+| ANTHROPIC_API_KEY; CV_TAILOR_DAILY_LIMIT, CV_TAILOR_MODEL (optional) | Supabase → Edge Functions → Secrets (cv-tailor) |
 | SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (functions) | Provided automatically by Supabase; never in frontend |
 
 ## Rules for Claude Code
@@ -48,7 +49,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Every user-owned table needs RLS policies scoped to auth.uid(); add schema changes as a new migration file.
 - Build DOM with the h() helper (textContent), never innerHTML with remote data (course text included).
 - CV texts (every version, "hk.cvs" via js/cvs.js) stay in localStorage only; never send them to Supabase or any API.
-  "Tailor my CV" only builds a prompt the user copies; in-app AI (planned, ROADMAP 5.2) needs a notice before sending.
+  Single exception: "Rewrite with AI" (js/tailor.js → cv-tailor function → Claude API), signed-in users only, after a
+  notice shown before every send; the function stores and logs nothing. Never send the CV anywhere else.
 - Keep the privacy policy (index.html, #/privacy) in sync when adding a provider or any new personal data.
 - Every user-facing text is written in English and goes through t() / tn() (js/i18n.js); add its French to
   js/i18n-fr.js. Static text in index.html is translated automatically if its English is a key there. The legal notice
@@ -108,7 +110,7 @@ Read the header comment of any file before modifying it; update the header if be
 - content/courses/, content/interview/ — course and interview content (JSON)
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)
-- supabase/functions/job-search/, supabase/functions/delete-account/ — Edge Functions
+- supabase/functions/job-search/, delete-account/, cv-tailor/ — Edge Functions (cv-tailor: AI CV rewrite with Claude)
 - scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node)
 - .github/workflows/deploy.yml — build and publish to GitHub Pages
 - CHECKLIST.md — next-session note, owner tasks, done log; ROADMAP.md — roadmap + decisions log; README.md, GO-LIVE.md — setup guides

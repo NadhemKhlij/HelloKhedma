@@ -7,10 +7,8 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | # | Where | Task | Why it matters | Links / details |
 |---|---|---|---|---|
-| O1 | Supabase → Edge Functions | Create **`delete-account`** (Via Editor) with the code from `supabase/functions/delete-account/index.ts` | "Delete my account" fails until it exists | [raw code](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/main/supabase/functions/delete-account/index.ts) |
 | O4 | GitHub → Settings → Secrets and variables → Actions → Variables | Add **`CONTACT_EMAIL`** (dedicated address), then re-run the deploy | Legal pages show "contact address coming soon" | — |
 | O5 | Supabase → Authentication → SMTP Settings | Set up **Resend or Brevo** SMTP, then turn **Confirm email** back on | Real users do not receive sign-up / magic-link emails | — |
-| O6 | Supabase → SQL Editor | Run **`supabase/migrations/20261029000000_application_details.sql`** | Signed-in users: syncs application details (salary, contact, follow-up, interview, history). Guests work without it | [raw SQL](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/main/supabase/migrations/20261029000000_application_details.sql) |
 | O7 | sentry.io (optional) | Create a project, add **`SENTRY_DSN`** as a GitHub variable | Error monitoring | — |
 | O8 | Domain (optional) | Buy `hellokhedma.com`, point it to GitHub Pages, update Supabase URLs | Credibility, shareable links | — |
 | O9 | Legal (before a big launch) | Have the legal notice and privacy policy reviewed | Templates, not legal advice | — |
@@ -29,6 +27,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | 2026-10-29 | Legal notice, privacy policy, Account & data page (export / delete), source credits, error handling, SEO tags |
 | 2026-10-29 | Tracker 2.0 and offer filters (see ROADMAP.md, Phase 2 and 3) |
 | 2026-10-29 | Owner redeployed `job-search` (IP hashing, detailed errors). Diagnosis: JSearch removed `/search`; code moved to `/search-v2` |
+| 2026-10-29 | O1 done: `delete-account` deployed (verified: answers 401 without a session, CORS ok). O6 done: tracker detail migration run (verified: new columns exist) |
 | 2026-10-29 | Installable app (PWA, offline), "Remote jobs" tab, weekly study plan; no setup needed |
 | 2026-10-29 | Interview prep page (practice, STAR stories, checklist); no setup needed |
 | 2026-10-29 | "Companies I follow" on the Offers page (no setup needed: career-page APIs are called from the browser) |

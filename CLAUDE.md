@@ -11,6 +11,11 @@ trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 - Backend / database: Supabase (PostgreSQL, Auth, Row Level Security, Edge Functions)
 - Job data: Adzuna and RapidAPI JSearch, called ONLY from the `job-search` Edge Function
 
+## Owner checklist
+CHECKLIST.md tracks what is done and what the owner still has to do outside the code (Supabase, GitHub, providers).
+At the start of a session and when finishing a feature, remind the owner briefly of the open items, add any new
+owner task you create (e.g. a migration or function to deploy), and move items to "Done" when the owner confirms.
+
 ## Rules for Claude Code
 - Keep the UI responsive and clean (HelloKhedma dark theme / modern aesthetic).
 - When modifying code, keep persistence intact: guests use localStorage, signed-in users use Supabase,
@@ -34,7 +39,9 @@ trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 - js/app.js             wiring, state, hash routes (#/, #/offers, #/training, #/cv, #/applications),
                         rendering of home summary / paths / learn / search
 - js/store.js           LocalStore + CloudStore (same interface) + guest import
-- js/tracker.js         Kanban board (drag and drop + arrow buttons)
+- js/tracker.js         Kanban board, details dialog (#appDialog), stats + weekly goal, follow-ups / next actions,
+                        CSV import/export, .ics files. New application columns: migration 20261029000000; CloudStore
+                        only sends them once the migration ran (detailsSupported), so keep that fallback.
 - js/jobs.js            calls the job-search function; fallback deep links
 - js/ats.js             skills dictionary (EN + FR aliases) + extraction, CV ↔ offer matching, PDF/TXT CV reading (pdf.js from cdnjs).
                         The CV text is stored only in localStorage ("hk.cv.text"); never send it to Supabase.

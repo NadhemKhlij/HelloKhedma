@@ -63,6 +63,7 @@
       <p id="status" class="mute text-sm mt-2"></p>
     </div>
     <div id="paths" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Career path"></div>
+    <div id="homeActions"></div>
     <div id="homeSummary" class="grid gap-3 md:grid-cols-3"></div>
   </section>
 
@@ -80,7 +81,9 @@
         <option value="jsearch">JSearch</option>
       </select>
       <button class="btn" id="searchBtn" type="submit">Search</button>
+      <button class="btn-ghost" id="saveSearch" type="button" title="Save this search for one-click reuse">☆ Save search</button>
     </form>
+    <div id="savedSearches" class="flex flex-wrap gap-2 mt-2"></div>
     <p id="searchMsg" class="mute text-sm mt-3" aria-live="polite"></p>
     <div id="offerTools" hidden class="mt-3 grid gap-3">
       <p id="fitNote" class="text-sm"></p>
@@ -88,12 +91,27 @@
         <p class="mute text-sm mb-1">Most requested skills in these offers <span class="mute">(click one to filter)</span></p>
         <div id="offerSkills" class="flex flex-wrap gap-2"></div>
       </div>
-      <label class="mute text-sm">Sort by
-        <select id="sortBy" class="input !py-1 ml-1">
-          <option value="fit">Best CV fit</option>
-          <option value="recent">Most recent</option>
-        </select>
-      </label>
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm mute">
+        <label>Contract
+          <select id="fContract" class="input !py-1 ml-1">
+            <option value="">Any</option><option>CDI</option><option>CDD</option><option>Freelance</option>
+            <option>Internship</option><option>Apprenticeship</option>
+          </select></label>
+        <label>Remote
+          <select id="fRemote" class="input !py-1 ml-1">
+            <option value="">Any</option><option value="any-remote">Remote or hybrid</option><option value="Remote">Full remote</option>
+          </select></label>
+        <label>CV fit
+          <select id="fFit" class="input !py-1 ml-1">
+            <option value="0">Any</option><option value="40">≥ 40%</option><option value="60">≥ 60%</option><option value="80">≥ 80%</option>
+          </select></label>
+        <label>Sort by
+          <select id="sortBy" class="input !py-1 ml-1">
+            <option value="fit">Best CV fit</option>
+            <option value="recent">Most recent</option>
+          </select></label>
+        <label class="flex items-center gap-1"><input id="fHidden" type="checkbox"> Show hidden offers</label>
+      </div>
     </div>
     <ul id="results" class="grid gap-3 mt-3 md:grid-cols-2"></ul>
     <p id="sourceCredits" class="mute text-xs mt-3"></p>
@@ -155,7 +173,17 @@
 
   <!-- Applications -->
   <section data-page="applications" aria-labelledby="h-applications" hidden class="panel">
-    <h1 id="h-applications" tabindex="-1" class="page-title">My applications</h1>
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+      <h1 id="h-applications" tabindex="-1" class="page-title !mb-0">My applications</h1>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button id="csvExport" class="btn-ghost !py-1" type="button">Export CSV</button>
+        <label class="btn-ghost !py-1 cursor-pointer">Import CSV<input id="csvImport" type="file" accept=".csv,text/csv" class="sr-only"></label>
+      </div>
+    </div>
+    <p id="detailsNotice" class="text-sm mb-3" style="color:#f08a24" hidden>
+      Notes, salary, contact, follow-ups and interview dates are not synced to your account yet: the database update
+      (CHECKLIST item O6) has not been run. Moving cards and the rest still work.</p>
+    <div id="appStats" class="mb-4"></div>
     <form id="addForm" class="flex flex-wrap gap-2 mb-4">
       <input id="cTitle" class="input" placeholder="Job title" required aria-label="Job title">
       <input id="cCo" class="input" placeholder="Company" aria-label="Company">
@@ -235,6 +263,34 @@
   <a href="#/legal" class="underline">Legal notice</a>
   <a href="#/account" class="underline">Your data</a>
 </footer>
+
+<dialog id="appDialog" class="panel w-[min(94vw,600px)] m-auto max-h-[90vh] overflow-y-auto">
+  <form id="appForm" class="grid gap-3">
+    <h2 class="!mb-0">Application details</h2>
+    <p id="appDetailsNote" class="text-sm" style="color:#f08a24" hidden>
+      Only title, company, location, link, stage and notes are saved to your account until the database update (CHECKLIST O6) is run.</p>
+    <div class="grid gap-3 sm:grid-cols-2 text-sm">
+      <label class="grid gap-1"><span class="mute">Job title</span><input name="title" class="input" required></label>
+      <label class="grid gap-1"><span class="mute">Company</span><input name="company" class="input"></label>
+      <label class="grid gap-1"><span class="mute">Location</span><input name="location" class="input"></label>
+      <label class="grid gap-1"><span class="mute">Offer link</span><input name="url" class="input" inputmode="url"></label>
+      <label class="grid gap-1"><span class="mute">Stage</span><select name="stage" class="input"></select></label>
+      <label class="grid gap-1"><span class="mute">Salary</span><input name="salary" class="input" placeholder="e.g. 45–50k € gross"></label>
+      <label class="grid gap-1 sm:col-span-2"><span class="mute">Contact</span><input name="contact" class="input" placeholder="Recruiter, referral: name, email, LinkedIn"></label>
+      <label class="grid gap-1"><span class="mute">Next action</span><input name="next_action" class="input" placeholder="e.g. Send a follow-up email"></label>
+      <label class="grid gap-1"><span class="mute">Follow up on</span><input name="follow_up_on" type="date" class="input"></label>
+      <label class="grid gap-1"><span class="mute">Interview</span><input name="interview_at" type="datetime-local" class="input"></label>
+      <div class="grid content-end"><button id="appIcs" type="button" class="btn-ghost">📅 Add interview to calendar</button></div>
+      <label class="grid gap-1 sm:col-span-2"><span class="mute">Notes</span><textarea name="notes" rows="4" class="input"></textarea></label>
+    </div>
+    <div id="appTimeline"></div>
+    <div class="flex flex-wrap gap-2">
+      <button class="btn" type="submit">Save</button>
+      <button id="appDelete" type="button" class="btn-ghost" style="color:#e0508b">Delete</button>
+      <button id="appCancel" type="button" class="btn-ghost ml-auto">Cancel</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="authDialog" class="panel w-[min(92vw,380px)] m-auto">
   <form id="authForm" class="grid gap-3">

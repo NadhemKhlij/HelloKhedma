@@ -30,6 +30,11 @@ Still to do by you: 1.1 SMTP, own domain, cookie-free analytics (optional). Next
 | 1.9 | Accessibility pass (keyboard, contrast in both themes, screen reader labels) | Usable by everyone | S |
 
 ## Phase 2: a tracker that actually manages the hunt
+Done (2026-10-29): 2.1 details (notes, salary, contact, next action), 2.2 follow-up dates with in-app reminders
+(Home "Next actions", card badges; email reminders still to do), 2.3 interview dates + .ics, 2.4 timeline,
+2.5 stats + weekly goal, 2.6 CSV export/import. Signed-in sync of the new fields needs migration O6 (CHECKLIST.md).
+Still to do: 2.2 email reminders, 2.7 attach CV / cover letter.
+
 | # | Item | Why | Effort |
 |---|---|---|---|
 | 2.1 | Notes, salary, contact person, next action per application | Everything about an application in one card | M |
@@ -41,6 +46,9 @@ Still to do by you: 1.1 SMTP, own domain, cookie-free analytics (optional). Next
 | 2.7 | Attach the CV version + cover letter used per application | Know what was sent to whom | M |
 
 ## Phase 3: find better offers faster
+Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text; salary/date filters still to do),
+3.3 hide / "not interested", seen marker, "Tracked ✓", 3.4 minimum CV-fit filter, saved searches (this browser; email alerts still to do).
+
 | # | Item | Why | Effort |
 |---|---|---|---|
 | 3.1 | Filters: contract type, remote, salary, date posted, seniority | Cut noise | M |

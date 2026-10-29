@@ -31,6 +31,13 @@ export const ls = {
   del(k) { try { localStorage.removeItem(k); } catch { /* ignore */ } },
 };
 
+// Offer a text file (JSON, CSV, .ics) to the user as a download.
+export function download(filename, text, type = "text/plain") {
+  const a = h("a", { href: URL.createObjectURL(new Blob([text], { type })), download: filename });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 let toastTimer;
 export function toast(msg) {
   const t = $("#toast");

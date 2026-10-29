@@ -1,9 +1,9 @@
-import { $, h, safeUrl, safeColor, ls, toast } from "./lib.js";
+import { $, h, safeUrl, safeColor, ls, toast, download } from "./lib.js";
 import { sb, configured, CONFIG } from "./supabase.js";
-import { LocalStore, CloudStore, importLocalToCloud } from "./store.js";
+import { LocalStore, CloudStore, importLocalToCloud, STAGES } from "./store.js";
 import { searchJobs, boardLinks } from "./jobs.js";
-import { renderBoard } from "./tracker.js";
-import { extractSkills, matchSkills, addKeywords, readCvFile } from "./ats.js";
+import { renderBoard, renderStats, openDetails, nextActions, toCsv, parseCsv } from "./tracker.js";
+import { extractSkills, matchSkills, addKeywords, readCvFile, norm } from "./ats.js";
 import { initAuth } from "./auth.js";
 import { loadCourseIndex, renderCourseList, renderCourse, courseForSkill } from "./courses.js";
 
@@ -16,6 +16,14 @@ const state = {
   user: null, store: new LocalStore(), cards: [],
   cv: { text: "", skills: [], names: new Set() }, jobs: [], skillFilter: null,
 };
+
+// Offer preferences kept in this browser: hidden ("not interested") and seen offers, saved searches, weekly goal.
+const HIDDEN_KEY = "hk.offers.hidden", SEEN_KEY = "hk.offers.seen", SAVED_KEY = "hk.savedSearches", GOAL_KEY = "hk.weeklyGoal";
+const loadList = (k) => { try { return JSON.parse(ls.get(k) || "[]"); } catch { return []; } };
+const saveSet = (k, s) => ls.set(k, JSON.stringify([...s].slice(-500)));
+state.hidden = new Set(loadList(HIDDEN_KEY));
+state.seen = new Set(loadList(SEEN_KEY));
+const weeklyGoal = () => Number(ls.get(GOAL_KEY)) || 5;
 
 const path = () => state.paths.find((p) => p.id === state.pathId);
 const byKind = (k) => state.resources.filter((r) => r.kind === k);
@@ -94,12 +102,51 @@ async function loadProgress() {
 }
 async function refreshTracker() {
   try { state.cards = await state.store.list(); } catch (e) { fail(e); state.cards = []; }
+  const detailsOk = await state.store.detailsSupported();
+  $("#detailsNotice").hidden = detailsOk;
+  // Run a store action, then redraw everything that depends on the cards.
+  const act = (fn) => async (...args) => { try { await fn(...args); await refreshTracker(); } catch (e) { fail(e); } };
   renderBoard($("#board"), state.cards, {
     colorOf: (id) => state.paths.find((p) => p.id === id)?.color,
-    onMove: async (id, stage) => { try { await state.store.move(id, stage); await refreshTracker(); } catch (e) { fail(e); } },
-    onRemove: async (id) => { try { await state.store.remove(id); await refreshTracker(); } catch (e) { fail(e); } },
+    onMove: act((id, stage) => state.store.move(id, stage)),
+    onOpen: (c) => openDetails(c, {
+      detailsOk,
+      onSave: act((patch) => state.store.update(c.id, patch)),
+      onRemove: act(() => state.store.remove(c.id)),
+    }),
   });
+  const drawStats = () => renderStats($("#appStats"), state.cards, weeklyGoal(), (g) => { ls.set(GOAL_KEY, String(g)); drawStats(); });
+  drawStats();
   renderHome();
+  if (state.jobs.length) renderOffers(); // refresh the "Tracked" markers
+}
+
+function onCsvExport() {
+  if (!state.cards.length) { toast("No applications to export yet."); return; }
+  // The BOM makes Excel open accents correctly.
+  download(`hellokhedma-applications-${new Date().toISOString().slice(0, 10)}.csv`, `﻿${toCsv(state.cards)}`, "text/csv");
+}
+
+async function onCsvImport(e) {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
+  const isoOrUndef = (v) => { const d = new Date(v); return v && !Number.isNaN(d.getTime()) ? d.toISOString() : undefined; };
+  try {
+    const rows = parseCsv(await file.text()).filter((r) => r.title);
+    if (!rows.length) { toast("No rows found. The file needs a 'title' column (see Export CSV for the format)."); return; }
+    for (const r of rows) {
+      await state.store.add({
+        ...r, path_id: state.pathId,
+        stage: STAGES.some((s) => s.id === r.stage) ? r.stage : "saved",
+        url: safeUrl(r.url) || undefined,
+        follow_up_on: /^\d{4}-\d{2}-\d{2}$/.test(r.follow_up_on || "") ? r.follow_up_on : undefined,
+        interview_at: isoOrUndef(r.interview_at),
+      });
+    }
+    toast(`Imported ${rows.length} application${rows.length > 1 ? "s" : ""}.`);
+    await refreshTracker();
+  } catch (err) { fail(err); }
 }
 
 /* ---------- rendering ---------- */
@@ -124,6 +171,14 @@ function renderHome() {
     h("b", { class: "block text-2xl my-1" }, big),
     h("p", { class: "mute text-sm mb-2" }, detail),
     h("span", { class: "text-sm font-medium", style: "color:var(--accent)" }, `${cta} →`));
+  // Follow-ups due and interviews this week, at the top of Home.
+  const actions = nextActions(state.cards).slice(0, 6);
+  const ICON = { overdue: ["⏰", "#e0508b"], today: ["⏰", "#f08a24"], soon: ["⏰", "var(--accent)"], interview: ["📅", "var(--accent)"] };
+  $("#homeActions").replaceChildren(...(actions.length ? [h("div", { class: "panel" },
+    h("h2", { class: "!mb-2" }, "Next actions"),
+    h("ul", { class: "grid gap-2 text-sm" }, actions.map(({ c, kind, text }) => h("li", { class: "flex flex-wrap items-baseline gap-2" },
+      h("span", { style: `color:${ICON[kind][1]}` }, `${ICON[kind][0]} ${kind === "overdue" ? "Overdue · " : kind === "today" ? "Today · " : ""}${text}`),
+      h("a", { href: "#/applications", class: "mute underline" }, [c.title, c.company].filter(Boolean).join(" · "))))))] : []));
   $("#homeSummary").replaceChildren(
     card("Training", all.length ? `${done}/${all.length} steps` : "No tracks yet",
       next ? `Next up: ${next.title}` : all.length ? "Every step is done. Time to apply!" : "", "#/training", "Continue learning"),
@@ -419,27 +474,68 @@ const jobText = (j) => `${j.title} ${j.text || j.snippet || ""}`;
 // Below this many detected skills a percentage says more about the short summary than about the fit.
 const MIN_SKILLS_FOR_FIT = 2;
 
-function renderJob({ j, skills, fit }) {
+const offerKey = (j) => `${j.source}:${j.id}`;
+
+// Contract type and remote policy, detected from the offer text (EN + FR wording). null when not stated.
+function offerTags(j) {
+  const t = norm(`${j.title} ${j.text || j.snippet || ""}`), title = norm(j.title);
+  const contract =
+    /alternance|apprenti|apprentissage|work[- ]study/.test(t) ? "Apprenticeship"
+    : /\bstage\b|stagiaire|internship|\bintern\b/.test(title) || /stagiaire|internship/.test(t) ? "Internship"
+    : /\bcdi\b|permanent contract|contrat a duree indeterminee/.test(t) ? "CDI"
+    : /\bcdd\b|fixed[- ]term|contrat a duree determinee/.test(t) ? "CDD"
+    : /freelance|independant|contractor|portage salarial|\btjm\b/.test(t) ? "Freelance" : null;
+  const remote =
+    /full remote|fully remote|100 ?% remote|100 ?% teletravail|teletravail complet|remote first/.test(t) ? "Remote"
+    : /hybride|hybrid|teletravail|remote|a distance/.test(t) ? "Hybrid" : null;
+  return { contract, remote };
+}
+
+function toggleHidden(key) {
+  state.hidden.has(key) ? state.hidden.delete(key) : state.hidden.add(key);
+  saveSet(HIDDEN_KEY, state.hidden);
+  renderOffers();
+}
+function markSeen(key) {
+  if (state.seen.has(key)) return;
+  state.seen.add(key);
+  saveSet(SEEN_KEY, state.seen);
+  setTimeout(renderOffers, 300); // after the new tab opened
+}
+
+function renderJob({ j, skills, fit, tags, key }) {
   const url = safeUrl(j.url);
-  const btn = h("button", { type: "button", class: "btn-ghost", onClick: (e) => track(j, e.currentTarget) }, "Track");
+  const tracked = state.cards.some((c) => c.external_id === j.id && c.source === j.source);
+  const hidden = state.hidden.has(key), seen = state.seen.has(key);
+  const btn = tracked
+    ? h("button", { type: "button", class: "btn-ghost", disabled: true }, "Tracked ✓")
+    : h("button", { type: "button", class: "btn-ghost", onClick: (e) => track(j, e.currentTarget) }, "Track");
+  const hideBtn = h("button", { type: "button", class: "btn-ghost !px-2", title: hidden ? "Show this offer again" : "Hide this offer from future results",
+    onClick: () => toggleHidden(key) }, hidden ? "Unhide" : "Not interested");
+  const tag = (text) => h("span", { class: "chip !py-0 text-xs" }, text);
   const badge = fit?.score != null
     ? h("span", { class: "chip text-xs font-bold shrink-0 ml-auto whitespace-nowrap", style: `border-color:${fitColor(fit.score)};color:${fitColor(fit.score)}`,
         title: `${fit.matched.length} of ${fit.total} skills from this offer are in your CV` }, `${fit.score}% fit · ${fit.matched.length}/${fit.total}`)
     : fit ? h("span", { class: "mute text-xs shrink-0 ml-auto whitespace-nowrap", title: "The offer summary names too few skills to score it." }, "Fit: n/a")
     : null;
-  return h("li", { class: "rounded-lg p-3", style: "background:var(--bg);border:1px solid var(--line)" },
+  return h("li", { class: "rounded-lg p-3", style: `background:var(--bg);border:1px solid var(--line);${hidden || seen ? "opacity:.7" : ""}` },
     h("div", { class: "flex items-start gap-2" },
       h("div", { class: "min-w-0" },
         h("b", { class: "block" }, j.title),
         h("span", { class: "mute text-sm block" }, [j.company, j.location].filter(Boolean).join(" · "))),
       badge),
+    tags.contract || tags.remote || seen || hidden ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
+      tags.contract ? tag(tags.contract) : null,
+      tags.remote ? tag(tags.remote === "Remote" ? "Full remote" : "Hybrid / remote") : null,
+      seen ? h("span", { class: "mute text-xs" }, "Seen") : null,
+      hidden ? h("span", { class: "mute text-xs" }, "Hidden") : null) : null,
     skills.length
       ? h("div", { class: "flex flex-wrap gap-1.5 mt-2", "aria-label": "Skills in this offer" }, skills.slice(0, 8).map((s) => skillChip(s, state.cv.names.has(s))))
       : h("p", { class: "mute text-xs mt-2" }, "No specific skills detected in the offer summary."),
     h("p", { class: "text-sm mt-2 mute" }, j.snippet),
-    h("div", { class: "flex items-center gap-2 mt-2" },
-      url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn" }, "View offer") : null,
-      btn, h("span", { class: "mute text-xs ml-auto" }, SOURCE_NAMES[j.source] || j.source)));
+    h("div", { class: "flex flex-wrap items-center gap-2 mt-2" },
+      url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn", onClick: () => markSeen(key) }, "View offer") : null,
+      btn, hideBtn, h("span", { class: "mute text-xs ml-auto" }, SOURCE_NAMES[j.source] || j.source)));
 }
 const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch" };
 
@@ -450,8 +546,11 @@ function renderOffers() {
     const skills = extractSkills(jobText(j)).map((s) => s.name);
     let fit = hasCv ? matchSkills(skills, state.cv.names) : null;
     if (fit && fit.total < MIN_SKILLS_FOR_FIT) fit = { ...fit, score: null };
-    return { j, skills, fit };
+    return { j, skills, fit, tags: offerTags(j), key: offerKey(j) };
   });
+  const total = list.length, showHidden = $("#fHidden").checked;
+  const hiddenCount = list.filter((x) => state.hidden.has(x.key)).length;
+  if (!showHidden) list = list.filter((x) => !state.hidden.has(x.key));
 
   // Skills most requested across these offers; clicking one filters the list.
   const freq = new Map();
@@ -472,11 +571,18 @@ function renderOffers() {
     : h("span", { class: "mute" }, "Add your CV on the ",
         h("a", { href: "#/cv", class: "underline", style: "color:var(--accent)" }, "CV check"), " page to see how well you fit each offer."));
 
-  $("#sortBy").disabled = !hasCv;
-  if (state.skillFilter) list = list.filter((x) => x.skills.includes(state.skillFilter));
+  $("#sortBy").disabled = $("#fFit").disabled = !hasCv;
+  const contract = $("#fContract").value, remote = $("#fRemote").value, minFit = hasCv ? Number($("#fFit").value) : 0;
+  list = list.filter((x) =>
+    (!state.skillFilter || x.skills.includes(state.skillFilter))
+    && (!contract || x.tags.contract === contract)
+    && (!remote || (remote === "Remote" ? x.tags.remote === "Remote" : Boolean(x.tags.remote)))
+    && (!minFit || (x.fit?.score ?? -1) >= minFit));
   if (hasCv && $("#sortBy").value === "fit") list = [...list].sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1));
+  $("#fitNote").append(h("span", { class: "mute" }, ` · Showing ${list.length} of ${total}${hiddenCount ? ` (${hiddenCount} hidden)` : ""}`));
   $("#offerTools").hidden = false;
-  $("#results").replaceChildren(...list.map(renderJob));
+  $("#results").replaceChildren(...(list.length ? list.map(renderJob)
+    : [h("li", { class: "mute text-sm" }, "No offer matches these filters. Loosen a filter to see more.")]));
   renderSourceCredits();
 }
 
@@ -492,10 +598,37 @@ function renderSourceCredits() {
     i ? " · " : "", h("a", { href: CREDITS[s][1], target: "_blank", rel: "noopener noreferrer", class: "underline" }, CREDITS[s][0])])] : []));
 }
 
+/* ---------- saved searches (this browser) ---------- */
+const currentSearch = () => ({ query: $("#role").value, location: $("#loc").value.trim(), provider: $("#provider").value, country: $("#country").value });
+const sameSearch = (a, b) => ["query", "location", "provider", "country"].every((k) => a[k] === b[k]);
+
+function renderSavedSearches() {
+  const saved = loadList(SAVED_KEY);
+  $("#savedSearches").replaceChildren(...saved.map((s, i) => h("span", { class: "chip text-xs flex items-center gap-2" },
+    h("button", { type: "button", class: "hover:underline", title: "Run this search", onClick: () => runSavedSearch(s) },
+      `☆ ${s.query}${s.location ? ` · ${s.location}` : ""} · ${s.country.toUpperCase()}`),
+    h("button", { type: "button", class: "mute", "aria-label": `Remove saved search ${s.query}`, onClick: () => {
+      const list = loadList(SAVED_KEY); list.splice(i, 1); ls.set(SAVED_KEY, JSON.stringify(list)); renderSavedSearches();
+    } }, "×"))));
+}
+function onSaveSearch() {
+  const s = currentSearch();
+  ls.set(SAVED_KEY, JSON.stringify([s, ...loadList(SAVED_KEY).filter((x) => !sameSearch(x, s))].slice(0, 8)));
+  renderSavedSearches();
+  toast("Search saved. Click it any time to run it again.");
+}
+function runSavedSearch(s) {
+  // A search saved on another path may use a job title that is not in the current list.
+  if (![...$("#role").options].some((o) => o.value === s.query)) $("#role").append(h("option", { value: s.query }, s.query));
+  $("#role").value = s.query; $("#loc").value = s.location; $("#country").value = s.country; $("#provider").value = s.provider;
+  renderBoards();
+  $("#searchForm").requestSubmit();
+}
+
 async function onSearch(e) {
   e.preventDefault();
   const btn = $("#searchBtn"), msg = $("#searchMsg");
-  const params = { query: $("#role").value, location: $("#loc").value.trim(), provider: $("#provider").value, country: $("#country").value };
+  const params = currentSearch();
   ls.set(LOC_KEY, params.location);
   btn.disabled = true; msg.textContent = "Searching…";
   state.jobs = []; state.skillFilter = null; renderOffers();
@@ -575,7 +708,11 @@ async function init() {
   $("#cvFile").addEventListener("change", onCvFile);
   $("#cvSave").addEventListener("click", onCvSave);
   $("#cvClear").addEventListener("click", onCvClear);
-  $("#sortBy").addEventListener("change", renderOffers);
+  for (const id of ["#sortBy", "#fContract", "#fRemote", "#fFit", "#fHidden"]) $(id).addEventListener("change", renderOffers);
+  $("#saveSearch").addEventListener("click", onSaveSearch);
+  renderSavedSearches();
+  $("#csvExport").addEventListener("click", onCsvExport);
+  $("#csvImport").addEventListener("change", onCsvImport);
   $("#addForm").addEventListener("submit", onAdd);
   $("#exportData").addEventListener("click", () => onExport().catch(fail));
   $("#deleteData").addEventListener("click", onDelete);

@@ -9,13 +9,25 @@ export const STAGES = [
   { id: "rejected", label: "Rejected" },
 ];
 
-const FIELDS = ["path_id", "title", "company", "location", "url", "source", "external_id", "stage"];
-const pick = (o) => Object.fromEntries(FIELDS.filter((k) => o[k] !== undefined && o[k] !== "").map((k) => [k, o[k]]));
+const BASE_FIELDS = ["path_id", "title", "company", "location", "url", "source", "external_id", "stage", "notes"];
+// Added by migration 20261029000000_application_details.sql. CloudStore only sends them once that migration has run.
+const DETAIL_FIELDS = ["salary", "contact", "next_action", "follow_up_on", "interview_at", "history"];
+const NULLABLE = new Set(["follow_up_on", "interview_at", "url"]);
+
+// For inserts: drop empty values. For updates: keep "" (clears a field) but turn empty dates into null.
+const pick = (o, fields, { keepEmpty = false } = {}) => Object.fromEntries(fields
+  .filter((k) => o[k] !== undefined && (keepEmpty || o[k] !== ""))
+  .map((k) => [k, NULLABLE.has(k) && o[k] === "" ? null : o[k]]));
 const dup = () => Object.assign(new Error("Already in your tracker"), { code: "DUPLICATE" });
+const now = () => new Date().toISOString();
+
+// A stage change appends to the history (used for the timeline and the stats).
+export const withStage = (card, stage) => ({ stage, history: [...(card?.history || []), { stage, at: now() }] });
 
 const LOCAL_KEY = "hk.applications.v1";
 
 export class LocalStore {
+  detailsSupported() { return true; }
   async list() {
     try { return JSON.parse(ls.get(LOCAL_KEY) || "[]"); } catch { return []; }
   }
@@ -23,36 +35,58 @@ export class LocalStore {
   async add(a) {
     const rows = await this.list();
     if (a.external_id && rows.some((r) => r.source === a.source && r.external_id === a.external_id)) throw dup();
-    const row = { stage: "saved", company: "", location: "", ...pick(a), id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    const stage = a.stage || "saved";
+    const row = { stage, company: "", location: "", history: [{ stage, at: now() }],
+      ...pick(a, [...BASE_FIELDS, ...DETAIL_FIELDS]), id: crypto.randomUUID(), created_at: now() };
     rows.unshift(row);
     await this.#save(rows);
     return row;
   }
-  async move(id, stage) {
+  async update(id, patch) {
     const rows = await this.list();
     const r = rows.find((x) => x.id === id);
-    if (r) r.stage = stage;
+    if (r) Object.assign(r, pick(patch, [...BASE_FIELDS, ...DETAIL_FIELDS], { keepEmpty: true }), { updated_at: now() });
     await this.#save(rows);
+  }
+  async move(id, stage) {
+    const r = (await this.list()).find((x) => x.id === id);
+    await this.update(id, withStage(r, stage));
   }
   async remove(id) { await this.#save((await this.list()).filter((x) => x.id !== id)); }
   clear() { ls.del(LOCAL_KEY); }
 }
 
 export class CloudStore {
-  constructor(sb) { this.sb = sb; }
+  constructor(sb) { this.sb = sb; this.details = null; }
+  // True once the details migration has run (the "history" column exists).
+  async detailsSupported() {
+    if (this.details === null) {
+      const { error } = await this.sb.from("applications").select("history").limit(1);
+      this.details = !error;
+    }
+    return this.details;
+  }
+  async #fields() { return (await this.detailsSupported()) ? [...BASE_FIELDS, ...DETAIL_FIELDS] : BASE_FIELDS; }
   async list() {
     const { data, error } = await this.sb.from("applications").select("*").order("created_at", { ascending: false });
     if (error) throw error;
     return data;
   }
   async add(a) {
-    const { data, error } = await this.sb.from("applications").insert(pick(a)).select().single();
+    const stage = a.stage || "saved";
+    const row = pick({ history: [{ stage, at: now() }], ...a, stage }, await this.#fields());
+    const { data, error } = await this.sb.from("applications").insert(row).select().single();
     if (error) throw error.code === "23505" ? dup() : error;
     return data;
   }
-  async move(id, stage) {
-    const { error } = await this.sb.from("applications").update({ stage }).eq("id", id);
+  async update(id, patch) {
+    const { error } = await this.sb.from("applications").update(pick(patch, await this.#fields(), { keepEmpty: true })).eq("id", id);
     if (error) throw error;
+  }
+  async move(id, stage) {
+    const { data, error } = await this.sb.from("applications").select("*").eq("id", id).single();
+    if (error) throw error;
+    await this.update(id, withStage(data, stage));
   }
   async remove(id) {
     const { error } = await this.sb.from("applications").delete().eq("id", id);

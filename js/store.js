@@ -7,13 +7,15 @@
 // 20261029000000_application_details.sql. CloudStore.detailsSupported() checks the column exists and only sends
 // those fields once it does, so signed-in users keep working before the owner runs the migration (CHECKLIST O6).
 import { ls } from "./lib.js";
+import { t } from "./i18n.js";
 
+// Stage ids are stored; labels are translated ("stage|" keys: the nav's "Interview" is translated differently).
 export const STAGES = [
-  { id: "saved", label: "Saved" },
-  { id: "applied", label: "Applied" },
-  { id: "interview", label: "Interview" },
-  { id: "offer", label: "Offer" },
-  { id: "rejected", label: "Rejected" },
+  { id: "saved", label: t("stage|Saved") },
+  { id: "applied", label: t("stage|Applied") },
+  { id: "interview", label: t("stage|Interview") },
+  { id: "offer", label: t("stage|Offer") },
+  { id: "rejected", label: t("stage|Rejected") },
 ];
 
 const BASE_FIELDS = ["path_id", "title", "company", "location", "url", "source", "external_id", "stage", "notes"];
@@ -25,7 +27,7 @@ const NULLABLE = new Set(["follow_up_on", "interview_at", "url"]);
 const pick = (o, fields, { keepEmpty = false } = {}) => Object.fromEntries(fields
   .filter((k) => o[k] !== undefined && (keepEmpty || o[k] !== ""))
   .map((k) => [k, NULLABLE.has(k) && o[k] === "" ? null : o[k]]));
-const dup = () => Object.assign(new Error("Already in your tracker"), { code: "DUPLICATE" });
+const dup = () => Object.assign(new Error(t("Already in your tracker")), { code: "DUPLICATE" });
 const now = () => new Date().toISOString();
 
 // A stage change appends to the history (used for the timeline and the stats).

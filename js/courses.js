@@ -8,6 +8,7 @@
 //                    pitfalls: [..], interview: [{ q, a }] }
 // Lesson progress is kept in this browser ("hk.lessons").
 import { $, h, ls, toast } from "./lib.js";
+import { t } from "./i18n.js";
 
 const BASE = "content/courses/";
 const LESSONS_KEY = "hk.lessons";
@@ -44,22 +45,22 @@ function courseCard(c, done) {
   const n = lessonCount(c), d = [...done].filter((k) => k.startsWith(`${c.id}:`)).length;
   return h("a", { href: `#/course/${c.id}`, class: "panel block hover:opacity-90 !p-4" },
     h("div", { class: "flex items-center gap-2 mb-1" },
-      h("span", { class: "chip chip-ok !py-0 text-xs" }, c.level),
-      h("span", { class: "mute text-xs ml-auto" }, `${c.hours} h${n ? ` · ${d}/${n} lessons` : ""}`)),
+      h("span", { class: "chip chip-ok !py-0 text-xs" }, t(c.level)),
+      h("span", { class: "mute text-xs ml-auto" }, `${c.hours} h${n ? t(" · {d}/{n} lessons", { d, n }) : ""}`)),
     h("b", { class: "block" }, c.name),
     h("p", { class: "mute text-sm mt-1" }, c.summary));
 }
 
 // Courses for the current path first; the others in a collapsible block.
 export function renderCourseList(root, pathId) {
-  if (!index.length) { root.replaceChildren(h("p", { class: "mute text-sm" }, "Courses could not be loaded.")); return; }
+  if (!index.length) { root.replaceChildren(h("p", { class: "mute text-sm" }, t("Courses could not be loaded."))); return; }
   const done = doneSet();
   const mine = index.filter((c) => c.paths.includes(pathId));
   const others = index.filter((c) => !c.paths.includes(pathId));
   root.replaceChildren(
     h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }, mine.map((c) => courseCard(c, done))),
     others.length ? h("details", { class: "mt-3" },
-      h("summary", { class: "cursor-pointer mute text-sm" }, `Other courses (${others.length})`),
+      h("summary", { class: "cursor-pointer mute text-sm" }, t("Other courses ({n})", { n: others.length })),
       h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-3" }, others.map((c) => courseCard(c, done)))) : null,
   );
 }
@@ -67,7 +68,7 @@ export function renderCourseList(root, pathId) {
 async function loadCourse(id) {
   if (cache.has(id)) return cache.get(id);
   const res = await fetch(`${BASE}${encodeURIComponent(id)}.json`);
-  if (!res.ok) throw new Error("This course does not exist (yet).");
+  if (!res.ok) throw new Error(t("This course does not exist (yet)."));
   const c = await res.json();
   cache.set(id, c);
   return c;
@@ -86,7 +87,7 @@ const codeBlock =(lang, code) => h("pre", { class: "codeblock", "data-lang": lan
 
 function lessonBlock(course, l, i, done) {
   const key = `${course.id}:${i}`;
-  const box = h("input", { type: "checkbox", checked: done.has(key), "aria-label": `Mark "${l.title}" as done`,
+  const box = h("input", { type: "checkbox", checked: done.has(key), "aria-label": t("Mark \"{title}\" as done", { title: l.title }),
     onChange: (e) => {
       const s = doneSet();
       e.target.checked ? s.add(key) : s.delete(key);
@@ -95,7 +96,7 @@ function lessonBlock(course, l, i, done) {
     } });
   return h("details", { class: "rounded-lg", style: "background:var(--bg);border:1px solid var(--line)", open: i === 0 },
     h("summary", { class: "cursor-pointer p-3 flex items-center gap-2" },
-      h("span", { class: "chip !py-0 text-xs" }, `Lesson ${i + 1}`), h("b", {}, l.title),
+      h("span", { class: "chip !py-0 text-xs" }, t("Lesson {n}", { n: i + 1 })), h("b", {}, l.title),
       h("span", { class: "mute text-xs ml-auto" }, `${l.minutes} min`)),
     h("div", { class: "px-3 pb-3 grid gap-2 text-sm" },
       ...(l.text || []).map((p) => h("p", {}, p)),
@@ -103,13 +104,13 @@ function lessonBlock(course, l, i, done) {
       l.example ? h("div", {},
         codeBlock(l.example.lang, l.example.code),
         l.example.note ? h("p", { class: "mute text-xs mt-1" }, l.example.note) : null) : null,
-      h("label", { class: "flex items-center gap-2 mt-1" }, box, h("span", { class: "mute" }, "I've done this lesson"))));
+      h("label", { class: "flex items-center gap-2 mt-1" }, box, h("span", { class: "mute" }, t("I've done this lesson")))));
 }
 
 function updateCourseProgress(course) {
   const done = doneSet(), n = course.lessons.length;
   const d = course.lessons.filter((_, i) => done.has(`${course.id}:${i}`)).length;
-  $("#courseProgress").textContent = `${d}/${n} lessons done${d === n ? " · course complete 🎉" : ""}`;
+  $("#courseProgress").textContent = t("{d}/{n} lessons done", { d, n }) + (d === n ? t(" · course complete 🎉") : "");
 }
 
 function printCheatsheet() {
@@ -120,32 +121,32 @@ function printCheatsheet() {
 
 export async function renderCourse(id) {
   const root = $("#courseBody");
-  root.replaceChildren(h("p", { class: "mute" }, "Loading course…"));
+  root.replaceChildren(h("p", { class: "mute" }, t("Loading course…")));
   const meta = index.find((c) => c.id === id);
   try {
     const c = { ...(await loadCourse(id)), ...meta, id };
     document.title = `${c.name} · HelloKhedma`;
     const done = doneSet();
     root.replaceChildren(
-      h("a", { href: "#/training", class: "mute text-sm underline", "data-print-hide": "" }, "← All courses"),
+      h("a", { href: "#/training", class: "mute text-sm underline", "data-print-hide": "" }, t("← All courses")),
       h("header", { class: "panel", "data-print-hide": "" },
         h("div", { class: "flex flex-wrap items-center gap-2 mb-2" },
-          h("span", { class: "chip chip-ok !py-0 text-xs" }, c.level || ""),
-          h("span", { class: "mute text-sm" }, `${c.category || ""} · about ${c.hours} h`),
+          h("span", { class: "chip chip-ok !py-0 text-xs" }, c.level ? t(c.level) : ""),
+          h("span", { class: "mute text-sm" }, t("{category} · about {hours} h", { category: c.category ? t(c.category) : "", hours: c.hours })),
           h("span", { id: "courseProgress", class: "mute text-sm ml-auto" })),
         h("h1", { id: "h-course", tabindex: "-1", class: "page-title !mb-1" }, c.name),
         h("p", { class: "mute" }, c.summary),
-        c.why ? h("p", { class: "text-sm mt-3" }, h("b", {}, "Why recruiters care: "), c.why) : null,
-        c.outcome ? h("p", { class: "text-sm mt-1" }, h("b", {}, "After this course you can: "), c.outcome) : null),
+        c.why ? h("p", { class: "text-sm mt-3" }, h("b", {}, t("Why recruiters care: ")), c.why) : null,
+        c.outcome ? h("p", { class: "text-sm mt-1" }, h("b", {}, t("After this course you can: ")), c.outcome) : null),
 
       h("section", { class: "panel", "data-print-hide": "" },
-        h("h2", {}, "Lessons"),
+        h("h2", {}, t("Lessons")),
         h("div", { class: "grid gap-3" }, c.lessons.map((l, i) => lessonBlock(c, l, i, done)))),
 
       h("section", { class: "panel cheatsheet" },
         h("div", { class: "flex flex-wrap items-center gap-2 mb-3" },
-          h("h2", { class: "!mb-0" }, `${c.name} cheat sheet`),
-          h("button", { type: "button", class: "btn-ghost !py-1 ml-auto", "data-print-hide": "", onClick: printCheatsheet }, "Print / save as PDF")),
+          h("h2", { class: "!mb-0" }, t("{name} cheat sheet", { name: c.name })),
+          h("button", { type: "button", class: "btn-ghost !py-1 ml-auto", "data-print-hide": "", onClick: printCheatsheet }, t("Print / save as PDF"))),
         h("div", { class: "grid gap-4 md:grid-cols-2" }, c.cheatsheet.map((g) => h("div", {},
           h("h3", { class: "font-bold text-sm mb-1", style: "color:var(--accent)" }, g.group),
           h("table", { class: "w-full text-sm" }, h("tbody", {}, g.items.map(([syntax, meaning]) => h("tr", { style: "border-top:1px solid var(--line)" },
@@ -153,27 +154,27 @@ export async function renderCourse(id) {
             h("td", { class: "py-1 align-top mute" }, meaning))))))))),
 
       c.pitfalls?.length ? h("section", { class: "panel", "data-print-hide": "" },
-        h("h2", {}, "Common mistakes"),
+        h("h2", {}, t("Common mistakes")),
         h("ul", { class: "list-disc pl-5 grid gap-1 text-sm" }, c.pitfalls.map((p) => h("li", {}, p)))) : null,
 
       h("section", { class: "panel", "data-print-hide": "" },
-        h("h2", {}, "Practice"),
+        h("h2", {}, t("Practice")),
         h("ol", { class: "grid gap-3 text-sm list-decimal pl-5" }, c.exercises.map((e) => h("li", {},
           h("p", {}, e.q),
-          e.hint ? h("p", { class: "mute text-xs mt-1" }, `Hint: ${e.hint}`) : null,
-          h("details", { class: "mt-1" }, h("summary", { class: "cursor-pointer text-xs", style: "color:var(--accent)" }, "Show answer"),
+          e.hint ? h("p", { class: "mute text-xs mt-1" }, t("Hint: {hint}", { hint: e.hint })) : null,
+          h("details", { class: "mt-1" }, h("summary", { class: "cursor-pointer text-xs", style: "color:var(--accent)" }, t("Show answer")),
             e.code ? codeBlock(e.code, e.answer) : h("p", { class: "mt-1" }, e.answer)))))),
 
       c.interview?.length ? h("section", { class: "panel", "data-print-hide": "" },
-        h("h2", {}, "Interview questions"),
+        h("h2", {}, t("Interview questions")),
         h("div", { class: "grid gap-2 text-sm" }, c.interview.map((x) => h("details", { class: "rounded-lg p-3", style: "background:var(--bg);border:1px solid var(--line)" },
           h("summary", { class: "cursor-pointer font-medium" }, x.q),
           h("p", { class: "mt-2 mute" }, x.a))))) : null,
     );
     updateCourseProgress(c);
   } catch (e) {
-    root.replaceChildren(h("a", { href: "#/training", class: "mute text-sm underline" }, "← All courses"),
-      h("p", { class: "panel" }, e.message || "Could not load this course."));
-    toast(e.message || "Could not load this course.");
+    root.replaceChildren(h("a", { href: "#/training", class: "mute text-sm underline" }, t("← All courses")),
+      h("p", { class: "panel" }, e.message || t("Could not load this course.")));
+    toast(e.message || t("Could not load this course."));
   }
 }

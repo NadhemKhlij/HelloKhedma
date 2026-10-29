@@ -1,13 +1,13 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-29)
-- **Just finished:** CLAUDE.md rewrite + file headers; O1 (`delete-account`) and O6 (tracker migration) done and
-  verified; Resend SMTP tested with the test sender; JSearch fixed (`/search-v2`); new features: Companies I follow,
-  Remote jobs, Interview prep, study plan, installable offline app.
+- **Just finished:** French / English interface (ROADMAP 1.7): FR/EN button in the top bar, French by default for
+  French-speaking browsers, French legal notice and privacy policy. Tested as a guest in both languages and at phone
+  width; not tested signed in (only texts changed there). Course, interview and path content is still English (1.7b).
 - **Owner, first:** check "Confirm email" is OFF in Supabase (the Resend test sender only reaches the owner), and
-  delete the Resend key that was pasted in the chat (O5b).
-- **Next in code (owner's choice):** French / English interface (ROADMAP 1.7) or several CV versions (3.7);
-  also consider splitting js/app.js (ROADMAP, Engineering hygiene).
+  delete the Resend key that was pasted in the chat (O5b). Then try the live site in French and English (O12).
+- **Next in code (owner's choice):** several CV versions (ROADMAP 3.7), accessibility pass (1.9) or French content
+  (1.7b); also consider splitting js/app.js (ROADMAP, Engineering hygiene).
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
   local preview without Node: scripts/preview-cdn.sh + scripts/serve.ps1.
 
@@ -25,6 +25,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | O8 | Domain (needed for O5 with Resend; not needed with the Gmail option) | `hellokhedma.com` was available on 2026-10-29 (also .fr/.app/.io/.co). Suggested: Cloudflare Registrar (~$10–11/yr, one-click Resend DNS). Then: GitHub Pages custom domain + HTTPS, Supabase Site/Redirect URLs, Resend `mail.` subdomain. Free option: eu.org (slow manual approval). Guest data is per address: sign in / export before switching | Professional email sender, credibility, shareable links | — |
 | O9 | Legal (before a big launch) | Have the legal notice and privacy policy reviewed | Templates, not legal advice | — |
 | O10 | Your phone | Install the app (Android: "Install the app" link in the footer; iPhone: Safari → Share → Add to Home Screen) and check it opens offline | PWA install was only tested in a desktop browser | — |
+| O12 | Live site | Sign in and use the app in French, then press **EN** and back: check nothing is left in the wrong language and the French reads naturally (report odd wording) | Translations were written by Claude and only tested as a guest | js/i18n-fr.js |
 | O11 | Content (before promoting) | Have the 17 courses, interview questions and model answers reviewed by people in each field | Written by Claude: realistic but unreviewed | content/courses/, content/interview/ |
 
 ## ✅ Done
@@ -46,4 +47,5 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | 2026-10-29 | Installable app (PWA, offline), "Remote jobs" tab, weekly study plan; no setup needed |
 | 2026-10-29 | Interview prep page (practice, STAR stories, checklist); no setup needed |
 | 2026-10-29 | "Companies I follow" on the Offers page (no setup needed: career-page APIs are called from the browser) |
+| 2026-10-29 | French / English interface (FR/EN button, French legal pages); no setup needed |
 | 2026-10-29 | O2 done: latest `job-search` deployed. **JSearch works**: 10 full offers per search (~6,000 characters each), "All sources" = Adzuna + JSearch with no warnings. Tip: deploy from a commit-pinned raw link, the plain raw link is cached ~5 min |

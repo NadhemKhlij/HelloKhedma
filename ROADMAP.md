@@ -15,9 +15,11 @@ Effort: **S** ≈ under a day · **M** ≈ 1–3 days · **L** ≈ a week or mor
 Done in code: 1.2 legal notice + privacy policy (contact email via the `CONTACT_EMAIL` variable), 1.3 Account & data page
 (export JSON, delete account / device data), 1.4 source credits, 1.5 friendly error messages + optional Sentry (`SENTRY_DSN`),
 1.6 SEO tags and favicon. IP addresses for rate limiting are now hashed and purged after 24 h.
-Still to do by you: 1.1 SMTP, own domain, cookie-free analytics (optional). Next in code: 1.7 FR/EN, 1.9 accessibility pass.
+Still to do by you: 1.1 SMTP, own domain, cookie-free analytics (optional). Next in code: 1.9 accessibility pass, 1.7b content in French.
 Done (2026-10-29): 1.8 installable app (manifest, icons, service worker; works offline for training, courses, interview
 prep and the guest tracker; "Install the app" link in the footer).
+Done (2026-10-29): 1.7 French / English interface (FR/EN button, browser language by default, French legal notice and
+privacy policy). Course, interview and career-path content is still English only: see 1.7b.
 
 | # | Item | Why | Effort |
 |---|---|---|---|
@@ -28,6 +30,7 @@ prep and the guest tracker; "Install the app" link in the footer).
 | 1.5 | Error monitoring (Sentry free tier) + friendly error states | Know when something breaks before users tell you | S |
 | 1.6 | Custom domain (hellokhedma.com), social preview image, SEO meta | Credibility, shareable links | S |
 | 1.7 | French / English interface | Main audience is French-speaking | M |
+| 1.7b | French content: path names, tracks, tools and tips (seed: add `_fr` columns or a translations table), courses and interview questions (content/…/fr/ JSON) | The interface is French, the learning content is not yet | L |
 | 1.8 | Installable app (PWA) with offline tracker and courses | Feels like an app on the phone | M |
 | 1.9 | Accessibility pass (keyboard, contrast in both themes, screen reader labels) | Usable by everyone | S |
 
@@ -116,3 +119,6 @@ Note: these have a cost per use; add per-user limits (like the search rate limit
   Remotive's free feed is ~a dozen jobs; Jobicy by category is the useful one.
 - 2026-10-29: Adzuna returns only ~500 characters per offer, so many Adzuna offers show "Fit: n/a" and few tags;
   JSearch and career pages give full descriptions.
+- 2026-10-29: Interface translation: English is the source language and the key (js/i18n-fr.js maps English → French,
+  missing keys fall back to English); no i18n library, no build step. Switching language reloads the page. The choice
+  is kept in this browser only ("hk.lang"), not in the profile, to avoid a migration. CSV columns and .ics files stay English.

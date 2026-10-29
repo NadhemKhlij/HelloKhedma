@@ -7,6 +7,7 @@
 // and add it to the privacy policy in index.html (the browser calls it directly, so it sees the user's IP).
 import { ls } from "./lib.js";
 import { norm } from "./ats.js";
+import { t } from "./i18n.js";
 
 const KEY = "hk.watchlist";
 export const loadWatchlist = () => { try { return JSON.parse(ls.get(KEY) || "[]"); } catch { return []; } };
@@ -162,7 +163,7 @@ export async function fetchCompanyJobs(entry, wanted, variant) {
   const k = `${entryKey(entry)}|${variant}`, hit = cache.get(k);
   if (hit && Date.now() - hit.at < 30 * 60_000) return hit.jobs;
   const r = await FETCH[entry.provider](entry.slug, wanted);
-  if (!r) throw new Error(`${entry.name}: no careers page found on ${PROVIDER_NAMES[entry.provider]} any more`);
+  if (!r) throw new Error(t("{name}: no careers page found on {provider} any more", { name: entry.name, provider: PROVIDER_NAMES[entry.provider] }));
   const jobs = r.jobs.filter((j) => j.url && wanted(j.title))
     .map((j) => ({ ...j, company: j.company || entry.name, source: entry.provider }));
   cache.set(k, { at: Date.now(), jobs });

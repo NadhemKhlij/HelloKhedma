@@ -49,6 +49,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Build DOM with the h() helper (textContent), never innerHTML with remote data (course text included).
 - The CV text stays in localStorage ("hk.cv.text") only; never send it to Supabase or any API.
 - Keep the privacy policy (index.html, #/privacy) in sync when adding a provider or any new personal data.
+- Every user-facing text is written in English and goes through t() / tn() (js/i18n.js); add its French to
+  js/i18n-fr.js. Static text in index.html is translated automatically if its English is a key there. The legal notice
+  and privacy policy exist twice in index.html (data-lang="fr" / "en"): update both.
 
 ## Before editing a file
 Read the header comment of any file before modifying it; update the header if behaviour changes.
@@ -57,6 +60,7 @@ Read the header comment of any file before modifying it; update the header if be
 - `npm run build` passes.
 - Tested as a guest AND as a signed-in user (persistence and guest import intact).
 - Checked at mobile width.
+- New texts translated in js/i18n-fr.js and checked in French (FR/EN button).
 - Privacy policy updated if a provider or personal data was added.
 - Seed / content JSON / migrations updated instead of hardcoded data.
 - CHECKLIST.md updated with any new owner task (migration to run, function to deploy, secret to set).
@@ -78,6 +82,7 @@ Read the header comment of any file before modifying it; update the header if be
 - css/input.css — Tailwind source and theme variables (css/app.css is generated, gitignored)
 - js/app.js — entry point: state, router, Home / Offers / Training / CV / Account rendering
 - js/lib.js — DOM helpers (h, $), localStorage wrapper, toast, download
+- js/i18n.js — interface language (t, tn, FR/EN switch, static page translation); js/i18n-fr.js — French texts
 - js/supabase.js — Supabase client and runtime CONFIG
 - js/config.example.js — template for js/config.js (generated in production, gitignored)
 - js/auth.js — sign-in dialog

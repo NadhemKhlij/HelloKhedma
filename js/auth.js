@@ -3,6 +3,7 @@
 // called on load (INITIAL_SESSION) and on every sign-in / sign-out; app.js then switches LocalStore ↔ CloudStore.
 import { sb } from "./supabase.js";
 import { $ } from "./lib.js";
+import { t } from "./i18n.js";
 
 export function initAuth({ onUser }) {
   const dlg = $("#authDialog"), msg = $("#authMsg");
@@ -23,9 +24,9 @@ export function initAuth({ onUser }) {
   $("#signOut").onclick = () => sb.auth.signOut();
   $("#doSignIn").onclick = () => run(() => sb.auth.signInWithPassword(creds()));
   $("#doSignUp").onclick = () =>
-    run(() => sb.auth.signUp({ ...creds(), options: { emailRedirectTo: redirect } }), "Account created. Check your inbox if confirmation is required.");
+    run(() => sb.auth.signUp({ ...creds(), options: { emailRedirectTo: redirect } }), t("Account created. Check your inbox if confirmation is required."));
   $("#doMagic").onclick = () =>
-    run(() => sb.auth.signInWithOtp({ email: creds().email, options: { emailRedirectTo: redirect } }), "Link sent. Open it on this device.");
+    run(() => sb.auth.signInWithOtp({ email: creds().email, options: { emailRedirectTo: redirect } }), t("Link sent. Open it on this device."));
 
   // Fires INITIAL_SESSION on load, then SIGNED_IN / SIGNED_OUT. Defer to avoid auth-lock deadlocks.
   sb.auth.onAuthStateChange((_event, session) => setTimeout(() => onUser(session?.user ?? null), 0));

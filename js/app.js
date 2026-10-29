@@ -9,6 +9,9 @@
 // - CV: text kept only in localStorage ("hk.cv.text", never sent to Supabase); skills via ats.js.
 // - Also here: theme toggle ("hk.theme"), weekly study plan, account export/delete (delete-account function),
 //   error toasts + optional Sentry (CONFIG.SENTRY_DSN), PWA registration (sw.js) and the "Install the app" link.
+// - Every user-facing text goes through t() / tn() (i18n.js, imported first so the static page is translated
+//   before anything renders); the FR / EN button reloads the page in the other language.
+import { t, tn, lang, LOCALE, setLang } from "./i18n.js";
 import { $, h, safeUrl, safeColor, ls, toast, download } from "./lib.js";
 import { sb, configured, CONFIG } from "./supabase.js";
 import { LocalStore, CloudStore, importLocalToCloud, STAGES } from "./store.js";
@@ -43,7 +46,7 @@ const weeklyGoal = () => Number(ls.get(GOAL_KEY)) || 5;
 
 const path = () => state.paths.find((p) => p.id === state.pathId);
 const byKind = (k) => state.resources.filter((r) => r.kind === k);
-const fail = (e) => toast(e?.message || "Something went wrong.");
+const fail = (e) => toast(e?.message || t("Something went wrong."));
 
 /* ---------- theme (the inline script in index.html applies it before first paint) ---------- */
 const THEME_KEY = "hk.theme";
@@ -51,8 +54,17 @@ function renderThemeToggle() {
   const light = document.documentElement.dataset.theme === "light";
   const btn = $("#themeToggle");
   btn.textContent = light ? "☾" : "☀";
-  btn.title = light ? "Switch to dark theme" : "Switch to light theme";
+  btn.title = light ? t("Switch to dark theme") : t("Switch to light theme");
   btn.setAttribute("aria-label", btn.title);
+}
+// Shows the other language; the page reloads in it.
+function renderLangToggle() {
+  const btn = $("#langToggle");
+  btn.textContent = lang === "fr" ? "EN" : "FR";
+  btn.title = lang === "fr" ? "Switch to English" : "Passer en français";
+  btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("lang", lang === "fr" ? "en" : "fr");
+  btn.addEventListener("click", () => setLang(lang === "fr" ? "en" : "fr"));
 }
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
@@ -81,7 +93,7 @@ function showRoute(moveFocus) {
   document.querySelectorAll("[data-route]").forEach((a) => {
     if (a.dataset.route === nav) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   });
-  document.title = r === "home" ? "HelloKhedma" : `${ROUTES[r]} · HelloKhedma`;
+  document.title = r === "home" ? "HelloKhedma" : `${t(ROUTES[r])} · HelloKhedma`;
   if (moveFocus) window.scrollTo(0, 0);
   if (r === "course") {
     coursesReady.then(() => renderCourse(param)).then(() => { if (moveFocus) $("#h-course")?.focus({ preventScroll: true }); });
@@ -145,7 +157,7 @@ async function refreshTracker() {
 }
 
 function onCsvExport() {
-  if (!state.cards.length) { toast("No applications to export yet."); return; }
+  if (!state.cards.length) { toast(t("No applications to export yet.")); return; }
   // The BOM makes Excel open accents correctly.
   download(`hellokhedma-applications-${new Date().toISOString().slice(0, 10)}.csv`, `﻿${toCsv(state.cards)}`, "text/csv");
 }
@@ -157,7 +169,7 @@ async function onCsvImport(e) {
   const isoOrUndef = (v) => { const d = new Date(v); return v && !Number.isNaN(d.getTime()) ? d.toISOString() : undefined; };
   try {
     const rows = parseCsv(await file.text()).filter((r) => r.title);
-    if (!rows.length) { toast("No rows found. The file needs a 'title' column (see Export CSV for the format)."); return; }
+    if (!rows.length) { toast(t("No rows found. The file needs a 'title' column (see Export CSV for the format).")); return; }
     for (const r of rows) {
       await state.store.add({
         ...r, path_id: state.pathId,
@@ -167,7 +179,7 @@ async function onCsvImport(e) {
         interview_at: isoOrUndef(r.interview_at),
       });
     }
-    toast(`Imported ${rows.length} application${rows.length > 1 ? "s" : ""}.`);
+    toast(tn(rows.length, "Imported {n} application.", "Imported {n} applications."));
     await refreshTracker();
   } catch (err) { fail(err); }
 }
@@ -193,23 +205,24 @@ function renderHome() {
     h("span", { class: "mute text-sm" }, title),
     h("b", { class: "block text-2xl my-1" }, big),
     h("p", { class: "mute text-sm mb-2" }, detail),
-    h("span", { class: "text-sm font-medium", style: "color:var(--accent)" }, `${cta} →`));
+    h("span", { class: "text-sm font-medium", style: "color:var(--accent)" }, `${t(cta)} →`));
   // Follow-ups due and interviews this week, at the top of Home.
   const actions = nextActions(state.cards).slice(0, 6);
   const ICON = { overdue: ["⏰", "#e0508b"], today: ["⏰", "#f08a24"], soon: ["⏰", "var(--accent)"], interview: ["📅", "var(--accent)"] };
   $("#homeActions").replaceChildren(...(actions.length ? [h("div", { class: "panel" },
-    h("h2", { class: "!mb-2" }, "Next actions"),
+    h("h2", { class: "!mb-2" }, t("Next actions")),
     h("ul", { class: "grid gap-2 text-sm" }, actions.map(({ c, kind, text }) => h("li", { class: "flex flex-wrap items-baseline gap-2" },
-      h("span", { style: `color:${ICON[kind][1]}` }, `${ICON[kind][0]} ${kind === "overdue" ? "Overdue · " : kind === "today" ? "Today · " : ""}${text}`),
+      h("span", { style: `color:${ICON[kind][1]}` }, `${ICON[kind][0]} ${kind === "overdue" ? t("Overdue · ") : kind === "today" ? t("Today · ") : ""}${text}`),
       h("a", { href: "#/applications", class: "mute underline" }, [c.title, c.company].filter(Boolean).join(" · ")),
-      kind === "interview" ? h("a", { href: "#/interview", class: "underline text-xs", style: "color:var(--accent)" }, "Prepare →") : null))))] : []));
+      kind === "interview" ? h("a", { href: "#/interview", class: "underline text-xs", style: "color:var(--accent)" }, t("Prepare →")) : null))))] : []));
   $("#homeSummary").replaceChildren(
-    card("Training", all.length ? `${done}/${all.length} steps` : "No tracks yet",
-      next ? `Next up: ${next.title}` : all.length ? "Every step is done. Time to apply!" : "", "#/training", "Continue learning"),
-    card("Applications", String(state.cards.length),
-      `${count("applied")} applied · ${count("interview")} interview · ${count("offer")} offer`, "#/applications", "Open tracker"),
-    card("Offers", path()?.name || "Offers",
-      `Live ${path()?.job_titles?.[0] || "job"} offers by city and country.`, "#/offers", "Find offers"),
+    card(t("Training"), all.length ? t("{done}/{all} steps", { done, all: all.length }) : t("No tracks yet"),
+      next ? t("Next up: {title}", { title: next.title }) : all.length ? t("Every step is done. Time to apply!") : "", "#/training", "Continue learning"),
+    card(t("Applications"), String(state.cards.length),
+      t("{applied} applied · {interview} interview · {offer} offer", { applied: count("applied"), interview: count("interview"), offer: count("offer") }),
+      "#/applications", "Open tracker"),
+    card(t("Offers"), path()?.name || t("Offers"),
+      t("Live {title} offers by city and country.", { title: path()?.job_titles?.[0] || t("job") }), "#/offers", "Find offers"),
   );
 }
 
@@ -233,33 +246,33 @@ const stepsOf = (t) => t.training_steps || [];
 
 function stepRow(s) {
   const url = safeUrl(s.url);
-  const box = h("input", { type: "checkbox", class: "mt-1", checked: state.done.has(s.id), "aria-label": `Mark "${s.title}" as done`,
+  const box = h("input", { type: "checkbox", class: "mt-1", checked: state.done.has(s.id), "aria-label": t("Mark \"{title}\" as done", { title: s.title }),
     onChange: (e) => toggleStep(s.id, e.target.checked) });
   const badge = (txt, accent) => h("span", { class: "chip !py-0 text-xs", style: accent ? "border-color:var(--accent)" : "" }, txt);
   return h("li", { class: "flex gap-3" }, box, h("div", { class: "min-w-0" },
     url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "font-medium underline", style: "color:var(--accent)" }, s.title) : h("b", {}, s.title),
     h("p", { class: "mute text-sm" }, s.description),
     h("div", { class: "flex flex-wrap gap-1.5 mt-1" },
-      badge(KIND[s.kind] || s.kind, true), s.provider ? badge(s.provider) : null,
-      badge(`${Number(s.est_hours)} h`), badge(s.is_free ? "Free" : "Paid"))));
+      badge(KIND[s.kind] ? t(KIND[s.kind]) : s.kind, true), s.provider ? badge(s.provider) : null,
+      badge(`${Number(s.est_hours)} h`), badge(s.is_free ? t("Free") : t("Paid")))));
 }
 
-function trackCard(t) {
-  const steps = stepsOf(t), n = steps.filter((s) => state.done.has(s.id)).length;
+function trackCard(tr) {
+  const steps = stepsOf(tr), n = steps.filter((s) => state.done.has(s.id)).length;
   const pct = steps.length ? Math.round((n / steps.length) * 100) : 0;
   const hours = steps.reduce((a, s) => a + Number(s.est_hours), 0);
-  return h("details", { class: "rounded-lg", style: "background:var(--bg);border:1px solid var(--line)", open: state.open.has(t.id),
-    onToggle: (e) => { e.target.open ? state.open.add(t.id) : state.open.delete(t.id); } },
+  return h("details", { class: "rounded-lg", style: "background:var(--bg);border:1px solid var(--line)", open: state.open.has(tr.id),
+    onToggle: (e) => { e.target.open ? state.open.add(tr.id) : state.open.delete(tr.id); } },
     h("summary", { class: "cursor-pointer p-3 grid gap-2" },
       h("div", { class: "flex flex-wrap items-center gap-2" },
-        h("span", { class: "chip chip-ok !py-0 text-xs" }, LEVEL[t.level] || t.level),
-        h("b", {}, t.title),
-        h("span", { class: "mute text-sm ml-auto" }, `${n}/${steps.length} steps · ${Math.round(hours)} h`)),
+        h("span", { class: "chip chip-ok !py-0 text-xs" }, LEVEL[tr.level] ? t(LEVEL[tr.level]) : tr.level),
+        h("b", {}, tr.title),
+        h("span", { class: "mute text-sm ml-auto" }, t("{done}/{all} steps · {hours} h", { done: n, all: steps.length, hours: Math.round(hours) }))),
       h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
         h("div", { class: "h-1.5 rounded-full", style: `width:${pct}%;background:var(--accent)` }))),
     h("div", { class: "px-3 pb-3 grid gap-3" },
-      t.summary ? h("p", { class: "text-sm mute" }, t.summary) : null,
-      t.outcome ? h("p", { class: "text-sm" }, h("b", {}, "You will be able to: "), t.outcome) : null,
+      tr.summary ? h("p", { class: "text-sm mute" }, tr.summary) : null,
+      tr.outcome ? h("p", { class: "text-sm" }, h("b", {}, t("You will be able to: ")), tr.outcome) : null,
       h("ul", { class: "grid gap-3" }, steps.map(stepRow))));
 }
 
@@ -274,15 +287,16 @@ function renderTracks() {
   const hoursLeft = left.reduce((a, s) => a + Number(s.est_hours), 0);
   const perWeek = Math.max(1, Number($("#hoursPerWeek").value) || 5);
   $("#progress").textContent = all.length
-    ? `${all.length - left.length}/${all.length} steps done · about ${Math.round(hoursLeft)} h left · roughly ${Math.ceil(hoursLeft / perWeek)} weeks at ${perWeek} h/week`
-    : "No tracks for this path yet.";
+    ? t("{done}/{all} steps done · about {left} h left · roughly {weeks} weeks at {perWeek} h/week", {
+        done: all.length - left.length, all: all.length, left: Math.round(hoursLeft), weeks: Math.ceil(hoursLeft / perWeek), perWeek })
+    : t("No tracks for this path yet.");
   const next = left[0], url = next && safeUrl(next.url);
   $("#nextUp").replaceChildren(...(next
     ? [h("p", { class: "text-sm rounded-lg p-3", style: "background:var(--bg);border:1px solid var(--accent)" },
-        h("span", { class: "mute" }, "Next up: "),
+        h("span", { class: "mute" }, t("Next up: ")),
         url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "underline font-medium", style: "color:var(--accent)" }, next.title) : h("b", {}, next.title),
         h("span", { class: "mute" }, ` · ${Number(next.est_hours)} h`))]
-    : all.length ? [h("p", { class: "text-sm" }, "Every step is done. Time to apply!")] : []));
+    : all.length ? [h("p", { class: "text-sm" }, t("Every step is done. Time to apply!"))] : []));
   $("#tracks").replaceChildren(...state.tracks.map(trackCard));
   renderStudyPlan();
 }
@@ -299,11 +313,11 @@ function renderStudyPlan() {
       const id = courseForSkill(skill), c = id && courseMeta(id);
       if (!c || seen.has(id) || c.done >= 1) continue;
       seen.add(id);
-      items.push({ title: c.name, hours: Math.max(1, Math.round(c.hours * (1 - c.done))), href: `#/course/${id}`, why: `missing in your CV: ${skill}`, gap: true });
+      items.push({ title: c.name, hours: Math.max(1, Math.round(c.hours * (1 - c.done))), href: `#/course/${id}`, why: t("missing in your CV: {skill}", { skill }), gap: true });
     }
   }
-  for (const t of state.tracks) for (const s of stepsOf(t)) {
-    if (!state.done.has(s.id)) items.push({ title: s.title, hours: Number(s.est_hours) || 1, href: safeUrl(s.url), why: t.title });
+  for (const tr of state.tracks) for (const s of stepsOf(tr)) {
+    if (!state.done.has(s.id)) items.push({ title: s.title, hours: Number(s.est_hours) || 1, href: safeUrl(s.url), why: tr.title });
   }
   const weeks = [];
   let week = [], room = perWeek;
@@ -320,21 +334,24 @@ function renderStudyPlan() {
 
   const monday = new Date(); monday.setHours(0, 0, 0, 0);
   monday.setDate(monday.getDate() + ((8 - monday.getDay()) % 7 || 7)); // next Monday
-  const label = (i) => new Date(monday.getTime() + i * 7 * 86_400_000).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const label = (i) => new Date(monday.getTime() + i * 7 * 86_400_000).toLocaleDateString(LOCALE, { day: "numeric", month: "short" });
   const SHOW = 4;
   $("#studyPlan").replaceChildren(...(weeks.length ? [h("details", { class: "rounded-lg mb-3", style: "background:var(--bg);border:1px solid var(--line)", open: true },
-    h("summary", { class: "cursor-pointer p-3 font-bold" }, `📅 Your study plan: ${weeks.length} week${weeks.length > 1 ? "s" : ""} at ${perWeek} h/week`,
-      h("span", { class: "mute font-normal text-sm" }, state.cv.skills.length ? " · CV gaps first" : " · add your CV to put your skill gaps first")),
+    h("summary", { class: "cursor-pointer p-3 font-bold" },
+      `📅 ${tn(weeks.length, "Your study plan: {n} week at {perWeek} h/week", "Your study plan: {n} weeks at {perWeek} h/week", { perWeek })}`,
+      h("span", { class: "mute font-normal text-sm" }, state.cv.skills.length ? t(" · CV gaps first") : t(" · add your CV to put your skill gaps first"))),
     h("div", { class: "px-3 pb-3 grid gap-3 md:grid-cols-2" }, weeks.slice(0, SHOW).map((w, i) => h("div", {},
-      h("p", { class: "text-sm font-medium mb-1" }, `Week ${i + 1} · from ${label(i)}`),
+      h("p", { class: "text-sm font-medium mb-1" }, t("Week {n} · from {date}", { n: i + 1, date: label(i) })),
       h("ul", { class: "grid gap-1 text-sm" }, w.map((x) => h("li", { class: "flex gap-2" },
         h("span", { class: "mute shrink-0 w-10 text-right" }, `${Math.round(x.hours * 10) / 10} h`),
         h("span", { class: "min-w-0" },
           x.href ? h("a", { href: x.href, class: "underline", style: x.gap ? "color:var(--accent)" : "", ...(x.href.startsWith("#") ? {} : { target: "_blank", rel: "noopener noreferrer" }) },
             `${x.gap ? "📘 " : ""}${x.title}`) : h("span", {}, x.title),
-          x.part ? h("span", { class: "mute" }, ` (part ${x.part})`) : null,
+          x.part ? h("span", { class: "mute" }, t(" (part {n})", { n: x.part })) : null,
           h("span", { class: "mute text-xs block" }, x.why)))))))),
-    weeks.length > SHOW ? h("p", { class: "px-3 pb-3 mute text-sm" }, `…then ${weeks.length - SHOW} more week${weeks.length - SHOW > 1 ? "s" : ""}. Tick steps and lessons as you go: the plan updates.`) : null)] : []));
+    weeks.length > SHOW ? h("p", { class: "px-3 pb-3 mute text-sm" }, tn(weeks.length - SHOW,
+      "…then {n} more week. Tick steps and lessons as you go: the plan updates.",
+      "…then {n} more weeks. Tick steps and lessons as you go: the plan updates.")) : null)] : []));
 }
 
 function renderLearn() {
@@ -347,17 +364,17 @@ function renderLearn() {
 
 function renderStatus() {
   const u = state.user;
-  $("#status").textContent = u ? `Synced · ${u.email}` : "Guest mode · saved on this device";
+  $("#status").textContent = u ? t("Synced · {email}", { email: u.email }) : t("Guest mode · saved on this device");
   $("#authOpen").hidden = Boolean(u);
   $("#accountLink").hidden = !u;
   $("#signOut").hidden = !u;
   $("#accountWho").textContent = u
-    ? `Signed in as ${u.email}. Your applications, training progress and path are synced to your account; your CV stays on this device.`
-    : "You are using HelloKhedma as a guest: everything is stored in this browser only, nothing on our servers.";
+    ? t("Signed in as {email}. Your applications, training progress and path are synced to your account; your CV stays on this device.", { email: u.email })
+    : t("You are using HelloKhedma as a guest: everything is stored in this browser only, nothing on our servers.");
   $("#deleteInfo").textContent = u
-    ? "Permanently deletes your account and everything linked to it (applications, progress, profile), then clears this browser. This cannot be undone."
-    : "Clears every HelloKhedma data from this browser: applications, progress, CV text and settings. This cannot be undone.";
-  $("#deleteData").textContent = u ? "Delete my account" : "Delete data on this device";
+    ? t("Permanently deletes your account and everything linked to it (applications, progress, profile), then clears this browser. This cannot be undone.")
+    : t("Clears every HelloKhedma data from this browser: applications, progress, CV text and settings. This cannot be undone.");
+  $("#deleteData").textContent = u ? t("Delete my account") : t("Delete data on this device");
 }
 
 /* ---------- account & data (GDPR: access, portability, erasure) ---------- */
@@ -384,8 +401,8 @@ async function onExport() {
 async function onDelete() {
   const signedIn = Boolean(state.user);
   const ok = confirm(signedIn
-    ? "Delete your HelloKhedma account and all its data permanently?"
-    : "Delete all HelloKhedma data stored in this browser?");
+    ? t("Delete your HelloKhedma account and all its data permanently?")
+    : t("Delete all HelloKhedma data stored in this browser?"));
   if (!ok) return;
   const btn = $("#deleteData");
   btn.disabled = true;
@@ -395,12 +412,12 @@ async function onDelete() {
       if (error) {
         let msg = error.message;
         try { msg = (await error.context.json()).error || msg; } catch { /* keep message */ }
-        throw new Error(`Could not delete the account: ${msg}`);
+        throw new Error(t("Could not delete the account: {msg}", { msg }));
       }
       await sb.auth.signOut().catch(() => {}); // the session belongs to a deleted user
     }
     clearLocalData();
-    toast(signedIn ? "Your account and data were deleted." : "Data on this device was deleted.");
+    toast(signedIn ? t("Your account and data were deleted.") : t("Data on this device was deleted."));
     setTimeout(() => { location.hash = "#/"; location.reload(); }, 1200);
   } catch (e) { fail(e); btn.disabled = false; }
 }
@@ -411,7 +428,7 @@ function onUnexpectedError(err) {
   console.error(err);
   if (Date.now() - lastErrorToast > 10_000) { // at most one message every 10 s
     lastErrorToast = Date.now();
-    toast("Something went wrong. Please try again; if it persists, reload the page.");
+    toast(t("Something went wrong. Please try again; if it persists, reload the page."));
   }
 }
 function initMonitoring() {
@@ -433,7 +450,7 @@ function initPwa() {
   // Chrome / Edge / Android offer installation through this event; Safari users use Share → Add to Home Screen.
   let deferred = null;
   window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; $("#installApp").hidden = false; });
-  window.addEventListener("appinstalled", () => { $("#installApp").hidden = true; toast("HelloKhedma is installed."); });
+  window.addEventListener("appinstalled", () => { $("#installApp").hidden = true; toast(t("HelloKhedma is installed.")); });
   $("#installApp").addEventListener("click", async () => {
     if (!deferred) return;
     deferred.prompt();
@@ -477,10 +494,10 @@ async function track(job, btn) {
   try {
     await state.store.add({ path_id: state.pathId, title: job.title, company: job.company, location: job.location,
       url: job.url, source: job.source, external_id: job.id, stage: "saved" });
-    btn.disabled = true; btn.textContent = "Tracked";
-    toast("Added to Saved");
+    btn.disabled = true; btn.textContent = t("Tracked");
+    toast(t("Added to Saved"));
     await refreshTracker();
-  } catch (e) { toast(e.code === "DUPLICATE" ? "Already in your tracker" : e.message); }
+  } catch (e) { toast(e.code === "DUPLICATE" ? t("Already in your tracker") : e.message); }
 }
 
 /* ---------- CV skills (the CV text is kept in this browser only) ---------- */
@@ -489,7 +506,7 @@ const fitColor = (score) => (score >= 70 ? "#18a999" : score >= 40 ? "#f08a24" :
 const skillChip = (name, inCv) => {
   const course = inCv ? null : courseForSkill(name);
   return course
-    ? h("a", { href: `#/course/${course}`, class: "chip text-xs mute hover:opacity-80", title: `Learn ${name}: HelloKhedma course` }, `📘 ${name}`)
+    ? h("a", { href: `#/course/${course}`, class: "chip text-xs mute hover:opacity-80", title: t("Learn {name}: HelloKhedma course", { name }) }, `📘 ${name}`)
     : h("span", { class: `chip text-xs ${inCv ? "chip-ok" : "mute"}` }, inCv ? `✓ ${name}` : name);
 };
 
@@ -506,14 +523,14 @@ function saveCv(text) {
 
 function renderCvSkills() {
   const { text, skills } = state.cv;
-  if (!text.trim()) { $("#cvSkills").replaceChildren(h("p", { class: "mute text-sm" }, "No CV saved yet.")); return; }
+  if (!text.trim()) { $("#cvSkills").replaceChildren(h("p", { class: "mute text-sm" }, t("No CV saved yet."))); return; }
   const cats = [...new Set(skills.map((s) => s.cat))];
   $("#cvSkills").replaceChildren(...[
-    h("p", { class: "font-bold" }, `${skills.length} skills found in your CV`,
-      h("span", { class: "mute text-sm font-normal" }, " · saved on this device and used to score offers")),
-    skills.length ? null : h("p", { class: "mute text-sm" }, "No known skills detected. Check the text is readable, or paste it instead."),
+    h("p", { class: "font-bold" }, tn(skills.length, "{n} skill found in your CV", "{n} skills found in your CV"),
+      h("span", { class: "mute text-sm font-normal" }, t(" · saved on this device and used to score offers"))),
+    skills.length ? null : h("p", { class: "mute text-sm" }, t("No known skills detected. Check the text is readable, or paste it instead.")),
     ...cats.map((c) => h("div", { class: "mt-2" },
-      h("p", { class: "mute text-xs mb-1" }, c),
+      h("p", { class: "mute text-xs mb-1" }, t(c)), // skill categories from ats.js
       h("div", { class: "flex flex-wrap gap-1.5" }, skills.filter((s) => s.cat === c)
         .map((s) => h("span", { class: "chip chip-ok text-xs" }, s.count > 1 ? `${s.name} ×${s.count}` : s.name))))),
   ].filter(Boolean));
@@ -523,44 +540,47 @@ async function onCvFile(e) {
   const file = e.target.files?.[0];
   if (!file) return;
   const msg = $("#cvFileMsg");
-  msg.textContent = `Reading ${file.name}…`;
+  msg.textContent = t("Reading {file}…", { file: file.name });
   try {
     const text = (await readCvFile(file)).trim();
-    if (!text) throw new Error("no text found. If it is a scanned PDF, paste the text instead.");
+    if (!text) throw new Error(t("no text found. If it is a scanned PDF, paste the text instead."));
     $("#cv").value = text;
     saveCv(text);
-    msg.textContent = `${file.name} read.`;
-  } catch (err) { msg.textContent = `Could not read ${file.name}: ${err.message}`; }
+    msg.textContent = t("{file} read.", { file: file.name });
+  } catch (err) { msg.textContent = t("Could not read {file}: {msg}", { file: file.name, msg: err.message }); }
   e.target.value = "";
 }
 
 function onCvSave() {
   const text = $("#cv").value;
-  if (!text.trim()) { toast("Upload or paste your CV first."); return; }
+  if (!text.trim()) { toast(t("Upload or paste your CV first.")); return; }
   saveCv(text);
 }
 
 function onCvClear() {
   $("#cv").value = ""; $("#atsOut").replaceChildren(); $("#cvFileMsg").textContent = "";
   saveCv("");
-  toast("Your CV was removed from this device.");
+  toast(t("Your CV was removed from this device."));
 }
 
 function onAts() {
-  if (!state.cv.text.trim()) { toast("Add your CV first (upload or paste it above)."); return; }
+  if (!state.cv.text.trim()) { toast(t("Add your CV first (upload or paste it above).")); return; }
   const jd = $("#jd").value, usedJd = Boolean(jd.trim());
   // Path keywords go through the extractor too, so aliases map to the same names as in the CV.
   const required = extractSkills(usedJd ? jd : byKind("keyword").map((k) => k.title).join(" ; ")).map((s) => s.name);
   const r = matchSkills(required, state.cv.names);
-  if (!r.total) { $("#atsOut").replaceChildren(h("p", { class: "mute text-sm" }, "No known skills found in this job description.")); return; }
+  if (!r.total) { $("#atsOut").replaceChildren(h("p", { class: "mute text-sm" }, t("No known skills found in this job description."))); return; }
   const chips = (list, inCv) => list.map((n) => skillChip(n, inCv));
+  const vars = { matched: r.matched.length, total: r.total };
   $("#atsOut").replaceChildren(
-    h("p", { class: "text-lg font-bold", style: `color:${fitColor(r.score)}` }, `${r.score}% match`,
-      h("span", { class: "mute text-sm font-normal" }, ` · ${r.matched.length} of ${r.total} ${usedJd ? "skills from the offer" : "path keywords"} are in your CV`)),
-    h("p", { class: "mute text-sm mt-3 mb-1" }, "In your CV"),
-    h("div", { class: "flex flex-wrap gap-2" }, r.matched.length ? chips(r.matched, true) : h("span", { class: "mute text-sm" }, "None yet.")),
-    h("p", { class: "mute text-sm mt-3 mb-1" }, "Missing: add the ones you genuinely have · 📘 = open the HelloKhedma course"),
-    h("div", { class: "flex flex-wrap gap-2" }, r.missing.length ? chips(r.missing, false) : h("span", { class: "mute text-sm" }, "Nothing missing.")),
+    h("p", { class: "text-lg font-bold", style: `color:${fitColor(r.score)}` }, t("{score}% match", { score: r.score }),
+      h("span", { class: "mute text-sm font-normal" }, usedJd
+        ? t(" · {matched} of {total} skills from the offer are in your CV", vars)
+        : t(" · {matched} of {total} path keywords are in your CV", vars))),
+    h("p", { class: "mute text-sm mt-3 mb-1" }, t("In your CV")),
+    h("div", { class: "flex flex-wrap gap-2" }, r.matched.length ? chips(r.matched, true) : h("span", { class: "mute text-sm" }, t("None yet."))),
+    h("p", { class: "mute text-sm mt-3 mb-1" }, t("Missing: add the ones you genuinely have · 📘 = open the HelloKhedma course")),
+    h("div", { class: "flex flex-wrap gap-2" }, r.missing.length ? chips(r.missing, false) : h("span", { class: "mute text-sm" }, t("Nothing missing."))),
   );
 }
 
@@ -604,15 +624,16 @@ function renderJob({ j, skills, fit, tags, key }) {
   const tracked = state.cards.some((c) => c.external_id === j.id && c.source === j.source);
   const hidden = state.hidden.has(key), seen = state.seen.has(key);
   const btn = tracked
-    ? h("button", { type: "button", class: "btn-ghost", disabled: true }, "Tracked ✓")
-    : h("button", { type: "button", class: "btn-ghost", onClick: (e) => track(j, e.currentTarget) }, "Track");
-  const hideBtn = h("button", { type: "button", class: "btn-ghost !px-2", title: hidden ? "Show this offer again" : "Hide this offer from future results",
-    onClick: () => toggleHidden(key) }, hidden ? "Unhide" : "Not interested");
+    ? h("button", { type: "button", class: "btn-ghost", disabled: true }, t("Tracked ✓"))
+    : h("button", { type: "button", class: "btn-ghost", onClick: (e) => track(j, e.currentTarget) }, t("Track"));
+  const hideBtn = h("button", { type: "button", class: "btn-ghost !px-2", title: hidden ? t("Show this offer again") : t("Hide this offer from future results"),
+    onClick: () => toggleHidden(key) }, hidden ? t("Unhide") : t("Not interested"));
   const tag = (text) => h("span", { class: "chip !py-0 text-xs" }, text);
   const badge = fit?.score != null
     ? h("span", { class: "chip text-xs font-bold shrink-0 ml-auto whitespace-nowrap", style: `border-color:${fitColor(fit.score)};color:${fitColor(fit.score)}`,
-        title: `${fit.matched.length} of ${fit.total} skills from this offer are in your CV` }, `${fit.score}% fit · ${fit.matched.length}/${fit.total}`)
-    : fit ? h("span", { class: "mute text-xs shrink-0 ml-auto whitespace-nowrap", title: "The offer summary names too few skills to score it." }, "Fit: n/a")
+        title: t("{matched} of {total} skills from this offer are in your CV", { matched: fit.matched.length, total: fit.total }) },
+        t("{score}% fit · {matched}/{total}", { score: fit.score, matched: fit.matched.length, total: fit.total }))
+    : fit ? h("span", { class: "mute text-xs shrink-0 ml-auto whitespace-nowrap", title: t("The offer summary names too few skills to score it.") }, t("Fit: n/a"))
     : null;
   return h("li", { class: "rounded-lg p-3", style: `background:var(--bg);border:1px solid var(--line);${hidden || seen ? "opacity:.7" : ""}` },
     h("div", { class: "flex items-start gap-2" },
@@ -621,19 +642,19 @@ function renderJob({ j, skills, fit, tags, key }) {
         h("span", { class: "mute text-sm block" }, [j.company, j.location].filter(Boolean).join(" · "))),
       badge),
     tags.contract || tags.remote || seen || hidden || j.isNew ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
-      j.isNew ? h("span", { class: "chip chip-ok !py-0 text-xs font-bold", style: "color:var(--accent)" }, "New") : null,
-      tags.contract ? tag(tags.contract) : null,
-      tags.remote ? tag(tags.remote === "Remote" ? "Full remote" : "Hybrid / remote") : null,
-      seen ? h("span", { class: "mute text-xs" }, "Seen") : null,
-      hidden ? h("span", { class: "mute text-xs" }, "Hidden") : null) : null,
+      j.isNew ? h("span", { class: "chip chip-ok !py-0 text-xs font-bold", style: "color:var(--accent)" }, t("New")) : null,
+      tags.contract ? tag(t(tags.contract)) : null,
+      tags.remote ? tag(tags.remote === "Remote" ? t("Full remote") : t("Hybrid / remote")) : null,
+      seen ? h("span", { class: "mute text-xs" }, t("Seen")) : null,
+      hidden ? h("span", { class: "mute text-xs" }, t("Hidden")) : null) : null,
     skills.length
-      ? h("div", { class: "flex flex-wrap gap-1.5 mt-2", "aria-label": "Skills in this offer" }, skills.slice(0, 8).map((s) => skillChip(s, state.cv.names.has(s))))
-      : h("p", { class: "mute text-xs mt-2" }, "No specific skills detected in the offer summary."),
+      ? h("div", { class: "flex flex-wrap gap-1.5 mt-2", "aria-label": t("Skills in this offer") }, skills.slice(0, 8).map((s) => skillChip(s, state.cv.names.has(s))))
+      : h("p", { class: "mute text-xs mt-2" }, t("No specific skills detected in the offer summary.")),
     h("p", { class: "text-sm mt-2 mute" }, j.snippet),
     h("div", { class: "flex flex-wrap items-center gap-2 mt-2" },
-      url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn", onClick: () => markSeen(key) }, "View offer") : null,
+      url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn", onClick: () => markSeen(key) }, t("View offer")) : null,
       btn, hideBtn, h("span", { class: "mute text-xs ml-auto" },
-        SOURCE_NAMES[j.source] || (PROVIDER_NAMES[j.source] ? "Careers page" : j.source))));
+        SOURCE_NAMES[j.source] || (PROVIDER_NAMES[j.source] ? t("Careers page") : j.source))));
 }
 const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch", remotive: "Remotive", jobicy: "Jobicy" };
 
@@ -664,10 +685,10 @@ function renderOffers() {
   const scored = list.filter((x) => x.fit?.score != null);
   const avg = scored.length ? Math.round(scored.reduce((a, x) => a + x.fit.score, 0) / scored.length) : null;
   $("#fitNote").replaceChildren(hasCv
-    ? h("span", {}, "Average CV fit: ", h("b", { style: avg == null ? "" : `color:${fitColor(avg)}` }, avg == null ? "n/a" : `${avg}%`),
-        h("span", { class: "mute" }, " · ✓ = skill found in your CV"))
-    : h("span", { class: "mute" }, "Add your CV on the ",
-        h("a", { href: "#/cv", class: "underline", style: "color:var(--accent)" }, "CV check"), " page to see how well you fit each offer."));
+    ? h("span", {}, t("Average CV fit: "), h("b", { style: avg == null ? "" : `color:${fitColor(avg)}` }, avg == null ? t("n/a") : `${avg}%`),
+        h("span", { class: "mute" }, t(" · ✓ = skill found in your CV")))
+    : h("span", { class: "mute" }, t("Add your CV on the "),
+        h("a", { href: "#/cv", class: "underline", style: "color:var(--accent)" }, t("CV check")), t(" page to see how well you fit each offer.")));
 
   $("#sortBy").disabled = $("#fFit").disabled = !hasCv;
   const contract = $("#fContract").value, remote = $("#fRemote").value, minFit = hasCv ? Number($("#fFit").value) : 0;
@@ -677,10 +698,11 @@ function renderOffers() {
     && (!remote || (remote === "Remote" ? x.tags.remote === "Remote" : Boolean(x.tags.remote)))
     && (!minFit || (x.fit?.score ?? -1) >= minFit));
   if (hasCv && $("#sortBy").value === "fit") list = [...list].sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1));
-  $("#fitNote").append(h("span", { class: "mute" }, ` · Showing ${list.length} of ${total}${hiddenCount ? ` (${hiddenCount} hidden)` : ""}`));
+  $("#fitNote").append(h("span", { class: "mute" }, t(" · Showing {shown} of {total}", { shown: list.length, total })
+    + (hiddenCount ? t(" ({n} hidden)", { n: hiddenCount }) : "")));
   $("#offerTools").hidden = false;
   $("#results").replaceChildren(...(list.length ? list.map(renderJob)
-    : [h("li", { class: "mute text-sm" }, "No offer matches these filters. Loosen a filter to see more.")]));
+    : [h("li", { class: "mute text-sm" }, t("No offer matches these filters. Loosen a filter to see more."))]));
   renderSourceCredits();
 }
 
@@ -688,13 +710,13 @@ function renderOffers() {
 const CREDITS = {
   remotive: ["Remotive", "https://remotive.com"],
   jobicy: ["Jobicy", "https://jobicy.com"],
-  adzuna: ["Jobs by Adzuna", "https://www.adzuna.fr"],
+  adzuna: ["Jobs by Adzuna", "https://www.adzuna.fr"], // provider's required wording: not translated
   jsearch: ["JSearch by OpenWeb Ninja", "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch"],
   francetravail: ["France Travail", "https://www.francetravail.fr"],
 };
 function renderSourceCredits() {
   const used = [...new Set(state.jobs.map((j) => j.source))].filter((s) => CREDITS[s]);
-  $("#sourceCredits").replaceChildren(...(used.length ? ["Job offers: ", ...used.flatMap((s, i) => [
+  $("#sourceCredits").replaceChildren(...(used.length ? [t("Job offers: "), ...used.flatMap((s, i) => [
     i ? " · " : "", h("a", { href: CREDITS[s][1], target: "_blank", rel: "noopener noreferrer", class: "underline" }, CREDITS[s][0])])] : []));
 }
 
@@ -705,9 +727,9 @@ const sameSearch = (a, b) => ["query", "location", "provider", "country"].every(
 function renderSavedSearches() {
   const saved = loadList(SAVED_KEY);
   $("#savedSearches").replaceChildren(...saved.map((s, i) => h("span", { class: "chip text-xs flex items-center gap-2" },
-    h("button", { type: "button", class: "hover:underline", title: "Run this search", onClick: () => runSavedSearch(s) },
+    h("button", { type: "button", class: "hover:underline", title: t("Run this search"), onClick: () => runSavedSearch(s) },
       `☆ ${s.query}${s.location ? ` · ${s.location}` : ""} · ${s.country.toUpperCase()}`),
-    h("button", { type: "button", class: "mute", "aria-label": `Remove saved search ${s.query}`, onClick: () => {
+    h("button", { type: "button", class: "mute", "aria-label": t("Remove saved search {query}", { query: s.query }), onClick: () => {
       const list = loadList(SAVED_KEY); list.splice(i, 1); ls.set(SAVED_KEY, JSON.stringify(list)); renderSavedSearches();
     } }, "×"))));
 }
@@ -715,7 +737,7 @@ function onSaveSearch() {
   const s = currentSearch();
   ls.set(SAVED_KEY, JSON.stringify([s, ...loadList(SAVED_KEY).filter((x) => !sameSearch(x, s))].slice(0, 8)));
   renderSavedSearches();
-  toast("Search saved. Click it any time to run it again.");
+  toast(t("Search saved. Click it any time to run it again."));
 }
 function runSavedSearch(s) {
   // A search saved on another path may use a job title that is not in the current list.
@@ -730,14 +752,15 @@ async function onSearch(e) {
   const btn = $("#searchBtn"), msg = $("#searchMsg");
   const params = currentSearch();
   ls.set(LOC_KEY, params.location);
-  btn.disabled = true; msg.textContent = "Searching…";
+  btn.disabled = true; msg.textContent = t("Searching…");
   state.jobs = []; state.skillFilter = null; renderOffers();
   try {
     const { jobs, warnings } = await searchJobs(params);
-    msg.textContent = jobs.length ? `${jobs.length} offers.${warnings.length ? " " + warnings.join(" ") : ""}` : "No offers found. Try another title, city or country.";
+    msg.textContent = jobs.length ? tn(jobs.length, "{n} offer.", "{n} offers.") + (warnings.length ? " " + warnings.join(" ") : "")
+      : t("No offers found. Try another title, city or country.");
     state.jobs = jobs;
   } catch (err) {
-    msg.textContent = `Live search is unavailable (${err.message}). Use the job board links below.`;
+    msg.textContent = t("Live search is unavailable ({msg}). Use the job board links below.", { msg: err.message });
   } finally { btn.disabled = false; }
   state.searchJobs = state.jobs; state.searchMsg = msg.textContent; // kept while switching to "Companies I follow"
   renderOffers();
@@ -766,38 +789,41 @@ function setOfferMode(mode) {
 
 /* ---------- remote jobs (Remotive + Jobicy, browser-side, cached 6 h) ---------- */
 function renderRemoteRoles() {
-  $("#remoteBtn").textContent = `Find remote ${path()?.name || ""} jobs`;
+  $("#remoteBtn").textContent = t("Find remote {path} jobs", { path: path()?.name || "" });
 }
 async function onRemoteSearch(e) {
   e.preventDefault();
   const btn = $("#remoteBtn"), msg = $("#searchMsg");
-  btn.disabled = true; msg.textContent = "Searching remote job boards…";
+  btn.disabled = true; msg.textContent = t("Searching remote job boards…");
   try {
     const { jobs, warnings, cached } = await searchRemote(state.pathId, $("#remoteRegion").value);
     // The boards' keyword search is loose: keep titles that match the path (as for "Companies I follow").
     const matches = titleMatcher(path()), relevant = jobs.filter((j) => matches(j.title));
+    const name = path()?.name || "", left = jobs.length - relevant.length;
     state.remoteJobs = relevant;
     state.remoteMsg = (relevant.length
-      ? `${relevant.length} remote ${path()?.name || ""} offers${jobs.length > relevant.length ? ` (${jobs.length - relevant.length} unrelated titles left out)` : ""}${cached ? " · from the last 6 hours" : ""}.`
-      : `No remote ${path()?.name || ""} offers right now${$("#remoteRegion").value ? " for this region: try 'Anywhere'" : ": these boards list few roles for this path, check back in a few days"}.`)
+      ? tn(relevant.length, "{n} remote {path} offer", "{n} remote {path} offers", { path: name })
+        + (left ? t(" ({n} unrelated titles left out)", { n: left }) : "") + (cached ? t(" · from the last 6 hours") : "") + "."
+      : $("#remoteRegion").value ? t("No remote {path} offers right now for this region: try 'Anywhere'.", { path: name })
+      : t("No remote {path} offers right now: these boards list few roles for this path, check back in a few days.", { path: name }))
       + (warnings.length ? ` ${warnings.join(" ")}` : "");
   } catch (err) {
-    state.remoteJobs = []; state.remoteMsg = `Remote job boards are unavailable (${err.message}).`;
+    state.remoteJobs = []; state.remoteMsg = t("Remote job boards are unavailable ({msg}).", { msg: err.message });
   } finally { btn.disabled = false; }
   if (state.offerMode === "remote") { state.jobs = state.remoteJobs; msg.textContent = state.remoteMsg; state.skillFilter = null; renderOffers(); }
 }
 
 function renderWatchlist() {
   const list = loadWatchlist();
-  $("#tabCompanies").textContent = `Companies I follow${list.length ? ` (${list.length})` : ""}`;
+  $("#tabCompanies").textContent = t("Companies I follow") + (list.length ? ` (${list.length})` : "");
   $("#companyList").replaceChildren(...(list.length ? list.map((e) => h("span", { class: "chip text-xs flex items-center gap-2" },
-    h("span", {}, e.name, h("span", { class: "mute" }, ` · ${PROVIDER_NAMES[e.provider]}${e.count ? ` · ${e.count} jobs` : ""}`)),
-    h("button", { type: "button", class: "mute", "aria-label": `Stop following ${e.name}`, title: "Stop following", onClick: () => unfollow(e) }, "×")))
-    : [h("p", { class: "mute text-sm" }, "You don't follow any company yet. Add one above or pick a suggestion.")]));
+    h("span", {}, e.name, h("span", { class: "mute" }, ` · ${PROVIDER_NAMES[e.provider]}${e.count ? ` · ${tn(e.count, "{n} job", "{n} jobs")}` : ""}`)),
+    h("button", { type: "button", class: "mute", "aria-label": t("Stop following {name}", { name: e.name }), title: t("Stop following"), onClick: () => unfollow(e) }, "×")))
+    : [h("p", { class: "mute text-sm" }, t("You don't follow any company yet. Add one above or pick a suggestion."))]));
   const followed = new Set(list.map(entryKey));
   const sugg = SUGGESTED.filter((s) => !followed.has(entryKey(s)));
   $("#companySuggest").replaceChildren(...(sugg.length ? [
-    h("p", { class: "mute text-xs mb-1" }, "Popular in France, one click to follow:"),
+    h("p", { class: "mute text-xs mb-1" }, t("Popular in France, one click to follow:")),
     h("div", { class: "flex flex-wrap gap-1.5" }, sugg.map((s) =>
       h("button", { type: "button", class: "chip text-xs hover:opacity-80", onClick: () => follow(s) }, `+ ${s.name}`)))] : []));
 }
@@ -821,17 +847,17 @@ async function onCompanyFind(ev) {
   ev.preventDefault();
   const input = $("#companyInput").value.trim(), btn = $("#companyFind"), msg = $("#companyMsg");
   if (!input) return;
-  btn.disabled = true; msg.textContent = `Looking for ${input}'s careers page…`;
+  btn.disabled = true; msg.textContent = t("Looking for {name}'s careers page…", { name: input });
   try {
     const found = (await findCompany(input)).sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
     if (!found.length) {
-      msg.textContent = `No careers page found for "${input}" on Greenhouse, Lever, Ashby, Workable or SmartRecruiters. `
-        + "Try the exact company name, or paste the link of a job on their careers site.";
+      msg.textContent = t("No careers page found for \"{name}\" on Greenhouse, Lever, Ashby, Workable or SmartRecruiters. Try the exact company name, or paste the link of a job on their careers site.", { name: input });
       return;
     }
     const best = found[0]; // a company present on two systems (during a migration) keeps the one with most jobs
     follow(best);
-    msg.textContent = `Following ${best.name} (${PROVIDER_NAMES[best.provider]}${best.count ? `, ${best.count} open jobs in total` : ""}).`;
+    msg.textContent = t("Following {name} ({provider}{count}).", { name: best.name, provider: PROVIDER_NAMES[best.provider],
+      count: best.count ? tn(best.count, ", {n} open job in total", ", {n} open jobs in total") : "" });
     $("#companyInput").value = "";
   } catch (e) { msg.textContent = e.message; } finally { btn.disabled = false; }
 }
@@ -846,7 +872,7 @@ async function loadCompanyJobs({ force = false } = {}) {
   const pathOnly = $("#companyPathOnly").checked, p = path();
   const show = (m) => { state.companyMsg = m; if (state.offerMode === "companies") { state.jobs = state.companyJobs; $("#searchMsg").textContent = m; renderOffers(); } };
   if (!list.length) { state.companyJobs = []; show(""); return; }
-  if (state.offerMode === "companies") $("#searchMsg").textContent = `Loading jobs from ${list.length} compan${list.length > 1 ? "ies" : "y"}…`;
+  if (state.offerMode === "companies") $("#searchMsg").textContent = tn(list.length, "Loading jobs from {n} company…", "Loading jobs from {n} companies…");
   const results = await Promise.allSettled(list.map((e) =>
     fetchCompanyJobs(e, pathOnly ? titleMatcher(p) : () => true, pathOnly ? state.pathId : "all")));
   const jobs = [], errors = [];
@@ -861,17 +887,19 @@ async function loadCompanyJobs({ force = false } = {}) {
   saveWatchlist(loadWatchlist().map((e) => (checked.has(entryKey(e)) ? { ...e, lastChecked: now } : e)));
   if (run !== state.companyRun) return;
   state.companyJobs = jobs.sort((a, b) => new Date(b.posted || 0) - new Date(a.posted || 0));
-  const fresh = jobs.filter((j) => j.isNew).length, n = list.length, where = `at ${n} compan${n > 1 ? "ies" : "y"}`;
+  const fresh = jobs.filter((j) => j.isNew).length, where = tn(list.length, "at {n} company", "at {n} companies");
   show((jobs.length
-    ? `${jobs.length} open role${jobs.length > 1 ? "s" : ""}${pathOnly ? ` for ${p?.name}` : ""} ${where}${fresh ? ` · ${fresh} new since your last visit` : ""}.`
-    : pathOnly ? `No open ${p?.name} roles ${where} right now. Untick "Only roles for my path" to see every job.` : `No open roles ${where} right now.`)
-    + (errors.length ? ` Could not load: ${errors.join("; ")}.` : ""));
+    ? tn(jobs.length, "{n} open role", "{n} open roles") + (pathOnly ? t(" for {path}", { path: p?.name }) : "") + ` ${where}`
+      + (fresh ? t(" · {n} new since your last visit", { n: fresh }) : "") + "."
+    : pathOnly ? t("No open {path} roles {where} right now. Untick \"Only roles for my path\" to see every job.", { path: p?.name, where })
+    : t("No open roles {where} right now.", { where }))
+    + (errors.length ? t(" Could not load: {list}.", { list: errors.join("; ") }) : ""));
 }
 
 async function onAdd(e) {
   e.preventDefault();
   const url = $("#cUrl").value.trim();
-  if (url && !safeUrl(url)) { toast("The offer link must start with http:// or https://"); return; }
+  if (url && !safeUrl(url)) { toast(t("The offer link must start with http:// or https://")); return; }
   try {
     await state.store.add({ path_id: state.pathId, title: $("#cTitle").value.trim(), company: $("#cCo").value.trim(), url: url || undefined, stage: "saved" });
     e.target.reset();
@@ -892,7 +920,7 @@ async function onUser(user) {
         await sb.from("step_progress").upsert(local.map((id) => ({ user_id: user.id, step_id: id, done: true })));
         ls.del(PROG_KEY);
       }
-      if (n) toast(`Imported ${n} guest application${n > 1 ? "s" : ""}.`);
+      if (n) toast(tn(n, "Imported {n} guest application.", "Imported {n} guest applications."));
       const { data: prof } = await sb.from("profiles").select("*").maybeSingle();
       if (prof?.location && !$("#loc").value) $("#loc").value = prof.location;
       if (prof?.selected_path && prof.selected_path !== state.pathId && state.paths.some((p) => p.id === prof.selected_path)) await selectPath(prof.selected_path);
@@ -911,18 +939,19 @@ async function init() {
   initPwa();
   renderThemeToggle();
   $("#themeToggle").addEventListener("click", toggleTheme);
+  renderLangToggle();
   document.querySelectorAll(".contact-email").forEach((el) => {
     const m = CONFIG.CONTACT_EMAIL;
-    el.replaceChildren(m ? h("a", { href: `mailto:${m}`, class: "underline" }, m) : "contact address coming soon");
+    el.replaceChildren(m ? h("a", { href: `mailto:${m}`, class: "underline" }, m) : t("contact address coming soon"));
   });
   showRoute(false);
   window.addEventListener("hashchange", () => showRoute(true));
-  if (!configured) { $("#setup").hidden = false; $("#status").textContent = "Setup needed"; return; }
+  if (!configured) { $("#setup").hidden = false; $("#status").textContent = t("Setup needed"); return; }
   try {
     await loadPaths();
     const saved = ls.get(PATH_KEY);
     state.pathId = state.paths.some((p) => p.id === saved) ? saved : state.paths[0]?.id;
-    if (!state.pathId) throw new Error("No career paths found. Did you run supabase/seed.sql?");
+    if (!state.pathId) throw new Error(t("No career paths found. Did you run supabase/seed.sql?"));
     await Promise.all([loadResources(), loadTracks(), coursesReady]);
   } catch (e) { fail(e); return; }
 

@@ -48,6 +48,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Every user-owned table needs RLS policies scoped to auth.uid(); add schema changes as a new migration file.
 - Build DOM with the h() helper (textContent), never innerHTML with remote data (course text included).
 - CV texts (every version, "hk.cvs" via js/cvs.js) stay in localStorage only; never send them to Supabase or any API.
+  "Tailor my CV" only builds a prompt the user copies; in-app AI (planned, ROADMAP 5.2) needs a notice before sending.
 - Keep the privacy policy (index.html, #/privacy) in sync when adding a provider or any new personal data.
 - Every user-facing text is written in English and goes through t() / tn() (js/i18n.js); add its French to
   js/i18n-fr.js. Static text in index.html is translated automatically if its English is a key there. The legal notice
@@ -100,6 +101,7 @@ Read the header comment of any file before modifying it; update the header if be
 - js/cvs.js — CV versions (local only): list, active version, version linked to a path
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
 - js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
+- js/tailor.js — "Tailor my CV" dialog: honest gap analysis + prompt to copy for the user's own AI (nothing sent)
 - js/courses.js — course list and course page
 - js/interview.js — interview prep page
 - sw.js, manifest.json, icons/ — installable app and offline cache

@@ -1,14 +1,14 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-29)
-- **Just finished:** salary on offers (ROADMAP 3.1): 💶 chip, salary filter and sort, salary copied when tracking,
-  pay transparency rights tip in Interview prep. Before that: French content (1.7b), app.js split, "CV sent" (2.7),
-  CV versions (3.7), FR/EN interface (1.7). O13, O14 and O15 are done and verified on the live site and database.
-  Everything was tested as a guest in both languages; nothing yet signed in.
+- **Just finished:** "Tailor my CV" (ROADMAP 5.2 step 1) on every offer and after a CV match: gap analysis + a prompt
+  to copy into the user's own AI; the in-app AI button is shown disabled (later: signed-in only, owner needs an
+  Anthropic API key). Before that: salary on offers (3.1), French content (1.7b), app.js split, "CV sent" (2.7), CV
+  versions (3.7), FR/EN interface (1.7). O13–O15 done. Everything tested as a guest in both languages; not signed in.
 - **Owner, first:** check "Confirm email" is OFF in Supabase, delete the Resend key that was pasted in the chat (O5b).
   Then sign in on the live site and try it in French and English (O12).
-- **Next in code (owner's choice):** smoke tests in CI (ROADMAP, Engineering hygiene), accessibility pass (1.9), AI
-  cover letter + CV tailoring (Phase 5), networking contacts; also update supabase/setup-all.sql.
+- **Next in code (owner's choice):** smoke tests in CI (ROADMAP, Engineering hygiene), accessibility pass (1.9),
+  cover letter prompt (same approach as Tailor, 5.1), networking contacts; also update supabase/setup-all.sql.
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
   local preview without Node: scripts/preview-cdn.sh + scripts/serve.ps1.
 
@@ -49,6 +49,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | 2026-10-29 | Interview prep page (practice, STAR stories, checklist); no setup needed |
 | 2026-10-29 | "Companies I follow" on the Offers page (no setup needed: career-page APIs are called from the browser) |
 | 2026-10-29 | Salary on offers: chip, filter, sort, copied to the tracker, rights tip |
+| 2026-10-29 | "Tailor my CV": gap analysis + prompt to copy (no API, no setup); in-app AI button disabled for later |
 | 2026-10-29 | O13 and O14 done by owner. Verified in the live database: cv_version column exists; French texts for 4 paths, 12 tracks, 56 steps, 20 tools, 12 tips (keywords stay English); the live Training and Home pages show them |
 | 2026-10-29 | O15 done: job-search redeployed by owner. Verified: every result carries the salary field; an Adzuna salary (64–85 k€) shows on the offer |
 | 2026-10-29 | French content: 17 courses + interview prep live in French; path content needs O14 |

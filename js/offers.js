@@ -5,6 +5,7 @@
 // - Remote jobs: remote.js (Jobicy, Remotive; titles filtered to the path).
 // Every offer gets its skills, contract / remote tags (from the text), a fit score against the active CV and its salary
 // (salary.js: provider field or description; the "≥ N k€" filter and the salary sort use the yearly amount, euros only).
+// "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent).
 // Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode").
 // Source credits required by the providers' terms: CREDITS.
 import { $, h, safeUrl, ls, toast } from "./lib.js";
@@ -19,6 +20,7 @@ import {
   loadWatchlist, saveWatchlist, entryKey, PROVIDER_NAMES, SUGGESTED, titleMatcher, findCompany, fetchCompanyJobs, clearCompanyCache,
 } from "./companies.js";
 import { cvSwitcher, cvUsed } from "./cvpage.js";
+import { openTailor } from "./tailor.js";
 import { refreshTracker } from "./applications.js";
 
 const COUNTRIES = ["fr", "gb", "us", "de", "nl", "ca", "au", "be", "ch", "es", "it"];
@@ -134,7 +136,10 @@ function renderJob({ j, skills, fit, tags, key, salary }) {
     h("p", { class: "text-sm mt-2 mute" }, j.snippet),
     h("div", { class: "flex flex-wrap items-center gap-2 mt-2" },
       url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn", onClick: () => markSeen(key) }, t("View offer")) : null,
-      btn, hideBtn, h("span", { class: "mute text-xs ml-auto" },
+      btn, hideBtn,
+      h("button", { type: "button", class: "btn-ghost !px-2", title: t("Gaps and a ready-made prompt to adapt your CV to this offer"),
+        onClick: () => openTailor({ title: j.title, company: j.company, text: jobText(j) }) }, t("✍ Tailor my CV")),
+      h("span", { class: "mute text-xs ml-auto" },
         SOURCE_NAMES[j.source] || (PROVIDER_NAMES[j.source] ? t("Careers page") : j.source))));
 }
 const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch", remotive: "Remotive", jobicy: "Jobicy" };

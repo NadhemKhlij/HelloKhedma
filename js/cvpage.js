@@ -2,6 +2,7 @@
 // skill extraction (ats.js) and "Match with an offer" (compares the offer, or the path keywords, with every version).
 // The active version (state.cv) also scores offers (offers.js), feeds the study plan (training.js) and is recorded
 // as "CV sent" on new applications (cvUsed). A version linked to a path becomes active when that path is selected.
+// After a match with a pasted offer, "✍ Tailor my CV for this offer" opens tailor.js.
 import { $, h, toast } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { state, path, pathName, byKind, fitColor, skillChip } from "./state.js";
@@ -9,6 +10,7 @@ import { extractSkills, matchSkills, readCvFile } from "./ats.js";
 import { loadCvs, activeCv, setActiveCv, addCv, updateCv, removeCv, linkCvToPath, cvForPath } from "./cvs.js";
 import { renderOffers } from "./offers.js";
 import { renderStudyPlan } from "./training.js";
+import { openTailor } from "./tailor.js";
 
 // Loads the active CV version into state.cv. Skills are re-extracted each time: path keywords may have changed.
 export function loadActiveCv() {
@@ -147,6 +149,8 @@ function onAts() {
         ? h("b", { style: `color:${fitColor(score)}` }, t("{name} {score}%", { name: c.name, score }))
         : h("button", { type: "button", class: "underline", style: `color:${fitColor(score)}`, title: t("Use this version"),
             onClick: () => { switchCv(c.id); onAts(); } }, t("{name} {score}%", { name: c.name, score }))])) : null,
+    usedJd ? h("button", { type: "button", class: "btn-ghost mt-2", onClick: () => openTailor({ title: t("Pasted job description"), company: "", text: jd }) },
+      t("✍ Tailor my CV for this offer")) : null,
     h("p", { class: "mute text-sm mt-3 mb-1" }, t("In your CV")),
     h("div", { class: "flex flex-wrap gap-2" }, r.matched.length ? chips(r.matched, true) : h("span", { class: "mute text-sm" }, t("None yet."))),
     h("p", { class: "mute text-sm mt-3 mb-1" }, t("Missing: add the ones you genuinely have · 📘 = open the HelloKhedma course")),

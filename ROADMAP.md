@@ -98,6 +98,7 @@ Done (2026-10-29): 4.3 weekly study plan on the Training page (courses for CV ga
 | 5.3 | Mock interview chat for a given offer | Practice anytime | M |
 | 5.4 | Smarter skill extraction (synonyms, seniority, must-have vs nice-to-have) | Better fit scores | M |
 Note: these have a cost per use; add per-user limits (like the search rate limit) before launching them.
+Done (2026-10-29): 5.2 step 1, "Tailor my CV" on offers and the CV match: gap analysis + a prompt to copy into your own AI (no API, CV stays local). The in-app AI button is shown disabled: Claude API, signed-in users only, daily limit, notice before sending the CV (owner: Anthropic API key + privacy policy update when built).
 
 ## Phase 6: grow
 | # | Item | Why | Effort |
@@ -136,3 +137,6 @@ Note: these have a cost per use; add per-user limits (like the search rate limit
   the description, in the browser (js/salary.js). Company figures, bonuses and benefits are ignored. Yearly amount =
   12 months, 218 days, 1,607 hours (French references). The "≥ N k€" filter compares euros only (no currency
   conversion); Adzuna estimates are marked "≈". Rights tip based on EU directive 2023/970 (France: expected 2027).
+- 2026-10-29: CV tailoring (5.2): owner chose a copy-paste prompt first (the CV never leaves the browser through
+  HelloKhedma). In-app AI comes later, for signed-in users only, with a per-account daily limit and an explicit notice
+  each time before the CV and offer are sent to Claude.

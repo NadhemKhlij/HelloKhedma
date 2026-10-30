@@ -10,6 +10,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - No Node on the machine: `sh scripts/preview-cdn.sh`, then `scripts/serve.ps1` (or the "hellokhedma" entry of
   .claude/launch.json) and open /preview-test.html. Never commit preview-test.html. The real build runs in CI.
 - `npm run check-links`: checks every URL in supabase/seed.sql (Node 18+).
+- Translations: `perl scripts/check-i18n.pl js` (every t() text has French) and
+  `powershell -File scripts/check-fr-content.ps1 -Root .` (French course / interview files match the English structure).
 - Windows: deep checkout paths need `git config core.longpaths true`.
 - When the owner deploys a function or runs SQL from the dashboard, give commit-pinned raw links
   (raw.githubusercontent.com/<owner>/<repo>/<commit>/…): the branch link is cached for ~5 minutes.

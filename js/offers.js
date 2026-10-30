@@ -7,6 +7,7 @@
 // (salary.js: provider field or description; the "≥ N k€" filter and the salary sort use the yearly amount, euros only).
 // offercheck.js adds its age ("Posted 3 days ago", date filter, "Most recent" sort), its level (Junior…Lead, level
 // filter) and the "⚠ Check this offer" warnings (scam signals, stale offer, no company; filter to hide them).
+// Every result is also summarized for the market pulse on Home (pulse.js, this browser only).
 // "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent); "✉ Cover letter" opens
 // letters.js (prompt to copy).
 // Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode").
@@ -15,6 +16,7 @@ import { $, h, safeUrl, ls, toast } from "./lib.js";
 import { t, tn, LOCALE } from "./i18n.js";
 import { CONFIG } from "./supabase.js";
 import { offerAge, ageLabel, seniority, trustFlags, STALE_DAYS } from "./offercheck.js";
+import { recordOffers } from "./pulse.js";
 import { state, path, fitColor, skillChip } from "./state.js";
 import { searchJobs, boardLinks } from "./jobs.js";
 import { extractSkills, matchSkills, norm } from "./ats.js";
@@ -180,6 +182,7 @@ export function renderOffers() {
     const days = offerAge(j);
     return { j, skills, fit, tags: offerTags(j), key: offerKey(j), salary, days, level: seniority(j), flags: trustFlags(j, days) };
   });
+  recordOffers(list); // market pulse on Home (pulse.js): every result counts, hidden ones too
   const total = list.length, showHidden = $("#fHidden").checked;
   const hiddenCount = list.filter((x) => state.hidden.has(x.key)).length;
   if (!showHidden) list = list.filter((x) => !state.hidden.has(x.key));

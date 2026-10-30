@@ -1,11 +1,13 @@
 // Home page (#/): greeting (time of day + first name when signed in), the summary cards for Training (progress ring, streak),
 // Applications and Offers, then "Next actions" (follow-ups due, interviews this week, from tracker.js; an empty state
-// when nothing is due). A follow-up of a sent application gets "Write the email" (letters.js). The path cards are drawn by app.js (renderPaths).
+// when nothing is due). A follow-up of a sent application gets "Write the email" (letters.js). Last, the market
+// pulse for the path (pulse.js). The path cards are drawn by app.js (renderPaths).
 import { $, h } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { state, path } from "./state.js";
 import { nextActions } from "./tracker.js";
 import { openCardLetter } from "./letters.js";
+import { renderPulse } from "./pulse.js";
 import { stepsOf } from "./training.js";
 import { progressRing } from "./icons.js";
 import { streak } from "./activity.js";
@@ -64,4 +66,5 @@ export function renderHome() {
           h("b", { class: "block text-2xl font-semibold leading-none mb-2", "aria-hidden": "true" }, "—"),
           h("p", { class: "mute text-sm" }, t("Nothing due. Follow-ups and interviews from your tracker show up here."))),
         h("a", { href: "#/applications", class: "btn-ghost" }, t("Add an application")))));
+  renderPulse();
 }

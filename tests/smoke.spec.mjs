@@ -100,6 +100,26 @@ test("offers: age, level and trust warnings, and their filters", async ({ page }
   await expect(cards.first()).toContainText("Data Engineer");
 });
 
+test("market pulse: offers seen on the Offers page feed the Home card", async ({ page }) => {
+  await open(page, "#/offers");
+  await expect(page.locator("#homePulse")).toContainText("Run a few searches"); // empty state (Home is hidden: text only)
+  await page.evaluate(async () => {
+    const { state, path } = await import("/js/state.js");
+    const { renderOffers } = await import("/js/offers.js");
+    const title = path().job_titles[0]; // offers must match the path to count
+    state.jobs = Array.from({ length: 6 }, (_, i) => ({ id: `m${i}`, source: "jsearch", title, company: `Co${i}`,
+      url: `https://example.com/${i}`, posted: new Date().toISOString(), snippet: "",
+      text: i % 2 ? "Python and SQL. Full remote. 50 000 - 60 000 € par an." : "SQL and Excel. On site." }));
+    renderOffers();
+  });
+  await page.click('#nav a[data-route="home"]');
+  const card = page.locator("#homePulse");
+  await expect(card).toContainText("From 6 offers you looked at");
+  await expect(card).toContainText("50% full remote");
+  await expect(card.locator("li").first()).toContainText("SQL");
+  await expect(card.locator("li").first()).toContainText("100%");
+});
+
 test("a course opens with its tabs and the quiz", async ({ page }) => {
   await open(page, "#/course/sql");
   const tabs = page.locator('section[data-page="course"] [role=tablist] [role=tab]');

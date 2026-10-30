@@ -57,34 +57,116 @@
         "lang": "python",
         "code": "summary = (\n    clean.groupby(\"city\")\n         .agg(offers=(\"title\", \"count\"), avg_salary=(\"salary\", \"mean\"))\n         .sort_values(\"offers\", ascending=False)\n         .round(0)\n)\nsummary.to_csv(\"offers_by_city.csv\")"
       }
+    },
+    {
+      "title": "Dates and time series",
+      "minutes": 40,
+      "text": [
+        "Business data is almost always over time: daily sales, weekly sign-ups, monthly churn. First convert text to real dates with pd.to_datetime, otherwise sorting and grouping by month will be wrong.",
+        "With a date index, resample groups by any period (day, week, month) like a GROUP BY on time. rolling computes moving averages that smooth noisy series, and pct_change or shift compare a period with an earlier one."
+      ],
+      "points": [
+        "The .dt accessor extracts parts of a date: .dt.month, .dt.day_name(), .dt.to_period(\"M\").",
+        "resample(\"D\").sum() fills missing days with 0: a gap becomes visible instead of hidden.",
+        "rolling(7).mean() is a 7-day moving average; the first 6 values are NaN.",
+        "Watch time zones: tz_localize then tz_convert before comparing timestamps from different sources."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "df[\"date\"] = pd.to_datetime(df[\"date\"])\ndaily = df.set_index(\"date\").resample(\"D\")[\"sales\"].sum()\n\nweekly = daily.resample(\"W\").sum()\nrolling_7d = daily.rolling(7).mean()\ngrowth = daily.pct_change(7)          # vs same day last week\n\ndf[\"month\"] = df[\"date\"].dt.to_period(\"M\")\ndf[\"weekday\"] = df[\"date\"].dt.day_name()",
+        "note": "pct_change(7) on daily data compares each day with the same weekday last week."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Load & look", "items": [
-      ["pd.read_csv(p, parse_dates=[\"d\"])", "Read a CSV, parse dates"],
-      ["df.head() / df.info() / df.describe()", "First rows / types / stats"],
-      ["df[\"c\"].value_counts()", "Frequency of each value"],
-      ["df.isna().sum()", "Missing values per column"]
-    ]},
-    { "group": "Select & filter", "items": [
-      ["df[[\"a\", \"b\"]]", "Some columns"],
-      ["df[df[\"x\"] > 5]", "Rows matching a condition"],
-      ["df.query(\"x > 5 and city == 'Paris'\")", "Same, as text"],
-      ["df.loc[r, c] / df.iloc[i, j]", "By label / by position"]
-    ]},
-    { "group": "Clean", "items": [
-      ["pd.to_numeric(s, errors=\"coerce\")", "Text to number, bad values to NaN"],
-      ["s.str.strip().str.lower()", "Normalise text"],
-      ["df.fillna({\"c\": 0})", "Fill missing values"],
-      ["df.drop_duplicates(subset=[...])", "Remove duplicates"],
-      ["df.rename(columns={\"old\": \"new\"})", "Rename columns"]
-    ]},
-    { "group": "Aggregate & combine", "items": [
-      ["df.groupby(\"g\").agg(n=(\"id\", \"count\"))", "Named aggregations"],
-      ["pd.merge(a, b, on=\"k\", how=\"left\")", "Join two tables"],
-      ["df.pivot_table(index=\"a\", columns=\"b\", values=\"v\", aggfunc=\"sum\")", "Pivot"],
-      ["df.sort_values(\"v\", ascending=False)", "Sort"]
-    ]}
+    {
+      "group": "Load & look",
+      "items": [
+        [
+          "pd.read_csv(p, parse_dates=[\"d\"])",
+          "Read a CSV, parse dates"
+        ],
+        [
+          "df.head() / df.info() / df.describe()",
+          "First rows / types / stats"
+        ],
+        [
+          "df[\"c\"].value_counts()",
+          "Frequency of each value"
+        ],
+        [
+          "df.isna().sum()",
+          "Missing values per column"
+        ]
+      ]
+    },
+    {
+      "group": "Select & filter",
+      "items": [
+        [
+          "df[[\"a\", \"b\"]]",
+          "Some columns"
+        ],
+        [
+          "df[df[\"x\"] > 5]",
+          "Rows matching a condition"
+        ],
+        [
+          "df.query(\"x > 5 and city == 'Paris'\")",
+          "Same, as text"
+        ],
+        [
+          "df.loc[r, c] / df.iloc[i, j]",
+          "By label / by position"
+        ]
+      ]
+    },
+    {
+      "group": "Clean",
+      "items": [
+        [
+          "pd.to_numeric(s, errors=\"coerce\")",
+          "Text to number, bad values to NaN"
+        ],
+        [
+          "s.str.strip().str.lower()",
+          "Normalise text"
+        ],
+        [
+          "df.fillna({\"c\": 0})",
+          "Fill missing values"
+        ],
+        [
+          "df.drop_duplicates(subset=[...])",
+          "Remove duplicates"
+        ],
+        [
+          "df.rename(columns={\"old\": \"new\"})",
+          "Rename columns"
+        ]
+      ]
+    },
+    {
+      "group": "Aggregate & combine",
+      "items": [
+        [
+          "df.groupby(\"g\").agg(n=(\"id\", \"count\"))",
+          "Named aggregations"
+        ],
+        [
+          "pd.merge(a, b, on=\"k\", how=\"left\")",
+          "Join two tables"
+        ],
+        [
+          "df.pivot_table(index=\"a\", columns=\"b\", values=\"v\", aggfunc=\"sum\")",
+          "Pivot"
+        ],
+        [
+          "df.sort_values(\"v\", ascending=False)",
+          "Sort"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Modifying a filtered slice and getting SettingWithCopyWarning: use .loc or .assign on a copy.",
@@ -93,16 +175,44 @@
     "Losing rows silently in an inner merge."
   ],
   "exercises": [
-    { "q": "Return the 3 companies with the most offers in the DataFrame df.",
-      "code": "python", "answer": "df[\"company\"].value_counts().head(3)" },
-    { "q": "Add a column 'is_remote' that is True when the title or description contains 'remote' or 'télétravail' (case-insensitive).",
-      "code": "python", "answer": "text = (df[\"title\"] + \" \" + df[\"description\"]).str.lower()\ndf[\"is_remote\"] = text.str.contains(\"remote|télétravail\", regex=True)" },
-    { "q": "Count offers per month and city, with months as rows and cities as columns.",
-      "code": "python", "answer": "df[\"month\"] = df[\"posted_at\"].dt.to_period(\"M\")\ndf.pivot_table(index=\"month\", columns=\"city\", values=\"title\", aggfunc=\"count\", fill_value=0)" }
+    {
+      "q": "Return the 3 companies with the most offers in the DataFrame df.",
+      "code": "python",
+      "answer": "df[\"company\"].value_counts().head(3)"
+    },
+    {
+      "q": "Add a column 'is_remote' that is True when the title or description contains 'remote' or 'télétravail' (case-insensitive).",
+      "code": "python",
+      "answer": "text = (df[\"title\"] + \" \" + df[\"description\"]).str.lower()\ndf[\"is_remote\"] = text.str.contains(\"remote|télétravail\", regex=True)"
+    },
+    {
+      "q": "Count offers per month and city, with months as rows and cities as columns.",
+      "code": "python",
+      "answer": "df[\"month\"] = df[\"posted_at\"].dt.to_period(\"M\")\ndf.pivot_table(index=\"month\", columns=\"city\", values=\"title\", aggfunc=\"count\", fill_value=0)"
+    },
+    {
+      "q": "From a DataFrame with columns date (text) and revenue, build a monthly table with total revenue and month-over-month growth in percent.",
+      "hint": "to_datetime, set_index, resample(\"MS\"), pct_change.",
+      "code": "python",
+      "answer": "df[\"date\"] = pd.to_datetime(df[\"date\"])\nmonthly = (df.set_index(\"date\")\n             .resample(\"MS\")[\"revenue\"].sum()\n             .to_frame())\nmonthly[\"mom_growth_%\"] = monthly[\"revenue\"].pct_change() * 100"
+    }
   ],
   "interview": [
-    { "q": "How do you deal with missing values?", "a": "First measure them per column and understand why they are missing. Then choose per column: drop rows if few and random, fill with a meaningful default (0, median, 'unknown') if justified, or keep them and handle them explicitly. Document the choice because it changes the results." },
-    { "q": "loc vs iloc?", "a": "loc selects by labels (index values and column names, end inclusive); iloc selects by integer position like Python slicing (end exclusive)." },
-    { "q": "How is merge different from concat?", "a": "merge joins tables side by side on key columns, like a SQL JOIN. concat stacks tables on top of each other (or side by side by index) without matching keys." }
+    {
+      "q": "How do you deal with missing values?",
+      "a": "First measure them per column and understand why they are missing. Then choose per column: drop rows if few and random, fill with a meaningful default (0, median, 'unknown') if justified, or keep them and handle them explicitly. Document the choice because it changes the results."
+    },
+    {
+      "q": "loc vs iloc?",
+      "a": "loc selects by labels (index values and column names, end inclusive); iloc selects by integer position like Python slicing (end exclusive)."
+    },
+    {
+      "q": "How is merge different from concat?",
+      "a": "merge joins tables side by side on key columns, like a SQL JOIN. concat stacks tables on top of each other (or side by side by index) without matching keys."
+    },
+    {
+      "q": "How would you detect an unusual drop in daily sales with pandas?",
+      "a": "Convert the dates, resample to daily totals so missing days appear, then compare each day with a baseline: the same weekday in previous weeks or a rolling mean and standard deviation. Flag days that fall far below the baseline, and check data issues such as late loads or missing sources before calling it a business problem."
+    }
   ]
 }

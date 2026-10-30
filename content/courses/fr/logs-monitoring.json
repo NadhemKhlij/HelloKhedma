@@ -51,33 +51,112 @@
         "Chaque alerte a un responsable et un lien vers un runbook : quoi vérifier, comment atténuer.",
         "Revoyez les alertes chaque mois : supprimez celles qui n’ont donné lieu à aucune action."
       ]
+    },
+    {
+      "title": "Traces, SLO et budgets d’erreur",
+      "minutes": 40,
+      "text": [
+        "Les logs disent ce qui s’est passé, les métriques combien, et les traces où le temps est passé : une trace suit une requête à travers chaque service qu’elle appelle, pour voir que les 3 secondes ont été passées à attendre l’API de paiement, pas dans votre code. OpenTelemetry est le standard ouvert pour produire les trois.",
+        "Un Service Level Objective (SLO) définit ce que « suffisamment bien » veut dire pour les utilisateurs, par exemple 99,5 % des paiements réussis en moins d’une seconde. Les 0,5 % restants sont le budget d’erreur : tant qu’il en reste, l’équipe livre des fonctionnalités ; quand il est épuisé, la fiabilité passe en premier. Alertez sur la vitesse de consommation du budget plutôt que sur chaque pic."
+      ],
+      "points": [
+        "SLI = la mesure (part de requêtes rapides et réussies) ; SLO = l’objectif fixé pour elle.",
+        "Choisissez les SLI du point de vue de l’utilisateur : disponibilité, latence, exactitude.",
+        "Propagez un identifiant de trace ou de corrélation dans les logs pour relier logs et traces.",
+        "100 % est un mauvais objectif : les utilisateurs ne voient pas la différence, et cela bloque tout changement."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "SLO: 99.5% of checkout requests succeed in under 1 s, over 30 days\nError budget: 0.5% of ~2,000,000 requests = 10,000 bad requests per month\n\n# Prometheus: share of good requests over 30 days\nsum(rate(http_requests_total{route=\"/checkout\",code!~\"5..\"}[30d]))\n  /\nsum(rate(http_requests_total{route=\"/checkout\"}[30d]))",
+        "note": "Le budget d’erreur transforme la fiabilité en un chiffre avec lequel l’équipe produit peut planifier."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Investiguer", "items": [
-      ["Réduire la fenêtre de temps", "Commencer juste avant la première erreur"],
-      ["Filtrer service + niveau", "Réduire le bruit"],
-      ["Suivre le request_id", "Tracer une requête à travers les services"],
-      ["Compter dans le temps", "Voir quand cela a commencé"]
-    ]},
-    { "group": "Requêtes", "items": [
-      ["Kibana KQL: level : \"ERROR\"", "Filtrer sur un champ"],
-      ["Splunk: ... | stats count by host", "Nombre par hôte"],
-      ["Splunk: ... | timechart count", "Erreurs dans le temps"],
-      ["Loki: {app=\"x\"} |= \"timeout\"", "Filtre texte sur un flux"]
-    ]},
-    { "group": "Métriques", "items": [
-      ["RED", "Rate, Errors, Duration (services)"],
-      ["USE", "Utilisation, Saturation, Errors (ressources)"],
-      ["Latence P95 / P99", "Ce que vivent les utilisateurs les plus lents"],
-      ["rate(x[5m])", "Débit par seconde (Prometheus)"]
-    ]},
-    { "group": "Alerting", "items": [
-      ["Basée sur les symptômes", "Alerter sur ce que ressentent les utilisateurs"],
-      ["for: 5m", "Ignorer les pics brefs"],
-      ["Lien vers le runbook", "Que faire quand elle se déclenche"],
-      ["Astreinte vs ticket", "Urgent vs peut attendre"]
-    ]}
+    {
+      "group": "Investiguer",
+      "items": [
+        [
+          "Réduire la fenêtre de temps",
+          "Commencer juste avant la première erreur"
+        ],
+        [
+          "Filtrer service + niveau",
+          "Réduire le bruit"
+        ],
+        [
+          "Suivre le request_id",
+          "Tracer une requête à travers les services"
+        ],
+        [
+          "Compter dans le temps",
+          "Voir quand cela a commencé"
+        ]
+      ]
+    },
+    {
+      "group": "Requêtes",
+      "items": [
+        [
+          "Kibana KQL: level : \"ERROR\"",
+          "Filtrer sur un champ"
+        ],
+        [
+          "Splunk: ... | stats count by host",
+          "Nombre par hôte"
+        ],
+        [
+          "Splunk: ... | timechart count",
+          "Erreurs dans le temps"
+        ],
+        [
+          "Loki: {app=\"x\"} |= \"timeout\"",
+          "Filtre texte sur un flux"
+        ]
+      ]
+    },
+    {
+      "group": "Métriques",
+      "items": [
+        [
+          "RED",
+          "Rate, Errors, Duration (services)"
+        ],
+        [
+          "USE",
+          "Utilisation, Saturation, Errors (ressources)"
+        ],
+        [
+          "Latence P95 / P99",
+          "Ce que vivent les utilisateurs les plus lents"
+        ],
+        [
+          "rate(x[5m])",
+          "Débit par seconde (Prometheus)"
+        ]
+      ]
+    },
+    {
+      "group": "Alerting",
+      "items": [
+        [
+          "Basée sur les symptômes",
+          "Alerter sur ce que ressentent les utilisateurs"
+        ],
+        [
+          "for: 5m",
+          "Ignorer les pics brefs"
+        ],
+        [
+          "Lien vers le runbook",
+          "Que faire quand elle se déclenche"
+        ],
+        [
+          "Astreinte vs ticket",
+          "Urgent vs peut attendre"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Lire la dernière erreur du log au lieu de la première.",
@@ -86,13 +165,41 @@
     "Des tableaux de bord de latence moyenne qui masquent les requêtes lentes."
   ],
   "exercises": [
-    { "q": "Des utilisateurs signalent que le site était lent entre 10 h et 10 h 30. Quelles métriques ouvrez-vous en premier ?", "answer": "La latence P95/P99 et le taux d’erreur du service frontal sur cette fenêtre, puis le débit de requêtes (pic de trafic ?), puis la saturation des dépendances : latence et connexions de la base de données, CPU et mémoire." },
-    { "q": "Écrivez une recherche Splunk qui compte les lignes ERROR par service sur la dernière heure.", "code": "text", "answer": "index=app level=ERROR earliest=-1h | stats count by service | sort -count" },
-    { "q": "Transformez ceci en bonne alerte : « CPU > 80 % ».", "answer": "Alertez plutôt sur le symptôme : « latence P95 > 2 s pendant 10 minutes sur search-api », avec un lien vers le runbook. Gardez le CPU comme graphique de tableau de bord ou comme ticket de faible gravité pour la planification de capacité." }
+    {
+      "q": "Des utilisateurs signalent que le site était lent entre 10 h et 10 h 30. Quelles métriques ouvrez-vous en premier ?",
+      "answer": "La latence P95/P99 et le taux d’erreur du service frontal sur cette fenêtre, puis le débit de requêtes (pic de trafic ?), puis la saturation des dépendances : latence et connexions de la base de données, CPU et mémoire."
+    },
+    {
+      "q": "Écrivez une recherche Splunk qui compte les lignes ERROR par service sur la dernière heure.",
+      "code": "text",
+      "answer": "index=app level=ERROR earliest=-1h | stats count by service | sort -count"
+    },
+    {
+      "q": "Transformez ceci en bonne alerte : « CPU > 80 % ».",
+      "answer": "Alertez plutôt sur le symptôme : « latence P95 > 2 s pendant 10 minutes sur search-api », avec un lien vers le runbook. Gardez le CPU comme graphique de tableau de bord ou comme ticket de faible gravité pour la planification de capacité."
+    },
+    {
+      "q": "Votre service a un SLO de disponibilité mensuelle de 99,9 %. Combien d’indisponibilité cela autorise-t-il sur un mois de 30 jours, et que doit faire l’équipe si 80 % du budget est consommé dès la première semaine ?",
+      "hint": "30 jours = 43 200 minutes.",
+      "answer": "0,1 % de 43 200 minutes = environ 43 minutes d’indisponibilité par mois. Si 80 % (environ 35 minutes) sont consommés dès la première semaine, le budget brûle bien trop vite : geler les livraisons risquées, concentrer l’équipe sur les causes des pannes (post-mortems, corrections, meilleur retour arrière), et ne garder que les changements qui améliorent la fiabilité jusqu’à ce que le rythme de consommation redevienne normal."
+    }
   ],
   "interview": [
-    { "q": "Logs, métriques ou traces ?", "a": "Les métriques sont des valeurs dans le temps qui montrent les tendances et déclenchent les alertes. Les logs enregistrent des événements individuels avec les détails qui expliquent ce qui s’est passé. Les traces suivent une requête à travers les services pour montrer où le temps est passé." },
-    { "q": "Comment investiguez-vous une erreur que vous n’avez jamais vue ?", "a": "Je définis l’impact et l’heure de début, je restreins les logs à cette fenêtre et à ce service, je trouve la première erreur, je suis son identifiant de requête, je vérifie les changements récents et les dépendances, je reproduis si possible, et je note mes constats au fur et à mesure." },
-    { "q": "Qu’est-ce qu’une bonne alerte ?", "a": "Elle ne se déclenche que lorsqu’un humain doit agir, repose sur des symptômes visibles par les utilisateurs avec un seuil de durée, a un responsable et une gravité clairs, et renvoie vers un runbook." }
+    {
+      "q": "Logs, métriques ou traces ?",
+      "a": "Les métriques sont des valeurs dans le temps qui montrent les tendances et déclenchent les alertes. Les logs enregistrent des événements individuels avec les détails qui expliquent ce qui s’est passé. Les traces suivent une requête à travers les services pour montrer où le temps est passé."
+    },
+    {
+      "q": "Comment investiguez-vous une erreur que vous n’avez jamais vue ?",
+      "a": "Je définis l’impact et l’heure de début, je restreins les logs à cette fenêtre et à ce service, je trouve la première erreur, je suis son identifiant de requête, je vérifie les changements récents et les dépendances, je reproduis si possible, et je note mes constats au fur et à mesure."
+    },
+    {
+      "q": "Qu’est-ce qu’une bonne alerte ?",
+      "a": "Elle ne se déclenche que lorsqu’un humain doit agir, repose sur des symptômes visibles par les utilisateurs avec un seuil de durée, a un responsable et une gravité clairs, et renvoie vers un runbook."
+    },
+    {
+      "q": "Qu’est-ce qu’un budget d’erreur et pourquoi est-il utile ?",
+      "a": "C’est la part de non-fiabilité qu’un SLO autorise : avec 99,9 % de disponibilité, 0,1 % des requêtes ou du temps peut échouer. Il aligne produit et exploitation : tant qu’il reste du budget, l’équipe peut prendre des risques et livrer ; quand il se consomme trop vite, elle ralentit les livraisons et investit dans la fiabilité. Alerter sur la vitesse de consommation réduit aussi le bruit par rapport à une alerte à chaque pic d’erreurs."
+    }
   ]
 }

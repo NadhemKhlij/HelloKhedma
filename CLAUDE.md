@@ -1,7 +1,7 @@
 # HelloKhedma
 
 ## Project overview
-A multi-path job hunting web app targeting Data Engineers, Business Analysts, Application Support and Data Analysts.
+A multi-path job hunting web app targeting Data Engineers, Business Analysts, Application Support, Data Analysts and DevOps Engineers.
 The selected path adapts the job search, trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 
 ## Commands

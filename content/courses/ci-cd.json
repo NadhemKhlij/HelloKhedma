@@ -1,0 +1,130 @@
+{
+  "why": "Every DevOps job description asks for CI/CD. Teams ship many times a day only because a pipeline builds, tests and deploys each change the same way, every time.",
+  "outcome": "write a GitHub Actions pipeline that lints, tests and builds an image, store secrets safely, deploy to an environment with approvals, and roll back when a release goes wrong.",
+  "lessons": [
+    {
+      "title": "CI and CD: what a pipeline does",
+      "minutes": 30,
+      "text": [
+        "Continuous Integration (CI) means every push is built and tested automatically, so problems are found minutes after they are written, not weeks later. Continuous Delivery (CD) means every change that passes CI is ready to release with one click; Continuous Deployment releases it automatically.",
+        "A pipeline is a list of stages that run on a CI server (GitHub Actions, GitLab CI, Jenkins, Azure DevOps): checkout, install, lint, test, build an artifact, then deploy. If one stage fails, the next ones do not run and the author is told."
+      ],
+      "points": [
+        "Fast feedback first: lint and unit tests in a few minutes, slower checks after.",
+        "Build once, deploy the same artifact everywhere (test, staging, production).",
+        "The main branch should always be releasable: protect it and require a green pipeline before merging.",
+        "Pipelines are code: they live in the repository and are reviewed like the rest."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "push → checkout → install → lint → unit tests → build image → push image\n                                                  ↓\n                          deploy to staging → smoke tests → approval → production",
+        "note": "A typical flow. Each arrow only runs if the previous stage passed."
+      }
+    },
+    {
+      "title": "Your first GitHub Actions workflow",
+      "minutes": 45,
+      "text": [
+        "A workflow is a YAML file in .github/workflows/. It says when to run (on: push, pull_request, schedule), on which machine (runs-on) and which steps to execute. Steps either run shell commands (run:) or reuse a published action (uses:).",
+        "Jobs run in parallel by default; needs: makes one job wait for another. A matrix runs the same job for several versions, for example Python 3.11 and 3.12."
+      ],
+      "points": [
+        "actions/checkout gets your code; actions/setup-python or setup-node installs the language.",
+        "Cache dependencies (cache: pip) to make runs much faster.",
+        "on: pull_request runs checks before merge; on: push to main runs the release part.",
+        "Read the logs of a failed step: the error is usually in the last 20 lines."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "name: ci\non:\n  pull_request:\n  push:\n    branches: [main]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n        python: [\"3.11\", \"3.12\"]\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with:\n          python-version: ${{ matrix.python }}\n          cache: pip\n      - run: pip install -r requirements.txt\n      - run: ruff check .\n      - run: pytest -q",
+        "note": "Runs lint and tests on two Python versions for every pull request and every push to main."
+      }
+    },
+    {
+      "title": "Build, version and store artifacts",
+      "minutes": 40,
+      "text": [
+        "An artifact is what you deploy: a Docker image, a package, a zip. Give each one a unique, traceable version, for example the Git commit SHA or a semantic version tag (1.4.2), so you always know what runs in production.",
+        "Secrets (registry passwords, cloud keys) never go in the YAML. Store them as encrypted secrets in the CI tool and read them as variables; better still, use short-lived credentials (OIDC) instead of long-lived keys."
+      ],
+      "points": [
+        "Tag images with the commit SHA; add a human tag like v1.4.2 for releases.",
+        "${{ secrets.NAME }} reads a secret; it is masked in logs.",
+        "Give the pipeline the least permissions it needs (permissions: in GitHub Actions).",
+        "Keep artifacts in a registry (GHCR, Docker Hub, ECR, Artifactory), not on the CI runner."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "  build:\n    needs: test\n    if: github.ref == 'refs/heads/main'\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n      packages: write\n    steps:\n      - uses: actions/checkout@v4\n      - uses: docker/login-action@v3\n        with:\n          registry: ghcr.io\n          username: ${{ github.actor }}\n          password: ${{ secrets.GITHUB_TOKEN }}\n      - uses: docker/build-push-action@v6\n        with:\n          push: true\n          tags: ghcr.io/acme/api:${{ github.sha }}"
+      }
+    },
+    {
+      "title": "Deploy safely: environments, approvals and rollback",
+      "minutes": 45,
+      "text": [
+        "Deploy the same artifact through environments: staging first, with smoke tests, then production after an approval or automatically if the checks pass. Environments hold their own secrets and protection rules.",
+        "Things will break. Safe strategies limit the damage: rolling updates replace instances gradually, blue-green switches traffic between two full copies, canary sends a small share of users to the new version first. Always know how to roll back in one step: redeploy the previous version."
+      ],
+      "points": [
+        "Smoke tests: a few quick checks right after deploy (health endpoint, login page).",
+        "Feature flags separate deploying code from turning a feature on.",
+        "Database migrations must be backward compatible so a rollback does not break the schema.",
+        "Measure delivery with the DORA metrics: deployment frequency, lead time, change failure rate, time to restore."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "  deploy-prod:\n    needs: deploy-staging\n    runs-on: ubuntu-latest\n    environment: production   # requires a reviewer's approval\n    steps:\n      - run: ./deploy.sh ghcr.io/acme/api:${{ github.sha }}\n      - run: curl --fail https://api.acme.com/health",
+        "note": "Rollback = run the same job again with the previous image tag."
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Concepts", "items": [
+      ["CI", "Build and test every change automatically"],
+      ["Continuous Delivery", "Every green change is ready to release"],
+      ["Continuous Deployment", "Every green change is released automatically"],
+      ["Artifact", "The built thing you deploy (image, package)"],
+      ["Environment", "A target like staging or production, with its own rules"]
+    ]},
+    { "group": "GitHub Actions", "items": [
+      ["on: pull_request", "Run on every pull request"],
+      ["runs-on: ubuntu-latest", "Machine that runs the job"],
+      ["uses: actions/checkout@v4", "Reuse a published action"],
+      ["needs: test", "Wait for another job"],
+      ["strategy: matrix", "Same job for several versions"],
+      ["${{ secrets.NAME }}", "Read an encrypted secret"]
+    ]},
+    { "group": "Release strategies", "items": [
+      ["Rolling update", "Replace instances a few at a time"],
+      ["Blue-green", "Switch traffic between two full copies"],
+      ["Canary", "Send a small share of traffic to the new version first"],
+      ["Feature flag", "Turn a feature on without redeploying"]
+    ]},
+    { "group": "DORA metrics", "items": [
+      ["Deployment frequency", "How often you release"],
+      ["Lead time for changes", "Commit to production time"],
+      ["Change failure rate", "Share of releases that cause a problem"],
+      ["Time to restore", "How fast you recover from a failure"]
+    ]}
+  ],
+  "pitfalls": [
+    "Putting passwords or keys in the workflow file: use the CI secret store.",
+    "Rebuilding the artifact for each environment: build once, promote the same version.",
+    "Slow pipelines nobody waits for: cache dependencies and run the fastest checks first.",
+    "No rollback plan: always keep the previous version deployable in one step.",
+    "Ignoring flaky tests: fix or quarantine them, or people stop trusting a red pipeline."
+  ],
+  "exercises": [
+    { "q": "Write a GitHub Actions workflow that runs npm ci and npm test on every pull request.", "hint": "on: pull_request, actions/checkout, actions/setup-node with cache: npm.", "code": "yaml",
+      "answer": "name: ci\non: pull_request\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 20\n          cache: npm\n      - run: npm ci\n      - run: npm test" },
+    { "q": "Your production release fails at 18:00 and users see errors. What do you do, in order?", "hint": "Restore first, investigate after.",
+      "answer": "Roll back to the previous known-good version (redeploy the previous artifact), confirm with the health check and monitoring that errors stop, communicate the impact and status, then investigate the cause on the failed version in staging, add a test that would have caught it, and write a short post-mortem." },
+    { "q": "Which tag would you give the image built from commit 3f2c9ab for release 2.1.0, and why?", "hint": "Traceability and readability.",
+      "answer": "Two tags on the same image: ghcr.io/acme/api:3f2c9ab (exact commit, always traceable) and ghcr.io/acme/api:2.1.0 (human-readable release). Never rely on :latest to know what runs in production." }
+  ],
+  "interview": [
+    { "q": "What is the difference between continuous delivery and continuous deployment?", "a": "Both build and test every change automatically. With continuous delivery, a passing change is ready to release but a person decides when; with continuous deployment, every passing change goes to production automatically. Deployment needs strong automated tests and monitoring." },
+    { "q": "How do you manage secrets in a pipeline?", "a": "Never in the code or YAML. I use the CI secret store or a vault, give each job the minimum permissions, prefer short-lived credentials through OIDC instead of static cloud keys, and rotate secrets. Secrets are masked in logs, but I still avoid printing them." },
+    { "q": "Describe a deployment strategy that limits risk.", "a": "A canary release: deploy the new version to a small share of traffic, watch error rate and latency for a few minutes, then increase gradually or roll back automatically if metrics degrade. Blue-green is the alternative when you need an instant switch back." }
+  ]
+}

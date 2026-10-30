@@ -51,28 +51,95 @@
         "lang": "python",
         "code": "from statsmodels.stats.proportion import proportions_ztest\n# conversions and visitors for A and B\nstat, p_value = proportions_ztest([410, 470], [10000, 10000])\nprint(round(p_value, 4))  # about 0.04 -> unlikely to be noise at the 5% level"
       }
+    },
+    {
+      "title": "Corrélation, régression et pièges classiques",
+      "minutes": 40,
+      "text": [
+        "La corrélation mesure à quel point deux variables évoluent ensemble, de -1 à 1. Une régression linéaire simple trace la meilleure droite à travers les points : sa pente indique de combien y varie en moyenne quand x augmente d’une unité.",
+        "Corrélation n’est pas causalité. Les ventes de glaces et les noyades augmentent toutes deux l’été : la cause cachée est la météo (un facteur de confusion). Autres pièges : quelques valeurs extrêmes qui créent une corrélation, des moyennes qui s’inversent quand on découpe par groupe (paradoxe de Simpson), et tester tellement d’indicateurs que l’un paraît significatif par hasard."
+      ],
+      "points": [
+        "Tracez toujours les données avant de croire r : des formes très différentes peuvent avoir le même r.",
+        "r² est la part de la variance de y expliquée par la droite.",
+        "Pour affirmer une cause, il faut une expérience (test A/B) ou une méthode qui contrôle les facteurs de confusion.",
+        "Segmentez les résultats (par pays, appareil, nouveaux ou anciens utilisateurs) avant de conclure."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import numpy as np\nfrom scipy import stats\n\nads = np.array([10, 15, 20, 25, 30, 35])        # ad spend (k€)\nsales = np.array([110, 135, 170, 180, 220, 240])  # sales (k€)\n\nr, p = stats.pearsonr(ads, sales)\nfit = stats.linregress(ads, sales)\nprint(f\"r = {r:.2f}, slope = {fit.slope:.1f} k€ sales per k€ of ads\")\n# r = 0.99, slope = 5.2 -> strong association, not proof of cause",
+        "note": "Forte corrélation ; le budget et la saison peuvent tous deux faire monter les ventes."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Décrire", "items": [
-      ["Mean", "Somme / effectif ; sensible aux valeurs aberrantes"],
-      ["Median (P50)", "Valeur du milieu ; robuste"],
-      ["P90 / P95", "Valeur sous laquelle se trouvent 90 % / 95 % des cas"],
-      ["Std deviation", "Écart-type : distance typique à la moyenne"],
-      ["IQR = P75 − P25", "Écart interquartile : dispersion robuste"]
-    ]},
-    { "group": "Relations", "items": [
-      ["Correlation r", "De −1 à 1, association linéaire uniquement"],
-      ["Confounder", "Facteur de confusion qui influence les deux variables"],
-      ["Simpson's paradox", "La tendance s’inverse quand on regroupe les groupes"]
-    ]},
-    { "group": "Expérimentation", "items": [
-      ["Null hypothesis", "Hypothèse nulle : aucune différence entre A et B"],
-      ["p-value < 0.05", "Peu probable en l’absence d’effet (pas une « preuve »)"],
-      ["Confidence interval", "Intervalle plausible pour le véritable effet"],
-      ["Statistical power", "Chance de détecter un effet réel (visez 80 %)"],
-      ["MDE", "Effet minimal détectable, fixe la taille d’échantillon"]
-    ]}
+    {
+      "group": "Décrire",
+      "items": [
+        [
+          "Mean",
+          "Somme / effectif ; sensible aux valeurs aberrantes"
+        ],
+        [
+          "Median (P50)",
+          "Valeur du milieu ; robuste"
+        ],
+        [
+          "P90 / P95",
+          "Valeur sous laquelle se trouvent 90 % / 95 % des cas"
+        ],
+        [
+          "Std deviation",
+          "Écart-type : distance typique à la moyenne"
+        ],
+        [
+          "IQR = P75 − P25",
+          "Écart interquartile : dispersion robuste"
+        ]
+      ]
+    },
+    {
+      "group": "Relations",
+      "items": [
+        [
+          "Correlation r",
+          "De −1 à 1, association linéaire uniquement"
+        ],
+        [
+          "Confounder",
+          "Facteur de confusion qui influence les deux variables"
+        ],
+        [
+          "Simpson's paradox",
+          "La tendance s’inverse quand on regroupe les groupes"
+        ]
+      ]
+    },
+    {
+      "group": "Expérimentation",
+      "items": [
+        [
+          "Null hypothesis",
+          "Hypothèse nulle : aucune différence entre A et B"
+        ],
+        [
+          "p-value < 0.05",
+          "Peu probable en l’absence d’effet (pas une « preuve »)"
+        ],
+        [
+          "Confidence interval",
+          "Intervalle plausible pour le véritable effet"
+        ],
+        [
+          "Statistical power",
+          "Chance de détecter un effet réel (visez 80 %)"
+        ],
+        [
+          "MDE",
+          "Effet minimal détectable, fixe la taille d’échantillon"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Présenter la moyenne d’une distribution asymétrique comme une valeur « typique ».",
@@ -81,13 +148,40 @@
     "Conclure à une causalité à partir d’une corrélation dans des données observationnelles."
   ],
   "exercises": [
-    { "q": "Le délai de livraison moyen est de 3 jours, mais les clients se plaignent. Qu’examineriez-vous ?", "answer": "La distribution : la médiane et les P90/P95. Une longue traîne (des livraisons de 10 jours ou plus) peut se cacher derrière une bonne moyenne. Segmentez ensuite par région, transporteur et produit." },
-    { "q": "La variante B a 4,7 % de conversion contre 4,1 % pour A, p = 0,04, sur 10 000 utilisateurs chacune. Que dites-vous au product manager ?", "answer": "B améliore probablement la conversion : la différence a peu de chances d’être du bruit. Le gain estimé est d’environ +0,6 point, et il faut partager l’intervalle de confiance, car le gain réel pourrait être plus faible. Vérifiez les indicateurs garde-fous et que le test a bien duré le temps prévu avant de déployer." },
-    { "q": "Pourquoi calculer un taux de conversion comme total des conversions / total des visiteurs plutôt que comme la moyenne des taux quotidiens ?", "answer": "Les jours n’ont pas le même trafic. Faire la moyenne des taux quotidiens donne à un petit jour le même poids qu’un gros, ce qui biaise le résultat. Le ratio des totaux donne le même poids à chaque visiteur." }
+    {
+      "q": "Le délai de livraison moyen est de 3 jours, mais les clients se plaignent. Qu’examineriez-vous ?",
+      "answer": "La distribution : la médiane et les P90/P95. Une longue traîne (des livraisons de 10 jours ou plus) peut se cacher derrière une bonne moyenne. Segmentez ensuite par région, transporteur et produit."
+    },
+    {
+      "q": "La variante B a 4,7 % de conversion contre 4,1 % pour A, p = 0,04, sur 10 000 utilisateurs chacune. Que dites-vous au product manager ?",
+      "answer": "B améliore probablement la conversion : la différence a peu de chances d’être du bruit. Le gain estimé est d’environ +0,6 point, et il faut partager l’intervalle de confiance, car le gain réel pourrait être plus faible. Vérifiez les indicateurs garde-fous et que le test a bien duré le temps prévu avant de déployer."
+    },
+    {
+      "q": "Pourquoi calculer un taux de conversion comme total des conversions / total des visiteurs plutôt que comme la moyenne des taux quotidiens ?",
+      "answer": "Les jours n’ont pas le même trafic. Faire la moyenne des taux quotidiens donne à un petit jour le même poids qu’un gros, ce qui biaise le résultat. Le ratio des totaux donne le même poids à chaque visiteur."
+    },
+    {
+      "q": "Un manager affirme : « Les clients qui utilisent notre application dépensent 40 % de plus, donc pousser tout le monde vers l’application augmentera le chiffre d’affaires de 40 %. » Qu’est-ce qui ne va pas, et comment vérifieriez-vous ?",
+      "hint": "Qui choisit d’utiliser l’application ?",
+      "answer": "Auto-sélection : les clients les plus engagés choisissent l’application, ils dépenseraient donc plus de toute façon ; l’application est corrélée aux dépenses, cela ne prouve pas qu’elle les cause. Vérifier en comparant des clients similaires (même ancienneté, mêmes dépenses passées) avant et après l’adoption, ou mieux, lancer une expérience qui encourage au hasard un groupe à utiliser l’application et comparer son chiffre d’affaires à un groupe témoin."
+    }
   ],
   "interview": [
-    { "q": "Expliquez une p-value à une personne non technique.", "a": "Si la modification n’avait vraiment aucun effet, la p-value indique à quelle fréquence on verrait quand même une différence aussi grande, par simple hasard. Une valeur faible signifie que le hasard seul est une explication peu probable. Elle ne dit pas quelle est la taille ou la valeur de l’effet." },
-    { "q": "Moyenne ou médiane pour les salaires ?", "a": "La médiane, car les salaires sont tirés vers le haut par quelques valeurs très élevées. La médiane décrit le salaire typique ; j’ajouterais des percentiles pour montrer la dispersion." },
-    { "q": "Qu’est-ce qui peut mal tourner dans un A/B test ?", "a": "Un échantillon trop petit, le « peeking » et l’arrêt prématuré, plusieurs indicateurs sans correction, un déséquilibre de répartition dû à un bug, l’effet de nouveauté, et un test mené pendant une période inhabituelle." }
+    {
+      "q": "Expliquez une p-value à une personne non technique.",
+      "a": "Si la modification n’avait vraiment aucun effet, la p-value indique à quelle fréquence on verrait quand même une différence aussi grande, par simple hasard. Une valeur faible signifie que le hasard seul est une explication peu probable. Elle ne dit pas quelle est la taille ou la valeur de l’effet."
+    },
+    {
+      "q": "Moyenne ou médiane pour les salaires ?",
+      "a": "La médiane, car les salaires sont tirés vers le haut par quelques valeurs très élevées. La médiane décrit le salaire typique ; j’ajouterais des percentiles pour montrer la dispersion."
+    },
+    {
+      "q": "Qu’est-ce qui peut mal tourner dans un A/B test ?",
+      "a": "Un échantillon trop petit, le « peeking » et l’arrêt prématuré, plusieurs indicateurs sans correction, un déséquilibre de répartition dû à un bug, l’effet de nouveauté, et un test mené pendant une période inhabituelle."
+    },
+    {
+      "q": "Comment expliquez-vous à un manager que corrélation n’est pas causalité ?",
+      "a": "Avec un exemple concret tiré de ses données : les utilisateurs qui adoptent une fonctionnalité étaient déjà les plus engagés, ils dépenseraient donc plus de toute façon. La fonctionnalité et les dépenses évoluent ensemble, mais c’est l’engagement qui fait monter les deux. Pour mesurer l’effet réel, il faut une expérience où la fonctionnalité est attribuée au hasard, ou au moins une comparaison d’utilisateurs similaires avant et après."
+    }
   ]
 }

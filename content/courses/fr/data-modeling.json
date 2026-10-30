@@ -51,32 +51,108 @@
         "lang": "text",
         "code": "              dim_date\n                 |\ndim_company -- fact_applications -- dim_offer\n                 |\n            dim_candidate\n\nGrain: one row per application status change."
       }
+    },
+    {
+      "title": "Historique et changements : les dimensions à évolution lente",
+      "minutes": 40,
+      "text": [
+        "Les dimensions changent : les clients déménagent, les produits changent de catégorie, les employés changent d’équipe. La question est de savoir si les rapports doivent montrer la valeur au moment de l’événement ou la valeur actuelle. Les types de dimensions à évolution lente (SCD) sont les réponses standard.",
+        "Le type 1 écrase l’ancienne valeur : simple, sans historique. Le type 2 ajoute une nouvelle ligne à chaque changement avec des dates de validité et une clé de substitution, pour que les faits continuent de pointer vers la version vraie au moment où ils ont eu lieu. Choisissez attribut par attribut, avec le métier."
+      ],
+      "points": [
+        "La clé de substitution (customer_key) identifie une version ; la clé métier (customer_id) identifie le client.",
+        "valid_from / valid_to / is_current facilitent les requêtes « à date » et « actuelles ».",
+        "Le type 2 fait grossir la table : réservez-le aux attributs vraiment analysés dans le temps.",
+        "Les faits arrivant en retard doivent chercher la version valide à leur propre date, pas celle d’aujourd’hui."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "CREATE TABLE dim_customer (\n  customer_key   BIGINT PRIMARY KEY,   -- surrogate key, one per version\n  customer_id    TEXT NOT NULL,        -- business key from the source\n  city           TEXT,\n  segment        TEXT,\n  valid_from     DATE NOT NULL,\n  valid_to       DATE,                 -- NULL = current version\n  is_current     BOOLEAN NOT NULL\n);\n\n-- the fact stores the version that was true at order time\nSELECT f.order_id, d.city\nFROM fact_orders f\nJOIN dim_customer d ON d.customer_key = f.customer_key;",
+        "note": "Le chiffre d’affaires par ville « au moment de la commande » est une simple jointure sur la clé de substitution."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Clés", "items": [
-      ["Primary key", "Identifiant unique et non nul d’une ligne"],
-      ["Foreign key", "Pointe vers une clé primaire d’une autre table"],
-      ["Surrogate key", "Identifiant généré, sans signification métier"],
-      ["Composite key", "Plusieurs colonnes uniques ensemble"]
-    ]},
-    { "group": "Relations", "items": [
-      ["1 → N", "Clé étrangère du côté N"],
-      ["N ↔ N", "Table de liaison avec les deux clés"],
-      ["1 → 1", "Même clé, ou fusionner les tables"]
-    ]},
-    { "group": "Formes normales", "items": [
-      ["1NF", "Valeurs atomiques, pas de colonnes répétées"],
-      ["2NF", "Pas de dépendance partielle à une clé composite"],
-      ["3NF", "Pas de dépendance entre colonnes non clés"]
-    ]},
-    { "group": "Analytique", "items": [
-      ["Fact table", "Événements / mesures à une granularité définie"],
-      ["Dimension", "Attributs descriptifs pour découper l’analyse"],
-      ["Star schema", "Les faits au centre, les dimensions autour"],
-      ["SCD type 2", "Lignes d’historique avec valid_from / valid_to"],
-      ["OLTP vs OLAP", "Optimisé pour l’écriture vs optimisé pour la lecture"]
-    ]}
+    {
+      "group": "Clés",
+      "items": [
+        [
+          "Primary key",
+          "Identifiant unique et non nul d’une ligne"
+        ],
+        [
+          "Foreign key",
+          "Pointe vers une clé primaire d’une autre table"
+        ],
+        [
+          "Surrogate key",
+          "Identifiant généré, sans signification métier"
+        ],
+        [
+          "Composite key",
+          "Plusieurs colonnes uniques ensemble"
+        ]
+      ]
+    },
+    {
+      "group": "Relations",
+      "items": [
+        [
+          "1 → N",
+          "Clé étrangère du côté N"
+        ],
+        [
+          "N ↔ N",
+          "Table de liaison avec les deux clés"
+        ],
+        [
+          "1 → 1",
+          "Même clé, ou fusionner les tables"
+        ]
+      ]
+    },
+    {
+      "group": "Formes normales",
+      "items": [
+        [
+          "1NF",
+          "Valeurs atomiques, pas de colonnes répétées"
+        ],
+        [
+          "2NF",
+          "Pas de dépendance partielle à une clé composite"
+        ],
+        [
+          "3NF",
+          "Pas de dépendance entre colonnes non clés"
+        ]
+      ]
+    },
+    {
+      "group": "Analytique",
+      "items": [
+        [
+          "Fact table",
+          "Événements / mesures à une granularité définie"
+        ],
+        [
+          "Dimension",
+          "Attributs descriptifs pour découper l’analyse"
+        ],
+        [
+          "Star schema",
+          "Les faits au centre, les dimensions autour"
+        ],
+        [
+          "SCD type 2",
+          "Lignes d’historique avec valid_from / valid_to"
+        ],
+        [
+          "OLTP vs OLAP",
+          "Optimisé pour l’écriture vs optimisé pour la lecture"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Ne pas définir la granularité d’une table de faits, puis compter en double.",
@@ -85,13 +161,41 @@
     "Normaliser les dimensions en flocon partout, ce qui rend les modèles BI plus lents et plus difficiles à utiliser."
   ],
   "exercises": [
-    { "q": "Modélisez des candidats qui postulent à des offres, une candidature ayant un statut qui évolue dans le temps.", "answer": "Tables candidates(id, ...), offers(id, company_id, ...), applications(id, candidate_id, offer_id, created_at) et application_status_history(application_id, status, changed_at). L’historique est une table séparée, car une candidature connaît de nombreux changements de statut." },
-    { "q": "Quelle est la granularité d’une table de faits qui stocke le nombre quotidien d’offres par ville et par compétence ?", "answer": "Une ligne par jour, par ville et par compétence." },
-    { "q": "Une table offers a les colonnes company_name et company_city. Quelle forme normale est violée et comment la corriger ?", "answer": "La 3NF : company_city dépend de l’entreprise, pas de l’offre. Déplacez les attributs de l’entreprise dans une table companies et gardez company_id dans offers." }
+    {
+      "q": "Modélisez des candidats qui postulent à des offres, une candidature ayant un statut qui évolue dans le temps.",
+      "answer": "Tables candidates(id, ...), offers(id, company_id, ...), applications(id, candidate_id, offer_id, created_at) et application_status_history(application_id, status, changed_at). L’historique est une table séparée, car une candidature connaît de nombreux changements de statut."
+    },
+    {
+      "q": "Quelle est la granularité d’une table de faits qui stocke le nombre quotidien d’offres par ville et par compétence ?",
+      "answer": "Une ligne par jour, par ville et par compétence."
+    },
+    {
+      "q": "Une table offers a les colonnes company_name et company_city. Quelle forme normale est violée et comment la corriger ?",
+      "answer": "La 3NF : company_city dépend de l’entreprise, pas de l’offre. Déplacez les attributs de l’entreprise dans une table companies et gardez company_id dans offers."
+    },
+    {
+      "q": "Avec dim_customer en type 2, écrivez le chiffre d’affaires par ville au moment de la commande, puis par ville actuelle du client.",
+      "hint": "Jointure sur la clé de substitution pour l’historique ; nouvelle jointure sur la clé métier avec is_current pour la valeur actuelle.",
+      "code": "sql",
+      "answer": "SELECT d.city, SUM(f.amount) AS revenue\nFROM fact_orders f\nJOIN dim_customer d ON d.customer_key = f.customer_key\nGROUP BY d.city;\n\n-- current city instead:\nSELECT cur.city, SUM(f.amount) AS revenue\nFROM fact_orders f\nJOIN dim_customer d   ON d.customer_key = f.customer_key\nJOIN dim_customer cur ON cur.customer_id = d.customer_id AND cur.is_current\nGROUP BY cur.city;"
+    }
   ],
   "interview": [
-    { "q": "Schéma en étoile ou schéma en flocon ?", "a": "Dans un schéma en étoile, chaque dimension est une seule table dénormalisée, jointe directement à la table de faits. Dans un schéma en flocon (snowflake), les dimensions sont normalisées en plusieurs tables. L’étoile est plus simple et plus rapide pour la BI ; le flocon économise de l’espace et évite la duplication." },
-    { "q": "Qu’est-ce qu’une dimension à évolution lente ?", "a": "Une dimension dont les attributs changent dans le temps, comme la ville d’un client. Le type 1 écrase la valeur (pas d’historique) ; le type 2 ajoute une nouvelle ligne avec des dates de validité, afin que les faits passés conservent l’ancienne valeur." },
-    { "q": "OLTP ou OLAP ?", "a": "Les systèmes OLTP traitent de nombreuses petites lectures et écritures pour les applications et utilisent des modèles normalisés. Les systèmes OLAP traitent de grosses requêtes analytiques et utilisent des modèles dénormalisés comme les schémas en étoile, souvent dans des entrepôts de données en stockage colonne." }
+    {
+      "q": "Schéma en étoile ou schéma en flocon ?",
+      "a": "Dans un schéma en étoile, chaque dimension est une seule table dénormalisée, jointe directement à la table de faits. Dans un schéma en flocon (snowflake), les dimensions sont normalisées en plusieurs tables. L’étoile est plus simple et plus rapide pour la BI ; le flocon économise de l’espace et évite la duplication."
+    },
+    {
+      "q": "Qu’est-ce qu’une dimension à évolution lente ?",
+      "a": "Une dimension dont les attributs changent dans le temps, comme la ville d’un client. Le type 1 écrase la valeur (pas d’historique) ; le type 2 ajoute une nouvelle ligne avec des dates de validité, afin que les faits passés conservent l’ancienne valeur."
+    },
+    {
+      "q": "OLTP ou OLAP ?",
+      "a": "Les systèmes OLTP traitent de nombreuses petites lectures et écritures pour les applications et utilisent des modèles normalisés. Les systèmes OLAP traitent de grosses requêtes analytiques et utilisent des modèles dénormalisés comme les schémas en étoile, souvent dans des entrepôts de données en stockage colonne."
+    },
+    {
+      "q": "Expliquez la différence entre SCD de type 1 et de type 2, et quand utiliser chacun.",
+      "a": "Le type 1 écrase l’attribut et ne garde que la valeur actuelle : adapté aux corrections ou aux attributs que personne n’analyse dans le temps. Le type 2 garde chaque version dans une nouvelle ligne avec une clé de substitution et des dates de validité, pour que les faits restent liés à la valeur vraie à l’époque : nécessaire quand les rapports doivent refléter l’historique, comme les ventes par région où se trouvait le client à ce moment-là."
+    }
   ]
 }

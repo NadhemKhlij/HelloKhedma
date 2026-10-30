@@ -25,6 +25,10 @@ const DRAW = {
   da: () => [
     line("M12 56h58"), line("M18 56V40"), line("M30 56V32"), line("M42 56V36"), line("M54 56V24"),
     line("M16 30l14-10 12 6 18-14"), ring(16, 30), ring(30, 20), ring(42, 26), dot(60, 12)],
+  // DevOps: the build → deploy loop
+  do: () => [
+    line("M14 34c0-7 5-12 11-12 9 0 21 24 30 24 6 0 11-5 11-12s-5-12-11-12c-9 0-21 24-30 24-6 0-11-5-11-12z"),
+    line("M50 18l5 4-5 4"), line("M30 42l-5 4 5 4"), ring(25, 22), dot(55, 46), ring(66, 34, 3), dot(14, 34, 2.6)],
 };
 const GENERIC = () => [line("M40 14v40M20 24l40 20M60 24L20 44"), ring(40, 14), ring(20, 24), dot(60, 44), ring(40, 54), dot(60, 24), ring(20, 44)];
 

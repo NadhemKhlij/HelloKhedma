@@ -1,0 +1,128 @@
+{
+  "why": "La plupart des entreprises tournent sur un cloud public, et AWS est celui le plus souvent cité dans les offres. Les postes DevOps, data engineering et support ont tous besoin de ses services de base et du vocabulaire qui va avec.",
+  "outcome": "expliquer les régions et le modèle de responsabilité partagée, sécuriser les accès avec IAM, choisir entre EC2, conteneurs et serverless, stocker des données dans S3 et des bases managées, et surveiller les coûts et la supervision.",
+  "lessons": [
+    {
+      "title": "Les bases du cloud : régions, responsabilité et CLI",
+      "minutes": 35,
+      "text": [
+        "Le cloud loue de l’informatique comme un service : vous créez serveurs, stockage et bases de données en quelques minutes et payez ce que vous consommez. AWS, Azure et Google Cloud proposent les mêmes familles de services sous des noms différents : ce que vous apprenez sur l’un se transpose.",
+        "Les ressources vivent dans une région (eu-west-3 est Paris), découpée en zones de disponibilité : des centres de données séparés. Répartissez les services importants sur plusieurs zones pour qu’une panne ne vous arrête pas. Selon le modèle de responsabilité partagée, AWS sécurise le matériel et la plateforme ; vous sécurisez vos données, vos accès et votre configuration."
+      ],
+      "points": [
+        "Choisissez la région proche des utilisateurs et conforme aux règles sur les données (RGPD : une région de l’UE).",
+        "Infrastructure as a Service (EC2), Platform (RDS, ECS) et serverless (Lambda) échangent du contrôle contre moins de travail.",
+        "La CLI AWS et les SDK font tout ce que fait la console, de façon scriptable.",
+        "Taguez chaque ressource (équipe, environnement, projet) pour retrouver propriétaires et coûts."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "aws configure sso            # sign in with your organisation account\naws sts get-caller-identity  # who am I?\naws s3 ls\naws ec2 describe-instances --region eu-west-3 \\\n  --query 'Reservations[].Instances[].[InstanceId,State.Name]' --output table"
+      }
+    },
+    {
+      "title": "IAM : qui peut faire quoi",
+      "minutes": 40,
+      "text": [
+        "Identity and Access Management (IAM) contrôle chaque action dans AWS. Les utilisateurs et les rôles reçoivent des droits via des policies : des documents JSON qui autorisent ou refusent des actions sur des ressources. Tout est refusé sauf si une policy l’autorise.",
+        "Utilisez des rôles, pas des clés permanentes : une instance EC2, une fonction Lambda ou un pipeline de CI endosse un rôle et reçoit des identifiants temporaires. Donnez le moindre privilège nécessaire, protégez le compte root avec la MFA et ne l’utilisez jamais au quotidien."
+      ],
+      "points": [
+        "Moindre privilège : uniquement les actions et ressources dont un travail a besoin.",
+        "Des rôles pour les applications et les pipelines (OIDC depuis GitHub Actions), des groupes pour les personnes.",
+        "Des clés d’accès dans le code ou dans Git sont la fuite cloud la plus fréquente.",
+        "CloudTrail enregistre qui a fait quoi, pour les audits et les investigations."
+      ],
+      "example": {
+        "lang": "json",
+        "code": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Action\": [\"s3:GetObject\", \"s3:PutObject\"],\n    \"Resource\": \"arn:aws:s3:::acme-reports-dev/*\"\n  }]\n}",
+        "note": "Cette policy peut lire et écrire des objets dans un seul bucket, rien d’autre."
+      }
+    },
+    {
+      "title": "Calcul et réseau",
+      "minutes": 45,
+      "text": [
+        "EC2 vous donne des machines virtuelles que vous gérez vous-même. Les conteneurs tournent sur ECS ou EKS (Kubernetes managé). Lambda exécute une fonction à la demande sans serveur : idéal pour des événements et de petites API, limité pour les traitements longs.",
+        "Un VPC est votre réseau privé. Les sous-réseaux publics accèdent à Internet via une internet gateway ; les sous-réseaux privés hébergent bases de données et services internes. Les security groups sont des pare-feux sur chaque ressource : n’autorisez que les ports et les sources nécessaires. Un load balancer répartit le trafic entre les instances saines de plusieurs zones."
+      ],
+      "points": [
+        "Les Auto Scaling groups ajoutent ou retirent des instances selon la charge.",
+        "Les bases de données vont dans des sous-réseaux privés, jamais ouvertes à 0.0.0.0/0.",
+        "Les security groups sont stateful : on autorise l’entrée, la réponse est autorisée automatiquement.",
+        "Choisissez le calcul le plus simple qui convient : managé ou serverless avant les VM brutes."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Internet → Application Load Balancer (public subnets, 2 zones)\n         → ECS service, 3 tasks (private subnets)\n         → RDS PostgreSQL, Multi-AZ (private subnets)\nSecurity groups: ALB allows 443 from anywhere; tasks allow 8000 from the ALB only;\n                 database allows 5432 from the tasks only."
+      }
+    },
+    {
+      "title": "Stockage, bases de données, supervision et coûts",
+      "minutes": 40,
+      "text": [
+        "S3 stocke des fichiers (des objets) à bas coût et de façon durable : data lakes, sauvegardes, sites statiques. Bloquez l’accès public sauf si c’est vraiment voulu, activez le versioning pour les données importantes et utilisez des règles de cycle de vie pour déplacer les vieux fichiers vers un stockage moins cher. RDS et Aurora sont des bases relationnelles managées avec sauvegardes et bascule ; DynamoDB est une base clé-valeur managée.",
+        "CloudWatch collecte métriques et logs et déclenche des alarmes. Les coûts font partie du métier : définissez budgets et alertes, arrêtez les ressources inutilisées, dimensionnez correctement les instances et surveillez le transfert de données, souvent la surprise de la facture."
+      ],
+      "points": [
+        "S3 Block Public Access activé par défaut ; partagez des fichiers avec des URL pré-signées.",
+        "Bases managées : sauvegardes automatiques, Multi-AZ pour la production.",
+        "Une alarme CloudWatch sur les erreurs et la latence, envoyée au canal d’astreinte.",
+        "AWS Budgets vous alerte avant que la facture ne vous surprenne."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "aws s3 cp report.csv s3://acme-reports-dev/2026/10/\naws s3 presign s3://acme-reports-dev/2026/10/report.csv --expires-in 3600\naws logs tail /ecs/api --follow --since 10m"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Services de base", "items": [
+      ["EC2", "Machines virtuelles"],
+      ["S3", "Stockage d’objets pour les fichiers"],
+      ["RDS / Aurora", "Bases relationnelles managées"],
+      ["Lambda", "Exécuter des fonctions sans serveur"],
+      ["ECS / EKS", "Exécuter des conteneurs / Kubernetes managé"],
+      ["CloudWatch", "Métriques, logs et alarmes"]
+    ]},
+    { "group": "Sécurité", "items": [
+      ["IAM policy", "JSON qui autorise ou refuse des actions"],
+      ["IAM role", "Identité avec identifiants temporaires pour une application"],
+      ["Least privilege", "Uniquement les droits dont un travail a besoin"],
+      ["Security group", "Pare-feu autour d’une ressource"],
+      ["CloudTrail", "Journal de chaque appel d’API"]
+    ]},
+    { "group": "Réseau", "items": [
+      ["Region / availability zone", "Zone géographique / centre de données séparé"],
+      ["VPC", "Votre réseau privé"],
+      ["Public / private subnet", "Avec / sans accès direct à Internet"],
+      ["Load balancer", "Répartit le trafic entre les cibles saines"]
+    ]},
+    { "group": "Équivalences", "items": [
+      ["S3 ≈ Azure Blob ≈ Cloud Storage", "Stockage d’objets"],
+      ["EC2 ≈ Azure VM ≈ Compute Engine", "Machines virtuelles"],
+      ["EKS ≈ AKS ≈ GKE", "Kubernetes managé"],
+      ["Lambda ≈ Azure Functions ≈ Cloud Functions", "Fonctions serverless"]
+    ]}
+  ],
+  "pitfalls": [
+    "Des clés d’accès commitées dans Git : utilisez des rôles et des identifiants temporaires.",
+    "Des buckets S3 publics ou des bases de données ouvertes sur Internet.",
+    "Tout dans une seule zone de disponibilité : une panne vous arrête.",
+    "Des ressources oubliées qui tournent tout le mois : taguez-les et définissez une alerte de budget.",
+    "Utiliser le compte root pour le travail quotidien."
+  ],
+  "exercises": [
+    { "q": "Écrivez une policy IAM qui permet à un rôle de lire (uniquement) les objets sous le préfixe exports/ du bucket acme-data.", "hint": "s3:GetObject sur arn:aws:s3:::bucket/prefixe/*.", "code": "json",
+      "answer": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Action\": \"s3:GetObject\",\n    \"Resource\": \"arn:aws:s3:::acme-data/exports/*\"\n  }]\n}" },
+    { "q": "Votre application web tourne sur une seule instance EC2, avec sa base de données sur la même machine. Proposez une architecture plus fiable.", "hint": "Zones, base managée, load balancer.",
+      "answer": "Mettre l’application sur au moins deux instances ou conteneurs dans deux zones de disponibilité derrière un load balancer, avec auto scaling. Déplacer la base vers RDS en Multi-AZ avec sauvegardes automatiques dans des sous-réseaux privés. Restreindre les security groups (base joignable uniquement depuis l’application) et ajouter des alarmes CloudWatch sur les erreurs et la latence." },
+    { "q": "La facture mensuelle a doublé. Où regardez-vous en premier ?", "hint": "Cost Explorer, tags, suspects habituels.",
+      "answer": "Ouvrir Cost Explorer groupé par service et par tag pour voir ce qui a augmenté et à qui cela appartient. Suspects habituels : instances oubliées ou surdimensionnées, volumes non attachés et vieux snapshots, NAT gateway et transfert de données, logs conservés indéfiniment. Corriger la cause puis ajouter une alerte de budget pour la détecter plus tôt la prochaine fois." }
+  ],
+  "interview": [
+    { "q": "Expliquez le modèle de responsabilité partagée.", "a": "AWS est responsable de la sécurité du cloud : centres de données, matériel, réseau et plateformes des services managés. Le client est responsable de la sécurité dans le cloud : ses données, les droits IAM, les règles réseau, les choix de chiffrement et la configuration de ce qu’il déploie. Un bucket public est l’erreur du client, pas d’AWS." },
+    { "q": "Comment donner à une application l’accès à S3 sans stocker de clés ?", "a": "En attachant un rôle IAM à l’application (un instance profile EC2, un rôle de tâche ECS, un rôle d’exécution Lambda ou OIDC pour un pipeline de CI). Le SDK récupère automatiquement des identifiants temporaires. Le rôle a une policy de moindre privilège limitée au bucket et aux actions nécessaires." },
+    { "q": "Comment rendriez-vous une application hautement disponible sur AWS ?", "a": "La faire tourner dans au moins deux zones de disponibilité derrière un load balancer avec contrôles de santé et auto scaling, utiliser une base managée avec bascule Multi-AZ et sauvegardes, garder l’état hors des instances (S3, base de données, cache), et superviser avec des alarmes. Pour la reprise après sinistre entre régions, répliquer les données et automatiser l’infrastructure avec du code." }
+  ]
+}

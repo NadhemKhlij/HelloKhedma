@@ -56,7 +56,7 @@ Check 1 ((Len $en.ask) -eq (Len $fr.ask)) "ask"
 Check 1 ((Len $en.salary) -eq (Len $fr.salary)) "salary"
 Write-Output ("{0,-22} {1}" -f "interview/common.json", $(if ($script:fileProblems.Count) { "PROBLEMS" } else { "ok" }))
 $script:fileProblems | ForEach-Object { Write-Output $_ }
-foreach ($p in "de", "ba", "as", "da") {
+foreach ($p in "de", "ba", "as", "da", "do") {
   $script:fileProblems = @()
   $en = Load "$Root\content\interview\$p.json"; $fr = Load "$Root\content\interview\fr\$p.json"
   Check 1 ((Len $en.role) -eq (Len $fr.role)) "role count"

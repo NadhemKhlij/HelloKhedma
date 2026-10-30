@@ -51,33 +51,112 @@
         "Every alert has an owner and a runbook link: what to check, how to mitigate.",
         "Review alerts monthly: delete the ones nobody acted on."
       ]
+    },
+    {
+      "title": "Traces, SLOs and error budgets",
+      "minutes": 40,
+      "text": [
+        "Logs tell you what happened, metrics tell you how much, and traces tell you where the time went: a trace follows one request through every service it calls, so you see that the 3 seconds were spent waiting for the payment API, not in your code. OpenTelemetry is the open standard to produce all three.",
+        "A Service Level Objective (SLO) states what 'good enough' means for users, for example 99.5% of checkouts succeed in under a second. The remaining 0.5% is the error budget: while there is budget left, the team ships features; when it is spent, reliability work comes first. Alert on budget burn rate rather than on every spike."
+      ],
+      "points": [
+        "SLI = the measurement (share of fast successful requests); SLO = the target for it.",
+        "Choose SLIs from the user's point of view: availability, latency, correctness.",
+        "Propagate a trace or correlation id in logs to join logs and traces.",
+        "100% is the wrong target: users cannot tell, and it stops all change."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "SLO: 99.5% of checkout requests succeed in under 1 s, over 30 days\nError budget: 0.5% of ~2,000,000 requests = 10,000 bad requests per month\n\n# Prometheus: share of good requests over 30 days\nsum(rate(http_requests_total{route=\"/checkout\",code!~\"5..\"}[30d]))\n  /\nsum(rate(http_requests_total{route=\"/checkout\"}[30d]))",
+        "note": "The error budget turns reliability into a number the product team can plan with."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Investigate", "items": [
-      ["Narrow the time window", "Start just before the first error"],
-      ["Filter service + level", "Reduce noise"],
-      ["Follow request_id", "Trace one request across services"],
-      ["Count over time", "See when it started"]
-    ]},
-    { "group": "Queries", "items": [
-      ["Kibana KQL: level : \"ERROR\"", "Filter a field"],
-      ["Splunk: ... | stats count by host", "Count per host"],
-      ["Splunk: ... | timechart count", "Errors over time"],
-      ["Loki: {app=\"x\"} |= \"timeout\"", "Text filter on a stream"]
-    ]},
-    { "group": "Metrics", "items": [
-      ["RED", "Rate, Errors, Duration (services)"],
-      ["USE", "Utilisation, Saturation, Errors (resources)"],
-      ["P95 / P99 latency", "Experience of the slowest users"],
-      ["rate(x[5m])", "Per-second rate (Prometheus)"]
-    ]},
-    { "group": "Alerting", "items": [
-      ["Symptom-based", "Alert on what users feel"],
-      ["for: 5m", "Ignore short spikes"],
-      ["Runbook link", "What to do when it fires"],
-      ["Page vs ticket", "Urgent vs can wait"]
-    ]}
+    {
+      "group": "Investigate",
+      "items": [
+        [
+          "Narrow the time window",
+          "Start just before the first error"
+        ],
+        [
+          "Filter service + level",
+          "Reduce noise"
+        ],
+        [
+          "Follow request_id",
+          "Trace one request across services"
+        ],
+        [
+          "Count over time",
+          "See when it started"
+        ]
+      ]
+    },
+    {
+      "group": "Queries",
+      "items": [
+        [
+          "Kibana KQL: level : \"ERROR\"",
+          "Filter a field"
+        ],
+        [
+          "Splunk: ... | stats count by host",
+          "Count per host"
+        ],
+        [
+          "Splunk: ... | timechart count",
+          "Errors over time"
+        ],
+        [
+          "Loki: {app=\"x\"} |= \"timeout\"",
+          "Text filter on a stream"
+        ]
+      ]
+    },
+    {
+      "group": "Metrics",
+      "items": [
+        [
+          "RED",
+          "Rate, Errors, Duration (services)"
+        ],
+        [
+          "USE",
+          "Utilisation, Saturation, Errors (resources)"
+        ],
+        [
+          "P95 / P99 latency",
+          "Experience of the slowest users"
+        ],
+        [
+          "rate(x[5m])",
+          "Per-second rate (Prometheus)"
+        ]
+      ]
+    },
+    {
+      "group": "Alerting",
+      "items": [
+        [
+          "Symptom-based",
+          "Alert on what users feel"
+        ],
+        [
+          "for: 5m",
+          "Ignore short spikes"
+        ],
+        [
+          "Runbook link",
+          "What to do when it fires"
+        ],
+        [
+          "Page vs ticket",
+          "Urgent vs can wait"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Reading the last error in the log instead of the first one.",
@@ -86,13 +165,41 @@
     "Average latency dashboards that hide slow requests."
   ],
   "exercises": [
-    { "q": "Users say the site was slow between 10:00 and 10:30. Which metrics do you open first?", "answer": "P95/P99 latency and error rate of the front service for that window, then request rate (traffic spike?), then saturation of dependencies: database latency and connections, CPU and memory." },
-    { "q": "Write a Splunk search counting ERROR lines per service over the last hour.", "code": "text", "answer": "index=app level=ERROR earliest=-1h | stats count by service | sort -count" },
-    { "q": "Turn this into a good alert: 'CPU > 80%'.", "answer": "Alert on the symptom instead: 'P95 latency > 2 s for 10 minutes on search-api' with a runbook link. Keep CPU as a dashboard graph or a low-severity ticket for capacity planning." }
+    {
+      "q": "Users say the site was slow between 10:00 and 10:30. Which metrics do you open first?",
+      "answer": "P95/P99 latency and error rate of the front service for that window, then request rate (traffic spike?), then saturation of dependencies: database latency and connections, CPU and memory."
+    },
+    {
+      "q": "Write a Splunk search counting ERROR lines per service over the last hour.",
+      "code": "text",
+      "answer": "index=app level=ERROR earliest=-1h | stats count by service | sort -count"
+    },
+    {
+      "q": "Turn this into a good alert: 'CPU > 80%'.",
+      "answer": "Alert on the symptom instead: 'P95 latency > 2 s for 10 minutes on search-api' with a runbook link. Keep CPU as a dashboard graph or a low-severity ticket for capacity planning."
+    },
+    {
+      "q": "Your service has a 99.9% monthly availability SLO. How much downtime does that allow in a 30-day month, and what should the team do if 80% of the budget is used in the first week?",
+      "hint": "30 days = 43,200 minutes.",
+      "answer": "0.1% of 43,200 minutes = about 43 minutes of downtime per month. If 80% (about 35 minutes) is gone in the first week, the budget is burning far too fast: freeze risky releases, focus the team on the causes of the outages (post-mortems, fixes, better rollback), and keep only changes that improve reliability until the burn rate is back to normal."
+    }
   ],
   "interview": [
-    { "q": "Logs vs metrics vs traces?", "a": "Metrics are numbers over time that show trends and trigger alerts. Logs record individual events with details to explain what happened. Traces follow one request across services to show where time is spent." },
-    { "q": "How do you investigate an error you have never seen?", "a": "Define the impact and start time, narrow logs to that window and service, find the first error, follow its request id, check recent changes and dependencies, reproduce if possible, and write down findings as you go." },
-    { "q": "What makes a good alert?", "a": "It fires only when a human must act, is based on user-facing symptoms with a duration threshold, has a clear owner and severity, and links to a runbook." }
+    {
+      "q": "Logs vs metrics vs traces?",
+      "a": "Metrics are numbers over time that show trends and trigger alerts. Logs record individual events with details to explain what happened. Traces follow one request across services to show where time is spent."
+    },
+    {
+      "q": "How do you investigate an error you have never seen?",
+      "a": "Define the impact and start time, narrow logs to that window and service, find the first error, follow its request id, check recent changes and dependencies, reproduce if possible, and write down findings as you go."
+    },
+    {
+      "q": "What makes a good alert?",
+      "a": "It fires only when a human must act, is based on user-facing symptoms with a duration threshold, has a clear owner and severity, and links to a runbook."
+    },
+    {
+      "q": "What is an error budget and why is it useful?",
+      "a": "It is the amount of unreliability an SLO allows: with 99.9% availability, 0.1% of requests or time may fail. It aligns product and operations: while budget remains, the team can take risks and ship; when it burns too fast, they slow releases and invest in reliability. Alerting on burn rate also cuts noise compared with alerting on every error spike."
+    }
   ]
 }

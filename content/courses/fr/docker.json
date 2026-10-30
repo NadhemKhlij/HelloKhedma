@@ -56,35 +56,120 @@
         "lang": "yaml",
         "code": "services:\n  db:\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: dev\n    volumes:\n      - db-data:/var/lib/postgresql/data\n  app:\n    build: .\n    env_file: .env\n    environment:\n      DATABASE_URL: postgresql://postgres:dev@db:5432/postgres\n    depends_on:\n      - db\nvolumes:\n  db-data:"
       }
+    },
+    {
+      "title": "Volumes, réseaux et images prêtes pour la production",
+      "minutes": 40,
+      "text": [
+        "Les conteneurs sont jetables : tout ce qui est écrit à l’intérieur disparaît quand le conteneur est supprimé. Les données qui doivent survivre vont dans un volume (géré par Docker) ou un bind mount (un dossier de l’hôte, pratique en développement). Les conteneurs d’un même réseau défini par l’utilisateur se joignent par leur nom.",
+        "Les images de production doivent être petites, sûres et observables. Les builds multi-étapes gardent compilateurs et outils de build hors de l’image finale, un utilisateur non root limite les dégâts, un HEALTHCHECK indique à l’orchestrateur quand l’application est vraiment prête, et l’analyse de l’image repère les vulnérabilités connues."
+      ],
+      "points": [
+        "docker volume ls / inspect ; les volumes nommés survivent à docker compose down (sauf avec -v).",
+        "docker network create app-net, puis --network app-net sur chaque conteneur.",
+        "Analysez les images avec docker scout ou trivy avant de les livrer.",
+        "Écrivez les logs sur stdout et stderr : docker logs et la plateforme les collectent, pas de fichiers de logs dans le conteneur."
+      ],
+      "example": {
+        "lang": "dockerfile",
+        "code": "# Multi-stage build: tools in the first stage, only the result in the final image\nFROM python:3.12 AS build\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip wheel --wheel-dir /wheels -r requirements.txt\n\nFROM python:3.12-slim\nWORKDIR /app\nCOPY --from=build /wheels /wheels\nRUN pip install --no-cache-dir /wheels/* && rm -rf /wheels\nCOPY . .\nUSER 1000\nHEALTHCHECK CMD python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\"\nCMD [\"python\", \"app.py\"]",
+        "note": "L’image finale contient Python, les paquets installés et votre code, rien d’autre."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Exécuter", "items": [
-      ["docker run -d -p 8080:80 --name web nginx", "Démarrer un conteneur en arrière-plan"],
-      ["docker ps / docker ps -a", "Conteneurs actifs / tous les conteneurs"],
-      ["docker logs -f name", "Suivre les logs"],
-      ["docker exec -it name sh", "Ouvrir un shell à l’intérieur"],
-      ["docker stop name / docker rm name", "Arrêter / supprimer"]
-    ]},
-    { "group": "Construire", "items": [
-      ["docker build -t myapp:1.0 .", "Construire une image à partir de ./Dockerfile"],
-      ["docker images", "Lister les images locales"],
-      ["docker push registry/myapp:1.0", "Publier une image"],
-      ["docker system prune", "Nettoyer les données inutilisées (avec prudence)"]
-    ]},
-    { "group": "Dockerfile", "items": [
-      ["FROM python:3.12-slim", "Image de base"],
-      ["COPY requirements.txt . + RUN pip install", "Installer les dépendances avant le code (cache)"],
-      ["ENV KEY=value", "Variable d’environnement par défaut"],
-      ["EXPOSE 8000", "Documenter le port"],
-      ["CMD [\"python\", \"app.py\"]", "Commande de démarrage"]
-    ]},
-    { "group": "Compose", "items": [
-      ["docker compose up -d", "Démarrer tous les services"],
-      ["docker compose down", "Arrêter et supprimer (volumes conservés)"],
-      ["docker compose ps / logs -f svc", "État / logs"],
-      ["docker compose build", "Reconstruire les images"]
-    ]}
+    {
+      "group": "Exécuter",
+      "items": [
+        [
+          "docker run -d -p 8080:80 --name web nginx",
+          "Démarrer un conteneur en arrière-plan"
+        ],
+        [
+          "docker ps / docker ps -a",
+          "Conteneurs actifs / tous les conteneurs"
+        ],
+        [
+          "docker logs -f name",
+          "Suivre les logs"
+        ],
+        [
+          "docker exec -it name sh",
+          "Ouvrir un shell à l’intérieur"
+        ],
+        [
+          "docker stop name / docker rm name",
+          "Arrêter / supprimer"
+        ]
+      ]
+    },
+    {
+      "group": "Construire",
+      "items": [
+        [
+          "docker build -t myapp:1.0 .",
+          "Construire une image à partir de ./Dockerfile"
+        ],
+        [
+          "docker images",
+          "Lister les images locales"
+        ],
+        [
+          "docker push registry/myapp:1.0",
+          "Publier une image"
+        ],
+        [
+          "docker system prune",
+          "Nettoyer les données inutilisées (avec prudence)"
+        ]
+      ]
+    },
+    {
+      "group": "Dockerfile",
+      "items": [
+        [
+          "FROM python:3.12-slim",
+          "Image de base"
+        ],
+        [
+          "COPY requirements.txt . + RUN pip install",
+          "Installer les dépendances avant le code (cache)"
+        ],
+        [
+          "ENV KEY=value",
+          "Variable d’environnement par défaut"
+        ],
+        [
+          "EXPOSE 8000",
+          "Documenter le port"
+        ],
+        [
+          "CMD [\"python\", \"app.py\"]",
+          "Commande de démarrage"
+        ]
+      ]
+    },
+    {
+      "group": "Compose",
+      "items": [
+        [
+          "docker compose up -d",
+          "Démarrer tous les services"
+        ],
+        [
+          "docker compose down",
+          "Arrêter et supprimer (volumes conservés)"
+        ],
+        [
+          "docker compose ps / logs -f svc",
+          "État / logs"
+        ],
+        [
+          "docker compose build",
+          "Reconstruire les images"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Se connecter à localhost d’un conteneur à un autre : utilisez le nom du service.",
@@ -93,15 +178,43 @@
     "Intégrer des mots de passe dans l’image avec COPY .env ou ENV."
   ],
   "exercises": [
-    { "q": "Lancez un serveur Redis en arrière-plan sur le port 6379 et consultez ses logs.",
-      "code": "bash", "answer": "docker run -d --name cache -p 6379:6379 redis:7\ndocker logs cache" },
-    { "q": "Votre conteneur s’arrête immédiatement. Comment en trouver la cause ?", "answer": "docker ps -a pour voir le code de sortie, puis docker logs <name> pour lire l’erreur. Le lancer en mode interactif (docker run -it image sh) permet de tester la commande de démarrage à la main." },
-    { "q": "Écrivez un .dockerignore pour un projet Python.",
-      "code": "text", "answer": ".git\n.venv\n__pycache__\n*.pyc\n.env\ndata/" }
+    {
+      "q": "Lancez un serveur Redis en arrière-plan sur le port 6379 et consultez ses logs.",
+      "code": "bash",
+      "answer": "docker run -d --name cache -p 6379:6379 redis:7\ndocker logs cache"
+    },
+    {
+      "q": "Votre conteneur s’arrête immédiatement. Comment en trouver la cause ?",
+      "answer": "docker ps -a pour voir le code de sortie, puis docker logs <name> pour lire l’erreur. Le lancer en mode interactif (docker run -it image sh) permet de tester la commande de démarrage à la main."
+    },
+    {
+      "q": "Écrivez un .dockerignore pour un projet Python.",
+      "code": "text",
+      "answer": ".git\n.venv\n__pycache__\n*.pyc\n.env\ndata/"
+    },
+    {
+      "q": "Un conteneur a écrit des rapports dans le volume nommé reports. Montrez comment lister les fichiers de ce volume sans démarrer l’application d’origine.",
+      "hint": "Lancez un petit conteneur jetable qui monte le même volume.",
+      "code": "bash",
+      "answer": "docker run --rm -v reports:/data alpine ls -l /data\ndocker volume inspect reports"
+    }
   ],
   "interview": [
-    { "q": "Image ou conteneur ?", "a": "Une image est le modèle immuable (code, dépendances, commande de démarrage). Un conteneur est une instance isolée en cours d’exécution, créée à partir d’une image ; on peut lancer de nombreux conteneurs à partir d’une même image." },
-    { "q": "Docker ou machine virtuelle ?", "a": "Les conteneurs partagent le noyau de l’hôte et n’embarquent que l’application et ses bibliothèques : ils démarrent en quelques secondes et sont légers. Une VM émule une machine complète avec son propre système d’exploitation, ce qui est plus lourd mais mieux isolé." },
-    { "q": "Comment persister des données avec Docker ?", "a": "Avec des volumes (volumes nommés gérés par Docker) ou des bind mounts (un dossier de l’hôte). Le système de fichiers du conteneur est perdu quand le conteneur est supprimé." }
+    {
+      "q": "Image ou conteneur ?",
+      "a": "Une image est le modèle immuable (code, dépendances, commande de démarrage). Un conteneur est une instance isolée en cours d’exécution, créée à partir d’une image ; on peut lancer de nombreux conteneurs à partir d’une même image."
+    },
+    {
+      "q": "Docker ou machine virtuelle ?",
+      "a": "Les conteneurs partagent le noyau de l’hôte et n’embarquent que l’application et ses bibliothèques : ils démarrent en quelques secondes et sont légers. Une VM émule une machine complète avec son propre système d’exploitation, ce qui est plus lourd mais mieux isolé."
+    },
+    {
+      "q": "Comment persister des données avec Docker ?",
+      "a": "Avec des volumes (volumes nommés gérés par Docker) ou des bind mounts (un dossier de l’hôte). Le système de fichiers du conteneur est perdu quand le conteneur est supprimé."
+    },
+    {
+      "q": "Comment rendez-vous une image Docker plus petite et plus sûre ?",
+      "a": "Partir d’une base slim ou distroless, utiliser un build multi-étapes pour laisser les outils de build hors de l’image finale, n’installer que le nécessaire et nettoyer les caches dans la même couche, ajouter un .dockerignore, tourner avec un utilisateur non root, figer les versions, ne jamais intégrer de secrets dans les couches, et analyser l’image dans la CI."
+    }
   ]
 }

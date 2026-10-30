@@ -55,34 +55,116 @@
         "lang": "bash",
         "code": "git switch feature/salary-filter\ngit pull origin main      # conflict in search.py\n# edit search.py, keep the right lines, remove <<<<<<< ======= >>>>>>>\ngit add search.py\ngit commit                # completes the merge"
       }
+    },
+    {
+      "title": "Annuler sans risque : restore, revert, reset et stash",
+      "minutes": 40,
+      "text": [
+        "Tout le monde commite parfois la mauvaise chose. L’important est de choisir une annulation qui ne pénalise pas vos collègues. Sur votre propre travail non poussé, vous pouvez réécrire librement ; sur une branche partagée, vous ajoutez un nouveau commit qui annule l’ancien au lieu de réécrire l’historique.",
+        "git revert crée ce commit d’annulation. git reset fait reculer votre branche et ne sert que pour l’historique local. git stash met de côté un travail inachevé pour changer de branche, et git reflog se souvient d’où pointait votre branche : presque rien n’est jamais vraiment perdu."
+      ],
+      "points": [
+        "Déjà poussé ? Utilisez revert, pas reset.",
+        "git reset --soft HEAD~1 annule le dernier commit mais garde ses changements indexés.",
+        "git reset --hard jette le travail non commité : vérifiez git status avant.",
+        "Le rebase interactif (git rebase -i) nettoie vos propres commits avant d’ouvrir une pull request."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "git restore app.py              # drop local changes to a file\ngit restore --staged app.py     # unstage, keep the changes\ngit commit --amend              # fix the last commit (not pushed yet)\ngit stash push -m \"wip\"         # put work aside\ngit stash pop                   # bring it back\ngit revert 3f2c9ab              # new commit that undoes 3f2c9ab (safe on shared branches)\ngit reflog                      # find a 'lost' commit",
+        "note": "revert est le choix sûr par défaut sur main ; reset et amend sont pour un travail que personne d’autre n’a récupéré."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Au quotidien", "items": [
-      ["git status", "Ce qui a changé"],
-      ["git add <file> / git add -A", "Indexer un fichier / tout"],
-      ["git commit -m \"msg\"", "Enregistrer un instantané"],
-      ["git log --oneline --graph", "Historique compact"],
-      ["git diff / git diff --staged", "Voir les modifications"]
-    ]},
-    { "group": "Branches", "items": [
-      ["git switch -c name", "Créer une branche et s’y placer"],
-      ["git switch main", "Revenir sur main"],
-      ["git branch -d name", "Supprimer une branche mergée"],
-      ["git merge name", "Merger une branche dans la branche courante"]
-    ]},
-    { "group": "Dépôt distant (GitHub)", "items": [
-      ["git clone <url>", "Copier un dépôt"],
-      ["git push -u origin name", "Publier une branche"],
-      ["git pull", "Récupérer et merger les modifications distantes"],
-      ["git remote -v", "Afficher les dépôts distants"]
-    ]},
-    { "group": "Annuler", "items": [
-      ["git restore <file>", "Annuler les modifications locales d’un fichier"],
-      ["git restore --staged <file>", "Retirer un fichier de l’index"],
-      ["git revert <sha>", "Annuler un commit par un nouveau commit"],
-      ["git commit --amend", "Corriger le dernier commit (avant le push)"]
-    ]}
+    {
+      "group": "Au quotidien",
+      "items": [
+        [
+          "git status",
+          "Ce qui a changé"
+        ],
+        [
+          "git add <file> / git add -A",
+          "Indexer un fichier / tout"
+        ],
+        [
+          "git commit -m \"msg\"",
+          "Enregistrer un instantané"
+        ],
+        [
+          "git log --oneline --graph",
+          "Historique compact"
+        ],
+        [
+          "git diff / git diff --staged",
+          "Voir les modifications"
+        ]
+      ]
+    },
+    {
+      "group": "Branches",
+      "items": [
+        [
+          "git switch -c name",
+          "Créer une branche et s’y placer"
+        ],
+        [
+          "git switch main",
+          "Revenir sur main"
+        ],
+        [
+          "git branch -d name",
+          "Supprimer une branche mergée"
+        ],
+        [
+          "git merge name",
+          "Merger une branche dans la branche courante"
+        ]
+      ]
+    },
+    {
+      "group": "Dépôt distant (GitHub)",
+      "items": [
+        [
+          "git clone <url>",
+          "Copier un dépôt"
+        ],
+        [
+          "git push -u origin name",
+          "Publier une branche"
+        ],
+        [
+          "git pull",
+          "Récupérer et merger les modifications distantes"
+        ],
+        [
+          "git remote -v",
+          "Afficher les dépôts distants"
+        ]
+      ]
+    },
+    {
+      "group": "Annuler",
+      "items": [
+        [
+          "git restore <file>",
+          "Annuler les modifications locales d’un fichier"
+        ],
+        [
+          "git restore --staged <file>",
+          "Retirer un fichier de l’index"
+        ],
+        [
+          "git revert <sha>",
+          "Annuler un commit par un nouveau commit"
+        ],
+        [
+          "git commit --amend",
+          "Corriger le dernier commit (avant le push)"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Commiter des mots de passe ou des clés d’API. Même supprimés, ils restent dans l’historique : changez la clé.",
@@ -91,15 +173,43 @@
     "Utiliser git push --force sur une branche partagée."
   ],
   "exercises": [
-    { "q": "Vous avez commité sur main par erreur mais vous n’avez pas encore poussé. Comment déplacer ce commit vers une nouvelle branche ?",
-      "code": "bash", "answer": "git branch my-feature        # new branch points at your commit\ngit reset --hard HEAD~1      # move main back one commit\ngit switch my-feature" },
-    { "q": "Comment savoir quel commit a modifié une ligne donnée d’un fichier ?", "answer": "git blame <file> affiche, pour chaque ligne, le dernier commit et l’auteur qui l’a modifiée. Sur GitHub, le bouton « Blame » fait la même chose." },
-    { "q": "Écrivez un .gitignore pour un projet data en Python.",
-      "code": "text", "answer": ".venv/\n__pycache__/\n*.pyc\n.env\ndata/raw/\n*.csv\n.ipynb_checkpoints/" }
+    {
+      "q": "Vous avez commité sur main par erreur mais vous n’avez pas encore poussé. Comment déplacer ce commit vers une nouvelle branche ?",
+      "code": "bash",
+      "answer": "git branch my-feature        # new branch points at your commit\ngit reset --hard HEAD~1      # move main back one commit\ngit switch my-feature"
+    },
+    {
+      "q": "Comment savoir quel commit a modifié une ligne donnée d’un fichier ?",
+      "answer": "git blame <file> affiche, pour chaque ligne, le dernier commit et l’auteur qui l’a modifiée. Sur GitHub, le bouton « Blame » fait la même chose."
+    },
+    {
+      "q": "Écrivez un .gitignore pour un projet data en Python.",
+      "code": "text",
+      "answer": ".venv/\n__pycache__/\n*.pyc\n.env\ndata/raw/\n*.csv\n.ipynb_checkpoints/"
+    },
+    {
+      "q": "Un commit a1b2c3d poussé sur main il y a une heure a cassé le build. D’autres l’ont déjà récupéré. Annulez-le sans risque.",
+      "hint": "Ne réécrivez pas l’historique partagé.",
+      "code": "bash",
+      "answer": "git revert a1b2c3d\ngit push"
+    }
   ],
   "interview": [
-    { "q": "merge ou rebase ?", "a": "Les deux intègrent les modifications d’une branche dans une autre. merge conserve l’historique tel qu’il s’est déroulé et ajoute un commit de merge ; rebase rejoue vos commits par-dessus l’autre branche pour obtenir un historique linéaire. Ne faites jamais de rebase sur des commits que d’autres utilisent déjà." },
-    { "q": "Comment annuler un commit déjà poussé ?", "a": "Avec git revert <sha> : cela crée un nouveau commit qui inverse la modification, sans réécrire l’historique partagé." },
-    { "q": "Qu’est-ce qu’une bonne pull request ?", "a": "Petite et ciblée, avec un titre clair, une description du quoi et du pourquoi, la manière dont elle a été testée, des captures d’écran pour l’interface, et une CI au vert." }
+    {
+      "q": "merge ou rebase ?",
+      "a": "Les deux intègrent les modifications d’une branche dans une autre. merge conserve l’historique tel qu’il s’est déroulé et ajoute un commit de merge ; rebase rejoue vos commits par-dessus l’autre branche pour obtenir un historique linéaire. Ne faites jamais de rebase sur des commits que d’autres utilisent déjà."
+    },
+    {
+      "q": "Comment annuler un commit déjà poussé ?",
+      "a": "Avec git revert <sha> : cela crée un nouveau commit qui inverse la modification, sans réécrire l’historique partagé."
+    },
+    {
+      "q": "Qu’est-ce qu’une bonne pull request ?",
+      "a": "Petite et ciblée, avec un titre clair, une description du quoi et du pourquoi, la manière dont elle a été testée, des captures d’écran pour l’interface, et une CI au vert."
+    },
+    {
+      "q": "Quelle est la différence entre git revert et git reset ?",
+      "a": "revert ajoute un nouveau commit qui annule les changements d’un commit précédent : l’historique est conservé et c’est sûr sur une branche partagée. reset fait reculer le pointeur de branche et retire des commits de son historique ; c’est acceptable pour un travail local non poussé, mais réécrire un historique poussé oblige les autres à réparer leur copie, donc je l’évite sur les branches partagées."
+    }
   ]
 }

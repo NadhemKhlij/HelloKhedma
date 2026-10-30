@@ -53,34 +53,116 @@
         "lang": "text",
         "code": "5 Whys\n1. Why was search down? The API returned 500 errors.\n2. Why? It could not connect to the database.\n3. Why? The connection pool was exhausted.\n4. Why? A new feature opened connections without closing them.\n5. Why? No load test or code review check covered connection handling.\nActions: fix the leak, add a pool-usage alert, add a load test to CI."
       }
+    },
+    {
+      "title": "Problems, changes and service levels",
+      "minutes": 40,
+      "text": [
+        "Incident management restores service; problem management removes the cause. When the same incident comes back, open a problem, find the root cause, record a workaround in the known error database so the service desk fixes the next occurrence in minutes, and push a permanent fix.",
+        "Most incidents follow a change. Change enablement balances speed and risk: standard changes are pre-approved and routine, normal changes are assessed and approved (sometimes by a Change Advisory Board), emergency changes are fast-tracked and reviewed afterwards. Service level agreements (SLAs) set targets such as response and resolution times per priority; measure them honestly."
+      ],
+      "points": [
+        "Known error = a problem with a documented root cause or workaround.",
+        "A good change has a plan, a test, a rollback and a communication.",
+        "First question in any incident: what changed recently?",
+        "SLA (with the customer), OLA (between internal teams), SLO (the target you measure)."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Change request CHG-2291 (normal change)\nWhat:      upgrade the payments database from PostgreSQL 15 to 16\nWhy:       end of support, performance fixes\nRisk:      medium (rollback tested in staging)\nPlan:      Sat 06:00-07:00, maintenance page on, backup verified before start\nTest:      smoke tests + 3 sample payments\nRollback:  restore snapshot taken at 05:55 (20 min)\nApproval:  CAB 28/10   Communication: users notified 25/10",
+        "note": "If the rollback is not written and tested, the change is not ready."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "ITIL terms", "items": [
-      ["Incident", "Service broken or degraded → restore fast"],
-      ["Problem", "Underlying cause → remove it"],
-      ["Known error", "Problem with a documented workaround"],
-      ["Service request", "Standard ask (access, info)"],
-      ["Change (standard / normal / emergency)", "Controlled modification"]
-    ]},
-    { "group": "Priority", "items": [
-      ["Impact", "How many users / how critical"],
-      ["Urgency", "How fast it becomes damaging"],
-      ["P1", "Critical service down for many users"],
-      ["P4", "Minor issue with a workaround"]
-    ]},
-    { "group": "Metrics", "items": [
-      ["SLA", "Agreed target with the client"],
-      ["OLA", "Internal agreement between teams"],
-      ["MTTD / MTTR", "Mean time to detect / restore"],
-      ["First contact resolution", "Solved without escalation"]
-    ]},
-    { "group": "Status update", "items": [
-      ["Impact", "Who / what is affected since when"],
-      ["Known", "What we know so far"],
-      ["Action", "What we are doing, ETA"],
-      ["Next update", "Time of the next message"]
-    ]}
+    {
+      "group": "ITIL terms",
+      "items": [
+        [
+          "Incident",
+          "Service broken or degraded → restore fast"
+        ],
+        [
+          "Problem",
+          "Underlying cause → remove it"
+        ],
+        [
+          "Known error",
+          "Problem with a documented workaround"
+        ],
+        [
+          "Service request",
+          "Standard ask (access, info)"
+        ],
+        [
+          "Change (standard / normal / emergency)",
+          "Controlled modification"
+        ]
+      ]
+    },
+    {
+      "group": "Priority",
+      "items": [
+        [
+          "Impact",
+          "How many users / how critical"
+        ],
+        [
+          "Urgency",
+          "How fast it becomes damaging"
+        ],
+        [
+          "P1",
+          "Critical service down for many users"
+        ],
+        [
+          "P4",
+          "Minor issue with a workaround"
+        ]
+      ]
+    },
+    {
+      "group": "Metrics",
+      "items": [
+        [
+          "SLA",
+          "Agreed target with the client"
+        ],
+        [
+          "OLA",
+          "Internal agreement between teams"
+        ],
+        [
+          "MTTD / MTTR",
+          "Mean time to detect / restore"
+        ],
+        [
+          "First contact resolution",
+          "Solved without escalation"
+        ]
+      ]
+    },
+    {
+      "group": "Status update",
+      "items": [
+        [
+          "Impact",
+          "Who / what is affected since when"
+        ],
+        [
+          "Known",
+          "What we know so far"
+        ],
+        [
+          "Action",
+          "What we are doing, ETA"
+        ],
+        [
+          "Next update",
+          "Time of the next message"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Investigating root cause for an hour while users are still blocked: restore first.",
@@ -89,13 +171,40 @@
     "Blame in post-mortems, which makes people hide information next time."
   ],
   "exercises": [
-    { "q": "Payroll export fails for one office the day before payday; others work. What priority and why?", "answer": "High (P2, possibly P1 depending on the matrix): impact is limited to one office, but urgency is very high because salaries are due tomorrow. Priority combines both." },
-    { "q": "Write a first status message for a login outage affecting all users since 14:05.", "answer": "[P1] Since 14:05, users cannot log in to the application. The team is investigating; recent changes are being checked. Workaround: none yet. Next update at 14:45." },
-    { "q": "The same disk-full incident happened 4 times this month. What do you do?", "answer": "Open a problem record, find the root cause (log rotation missing, growing table, temp files), apply a permanent fix, add an alert at 80% disk usage, and document the known error and workaround meanwhile." }
+    {
+      "q": "Payroll export fails for one office the day before payday; others work. What priority and why?",
+      "answer": "High (P2, possibly P1 depending on the matrix): impact is limited to one office, but urgency is very high because salaries are due tomorrow. Priority combines both."
+    },
+    {
+      "q": "Write a first status message for a login outage affecting all users since 14:05.",
+      "answer": "[P1] Since 14:05, users cannot log in to the application. The team is investigating; recent changes are being checked. Workaround: none yet. Next update at 14:45."
+    },
+    {
+      "q": "The same disk-full incident happened 4 times this month. What do you do?",
+      "answer": "Open a problem record, find the root cause (log rotation missing, growing table, temp files), apply a permanent fix, add an alert at 80% disk usage, and document the known error and workaround meanwhile."
+    },
+    {
+      "q": "The same 'disk full' incident on the reporting server has been resolved five times this month by deleting old files. What should happen now?",
+      "hint": "Incident versus problem.",
+      "answer": "Stop treating it only as incidents: open a problem record linking the five incidents. Document the workaround as a known error so the next one is fixed quickly, then find the root cause (which process fills the disk, why old files are not purged, whether the disk is too small). Implement a permanent fix through a change, such as a log rotation or retention job and a disk usage alert at 80%, and close the problem once the incidents stop."
+    }
   ],
   "interview": [
-    { "q": "Incident vs problem?", "a": "An incident is an unplanned interruption that we restore as quickly as possible. A problem is the underlying cause of one or more incidents, which we investigate to prevent them from happening again." },
-    { "q": "Tell me how you handled a critical incident.", "a": "Use STAR: the situation and impact, your role, the actions (log, assess, communicate, restore, escalate), and the result with numbers (restored in 40 minutes), then what you improved afterwards." },
-    { "q": "How do you prioritise tickets?", "a": "With an impact × urgency matrix agreed with the business and aligned with SLAs, then by SLA deadline. I re-evaluate when new information changes the impact." }
+    {
+      "q": "Incident vs problem?",
+      "a": "An incident is an unplanned interruption that we restore as quickly as possible. A problem is the underlying cause of one or more incidents, which we investigate to prevent them from happening again."
+    },
+    {
+      "q": "Tell me how you handled a critical incident.",
+      "a": "Use STAR: the situation and impact, your role, the actions (log, assess, communicate, restore, escalate), and the result with numbers (restored in 40 minutes), then what you improved afterwards."
+    },
+    {
+      "q": "How do you prioritise tickets?",
+      "a": "With an impact × urgency matrix agreed with the business and aligned with SLAs, then by SLA deadline. I re-evaluate when new information changes the impact."
+    },
+    {
+      "q": "What is the difference between an SLA, an OLA and an SLO?",
+      "a": "An SLA is the agreement with the customer or the business on service levels, such as a P1 resolved within 4 hours. An OLA is an agreement between internal teams that supports the SLA, for example the database team responds within 30 minutes. An SLO is a measurable target for a service, like 99.9% availability per month, used to track whether we meet our commitments."
+    }
   ]
 }

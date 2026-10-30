@@ -55,29 +55,99 @@
         "lang": "sql",
         "code": "{{ config(materialized='incremental', unique_key='offer_id') }}\n\nselect offer_id, title, company, posted_date\nfrom {{ ref('stg_offers') }}\n{% if is_incremental() %}\nwhere posted_date > (select max(posted_date) from {{ this }})\n{% endif %}"
       }
+    },
+    {
+      "title": "Snapshots, macros and dbt in CI",
+      "minutes": 40,
+      "text": [
+        "Source tables often overwrite values: a customer changes city and the old one is gone. A dbt snapshot records each version of a row with valid-from and valid-to dates, so you can still answer 'where did this customer live when they ordered?'.",
+        "Macros are reusable pieces of SQL written with Jinja, like functions: write a conversion or a filter once and call it in many models. In a team, a CI job runs dbt build on every pull request, only for the models that changed and their children, so broken SQL or failing tests never reach production."
+      ],
+      "points": [
+        "dbt snapshot runs snapshots; schedule it regularly, it only sees changes between runs.",
+        "Packages like dbt_utils add tested macros: list them in packages.yml, then dbt deps.",
+        "dbt build = run + test (+ snapshots and seeds) in dependency order.",
+        "state:modified+ with --defer builds only what changed and reuses production for the rest."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- snapshots/customers_snapshot.sql\n{% snapshot customers_snapshot %}\n{{ config(target_schema='snapshots', unique_key='customer_id',\n          strategy='timestamp', updated_at='updated_at') }}\nselect * from {{ source('crm', 'customers') }}\n{% endsnapshot %}\n\n-- macros/cents_to_euros.sql\n{% macro cents_to_euros(col) %} round({{ col }} / 100.0, 2) {% endmacro %}\n\n-- in a model\nselect order_id, {{ cents_to_euros('amount_cents') }} as amount_eur\nfrom {{ ref('stg_orders') }}",
+        "note": "The macro turns cents into euros the same way in every model."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Commands", "items": [
-      ["dbt run", "Build models"],
-      ["dbt test", "Run tests"],
-      ["dbt build", "Run + test in dependency order"],
-      ["dbt run -s model+", "A model and its children"],
-      ["dbt run -s +model", "A model and its parents"],
-      ["dbt docs generate && dbt docs serve", "Documentation site"]
-    ]},
-    { "group": "In SQL", "items": [
-      ["{{ ref('model') }}", "Depend on another model"],
-      ["{{ source('src', 'table') }}", "Read raw data"],
-      ["{{ config(materialized='table') }}", "Store as a table"],
-      ["{{ this }}", "The current model's relation"],
-      ["{% if is_incremental() %}", "Only on incremental runs"]
-    ]},
-    { "group": "Tests (YAML)", "items": [
-      ["unique / not_null", "Key checks"],
-      ["accepted_values: values: [...]", "Allowed values"],
-      ["relationships: to: ref('x'), field: id", "Foreign key check"]
-    ]}
+    {
+      "group": "Commands",
+      "items": [
+        [
+          "dbt run",
+          "Build models"
+        ],
+        [
+          "dbt test",
+          "Run tests"
+        ],
+        [
+          "dbt build",
+          "Run + test in dependency order"
+        ],
+        [
+          "dbt run -s model+",
+          "A model and its children"
+        ],
+        [
+          "dbt run -s +model",
+          "A model and its parents"
+        ],
+        [
+          "dbt docs generate && dbt docs serve",
+          "Documentation site"
+        ]
+      ]
+    },
+    {
+      "group": "In SQL",
+      "items": [
+        [
+          "{{ ref('model') }}",
+          "Depend on another model"
+        ],
+        [
+          "{{ source('src', 'table') }}",
+          "Read raw data"
+        ],
+        [
+          "{{ config(materialized='table') }}",
+          "Store as a table"
+        ],
+        [
+          "{{ this }}",
+          "The current model's relation"
+        ],
+        [
+          "{% if is_incremental() %}",
+          "Only on incremental runs"
+        ]
+      ]
+    },
+    {
+      "group": "Tests (YAML)",
+      "items": [
+        [
+          "unique / not_null",
+          "Key checks"
+        ],
+        [
+          "accepted_values: values: [...]",
+          "Allowed values"
+        ],
+        [
+          "relationships: to: ref('x'), field: id",
+          "Foreign key check"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Hard-coding schema.table names instead of ref() / source(): dbt cannot order the models.",
@@ -86,15 +156,43 @@
     "No tests on primary keys."
   ],
   "exercises": [
-    { "q": "Write a mart model counting offers per company per month from stg_offers.",
-      "code": "sql", "answer": "select\n    company,\n    date_trunc('month', posted_date) as month,\n    count(*) as offers\nfrom {{ ref('stg_offers') }}\ngroup by 1, 2" },
-    { "q": "Write a singular test that fails if any offer is posted in the future.",
-      "code": "sql", "answer": "-- tests/no_future_offers.sql\nselect * from {{ ref('stg_offers') }}\nwhere posted_date > current_date" },
-    { "q": "Which command builds and tests only the models you changed and their children?", "answer": "With state comparison: dbt build -s state:modified+ --state path/to/prod_artifacts. This is the usual CI setup." }
+    {
+      "q": "Write a mart model counting offers per company per month from stg_offers.",
+      "code": "sql",
+      "answer": "select\n    company,\n    date_trunc('month', posted_date) as month,\n    count(*) as offers\nfrom {{ ref('stg_offers') }}\ngroup by 1, 2"
+    },
+    {
+      "q": "Write a singular test that fails if any offer is posted in the future.",
+      "code": "sql",
+      "answer": "-- tests/no_future_offers.sql\nselect * from {{ ref('stg_offers') }}\nwhere posted_date > current_date"
+    },
+    {
+      "q": "Which command builds and tests only the models you changed and their children?",
+      "answer": "With state comparison: dbt build -s state:modified+ --state path/to/prod_artifacts. This is the usual CI setup."
+    },
+    {
+      "q": "Write the commands a CI job runs to install packages and build and test only the modified models and their children, comparing with production artifacts in ./prod-artifacts.",
+      "hint": "dbt deps, then dbt build with a state selector.",
+      "code": "bash",
+      "answer": "dbt deps\ndbt build --select state:modified+ --defer --state ./prod-artifacts"
+    }
   ],
   "interview": [
-    { "q": "What problem does dbt solve?", "a": "It brings software engineering to SQL transformations: versioned models, dependency management with ref(), automated tests, documentation and lineage, environments, and CI, all inside the warehouse." },
-    { "q": "View, table or incremental?", "a": "View for light models that must always be fresh, table for models queried often or heavy to compute, incremental for very large append-heavy tables where rebuilding everything is too slow or costly." },
-    { "q": "How do you test data quality with dbt?", "a": "Generic tests in YAML (unique, not_null, accepted_values, relationships), singular SQL tests for business rules, packages like dbt_utils or dbt-expectations, run in CI and in production with dbt build." }
+    {
+      "q": "What problem does dbt solve?",
+      "a": "It brings software engineering to SQL transformations: versioned models, dependency management with ref(), automated tests, documentation and lineage, environments, and CI, all inside the warehouse."
+    },
+    {
+      "q": "View, table or incremental?",
+      "a": "View for light models that must always be fresh, table for models queried often or heavy to compute, incremental for very large append-heavy tables where rebuilding everything is too slow or costly."
+    },
+    {
+      "q": "How do you test data quality with dbt?",
+      "a": "Generic tests in YAML (unique, not_null, accepted_values, relationships), singular SQL tests for business rules, packages like dbt_utils or dbt-expectations, run in CI and in production with dbt build."
+    },
+    {
+      "q": "How do you keep the history of a slowly changing source table in dbt?",
+      "a": "With a snapshot: dbt compares the source with the last snapshot using a unique key and either an updated_at timestamp or a check on chosen columns, and stores each version with dbt_valid_from and dbt_valid_to. I schedule it often enough to catch changes and build type 2 dimensions from it."
+    }
   ]
 }

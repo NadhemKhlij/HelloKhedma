@@ -1,0 +1,123 @@
+{
+  "why": "L’Infrastructure as Code est la façon dont les équipes créent aujourd’hui leurs ressources cloud : relues, reproductibles et versionnées dans Git. Terraform est l’outil d’IaC le plus demandé dans les offres DevOps et cloud.",
+  "outcome": "écrire une configuration Terraform pour des ressources cloud, utiliser variables et outputs, lire un plan avant de l’appliquer, stocker l’état à distance et en sécurité, et réutiliser du code avec des modules.",
+  "lessons": [
+    {
+      "title": "L’Infrastructure as Code et le cycle Terraform",
+      "minutes": 35,
+      "text": [
+        "Cliquer dans une console cloud est rapide une fois, mais impossible à reproduire ou à relire. Avec l’Infrastructure as Code, vous décrivez serveurs, réseaux et bases de données dans des fichiers, vous les faites relire dans une pull request et vous recréez le même environnement n’importe où.",
+        "Terraform lit des fichiers .tf écrits en HCL, les compare à l’existant et affiche un plan : ce qu’il va créer, modifier ou détruire. Vous n’appliquez le plan qu’après l’avoir lu."
+      ],
+      "points": [
+        "terraform init télécharge les providers (AWS, Azure, Google, GitHub…).",
+        "terraform plan montre les changements ; apply les effectue ; destroy supprime tout.",
+        "Un provider dialogue avec une API ; une resource est un élément à gérer (un bucket, une VM).",
+        "OpenTofu est un fork open source avec le même langage et le même fonctionnement."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "terraform {\n  required_providers {\n    aws = { source = \"hashicorp/aws\", version = \"~> 5.0\" }\n  }\n}\n\nprovider \"aws\" {\n  region = \"eu-west-3\"\n}\n\nresource \"aws_s3_bucket\" \"reports\" {\n  bucket = \"acme-reports-dev\"\n  tags   = { team = \"data\", env = \"dev\" }\n}",
+        "note": "Ensuite : terraform init, terraform plan, terraform apply."
+      }
+    },
+    {
+      "title": "Variables, outputs et data sources",
+      "minutes": 40,
+      "text": [
+        "Des valeurs écrites en dur rendent le code impossible à réutiliser. Les variables sont les entrées (nom d’environnement, taille d’instance), les outputs sont les valeurs à lire ensuite (une adresse IP, une URL), et les locals donnent un nom à des valeurs calculées dans le code.",
+        "Les data sources lisent des éléments qui existent déjà sans les gérer, par exemple la dernière image Ubuntu ou un réseau existant."
+      ],
+      "points": [
+        "Donnez aux variables un type, une description et une valeur par défaut quand c’est pertinent.",
+        "Définissez les valeurs dans un fichier .tfvars par environnement (dev.tfvars, prod.tfvars).",
+        "Marquez les secrets avec sensitive = true pour les masquer dans la sortie.",
+        "Référencez d’autres ressources : aws_s3_bucket.reports.arn crée automatiquement la dépendance."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "variable \"env\" {\n  type        = string\n  description = \"dev, staging or prod\"\n}\n\nlocals {\n  name = \"acme-reports-${var.env}\"\n}\n\nresource \"aws_s3_bucket\" \"reports\" {\n  bucket = local.name\n}\n\noutput \"bucket_arn\" {\n  value = aws_s3_bucket.reports.arn\n}",
+        "note": "terraform apply -var-file=dev.tfvars"
+      }
+    },
+    {
+      "title": "L’état : ce que Terraform mémorise",
+      "minutes": 40,
+      "text": [
+        "Terraform conserve un fichier d’état (state) qui relie votre code aux ressources réelles (ce bloc resource = ce bucket précis). Sans lui, Terraform ne saurait pas ce qu’il a créé. Perdez-le, ou laissez deux personnes le modifier en même temps, et vous obtenez des doublons ou une infrastructure cassée.",
+        "En équipe, stockez l’état à distance (un bucket S3 avec verrouillage, Azure Storage, Terraform Cloud) pour que tout le monde et le pipeline de CI le partagent, avec un verrou qui empêche deux apply simultanés. L’état peut contenir des secrets : chiffrez-le et limitez son accès."
+      ],
+      "points": [
+        "Ne modifiez jamais le fichier d’état à la main ; utilisez terraform state mv / rm / import si besoin.",
+        "Ne commitez jamais terraform.tfstate dans Git.",
+        "La dérive (drift), c’est quand quelqu’un a modifié une ressource à la main ; terraform plan la révèle.",
+        "terraform import fait passer une ressource existante sous la gestion de Terraform."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "terraform {\n  backend \"s3\" {\n    bucket       = \"acme-terraform-state\"\n    key          = \"reports/dev.tfstate\"\n    region       = \"eu-west-3\"\n    encrypt      = true\n    use_lockfile = true\n  }\n}"
+      }
+    },
+    {
+      "title": "Modules et Terraform dans la CI",
+      "minutes": 45,
+      "text": [
+        "Un module est un dossier de code Terraform avec des entrées et des sorties, utilisé comme une fonction : écrivez un module « service web » une fois, appelez-le pour chaque équipe ou environnement avec d’autres variables. Des modules publics existent pour les besoins courants (un VPC, un cluster Kubernetes).",
+        "En équipe, personne ne lance apply depuis son ordinateur. Le pipeline lance fmt, validate et plan à chaque pull request et publie le plan pour relecture ; après la fusion, il applique le plan validé avec ses propres identifiants."
+      ],
+      "points": [
+        "terraform fmt formate le code ; terraform validate le vérifie.",
+        "Figez les versions des providers et des modules pour éviter les surprises d’une nouvelle version.",
+        "Un état par environnement et par composant limite l’étendue des dégâts.",
+        "Les analyseurs de règles et de sécurité (tflint, checkov) repèrent un bucket ouvert avant qu’il n’existe."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "module \"reports_dev\" {\n  source = \"./modules/bucket\"\n  env    = \"dev\"\n}\n\nmodule \"reports_prod\" {\n  source     = \"./modules/bucket\"\n  env        = \"prod\"\n  versioning = true\n}"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Cycle de travail", "items": [
+      ["terraform init", "Télécharger les providers, configurer le backend"],
+      ["terraform fmt / validate", "Formater / vérifier le code"],
+      ["terraform plan", "Voir ce qui va changer"],
+      ["terraform apply", "Effectuer les changements"],
+      ["terraform destroy", "Supprimer tout ce que décrit cette configuration"]
+    ]},
+    { "group": "Langage", "items": [
+      ["resource \"type\" \"name\" { }", "Un élément créé et géré par Terraform"],
+      ["data \"type\" \"name\" { }", "Lire un élément qui existe déjà"],
+      ["variable \"env\" { }", "Une entrée"],
+      ["output \"url\" { }", "Une valeur à lire après apply"],
+      ["locals { }", "Des valeurs calculées nommées"],
+      ["module \"x\" { source = ... }", "Réutiliser un dossier de code Terraform"]
+    ]},
+    { "group": "État", "items": [
+      ["backend \"s3\" { }", "Stocker l’état à distance avec verrouillage"],
+      ["terraform state list", "Ressources suivies par Terraform"],
+      ["terraform import addr id", "Adopter une ressource existante"],
+      ["terraform state mv a b", "Renommer une ressource sans la recréer"]
+    ]}
+  ],
+  "pitfalls": [
+    "Appliquer sans lire le plan : un renommage peut signifier destruction puis recréation.",
+    "Commiter terraform.tfstate ou des secrets dans Git.",
+    "Un état local en équipe : deux personnes appliquent en même temps et cassent tout.",
+    "Modifier des ressources à la main dans la console : le prochain apply annule ou entre en conflit.",
+    "Des versions de providers non figées : une nouvelle version majeure change le comportement du jour au lendemain."
+  ],
+  "exercises": [
+    { "q": "Écrivez une variable instance_type avec t3.micro par défaut, et un output qui affiche l’IP publique de aws_instance.web.", "hint": "Bloc variable avec type et default ; bloc output avec value.", "code": "hcl",
+      "answer": "variable \"instance_type\" {\n  type    = string\n  default = \"t3.micro\"\n}\n\noutput \"web_ip\" {\n  value = aws_instance.web.public_ip\n}" },
+    { "q": "terraform plan affiche « 1 to destroy, 1 to add » pour votre base de données après que vous avez renommé son bloc resource. Que s’est-il passé et comment éviter de perdre les données ?", "hint": "Terraform suit les ressources par leur adresse.",
+      "answer": "Terraform suit les ressources par leur adresse dans le code. Renommer le bloc a changé l’adresse : Terraform croit que l’ancienne doit disparaître et qu’une nouvelle doit être créée. Utilisez un bloc moved (moved { from = aws_db_instance.old to = aws_db_instance.new }) ou terraform state mv avant d’appliquer, puis vérifiez que le plan n’affiche plus de destruction." },
+    { "q": "Votre équipe lance Terraform depuis ses ordinateurs avec un état local. Proposez une organisation plus sûre en trois points.", "hint": "État, verrou, pipeline.",
+      "answer": "1) Déplacer l’état vers un backend distant chiffré avec verrouillage. 2) Lancer plan à chaque pull request dans la CI et n’appliquer que depuis le pipeline après relecture, avec des identifiants dédiés. 3) Séparer l’état par environnement, figer les versions et ajouter fmt, validate et un analyseur de sécurité au pipeline." }
+  ],
+  "interview": [
+    { "q": "Qu’est-ce que l’état Terraform et pourquoi est-il important ?", "a": "L’état relie les ressources du code aux ressources réelles dans le cloud, avec leurs identifiants et attributs. Terraform s’en sert pour calculer le plan. Il doit être partagé, verrouillé et protégé : stocké dans un backend distant avec verrouillage et chiffrement, jamais modifié à la main ni commité, car il peut contenir des secrets." },
+    { "q": "Comment gérez-vous plusieurs environnements avec Terraform ?", "a": "Je réutilise les mêmes modules avec des variables différentes et je garde un état séparé par environnement, par exemple un dossier ou un workspace par environnement avec ses propres tfvars. La production a des réglages plus stricts et une étape de validation dans le pipeline." },
+    { "q": "Qu’est-ce que la dérive de configuration et comment la détectez-vous ?", "a": "La dérive, c’est quand l’infrastructure réelle ne correspond plus au code, généralement après une modification manuelle. terraform plan la montre comme un changement inattendu. Je lance des plans planifiés dans la CI pour la détecter, puis soit j’intègre le changement dans le code, soit je laisse Terraform l’annuler, et je limite les droits d’écriture dans la console." }
+  ]
+}

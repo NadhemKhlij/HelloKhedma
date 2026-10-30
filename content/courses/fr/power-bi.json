@@ -66,31 +66,107 @@
         "Les info-bulles et l’extraction (drill-through) ajoutent du détail sans surcharger.",
         "Publiez sur le service Power BI, planifiez une actualisation et partagez via une application ou un espace de travail."
       ]
+    },
+    {
+      "title": "Publier, actualiser et sécuriser les rapports",
+      "minutes": 40,
+      "text": [
+        "Un rapport n’aide que lorsque les gens peuvent l’ouvrir avec des données à jour. Publiez depuis Power BI Desktop vers un espace de travail du service Power BI, programmez une actualisation (avec une passerelle si les données sont sur site), et partagez-le via une application pour que les lecteurs aient une version propre et stable.",
+        "La sécurité au niveau des lignes (RLS) filtre les données que chacun peut voir : un responsable régional ne voit que sa région dans le même rapport. Définissez des rôles avec des filtres DAX dans Desktop, affectez des personnes ou des groupes à ces rôles dans le service, et testez avec « Afficher en tant que »."
+      ],
+      "points": [
+        "Les espaces de travail sont pour ceux qui construisent ; les applications pour ceux qui consultent.",
+        "Une actualisation programmée qui échoue reste invisible pour les lecteurs : configurez les notifications d’échec.",
+        "USERPRINCIPALNAME() renvoie l’e-mail de l’utilisateur connecté pour une RLS dynamique.",
+        "Gardez un seul jeu de données certifié (modèle sémantique) réutilisé par de nombreux rapports plutôt que des copies."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "-- Row-level security role \"Region managers\" on table dim_store:\n[region] = LOOKUPVALUE(\n    dim_manager[region],\n    dim_manager[email], USERPRINCIPALNAME()\n)",
+        "note": "RLS dynamique : un seul rôle, la région vient d’une table de correspondance des responsables."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Power Query", "items": [
-      ["Change type", "Définir d’abord les bons types de données"],
-      ["Unpivot columns", "Colonnes → lignes (dépivoter)"],
-      ["Merge queries", "Joindre deux tables"],
-      ["Append queries", "Empiler des tables"],
-      ["Group by", "Agréger avant le chargement"]
-    ]},
-    { "group": "Modélisation", "items": [
-      ["1 → * relationship", "La dimension filtre les faits"],
-      ["Mark as date table", "Active la time intelligence"],
-      ["Hide in report view", "Garder les clés hors de vue"],
-      ["Measure vs calculated column", "Calcul à la requête vs au niveau ligne, stocké"]
-    ]},
-    { "group": "DAX", "items": [
-      ["SUM / AVERAGE / DISTINCTCOUNT", "Agrégations de base"],
-      ["DIVIDE(a, b)", "Division sécurisée"],
-      ["CALCULATE(m, filter)", "Modifier le contexte de filtre"],
-      ["ALL(table)", "Supprimer les filtres (ex. : % du total)"],
-      ["TOTALYTD(m, Dim_Date[Date])", "Cumul depuis le début de l’année"],
-      ["SAMEPERIODLASTYEAR(Dim_Date[Date])", "Même période l’année précédente"],
-      ["VAR x = ... RETURN ...", "Mesures lisibles"]
-    ]}
+    {
+      "group": "Power Query",
+      "items": [
+        [
+          "Change type",
+          "Définir d’abord les bons types de données"
+        ],
+        [
+          "Unpivot columns",
+          "Colonnes → lignes (dépivoter)"
+        ],
+        [
+          "Merge queries",
+          "Joindre deux tables"
+        ],
+        [
+          "Append queries",
+          "Empiler des tables"
+        ],
+        [
+          "Group by",
+          "Agréger avant le chargement"
+        ]
+      ]
+    },
+    {
+      "group": "Modélisation",
+      "items": [
+        [
+          "1 → * relationship",
+          "La dimension filtre les faits"
+        ],
+        [
+          "Mark as date table",
+          "Active la time intelligence"
+        ],
+        [
+          "Hide in report view",
+          "Garder les clés hors de vue"
+        ],
+        [
+          "Measure vs calculated column",
+          "Calcul à la requête vs au niveau ligne, stocké"
+        ]
+      ]
+    },
+    {
+      "group": "DAX",
+      "items": [
+        [
+          "SUM / AVERAGE / DISTINCTCOUNT",
+          "Agrégations de base"
+        ],
+        [
+          "DIVIDE(a, b)",
+          "Division sécurisée"
+        ],
+        [
+          "CALCULATE(m, filter)",
+          "Modifier le contexte de filtre"
+        ],
+        [
+          "ALL(table)",
+          "Supprimer les filtres (ex. : % du total)"
+        ],
+        [
+          "TOTALYTD(m, Dim_Date[Date])",
+          "Cumul depuis le début de l’année"
+        ],
+        [
+          "SAMEPERIODLASTYEAR(Dim_Date[Date])",
+          "Même période l’année précédente"
+        ],
+        [
+          "VAR x = ... RETURN ...",
+          "Mesures lisibles"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Une grande table plate au lieu d’un schéma en étoile : lenteur et totaux faux.",
@@ -99,15 +175,43 @@
     "Des relations bidirectionnelles partout, qui produisent des résultats ambigus."
   ],
   "exercises": [
-    { "q": "Écrivez une mesure donnant la part de chaque catégorie dans les ventes totales (pourcentage du total général).",
-      "code": "dax", "answer": "% of Total =\nDIVIDE ( [Total Sales], CALCULATE ( [Total Sales], ALL ( Dim_Product[Category] ) ) )" },
-    { "q": "Écrivez une mesure qui compte les clients distincts ayant acheté sur la période sélectionnée.",
-      "code": "dax", "answer": "Active Customers = DISTINCTCOUNT ( Fact_Sales[CustomerID] )" },
-    { "q": "Les données de ventes ont une colonne par mois. Que faites-vous dans Power Query ?", "answer": "Sélectionnez les colonnes d’identifiant, puis « Supprimer le tableau croisé dynamique des autres colonnes » (Unpivot Other Columns) : vous obtenez une ligne par mois avec Attribut (le mois) et Valeur (les ventes), puis définissez les types et renommez." }
+    {
+      "q": "Écrivez une mesure donnant la part de chaque catégorie dans les ventes totales (pourcentage du total général).",
+      "code": "dax",
+      "answer": "% of Total =\nDIVIDE ( [Total Sales], CALCULATE ( [Total Sales], ALL ( Dim_Product[Category] ) ) )"
+    },
+    {
+      "q": "Écrivez une mesure qui compte les clients distincts ayant acheté sur la période sélectionnée.",
+      "code": "dax",
+      "answer": "Active Customers = DISTINCTCOUNT ( Fact_Sales[CustomerID] )"
+    },
+    {
+      "q": "Les données de ventes ont une colonne par mois. Que faites-vous dans Power Query ?",
+      "answer": "Sélectionnez les colonnes d’identifiant, puis « Supprimer le tableau croisé dynamique des autres colonnes » (Unpivot Other Columns) : vous obtenez une ligne par mois avec Attribut (le mois) et Valeur (les ventes), puis définissez les types et renommez."
+    },
+    {
+      "q": "Écrivez le filtre DAX d’un rôle RLS statique sur dim_store qui n’affiche que les magasins français (colonne country).",
+      "hint": "Un filtre de rôle est une expression DAX qui renvoie vrai pour les lignes autorisées.",
+      "code": "dax",
+      "answer": "[country] = \"France\""
+    }
   ],
   "interview": [
-    { "q": "Colonne calculée ou mesure ?", "a": "Une colonne calculée est calculée ligne par ligne à l’actualisation et stockée dans le modèle ; elle ne réagit pas aux segments. Une mesure est calculée au moment de la requête dans le contexte de filtre courant : c’est ce qu’on utilise pour les agrégations dans les visuels." },
-    { "q": "Que fait CALCULATE ?", "a": "Elle évalue une expression dans un contexte de filtre modifié : elle peut ajouter, remplacer ou supprimer des filtres. C’est la base de la plupart des mesures avancées, comme l’évolution d’une année sur l’autre ou le pourcentage du total." },
-    { "q": "Comment accélérer un rapport lent ?", "a": "Supprimez les colonnes et les lignes inutiles, utilisez un schéma en étoile, préférez les mesures aux colonnes calculées, évitez les relations bidirectionnelles, réduisez le nombre de visuels par page et vérifiez avec l’Analyseur de performances (Performance Analyzer)." }
+    {
+      "q": "Colonne calculée ou mesure ?",
+      "a": "Une colonne calculée est calculée ligne par ligne à l’actualisation et stockée dans le modèle ; elle ne réagit pas aux segments. Une mesure est calculée au moment de la requête dans le contexte de filtre courant : c’est ce qu’on utilise pour les agrégations dans les visuels."
+    },
+    {
+      "q": "Que fait CALCULATE ?",
+      "a": "Elle évalue une expression dans un contexte de filtre modifié : elle peut ajouter, remplacer ou supprimer des filtres. C’est la base de la plupart des mesures avancées, comme l’évolution d’une année sur l’autre ou le pourcentage du total."
+    },
+    {
+      "q": "Comment accélérer un rapport lent ?",
+      "a": "Supprimez les colonnes et les lignes inutiles, utilisez un schéma en étoile, préférez les mesures aux colonnes calculées, évitez les relations bidirectionnelles, réduisez le nombre de visuels par page et vérifiez avec l’Analyseur de performances (Performance Analyzer)."
+    },
+    {
+      "q": "Comment garantir que chaque responsable ne voit que sa région dans un rapport partagé ?",
+      "a": "Avec la sécurité au niveau des lignes : un rôle dont le filtre DAX sur la table des régions utilise USERPRINCIPALNAME() et une table de correspondance responsables-régions, pour qu’un seul rôle serve tout le monde. Je publie le modèle sémantique, j’affecte le rôle à un groupe dans le service, je teste avec « Afficher en tant que » pour quelques utilisateurs, et je vérifie que les relations propagent le filtre jusqu’aux tables de faits."
+    }
   ]
 }

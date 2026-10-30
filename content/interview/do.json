@@ -1,0 +1,52 @@
+{
+  "role": [
+    {
+      "id": "do-1",
+      "q": "A deployment just broke production. Walk me through what you do.",
+      "why": "The core DevOps scenario: calm, order, communication.",
+      "model": "Confirm the impact with monitoring and declare an incident with a clear owner. Since a change just went out, roll back first to restore service, then confirm metrics are back to normal. Communicate the impact and next update time. Afterwards, find the root cause on the failed version, add a test or a pipeline check that would have caught it, and write a blameless post-mortem with actions."
+    },
+    {
+      "id": "do-2",
+      "q": "How would you design a CI/CD pipeline for a new web service?",
+      "why": "Shows you think in stages, safety and speed.",
+      "model": "On every pull request: lint, unit tests and a security scan in a few minutes, then build one versioned image. On merge to main: push the image to a registry tagged with the commit, deploy it to staging, run smoke and integration tests, then promote the same image to production with an approval or automatically, using a rolling or canary strategy. Secrets come from the secret store, and a one-step rollback redeploys the previous image."
+    },
+    {
+      "id": "do-3",
+      "q": "What does 'Infrastructure as Code' bring compared with configuring servers by hand?",
+      "why": "Checks you understand the why, not only the tool.",
+      "model": "Infrastructure becomes reviewable, versioned and repeatable: changes go through pull requests, the history shows who changed what, and the same code recreates an environment for testing or disaster recovery. It reduces drift and manual errors and documents the setup. The main care points are state management, secrets and running applies from a pipeline rather than laptops."
+    },
+    {
+      "id": "do-4",
+      "q": "A pod keeps restarting in Kubernetes. How do you investigate?",
+      "why": "Hands-on troubleshooting.",
+      "model": "kubectl get pods to see the status and restart count, kubectl describe pod for events and the last exit code, and kubectl logs --previous for the crashed container's output. Common causes: a missing environment variable or secret, a wrong command, a dependency that is unreachable, an OOMKill because the memory limit is too low, or a liveness probe that is too strict. I fix the configuration in Git and redeploy rather than patching live."
+    },
+    {
+      "id": "do-5",
+      "q": "How do you manage secrets across environments?",
+      "why": "Security is part of every DevOps role.",
+      "model": "Never in code, images or Git. I keep them in a secret manager (Vault, AWS Secrets Manager, Azure Key Vault) or the CI secret store, inject them at runtime, give each workload only the secrets it needs through roles, prefer short-lived credentials such as OIDC for pipelines, rotate them regularly and audit access. Kubernetes Secrets are synced from the manager and access to them is restricted."
+    },
+    {
+      "id": "do-6",
+      "q": "What would you monitor for a customer-facing API, and how would you alert?",
+      "why": "Observability and alert quality.",
+      "model": "The four golden signals: traffic, errors, latency (percentiles, not only the average) and saturation of resources, plus business checks such as successful payments. I define SLOs from the user's point of view and alert on symptoms and error-budget burn rate rather than every CPU spike, with each alert linked to a runbook and routed to the on-call person. Logs and traces with a correlation id make the diagnosis fast."
+    },
+    {
+      "id": "do-7",
+      "q": "How do you reduce cloud costs without hurting reliability?",
+      "why": "Cost awareness is increasingly expected.",
+      "model": "First make costs visible: tags per team and project, budgets and alerts. Then remove waste: unused resources, oversized instances, old snapshots and logs kept forever. Use auto scaling and schedules for non-production environments, savings plans or reserved capacity for the steady base, and spot instances for interruptible work. Check data transfer and NAT costs, and track the trend in a monthly review with the teams."
+    },
+    {
+      "id": "do-8",
+      "q": "Tell me about something you automated and the impact it had.",
+      "why": "They want proof you remove toil.",
+      "model": "Use a STAR story with numbers: the repetitive task (for example a manual release checklist taking two hours each week), what you built (a pipeline or script, tested and documented), how you rolled it out to the team, and the result (time saved, fewer errors, faster releases). Mention what you learned and what you would improve next."
+    }
+  ]
+}

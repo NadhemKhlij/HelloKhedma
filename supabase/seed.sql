@@ -27,7 +27,9 @@ insert into public.career_paths (id, name, blurb, color, job_titles, sort_order)
  ('as','Application Support','Incidents, monitoring, run','#f08a24',
    array['Application Support Analyst','Support Applicatif','L2 Support Engineer','Production Support Engineer'],3),
  ('da','Data Analyst','Insights, dashboards, storytelling','#e0508b',
-   array['Data Analyst','Analyste de Données','BI Analyst','Reporting Analyst'],4)
+   array['Data Analyst','Analyste de Données','BI Analyst','Reporting Analyst'],4),
+ ('do','DevOps Engineer','CI/CD, containers, cloud, automation','#3b82f6',
+   array['DevOps Engineer','Ingénieur DevOps','Site Reliability Engineer','Platform Engineer','Cloud Engineer'],5)
 on conflict (id) do update set
   name = excluded.name, blurb = excluded.blurb, color = excluded.color,
   job_titles = excluded.job_titles, sort_order = excluded.sort_order;
@@ -75,6 +77,17 @@ select pg_temp.seed('da','tip','[
  "Lead with the insight, then the method; recruiters skim.",
  "Practise explaining a metric definition out loud: it is a classic interview test."]'::jsonb);
 select pg_temp.seed('da','keyword','["SQL","Excel","Power BI","Tableau","Python","Pandas","A/B testing","Statistics","Data storytelling","KPI","Looker Studio","Data cleaning"]'::jsonb);
+
+-- DevOps Engineer ------------------------------------------------------------------------
+select pg_temp.seed('do','tool','[
+ ["GitHub Actions / GitLab CI","Build, test and deploy pipelines"],["Docker","Package apps as images"],
+ ["Kubernetes + Helm","Run containers at scale"],["Terraform","Infrastructure as Code"],
+ ["Prometheus + Grafana","Metrics, dashboards and alerts"]]'::jsonb);
+select pg_temp.seed('do','tip','[
+ "Build one project end to end: a small API in Docker, a CI/CD pipeline, infrastructure in Terraform and a dashboard. Link it on your CV.",
+ "Talk about incidents you handled and what you automated afterwards; DevOps interviews test judgement as much as tools.",
+ "Quantify your impact: deployment time cut, releases per week, incidents avoided, cloud costs saved."]'::jsonb);
+select pg_temp.seed('do','keyword','["CI/CD","Docker","Kubernetes","Terraform","AWS","Azure","GCP","Linux","Bash","Python","Git","Ansible","Helm","Prometheus","Grafana","Monitoring"]'::jsonb);
 
 -- =====================================================================================
 -- Learning tracks. Step = [title, description, kind, provider, url, est_hours, is_free?]
@@ -201,6 +214,32 @@ select pg_temp.track('da','da-advanced','Portfolio and certification','advanced'
  ["Microsoft Power BI Data Analyst (PL-300)","Recognised if you chose Power BI.","certification","Microsoft Learn","https://learn.microsoft.com/credentials/certifications/data-analyst-associate/",30,false],
  ["Practice: SQL and metric definition drills","Define conversion, retention and churn out loud, then write the SQL for each.","practice","Your notes","",4]]'::jsonb);
 
+-- DevOps Engineer -----------------------------------------------------------------------------
+select pg_temp.track('do','do-foundations','Linux, Git, networking and scripting','beginner',
+ 'The everyday base of every DevOps and cloud role.',
+ 'Work comfortably on a Linux server, version everything with Git, understand how requests travel and automate small tasks.',1,'[
+ ["Linux Journey","Beginner-friendly Linux lessons.","learn","linuxjourney.com","https://linuxjourney.com",8],
+ ["OverTheWire: Bandit","Learn the shell by solving small challenges.","practice","OverTheWire","https://overthewire.org/wargames/bandit/",6],
+ ["Pro Git book","Chapters 1 to 3: basics and branching.","learn","git-scm.com","https://git-scm.com/book/en/v2",5],
+ ["Learn Git Branching","Interactive exercises on branches, merges and rebases.","practice","learngitbranching.js.org","https://learngitbranching.js.org",3],
+ ["Cloudflare Learning Center","How DNS, HTTP, TLS, load balancing and CDNs work.","learn","Cloudflare","https://www.cloudflare.com/learning/",4]]'::jsonb);
+select pg_temp.track('do','do-delivery','Containers, CI/CD and Kubernetes','intermediate',
+ 'Ship applications the way modern teams do: in containers, through a pipeline, onto a cluster.',
+ 'Containerise an app, build and test it in a pipeline and deploy it to Kubernetes.',2,'[
+ ["Docker: get started","Images, containers, volumes and Compose.","learn","Docker docs","https://docs.docker.com/get-started/",6],
+ ["GitHub Actions documentation","Workflows, jobs, secrets and environments.","learn","GitHub Docs","https://docs.github.com/en/actions",4],
+ ["Kubernetes basics","Deploy, expose, scale and update an app on a cluster.","learn","Kubernetes docs","https://kubernetes.io/docs/tutorials/kubernetes-basics/",6],
+ ["Project: ship a containerised API","Dockerise a small API, add a pipeline that tests and builds the image, and deploy it to a local kind cluster.","project","Your repo","",12]]'::jsonb);
+select pg_temp.track('do','do-cloud','Cloud, Infrastructure as Code and reliability','advanced',
+ 'Run real infrastructure from code and keep it healthy.',
+ 'Create cloud infrastructure with Terraform from a pipeline, monitor it with SLOs and hold a recognised certification.',3,'[
+ ["Terraform tutorials","Get started with Terraform on AWS, Azure or Google Cloud.","learn","HashiCorp","https://developer.hashicorp.com/terraform/tutorials",8],
+ ["AWS Skill Builder","Free cloud fundamentals courses, including Cloud Practitioner Essentials.","learn","AWS","https://skillbuilder.aws",10],
+ ["Prometheus: first steps","Metrics, targets and queries.","learn","Prometheus","https://prometheus.io/docs/introduction/first_steps/",2],
+ ["SRE book: service level objectives","Define SLIs, SLOs and error budgets.","learn","Google SRE","https://sre.google/sre-book/service-level-objectives/",1.5],
+ ["Project: infrastructure as code","Create the cloud resources of your API with Terraform from a pipeline, with remote state, a dashboard and one alert.","project","Your repo","",15],
+ ["AWS Certified Cloud Practitioner or CKA","Pick one: cloud fundamentals (AWS) or Kubernetes administration (CNCF). Check current exam details.","certification","AWS / CNCF","https://aws.amazon.com/certification/",25,false]]'::jsonb);
+
 -- =====================================================================================
 -- French texts (shown when the interface is French). Needs migration 20261029000200_content_fr.sql.
 -- Rows are matched on their English title (the id key): when you rename an English title, update it here too.
@@ -213,7 +252,8 @@ from (values
   ('de', 'Data Engineer', 'Pipelines, entrepôts de données, cloud'),
   ('ba', 'Business Analyst', 'Besoins, processus, parties prenantes'),
   ('as', 'Support applicatif', 'Incidents, supervision, run'),
-  ('da', 'Data Analyst', 'Analyses, tableaux de bord, storytelling')
+  ('da', 'Data Analyst', 'Analyses, tableaux de bord, storytelling'),
+  ('do', 'DevOps Engineer', 'CI/CD, conteneurs, cloud, automatisation')
 ) as v(id, n, b)
 where p.id = v.id;
 
@@ -373,3 +413,39 @@ select pg_temp.track_fr('da-advanced','Portfolio et certification',
  ["Google Data Analytics Certificate","Google Data Analytics Certificate","Certificat professionnel accessible aux débutants. Les heures sont approximatives et dépendent de votre rythme."],
  ["Microsoft Power BI Data Analyst (PL-300)","Microsoft Power BI Data Analyst (PL-300)","Reconnue si vous avez choisi Power BI."],
  ["Practice: SQL and metric definition drills","Pratique : exercices de SQL et de définition d’indicateurs","Définissez à voix haute la conversion, la rétention et le churn, puis écrivez le SQL de chacun."]]'::jsonb);
+
+-- DevOps Engineer ------------------------------------------------------------------------
+select pg_temp.res_fr('do','tool','[
+ ["GitHub Actions / GitLab CI","GitHub Actions / GitLab CI","Pipelines de build, de test et de déploiement"],["Docker","Docker","Empaqueter les applications en images"],
+ ["Kubernetes + Helm","Kubernetes + Helm","Faire tourner des conteneurs à grande échelle"],["Terraform","Terraform","Infrastructure as Code"],
+ ["Prometheus + Grafana","Prometheus + Grafana","Métriques, tableaux de bord et alertes"]]'::jsonb);
+select pg_temp.res_fr('do','tip','[
+ ["Build one project end to end: a small API in Docker, a CI/CD pipeline, infrastructure in Terraform and a dashboard. Link it on your CV.","Construisez un projet de bout en bout : une petite API dans Docker, un pipeline CI/CD, l’infrastructure en Terraform et un tableau de bord. Mettez le lien sur votre CV."],
+ ["Talk about incidents you handled and what you automated afterwards; DevOps interviews test judgement as much as tools.","Parlez des incidents que vous avez gérés et de ce que vous avez automatisé ensuite : les entretiens DevOps testent le jugement autant que les outils."],
+ ["Quantify your impact: deployment time cut, releases per week, incidents avoided, cloud costs saved.","Chiffrez votre impact : temps de déploiement réduit, livraisons par semaine, incidents évités, coûts cloud économisés."]]'::jsonb);
+
+-- Learning tracks: DevOps Engineer --------------------------------------------------
+select pg_temp.track_fr('do-foundations','Linux, Git, réseau et scripts',
+ 'La base quotidienne de tout poste DevOps et cloud.',
+ 'Travailler à l’aise sur un serveur Linux, tout versionner avec Git, comprendre le trajet des requêtes et automatiser de petites tâches.','[
+ ["Linux Journey","Linux Journey","Des leçons Linux accessibles aux débutants."],
+ ["OverTheWire: Bandit","OverTheWire : Bandit","Apprendre le shell en résolvant de petits défis."],
+ ["Pro Git book","Le livre Pro Git","Chapitres 1 à 3 : les bases et les branches."],
+ ["Learn Git Branching","Learn Git Branching","Exercices interactifs sur les branches, les fusions et les rebases."],
+ ["Cloudflare Learning Center","Cloudflare Learning Center","Comment fonctionnent DNS, HTTP, TLS, la répartition de charge et les CDN."]]'::jsonb);
+select pg_temp.track_fr('do-delivery','Conteneurs, CI/CD et Kubernetes',
+ 'Livrer des applications comme les équipes modernes : en conteneurs, via un pipeline, sur un cluster.',
+ 'Conteneuriser une application, la construire et la tester dans un pipeline et la déployer sur Kubernetes.','[
+ ["Docker: get started","Docker : premiers pas","Images, conteneurs, volumes et Compose."],
+ ["GitHub Actions documentation","Documentation GitHub Actions","Workflows, jobs, secrets et environnements."],
+ ["Kubernetes basics","Les bases de Kubernetes","Déployer, exposer, faire évoluer et mettre à jour une application sur un cluster."],
+ ["Project: ship a containerised API","Projet : livrer une API conteneurisée","Conteneurisez une petite API, ajoutez un pipeline qui teste et construit l’image, et déployez-la sur un cluster kind local."]]'::jsonb);
+select pg_temp.track_fr('do-cloud','Cloud, Infrastructure as Code et fiabilité',
+ 'Gérer une vraie infrastructure depuis du code et la garder en bonne santé.',
+ 'Créer une infrastructure cloud avec Terraform depuis un pipeline, la superviser avec des SLO et détenir une certification reconnue.','[
+ ["Terraform tutorials","Tutoriels Terraform","Bien démarrer avec Terraform sur AWS, Azure ou Google Cloud."],
+ ["AWS Skill Builder","AWS Skill Builder","Des cours gratuits sur les fondamentaux du cloud, dont Cloud Practitioner Essentials."],
+ ["Prometheus: first steps","Prometheus : premiers pas","Métriques, cibles et requêtes."],
+ ["SRE book: service level objectives","Livre SRE : les objectifs de niveau de service","Définir SLI, SLO et budgets d’erreur."],
+ ["Project: infrastructure as code","Projet : infrastructure as code","Créez les ressources cloud de votre API avec Terraform depuis un pipeline, avec un état distant, un tableau de bord et une alerte."],
+ ["AWS Certified Cloud Practitioner or CKA","AWS Certified Cloud Practitioner ou CKA","Choisissez-en une : fondamentaux du cloud (AWS) ou administration Kubernetes (CNCF). Vérifiez les détails actuels de l’examen."]]'::jsonb);

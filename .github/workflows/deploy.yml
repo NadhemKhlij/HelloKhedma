@@ -1,4 +1,7 @@
-# Builds HelloKhedma (Tailwind CSS + js/config.js) and publishes it to GitHub Pages on every push to main.
+# Builds HelloKhedma (Tailwind CSS + js/config.js), runs the smoke tests on the built site, and publishes it to
+# GitHub Pages on every push to main. Pushes to other branches run the build and the tests only (nothing published),
+# so a change can be checked before it reaches main. A failing test stops the deploy: the live site stays as it was.
+# Test failures show as annotations on the run (Playwright "github" reporter), readable without signing in.
 # One-time setup in the repo:
 #   Settings → Pages → Build and deployment → Source: "GitHub Actions"
 #   Settings → Secrets and variables → Actions → Variables tab:
@@ -7,7 +10,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   workflow_dispatch:
 
 permissions:
@@ -16,7 +19,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -51,19 +54,28 @@ jobs:
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
         run: npm run build
 
-      # Publish only the files the browser needs (no supabase/, scripts/ or node_modules/).
+      # Publish only the files the browser needs (no supabase/, scripts/, tests/ or node_modules/).
       - name: Assemble site
         run: |
           mkdir _site
           cp -r index.html manifest.json sw.js icons css js content _site/
 
+      - name: Install the test browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke tests
+        run: npx playwright test
+
       - uses: actions/configure-pages@v5
+        if: github.ref == 'refs/heads/main'
       - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main'
         with:
           path: _site
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

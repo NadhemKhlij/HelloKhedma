@@ -15,10 +15,11 @@ test.afterEach(async () => {
   expect(errors, "errors in the page").toEqual([]);
 });
 
-// Opens a route and waits until the career paths came from Supabase (the app is fully started).
+// Opens a route and waits until the career paths came from Supabase (the app is fully started). The path cards are
+// on Home only, so they are checked as present, not visible.
 async function open(page, hash = "#/") {
   await page.goto(`/index.html${hash}`);
-  await expect(page.locator("#paths button").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
 }
 
 test("home shows the career paths and a path can be selected", async ({ page }) => {

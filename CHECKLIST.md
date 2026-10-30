@@ -1,7 +1,11 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-30)
-- **Just finished (2026-10-30):** path market pulse on Home (ROADMAP 3.9, js/pulse.js): typical salary, % remote,
+- **Just finished (2026-10-30):** learning content (ROADMAP Phase 4): honest times computed from the content, 4 new
+  courses (Spark, Kafka, cloud warehouses, Tableau/Looker + storytelling), SQL/Python/Power BI/Docker/Kubernetes/
+  monitoring deepened, 15 portfolio projects (3 per path) on Training and #/project/<id>. EN + FR, French check
+  clean, 18 smoke tests passing. Written by Claude: part of O11 (expert review).
+- **Before that:** path market pulse on Home (ROADMAP 3.9, js/pulse.js): typical salary, % remote,
   % with a salary, top skills with CV gaps, levels, from the offers seen for the path (this browser only). Tested in
   the preview (EN/FR, phone) and by a new smoke test (16 passing). Fills up as the owner runs searches.
 - **Before that:** smoke tests in CI (tests/smoke.spec.mjs): every deploy now
@@ -41,12 +45,13 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | O10 | Your phone | Install the app (Android: "Install the app" link in the footer; iPhone: Safari → Share → Add to Home Screen) and check it opens offline | PWA install was only tested in a desktop browser | — |
 | O16 | console.anthropic.com + Supabase | **1.** Anthropic Console → API keys → create a key named "hellokhedma-cv-tailor"; set a monthly spend limit (Settings → Limits). **2.** Supabase → Edge Functions → Secrets → add `ANTHROPIC_API_KEY` = that key (never paste it in a chat). **3.** Edge Functions → Deploy a new function named `cv-tailor`, paste the file below, keep "Verify JWT" on, Deploy. Optional secrets: `CV_TAILOR_DAILY_LIMIT` (default 5), `CV_TAILOR_MODEL` (default `claude-opus-5-5`, about 8 cents a rewrite; `claude-sonnet-5-5` about half) | "Rewrite with AI" answers "not set up yet" until then; the copy-prompt option works meanwhile | [cv-tailor/index.ts at fdc6405](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/fdc640575f9d687f88d56629550bbad490611933/supabase/functions/cv-tailor/index.ts) |
 | O12 | Live site | Sign in and use the app in French, then press **EN** and back: check nothing is left in the wrong language and the French reads naturally (report odd wording) | Translations were written by Claude and only tested as a guest | js/i18n-fr.js |
-| O11 | Content (before promoting) | Have the 21 courses, interview questions and model answers reviewed by people in each field, in English **and French** | Written and translated by Claude: realistic but unreviewed | content/courses/, content/interview/ (French in fr/ subfolders) |
+| O11 | Content (before promoting) | Have the 25 courses, 15 portfolio projects, interview questions and model answers reviewed by people in each field, in English **and French** | Written and translated by Claude: realistic but unreviewed | content/courses/, content/interview/ (French in fr/ subfolders) |
 
 ## ✅ Done
 
 | Date | What |
 |---|---|
+| 2026-10-30 | Learning content: honest course times, 4 new courses, 6 courses deepened, 15 portfolio projects (EN + FR); no setup needed |
 | 2026-10-30 | O17 done: seed re-run by owner. Verified in the live database (DevOps path with French name, 3 tracks, 15 steps, 5 tools, 3 tips) and on the live site (path card, selection, tracks and courses on Training) |
 | 2026-10-30 | Path market pulse on Home ("Your market": salary, remote, top skills, levels from the offers you looked at); no setup needed |
 | 2026-10-30 | Smoke tests (Playwright) run before every deploy; a failing test stops it; no setup needed |

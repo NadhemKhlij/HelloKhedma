@@ -91,6 +91,14 @@ the scoring CV on the Offers page; the CV match compares every version). Local o
 | 3.10 | Import from LinkedIn: guide to "Save to PDF" from your profile (the existing CV upload reads it), then read the LinkedIn data export (.zip: Positions, Skills, Education CSV) in the browser to prefill a CV version; nothing is sent | Start from what is already on LinkedIn without retyping | M |
 
 ## Phase 4: learning that leads to a job
+Done (2026-10-30), after an honest review of the content: course and lesson times are now computed from the content
+(js/coursetime.js: reading at 200 words/min + practice: examples, exercises, interview questions, quiz); the old
+hand-written hours were 3 to 5 times too high (SQL said 14 h, the content is about 3 h). 4 new courses (Spark,
+Kafka, cloud data warehouses, Tableau / Looker Studio / data storytelling) and deeper courses (SQL and Python 10
+lessons, Power BI 9, Docker 8, Kubernetes 8, monitoring 7 with Prometheus and Grafana): 25 courses, every path keyword
+has a course except Confluence. 4.5 portfolio projects: 3 per path (15, EN + FR) with steps, self-check, data links and
+a CV line (Training page, #/project/<id>). Still to do: deepen the other 4-lesson courses, sync lesson and project
+progress to the account, expert review (CHECKLIST O11).
 Done (2026-10-29): 4.4 Interview prep page: 55 questions per path on average (14 behavioral, 8 role-specific, plus the
 technical questions of the path's courses) with example answers, 2-minute timer, "got it / to review" decks; STAR story
 builder linked to question themes; before/during/after checklist, questions to ask, salary tips; upcoming interviews from

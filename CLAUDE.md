@@ -51,8 +51,11 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   Supabase on first sign-in (js/store.js).
 - No permanent mock data. Path content lives in the database (career_paths, path_resources, training_tracks,
   training_steps): edit supabase/seed.sql, not the JS.
-- Courses are static JSON in content/courses/ (index.json + one file per course): keep `lessonCount` in sync and use
-  skill names that exist in js/ats.js so missing skills link to the course.
+- Courses are static JSON in content/courses/ (index.json + one file per course): keep `lessonCount` and `minutes`
+  in sync (minutes = courseTime() from js/coursetime.js; a smoke test fails when they drift) and use skill names that
+  exist in js/ats.js so missing skills link to the course. Lessons have no hand-written duration. To extend a course,
+  append lessons (progress is stored by lesson index).
+- Portfolio projects are static JSON in content/projects/<path id>.json (+ fr/): 3 per path, real URLs checked with curl.
 - Never put API keys (RapidAPI, Adzuna, France Travail) or the service_role key in frontend code. The anon key is
   public by design; RLS protects the data.
 - Every user-owned table needs RLS policies scoped to auth.uid(); add schema changes as a new migration file.
@@ -86,6 +89,7 @@ Read the header comment of any file before modifying it; update the header if be
 - `#/offers` → offers → offers.js + jobs.js, companies.js, remote.js (three tabs)
 - `#/training` → training → training.js (My learning, roadmap of tracks, study plan) + courses.js (course list)
 - `#/course/<id>` → course → courses.js
+- `#/project/<id>` → project → projects.js
 - `#/cv` → cv → cvpage.js + cvs.js, ats.js
 - `#/interview` → interview → interview.js
 - `#/applications` → applications → applications.js + tracker.js, store.js
@@ -124,7 +128,9 @@ Read the header comment of any file before modifying it; update the header if be
 - js/activity.js — XP, study streak, 7-day strip, last course for "Resume" (local only, "hk.activity")
 - js/interview.js — interview prep page
 - sw.js, manifest.json, icons/ — installable app and offline cache
-- content/courses/, content/interview/ — course and interview content (JSON)
+- js/coursetime.js — lesson and course durations computed from the content (reading + practice)
+- js/projects.js — portfolio projects: Training panel and the project page (#/project/<id>)
+- content/courses/, content/interview/, content/projects/ — course, interview and project content (JSON)
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)
 - supabase/functions/job-search/, delete-account/, cv-tailor/ — Edge Functions (cv-tailor: AI CV rewrite with Claude)

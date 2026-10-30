@@ -51,7 +51,7 @@ test("tracker: a guest application survives a reload and gets a follow-up email"
   await page.reload();
   await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
   await expect(card).toBeVisible();
-  await card.getByRole("button", { name: "✉ Email" }).click();
+  await card.getByRole("button", { name: "Write a follow-up email" }).click(); // card buttons are named by their title
   await expect(page.locator("#letterDialog")).toBeVisible();
   await expect(page.locator("#letterBody textarea")).toHaveValue(/Smoke Test Engineer position at Acme/);
 });

@@ -68,6 +68,86 @@
         "code": "Change request CHG-2291 (normal change)\nWhat:      upgrade the payments database from PostgreSQL 15 to 16\nWhy:       end of support, performance fixes\nRisk:      medium (rollback tested in staging)\nPlan:      Sat 06:00-07:00, maintenance page on, backup verified before start\nTest:      smoke tests + 3 sample payments\nRollback:  restore snapshot taken at 05:55 (20 min)\nApproval:  CAB 28/10   Communication: users notified 25/10",
         "note": "Si le retour arrière n’est ni écrit ni testé, le changement n’est pas prêt."
       }
+    },
+    {
+      "title": "Gestion des problèmes et analyse de cause racine en pratique",
+      "text": [
+        "ITIL 4 décrit le travail sous forme de pratiques (gestion des incidents, gestion des problèmes, habilitation des changements, centre de services, gestion des connaissances…) qui se combinent dans des chaînes de valeur (value streams) : les étapes de bout en bout qui produisent un résultat, comme « rétablir un service en production » ou « livrer une nouvelle fonctionnalité ». La gestion des problèmes se trouve au cœur de la chaîne de rétablissement. Elle comporte trois phases : l’identification des problèmes (repérer les incidents récurrents, les tendances ou les risques, soit de façon réactive après des incidents, soit de façon proactive à partir de la supervision et des alertes des éditeurs), le contrôle des problèmes (analyser la cause et trouver un contournement) et le contrôle des erreurs (gérer l’erreur connue jusqu’au déploiement d’une correction définitive via un changement).",
+        "Choisissez l’outil d’analyse adapté au cas. Les 5 pourquoi sont rapides mais suivent une seule chaîne et s’arrêtent à la première réponse plausible ; demandez « pourquoi d’autre ? » à chaque étape et vérifiez chaque réponse avec des données. Un diagramme d’Ishikawa (en arête de poisson) liste les causes possibles par catégorie, par exemple personnes, processus, technologie, données, fournisseurs et environnement, ce qui évite à l’équipe de se figer sur la première idée. Une analyse Kepner-Tregoe allégée compare où le problème EST et N’EST PAS, sur quoi, où, quand et dans quelle mesure : si les erreurs touchent seulement le site de Lyon depuis lundi et seulement les portables Windows 11, les différences (un changement réseau à Lyon, une mise à jour Windows lundi) désignent la cause.",
+        "Construisez toujours d’abord une chronologie à partir des logs et des tickets, car les souvenirs divergent. Dans l’outil ITSM, liez chaque incident concerné à l’enregistrement de problème, pour que son impact réel soit visible et que les agents puissent appliquer le contournement. Un problème se clôture quand la correction est déployée et que les incidents cessent, pas quand quelqu’un pense avoir trouvé la cause."
+      ],
+      "points": [
+        "Les problèmes réactifs viennent des incidents ; les proactifs, des tendances, de la supervision et des alertes éditeurs.",
+        "Le contrôle des problèmes trouve la cause et le contournement ; le contrôle des erreurs suit l’erreur connue jusqu’à la correction.",
+        "5 pourquoi : rapide, mais vérifiez chaque réponse et cherchez plusieurs causes.",
+        "Ishikawa : listez les causes par catégorie avant de choisir.",
+        "Kepner-Tregoe EST / N’EST PAS : les différences désignent la cause."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Problem PRB0041 - 'Timeout when printing invoices'\n           IS                               IS NOT\nWhat       invoice PDF printing             other documents\nWhere      Lyon office (42 users)           Paris, Nantes\nWhen       since Monday 08:00, peaks 9-11   before Monday\nExtent     ~30% of print jobs               all jobs\nDistinctions: Lyon print server patched Sunday night\nMost likely cause: driver update on the Lyon print server\nWorkaround (known error KE0107): print to the Paris queue",
+        "note": "La comparaison EST / N’EST PAS réduit une plainte floue à un seul changement à tester."
+      }
+    },
+    {
+      "title": "Habilitation des changements : types, risque et approbation",
+      "text": [
+        "ITIL 4 a renommé la gestion des changements en habilitation des changements (change enablement), et le mot compte : l’objectif est de faire réussir les changements et de les faire passer vite, pas de les freiner par de la paperasse. Chaque changement a une autorité de changement, la personne ou le groupe habilité à l’approuver, et cette autorité doit être proportionnée au risque. Un Change Advisory Board (CAB) est une autorité possible pour les changements importants, pas une réunion que chaque changement doit attendre.",
+        "Les changements standard sont peu risqués, répétables et pré-autorisés, avec une procédure documentée : ajouter un utilisateur à un groupe, augmenter la capacité d’un service dans des limites définies, renouveler un certificat de routine. Ils ressemblent souvent à des demandes de service. Les changements normaux sont évalués, planifiés et approuvés selon leur risque, d’une revue par un pair pour un risque faible jusqu’au CAB pour un risque élevé. Les changements urgents corrigent ou évitent un incident grave ; ils sont approuvés rapidement par une autorité d’urgence réduite (souvent appelée ECAB), puis documentés et revus après coup. Une équipe où la plupart des changements sont urgents a un problème de planification.",
+        "L’évaluation du risque répond à quelques questions concrètes : qu’est-ce qui peut casser et pour qui, quelle est la probabilité (testé, déjà fait, automatisé ?), à quelle vitesse peut-on détecter un échec et revenir en arrière, et le moment est-il mal choisi (clôture de fin de mois, pic de ventes, période de gel) ? Le calendrier des changements rend visibles tous les changements prévus, pour repérer les conflits. Après la mise en œuvre, une revue post-implémentation vérifie si le changement a atteint son objectif et s’il a causé des incidents. Dans ServiceNow, un changement normal passe par des états comme New, Assess, Authorize, Scheduled, Implement, Review et Closed ; avec la CI/CD, un pipeline automatisé et bien testé peut lui-même devenir un changement standard."
+      ],
+      "points": [
+        "Autorité de changement proportionnée au risque ; le CAB seulement pour ce qui le nécessite.",
+        "Standard = routine pré-autorisée ; normal = évalué ; urgent = rapide, revu après coup.",
+        "Chaque changement a besoin d’un plan de test, d’un plan de retour arrière et d’une communication.",
+        "Suivez le taux de réussite des changements et la part de changements ayant causé des incidents.",
+        "Liez les incidents au changement qui les a causés : c’est la donnée la plus utile pour le prochain CAB."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Risk assessment - CHG0034512 (normal change)\nImpact if it fails:   billing API down for all customers      -> high\nTested in staging:    yes, same data volume                    -> lowers risk\nDone before:          no, first upgrade of this library         -> raises risk\nRollback:             redeploy previous image, 5 min, tested    -> lowers risk\nTiming:               Tuesday 10:00, not month-end              -> ok\nResult: medium risk -> approval by service owner + peer review, no CAB needed\nPIR due:              Wednesday, check error rate and incidents",
+        "note": "Une évaluation courte et honnête aide davantage l’autorité de changement qu’un long modèle rempli machinalement."
+      }
+    },
+    {
+      "title": "Incidents majeurs : rôles, processus et communication",
+      "text": [
+        "Un incident majeur est un incident dont l’impact est si fort qu’il exige un processus distinct et plus rapide : un service critique en panne pour de nombreux utilisateurs, une faille de sécurité, une perte de données, une panne visible des clients. Les critères doivent être écrits à l’avance, et toute personne du centre de services doit pouvoir en déclarer un. Déclarer trop souvent coûte un peu de temps à quelques personnes ; déclarer trop tard coûte bien plus cher à l’entreprise.",
+        "Une fois l’incident déclaré, les rôles sont attribués explicitement. Le gestionnaire d’incident (ou incident commander) pilote la réponse, prend les décisions et tient le rythme, mais ne débogue pas. Le responsable technique coordonne les ingénieurs qui travaillent sur la correction. Le responsable communication rédige les points d’information pour les utilisateurs, la direction et, si besoin, les clients via une page de statut. Un scribe tient un journal horodaté des faits, décisions et actions, qui deviendra la chronologie de la revue. Tout le monde rejoint un seul pont (un appel et un canal dédié) pour que l’information ne s’éparpille pas dans des messages privés.",
+        "La communication suit une cadence fixe, par exemple toutes les 30 minutes, même sans nouvelle. Adaptez le message au public : les utilisateurs ont besoin de l’impact, du contournement et de l’heure du prochain point ; la direction a besoin de l’impact métier, des risques et des décisions à prendre ; les clients ont besoin de faits honnêtes et non techniques. Escaladez fonctionnellement (vers les experts ou l’éditeur) et hiérarchiquement (vers la direction) selon des seuils convenus. Quand le service est rétabli, faites confirmer par les utilisateurs avant de clôturer, ouvrez un enregistrement de problème et tenez sous quelques jours une revue d’incident majeur sans recherche de coupable, avec des actions, des responsables et des dates."
+      ],
+      "points": [
+        "Critères écrits ; tout le monde peut déclarer ; on peut déclasser ensuite.",
+        "Le gestionnaire d’incident coordonne, le responsable technique corrige, le responsable communication informe, le scribe consigne.",
+        "Un pont, un canal, une seule source de vérité.",
+        "Des points à cadence fixe, adaptés à chaque public.",
+        "Clôturer seulement après confirmation, puis enregistrement de problème et revue."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "MAJOR INCIDENT DECLARED - INC0098812 - 14:12\nService:   online payments (all customers)\nImpact:    card payments fail since ~14:00, about 60% of attempts\nRoles:     IM: Sara | Tech lead: Karim | Comms: Julie | Scribe: Leo\nBridge:    Teams 'MI-payments' + channel #mi-0098812\nKnown:     error spike after the 13:55 deployment of payment-api 4.2\nNext step: rollback decision at 14:25\nNext update: 14:45 (management), status page updated at 14:20",
+        "note": "Court, factuel, avec des rôles nommés et l’heure du prochain point."
+      }
+    },
+    {
+      "title": "Mesurer le support : niveaux de service, indicateurs et connaissances",
+      "text": [
+        "Les niveaux de service transforment les attentes en chiffres. Un SLA avec le client fixe des objectifs par priorité (prendre en charge un P1 en 15 minutes, rétablir en 4 heures), un OLA définit ce que les équipes internes se doivent pour le rendre possible, et un contrat de sous-traitance (underpinning contract) fait de même avec un fournisseur. Les SLO sont les objectifs internes que vous suivez, comme 99,9 % de disponibilité mensuelle. Dans ServiceNow ou Jira Service Management, les compteurs de SLA démarrent, se mettent en pause (attente du client) et s’arrêtent selon des règles et des calendriers d’heures ouvrées : connaissez ces règles, car ce sont elles qui décident de ce qui compte comme un dépassement.",
+        "Indicateurs utiles du support : MTTA (temps moyen de prise en compte), MTTR (temps moyen de rétablissement, que certaines équipes définissent comme temps de résolution : précisez lequel), taux de résolution au premier contact (FCR), respect des SLA, taille et ancienneté du backlog, taux de réouverture et satisfaction client. Lisez-les ensemble : un FCR élevé avec un fort taux de réouverture signifie que les tickets sont clôturés trop vite. Méfiez-vous de l’effet pastèque, des rapports SLA au vert alors que les utilisateurs sont mécontents ; c’est pourquoi certaines organisations ajoutent des mesures d’expérience (XLA) et des commentaires aux chiffres.",
+        "La gestion des connaissances rend l’incident suivant plus rapide. Le Knowledge-Centered Service (KCS) consiste à capturer la connaissance pendant la résolution, avec les mots de l’utilisateur, et à améliorer les articles à chaque réutilisation, au lieu d’écrire la documentation plus tard. Un bon article de base de connaissances a un titre qui reprend le symptôme signalé par les utilisateurs, l’environnement concerné, la cause si elle est connue, des étapes numérotées de résolution ou de contournement, la façon de vérifier que cela a fonctionné, et quand escalader. Il a un responsable et une date de revue. Dans ServiceNow, les articles vivent dans la Knowledge base et peuvent être joints aux incidents ; Jira Service Management utilise généralement un espace Confluence affiché dans le portail."
+      ],
+      "points": [
+        "SLA avec le client, OLA entre équipes, contrat de sous-traitance avec les fournisseurs, SLO comme objectif interne.",
+        "Sachez quand les compteurs de SLA se mettent en pause et s’arrêtent : c’est ce qui définit un dépassement.",
+        "MTTA, MTTR, FCR, ancienneté du backlog et taux de réouverture : lisez-les ensemble.",
+        "Rédigez les articles pendant la résolution, titrés par le symptôme, avec des étapes et un responsable.",
+        "Liez les articles aux tickets pour voir lesquels réduisent vraiment le temps de résolution."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "KB0012345 - 'Outlook asks for password again and again after password change'\nApplies to:   Windows 11, Outlook (Microsoft 365), company laptops\nCause:        old credentials cached in Windows Credential Manager\nResolution:\n  1. Close Outlook.\n  2. Open Credential Manager > Windows Credentials.\n  3. Remove entries starting with 'MicrosoftOffice'.\n  4. Restart Outlook and sign in with the new password.\nCheck:        mail syncs, no new prompt for 10 minutes\nEscalate to:  Messaging team if the prompt continues (attach screenshot)\nOwner: Service desk L2 | Last reviewed: 2026-09",
+        "note": "Titré avec le symptôme que décrivent les utilisateurs, pour que les agents et les utilisateurs le trouvent en cherchant."
+      }
     }
   ],
   "cheatsheet": [
@@ -158,13 +238,64 @@
           "Heure du prochain message"
         ]
       ]
+    },
+    {
+      "group": "Vocabulaire ITIL 4",
+      "items": [
+        ["Pratique", "Ensemble de ressources pour un type de travail (ex. gestion des problèmes)"],
+        ["Chaîne de valeur (value stream)", "Étapes de bout en bout qui produisent un résultat"],
+        ["Chaîne de valeur des services", "Planifier, améliorer, engager, concevoir et faire la transition, obtenir/construire, fournir et soutenir"],
+        ["Habilitation des changements", "Nom ITIL 4 de la gestion des changements"],
+        ["Autorité de changement", "Personne ou groupe habilité à approuver un changement"],
+        ["CAB / ECAB", "Comité consultatif des changements / autorité des changements urgents"],
+        ["Revue post-implémentation (PIR)", "Le changement a-t-il atteint son objectif sans incident ?"]
+      ]
+    },
+    {
+      "group": "Analyse des problèmes",
+      "items": [
+        ["Identification des problèmes", "Repérer les incidents récurrents et les risques"],
+        ["Contrôle des problèmes", "Trouver la cause et un contournement"],
+        ["Contrôle des erreurs", "Gérer les erreurs connues jusqu’à leur correction"],
+        ["5 pourquoi", "Demander pourquoi plusieurs fois, vérifier chaque réponse"],
+        ["Ishikawa (arête de poisson)", "Causes regroupées par catégorie"],
+        ["Kepner-Tregoe EST / N’EST PAS", "Comparer ce qui est touché et ce qui ne l’est pas"],
+        ["KEDB", "Base des erreurs connues avec leurs contournements"]
+      ]
+    },
+    {
+      "group": "Incident majeur",
+      "items": [
+        ["Gestionnaire d’incident", "Coordonne et décide, ne débogue pas"],
+        ["Responsable communication", "Rédige les points pour chaque public"],
+        ["Scribe", "Journal horodaté des faits et décisions"],
+        ["Pont (bridge)", "Appel et canal uniques pour la réponse"],
+        ["Escalade fonctionnelle / hiérarchique", "Vers les experts / vers la direction"],
+        ["Revue d’incident majeur", "Revue sans recherche de coupable, avec actions et responsables"]
+      ]
+    },
+    {
+      "group": "Indicateurs du support et connaissances",
+      "items": [
+        ["MTTA", "Temps moyen de prise en compte"],
+        ["FCR", "Taux de résolution au premier contact"],
+        ["Ancienneté du backlog", "Depuis combien de temps les tickets ouverts attendent"],
+        ["Taux de réouverture", "Part des tickets rouverts après clôture"],
+        ["Contrat de sous-traitance", "Niveaux de service convenus avec un fournisseur"],
+        ["Effet pastèque", "Rapports au vert, utilisateurs mécontents"],
+        ["XLA", "Accord sur le niveau d’expérience"],
+        ["KCS", "Capturer et améliorer la connaissance pendant la résolution"]
+      ]
     }
   ],
   "pitfalls": [
     "Chercher la cause racine pendant une heure alors que les utilisateurs sont toujours bloqués : rétablissez d’abord.",
     "Le silence pendant un incident ; les parties prenantes imaginent le pire.",
     "Clôturer l’incident sans ouvrir de problème pour les incidents récurrents.",
-    "Chercher des coupables dans les post-mortems, ce qui pousse les gens à cacher des informations la fois suivante."
+    "Chercher des coupables dans les post-mortems, ce qui pousse les gens à cacher des informations la fois suivante.",
+    "Envoyer chaque changement au CAB : les vrais risques reçoivent moins d’attention et les équipes contournent le processus.",
+    "Déclarer un incident majeur trop tard parce que personne ne veut tirer la sonnette d’alarme.",
+    "Courir après des SLA au vert (clôturer vite, mettre les compteurs en pause) pendant que les utilisateurs restent mécontents."
   ],
   "exercises": [
     {
@@ -183,6 +314,26 @@
       "q": "Le même incident « disque plein » sur le serveur de reporting a été résolu cinq fois ce mois-ci en supprimant de vieux fichiers. Que doit-il se passer maintenant ?",
       "hint": "Incident ou problème.",
       "answer": "Arrêter de le traiter seulement comme des incidents : ouvrir un problème qui relie les cinq incidents. Documenter le contournement comme erreur connue pour que le prochain soit réglé vite, puis trouver la cause racine (quel processus remplit le disque, pourquoi les vieux fichiers ne sont pas purgés, si le disque est trop petit). Mettre en place une correction définitive via un changement, comme une rotation des logs ou une tâche de rétention et une alerte d’occupation disque à 80 %, et clore le problème quand les incidents cessent."
+    },
+    {
+      "q": "Depuis mardi, les utilisateurs de l’application de notes de frais reçoivent plusieurs fois par jour des erreurs « session expirée ». Seuls les utilisateurs connectés via le VPN sont touchés, dans tous les sites, et uniquement sur l’application web, pas sur mobile. Utilisez EST / N’EST PAS pour proposer où chercher.",
+      "hint": "Qu’est-ce qui diffère entre les cas touchés et non touchés, et qu’est-ce qui a changé mardi ?",
+      "answer": "EST : application web, utilisateurs VPN, tous les sites, depuis mardi. N’EST PAS : application mobile, utilisateurs hors VPN, avant mardi. La différence est le chemin VPN des sessions web : cherchez un changement survenu mardi sur le VPN ou son proxy, par exemple un nouveau délai d’inactivité, une gestion différente des sessions ou des cookies, ou une modification du répartiteur de charge qui casse la persistance de session. Consultez le calendrier des changements de mardi et comparez les logs de session des utilisateurs avec et sans VPN."
+    },
+    {
+      "q": "Classez chaque changement comme standard, normal ou urgent : a) renouvellement mensuel d’un certificat interne avec une procédure documentée et automatisée ; b) migration de la base de données RH vers un nouveau serveur ; c) correctif pour bloquer une vulnérabilité exploitée sur le site public.",
+      "hint": "Routine pré-autorisée, changement évalué, correction urgente.",
+      "answer": "a) Standard : routine, faible risque, documenté et pré-autorisé. b) Normal : risque et impact importants, donc évalué, planifié et approuvé par la bonne autorité, probablement le CAB, avec un retour arrière testé. c) Urgent : il doit être mis en œuvre rapidement pour stopper une menace active, approuvé par l’autorité des changements urgents, puis documenté et revu après la mise en œuvre."
+    },
+    {
+      "q": "Votre équipe affiche un FCR de 85 % et 98 % de respect des SLA, mais le taux de réouverture est passé de 5 % à 18 % et la satisfaction a baissé. Que se passe-t-il et que faites-vous ?",
+      "hint": "Lisez les indicateurs ensemble.",
+      "answer": "Les tickets sont probablement clôturés trop vite pour protéger le FCR et les SLA, sans vraiment résoudre le problème : c’est l’effet pastèque. Analysez les tickets rouverts pour trouver des tendances (mêmes catégories, mêmes agents, contournements au lieu de corrections), faites confirmer la résolution par l’utilisateur avant de clôturer, suivez le taux de réouverture et la satisfaction à côté du FCR et des SLA, et transformez les sujets récurrents en enregistrements de problème et en articles de connaissance."
+    },
+    {
+      "q": "Réécrivez ce titre d’article pour que les utilisateurs et les agents le trouvent : « Procédure 14 - nettoyage du gestionnaire d’identification ».",
+      "hint": "Utilisez les mots du symptôme.",
+      "answer": "« Outlook redemande sans cesse votre mot de passe après un changement de mot de passe (Windows) ». Le titre décrit le symptôme avec les mots que les utilisateurs tapent dans une recherche ou disent au téléphone, et précise l’environnement. La solution technique, vider les identifiants en cache dans le Gestionnaire d’identification, va dans les étapes de résolution."
     }
   ],
   "interview": [
@@ -201,6 +352,22 @@
     {
       "q": "Quelle est la différence entre un SLA, un OLA et un SLO ?",
       "a": "Un SLA est l’accord avec le client ou le métier sur les niveaux de service, par exemple un P1 résolu en 4 heures. Un OLA est un accord entre équipes internes qui soutient le SLA, par exemple l’équipe base de données répond en 30 minutes. Un SLO est un objectif mesurable pour un service, comme 99,9 % de disponibilité par mois, utilisé pour suivre si nous tenons nos engagements."
+    },
+    {
+      "q": "Quelles techniques d’analyse de cause racine connaissez-vous et quand les utilisez-vous ?",
+      "a": "Je commence par une chronologie à partir des logs et des tickets. Pour un enchaînement simple, les 5 pourquoi sont rapides, à condition de vérifier chaque réponse avec des données et de chercher plus d’une cause. Quand beaucoup de causes sont possibles, j’utilise un diagramme d’Ishikawa par catégorie pour que l’équipe ne se fige pas sur la première idée. Pour un problème flou qui touche certains utilisateurs et pas d’autres, une comparaison Kepner-Tregoe EST / N’EST PAS désigne vite le changement qui fait la différence."
+    },
+    {
+      "q": "Quelle est la différence entre changements standard, normaux et urgents ?",
+      "a": "Un changement standard est peu risqué, routinier et pré-autorisé avec une procédure documentée : il ne demande pas d’approbation individuelle. Un changement normal est évalué et approuvé par une autorité de changement proportionnée à son risque, d’un pair jusqu’au CAB. Un changement urgent doit être mis en œuvre sans attendre pour résoudre ou éviter un incident grave ; il est approuvé rapidement par une autorité d’urgence et revu après coup."
+    },
+    {
+      "q": "Vous êtes gestionnaire d’incident sur un incident majeur. Que faites-vous dans les 15 premières minutes ?",
+      "a": "Je confirme l’impact et déclare l’incident majeur, j’ouvre un pont et un canal dédié, et j’attribue les rôles : responsable technique, responsable communication, scribe. Je demande ce qui a changé récemment et nous convenons de la première option de rétablissement, souvent un rollback. J’envoie un premier point avec l’impact, ce que l’on sait et l’heure du prochain point, et je déclenche l’escalade vers l’éditeur ou la direction si les seuils sont atteints. Ensuite je tiens le rythme et les décisions, et je laisse le débogage aux ingénieurs."
+    },
+    {
+      "q": "Comment mesurez-vous si une équipe de support est performante ?",
+      "a": "Avec quelques indicateurs lus ensemble : MTTA et MTTR par priorité, respect des SLA, résolution au premier contact, taille et ancienneté du backlog, taux de réouverture et satisfaction client, plus la tendance des incidents récurrents. Un indicateur seul peut être manipulé, par exemple le FCR en clôturant trop vite : je les compare donc et je regarde les retours des utilisateurs. L’usage de la base de connaissances compte aussi : combien de fois un article a résolu le ticket."
     }
   ]
 }

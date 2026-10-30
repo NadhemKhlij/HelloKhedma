@@ -63,6 +63,86 @@
         "code": "Sprint 14 retro (format: Start / Stop / Continue, 45 min)\nStart:    pairing on tickets that touch the billing API\nStop:     starting new tickets before reviewing open pull requests\nContinue: daily demo of work in progress to the PO\nAction:   'Review before you start' rule on the board  owner: Sami  check: next retro",
         "note": "One action, one owner, one check date."
       }
+    },
+    {
+      "title": "Backlog refinement and splitting user stories",
+      "text": [
+        "Refinement is the ongoing work of adding detail, estimates and order to backlog items so that the top of the backlog is ready for the next sprints. Scrum does not make it a formal event; many teams hold a one- to two-hour session each week with the Product Owner, the BA and some developers and testers, and a common guideline is to spend up to about 10% of the team's time on it. Aim for roughly two sprints of ready items at the top; items further down can stay rough, because many will change or never be built.",
+        "A story is ready when the team understands it well enough to plan it: clear value, acceptance criteria, known dependencies, small enough to finish in a few days. The Definition of Ready is a team agreement that helps the conversation, not a bureaucratic gate. Bring the open questions to refinement and leave with answers, or with an owner and a date for each remaining question.",
+        "Splitting is the key refinement skill. Split vertically: each slice delivers something a user can see end to end, through interface, logic and data, rather than a 'front-end story' and a 'back-end story' that are useless alone. Mike Cohn's SPIDR lists five ways. Spike: a timeboxed investigation when the unknown is too big, followed by the real stories. Paths: one story per path through the workflow (pay by card, pay by transfer). Interfaces: one channel or a simple interface first, the others later. Data: a subset of data first (one country, one file format). Rules: relax a business rule first, then add it in a later story. Splitting by workflow step, or happy path first and errors next, also works."
+      ],
+      "points": [
+        "Keep about two sprints of ready items; do not over-refine items that may never be built.",
+        "Vertical slices deliver value and feedback; horizontal slices deliver nothing usable alone.",
+        "A spike produces knowledge, not a feature: timebox it and write the follow-up stories.",
+        "If a story resists splitting, it is often still too vague rather than too big.",
+        "Each slice must still be valuable and testable on its own (INVEST)."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Epic: As a customer, I want to pay my order online\n\nSplit with SPIDR\nS (spike)     2-day spike: does the payment provider support 3-D Secure in our app?\nP (paths)     Pay by card | Pay by bank transfer | Pay with a saved card\nI (interface) Website first, mobile app in a later story\nD (data)      Euro only first, other currencies later\nR (rules)     Orders up to 500 EUR without manual fraud review first; review rules next",
+        "note": "Each line is a candidate story that a user could see working at the end of a sprint."
+      }
+    },
+    {
+      "title": "Kanban flow: WIP, cycle time and the cumulative flow diagram",
+      "text": [
+        "Kanban improves flow by making work visible, limiting work in progress, managing flow, making policies explicit and improving with feedback. Why limit WIP? Little's Law links the averages of a stable system: average cycle time = average WIP / average throughput. With a throughput of 10 items a week, 30 items in progress means about 3 weeks per item; cut WIP to 15 and items finish in about 1.5 weeks, with the same people. When a column reaches its limit, people help finish or unblock work downstream instead of pulling new work: stop starting, start finishing.",
+        "Cycle times vary a lot, so use percentiles rather than averages. If 85% of items finished within 8 days over the last three months, you can tell stakeholders 'most items are done within 8 days': a service level expectation. Aging WIP, the time current items have been in progress, shows problems before they finish: an item at 12 days when 85% finish within 8 needs attention today. Blocked items get a visible marker, a reason and a date.",
+        "The cumulative flow diagram (CFD) plots, every day, the number of items in each state as stacked bands. The vertical distance between the top and the 'Done' band shows WIP, the horizontal distance approximates the time items spend in between, and the slope of the 'Done' band is throughput. A band that widens means work accumulates in that state, usually because the next step is a bottleneck; flat bands mean nothing moves. Explicit policies complete the picture: what 'Ready' means, who pulls what, and how urgent items (the expedite class of service) bypass the queue and how many are allowed at once."
+      ],
+      "points": [
+        "Little's Law: cycle time = WIP / throughput, on averages of a stable system.",
+        "Answer 'when will it be done?' with the 85th percentile of cycle time.",
+        "Review aging WIP at the daily; blocked items are discussed first.",
+        "A widening band on the CFD shows where work piles up.",
+        "Classes of service (expedite, fixed date, standard) each need an explicit policy."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Board policy (support team)\nColumns:  To do | Analysis (WIP 3) | In progress (WIP 4) | Review (WIP 2) | Done\nPull:     take the oldest item on the left when you have capacity; finish or help before starting\nExpedite: max 1 at a time, bypasses the queue (production outage, P1)\nBlocked:  red marker + reason + date; discussed first at the daily\nSLE:      85% of standard items done within 8 calendar days",
+        "note": "Written policies make the board self-explanatory for newcomers and stakeholders."
+      }
+    },
+    {
+      "title": "Metrics without vanity: outcomes, forecasts and DORA",
+      "text": [
+        "A metric is useful when it supports a decision; a vanity metric looks good but changes nothing. Velocity helps one team forecast its own sprints, but as a target it inflates, and added up across teams it means nothing. Goodhart's law sums up the risk: when a measure becomes a target, it ceases to be a good measure. The same goes for 'tickets closed' (people split tickets) or hours logged. Measure the system rather than individuals, and look at several metrics together so that improving one at the expense of another becomes visible.",
+        "Use three families. Flow: throughput, cycle time, WIP and aging; throughput history also allows probabilistic forecasting, where past weekly throughput is replayed thousands of times (a Monte Carlo simulation) to answer '30 items left, when?' with 'by week 6 with 85% confidence'. Quality: escaped defects, incidents, rework. Outcome: did the release change user behaviour or the business result, such as adoption, conversion, handling time or support calls? Outcomes are the goal; output is only a means.",
+        "For delivery performance, the DORA research (DevOps Research and Assessment, behind the book Accelerate and the yearly State of DevOps reports) identified four key metrics: deployment frequency, lead time for changes (from commit to production), change failure rate (share of deployments causing a failure in production) and time to restore service after an incident. The first two measure speed, the last two stability, and the best performers are good at both. A BA rarely owns these numbers, but knowing them explains why small, frequent releases are safer than big ones."
+      ],
+      "points": [
+        "Ask 'which decision will this metric support?' before adding a chart.",
+        "Never use velocity to compare teams or people, or as a target.",
+        "Forecast with ranges and confidence levels from real throughput, not single dates.",
+        "DORA: deployment frequency, lead time for changes, change failure rate, time to restore.",
+        "Pair every output metric with an outcome the business cares about."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Team dashboard (monthly review)\nFlow:     throughput 9-12 items/week, cycle time 85th pct 7 days, WIP 14\nQuality:  escaped defects 3, P1 incidents 0\nOutcome:  online claim submissions 41% (+6 pts), average handling time 2.1 days (-0.4)\nDORA:     3 deploys/week, lead time for changes 2 days, change failure rate 8%, restore 3h\nDecision: keep WIP limit 4 in progress; next focus: reduce waiting time in review",
+        "note": "Every block ends in a decision; numbers that never lead to one can be dropped."
+      }
+    },
+    {
+      "title": "The BA in an agile organisation: PO partnership, stakeholders and scaling",
+      "text": [
+        "In many companies the BA works next to a Product Owner, and the roles can overlap; some BAs act as 'proxy PO'. A healthy split: the PO owns the vision, the order of the backlog and the acceptance of the work; the BA brings analysis depth: discovery with users, process and data analysis, stories with acceptance criteria, business rules, impact analysis and UAT. Write this split down so the team never receives two different answers. During the sprint, the BA stays available to the developers: a question answered the same day avoids a wrong guess.",
+        "Stakeholders do not disappear in agile; they move from signing a big specification to giving frequent feedback. Map them by influence and interest, invite the right ones to the Sprint Review and show working software, not slides. Say no transparently: show the ordered backlog and what would move down if their request moved up. Prefer a now / next / later roadmap to fixed-date promises, and keep a decision log of the trade-offs.",
+        "When a product needs several teams, frameworks coordinate them. SAFe (Scaled Agile Framework), common in large French organisations, groups teams in an Agile Release Train that plans together every 8 to 12 weeks during PI Planning, with roles such as Release Train Engineer and Product Management; it is complete but heavy. LeSS (Large-Scale Scrum) keeps one Product Owner and one Product Backlog for up to about eight teams, with very few added roles. Nexus extends Scrum to 3 to 9 teams with a Nexus Integration Team. Whatever the framework, the BA helps the same way: make cross-team dependencies visible early, keep features sliced so each team can deliver, and keep shared definitions consistent."
+      ],
+      "points": [
+        "Agree and publish the BA / PO split of responsibilities.",
+        "One voice to the team on priorities: the Product Owner's.",
+        "The Sprint Review is the main stakeholder feedback loop; prepare it with real scenarios.",
+        "SAFe: Agile Release Train, PI Planning, a program board of dependencies.",
+        "LeSS: one backlog and one PO for several teams; Nexus: 3 to 9 Scrum teams plus an integration team."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Activity                          PO    BA    Dev team  Stakeholders\nProduct vision and roadmap        A/R   C     C         C\nOrder the backlog                 A/R   C     C         I\nDiscovery and process analysis    A     R     C         C\nWrite stories and criteria        A     R     C         C\nEstimate                          I     C     A/R       -\nAccept stories in the sprint      A/R   C     I         -\nUAT with business users           A     R     C         R",
+        "note": "A RACI agreed at the start avoids 'who decides?' debates in the middle of a sprint."
+      }
     }
   ],
   "cheatsheet": [
@@ -145,13 +225,87 @@
           "Team estimates together"
         ]
       ]
+    },
+    {
+      "group": "Refinement",
+      "items": [
+        [
+          "Refinement",
+          "Ongoing detail, estimates and order for the backlog"
+        ],
+        [
+          "Vertical slice",
+          "End-to-end value through UI, logic and data"
+        ],
+        [
+          "SPIDR",
+          "Spike, Paths, Interfaces, Data, Rules"
+        ],
+        [
+          "Spike",
+          "Timeboxed investigation that produces knowledge"
+        ]
+      ]
+    },
+    {
+      "group": "Flow & metrics",
+      "items": [
+        [
+          "Little's Law",
+          "Cycle time = WIP / throughput"
+        ],
+        [
+          "Cumulative flow diagram",
+          "Stacked bands of items per state over time"
+        ],
+        [
+          "Service level expectation",
+          "e.g. 85% of items done within 8 days"
+        ],
+        [
+          "Aging WIP",
+          "Time current items have been in progress"
+        ],
+        [
+          "Goodhart's law",
+          "A measure that becomes a target stops being a good measure"
+        ],
+        [
+          "DORA metrics",
+          "Deploy frequency, lead time, change failure rate, time to restore"
+        ]
+      ]
+    },
+    {
+      "group": "Scaling",
+      "items": [
+        [
+          "SAFe Agile Release Train",
+          "Teams that plan and deliver together"
+        ],
+        [
+          "PI Planning",
+          "Joint planning every 8 to 12 weeks"
+        ],
+        [
+          "LeSS",
+          "One PO, one backlog, several teams"
+        ],
+        [
+          "Nexus",
+          "3 to 9 Scrum teams plus an integration team"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Daily Scrum turning into a status report for a manager.",
     "Comparing velocity between teams.",
     "Sprints with no goal, just a list of tickets.",
-    "Tickets too big to finish in a sprint."
+    "Tickets too big to finish in a sprint.",
+    "Splitting stories by technical layer (front-end story, back-end story), so nothing is usable until every part is done.",
+    "Turning velocity or tickets closed into a team KPI: the numbers inflate and stop meaning anything.",
+    "Adopting SAFe roles and events without reducing dependencies between teams: heavier process, same delays."
   ],
   "exercises": [
     {
@@ -171,6 +325,23 @@
       "q": "Your manager wants to raise velocity from 30 to 40 points next sprint. What do you answer?",
       "hint": "What happens to points when they become a target?",
       "answer": "Points would simply inflate: the same work estimated higher, with no more value delivered. Velocity is a forecasting tool. If the goal is to deliver more, look at what slows the team down: work in progress, waiting for reviews or other teams, unclear stories, interruptions, technical debt. Pick one obstacle, act on it in the next sprint and measure outcomes such as lead time or delivered features."
+    },
+    {
+      "q": "Split this story into vertical slices: 'As an administrator, I want to manage users.'",
+      "hint": "Paths, data, rules.",
+      "answer": "By operation and path: invite a user by email; deactivate a user; change a user's role; list and search users. By rules: first a single 'admin' and 'member' role, finer permissions later. By data: manual one-by-one invitations first, bulk import from a CSV file later. Each slice is usable and testable end to end, and the PO can order them by value."
+    },
+    {
+      "q": "A team has 24 items in progress and finishes 8 items a week. What is the average cycle time, and what WIP would bring it to about 1.5 weeks?",
+      "answer": "Little's Law: cycle time = WIP / throughput = 24 / 8 = 3 weeks. For 1.5 weeks at the same throughput, WIP must be about 8 × 1.5 = 12 items. Lowering WIP limits, finishing before starting, is the lever."
+    },
+    {
+      "q": "On the cumulative flow diagram, the 'In review' band has been widening for three weeks while the 'Done' band is almost flat. What is happening and what do you suggest?",
+      "answer": "Work is piling up waiting for review: review is the bottleneck, so little reaches Done and throughput drops. Suggest a WIP limit on 'In review', a team agreement to review before starting new work, pairing or more reviewers, and smaller items that are faster to review. Then watch whether the band narrows and the Done slope rises."
+    },
+    {
+      "q": "In the middle of a sprint, a sales director asks a developer directly for an 'urgent small change'. As the BA, what do you do?",
+      "answer": "Thank the director and take the request out of the developer's hands: clarify the need and the real urgency, assess the impact with the team, and bring it to the Product Owner, who decides whether it replaces something in the sprint (with the sprint goal in mind) or goes into the backlog. Then explain the decision to the director and remind everyone of the single entry point for requests."
     }
   ],
   "interview": [
@@ -189,6 +360,22 @@
     {
       "q": "What is velocity and how should it be used?",
       "a": "Velocity is the amount of work, usually in story points, a team completes per sprint, averaged over several sprints. It helps forecast how much fits in future sprints and when a set of features may be ready, as a range. It should not be used as a performance target or to compare teams, because estimates then inflate and the number loses its meaning."
+    },
+    {
+      "q": "How do you split a big user story?",
+      "a": "I split vertically so that each part delivers visible value end to end, using patterns such as SPIDR: separate the workflow paths, start with one interface or a subset of data, relax a business rule first and add it later, and use a timeboxed spike when the unknown is too large. Each slice must still be valuable, testable and small enough to finish in a few days."
+    },
+    {
+      "q": "What is Little's Law and why does it matter for a team?",
+      "a": "In a stable system, average cycle time equals average work in progress divided by average throughput. It shows that starting less is the cheapest way to deliver faster: with the same throughput, halving WIP roughly halves the time each item takes. That is why Kanban teams set WIP limits and focus on finishing work."
+    },
+    {
+      "q": "What are the DORA metrics?",
+      "a": "Four delivery performance metrics from the DevOps Research and Assessment program: deployment frequency, lead time for changes, change failure rate and time to restore service. Two measure speed and two measure stability, and the research found that high performers do well on both, which supports small, frequent and automated releases."
+    },
+    {
+      "q": "How do you work with the Product Owner as a Business Analyst?",
+      "a": "We agree on a clear split: the PO owns the vision, priorities and acceptance; I bring the analysis, discovery, stories and acceptance criteria, business rules, impact analysis and UAT. We refine the backlog together, I stay close to the developers during the sprint to answer questions quickly, and we make sure the team hears a single voice on priorities."
     }
   ]
 }

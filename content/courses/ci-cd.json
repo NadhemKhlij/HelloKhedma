@@ -72,6 +72,86 @@
         "code": "  deploy-prod:\n    needs: deploy-staging\n    runs-on: ubuntu-latest\n    environment: production   # requires a reviewer's approval\n    steps:\n      - run: ./deploy.sh ghcr.io/acme/api:${{ github.sha }}\n      - run: curl --fail https://api.acme.com/health",
         "note": "Rollback = run the same job again with the previous image tag."
       }
+    },
+    {
+      "title": "Pipeline design: stages, caching, artifacts and concurrency",
+      "text": [
+        "A good pipeline is fast enough that people wait for it and reliable enough that they trust it. Design it like a funnel: the cheapest checks that catch the most problems run first and in parallel (lint, type checks, unit tests), the expensive ones (integration tests, image build, security scans) only run once those pass. Jobs that do not depend on each other should not wait for each other; needs: in GitHub Actions and GitLab CI draws the real dependency graph instead of a strict sequence of stages.",
+        "Two mechanisms make pipelines fast and consistent. A cache keeps things you can rebuild but would rather not, like downloaded dependencies, keyed on the lock file so it is invalidated when dependencies change; a stale or missing cache only costs time. An artifact is an output one job hands to another, like a built package, test report or compiled site; it must be exact, because it is what you test and deploy. Build once, upload the artifact, and let later jobs download that same file instead of rebuilding it.",
+        "A few settings remove a lot of waste. Path filters skip the pipeline when only documentation changed. A concurrency group cancels the previous run on a pull request when a new commit arrives, but should not cancel runs on main, where a cancelled deploy can leave things half done. A matrix runs the same job for several versions or operating systems; set fail-fast: false when you want to see every failing combination, not just the first. GitLab CI has the same ideas with different words: stages, cache:key:files, artifacts:paths, parallel:matrix and interruptible."
+      ],
+      "points": [
+        "Fast checks first and in parallel; slow checks behind them with needs:.",
+        "Cache = speed (safe to lose); artifact = output passed between jobs (must be exact).",
+        "Key the dependency cache on the lock file (requirements.txt, package-lock.json).",
+        "Cancel superseded runs on pull requests, never deployments on main.",
+        "Watch the pipeline duration over time; a 30-minute pipeline changes how people work."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "name: ci\non:\n  pull_request:\n    paths-ignore: [\"docs/**\", \"**.md\"]\n  push:\n    branches: [main]\nconcurrency:\n  group: ci-${{ github.ref }}\n  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\njobs:\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with: { python-version: \"3.12\", cache: pip }\n      - run: pip install ruff && ruff check .\n  unit:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with: { python-version: \"3.12\", cache: pip }\n      - run: pip install -r requirements.txt && pytest -q -m \"not integration\"\n  build:\n    needs: [lint, unit]          # waits for both parallel jobs\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with: { python-version: \"3.12\" }\n      - run: pip install build && python -m build     # creates dist/\n      - uses: actions/upload-artifact@v4\n        with: { name: dist, path: dist/, retention-days: 7 }\n  deploy-staging:\n    needs: build\n    if: github.ref == 'refs/heads/main'\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/download-artifact@v4\n        with: { name: dist, path: dist/ }\n      - run: ls dist/   # deploy exactly what was built and tested",
+        "note": "lint and unit run in parallel; build starts only when both pass; staging gets the same artifact."
+      }
+    },
+    {
+      "title": "Testing strategy in CI and flaky tests",
+      "text": [
+        "Not all tests belong at the same place in the pipeline. The test pyramid is a useful guide: many fast unit tests that check logic in isolation, fewer integration tests that use a real database, queue or API, and a handful of end-to-end tests that drive the whole application. Unit tests run on every push in seconds; integration tests run on every pull request with real dependencies started as service containers; slow end-to-end and performance tests can run after deployment to staging or on a schedule. The goal is the fastest feedback that still catches the bugs that matter.",
+        "Integration tests in CI should be reproducible: start the dependencies in the pipeline (a postgres service container, a fresh schema, migrations applied, test data loaded) instead of pointing at a shared test database that someone else modifies. Publish test results as JUnit XML so the CI tool shows which tests failed, and keep coverage as a signal, not a target to game: a coverage drop on a pull request is worth a look, a 100% goal leads to useless tests.",
+        "A flaky test passes and fails on the same code. Typical causes are timing (sleep instead of waiting for a condition), shared state between tests, test order, real time and time zones, and network calls to external services. Flaky tests are dangerous because people learn to click 'retry' and stop reading red pipelines. Track them, fix the cause, or quarantine them in a separate non-blocking job with an owner and a deadline. Automatic retries are acceptable for infrastructure failures (a runner lost), not as a way to hide unstable tests."
+      ],
+      "points": [
+        "Many unit tests, fewer integration tests, few end-to-end tests.",
+        "Start real dependencies as service containers so each run starts clean.",
+        "Mark slow tests (pytest -m integration) to run them in a separate job.",
+        "Publish JUnit reports so failures are visible in the pull request.",
+        "Retry runner failures, not test failures; quarantine flaky tests with an owner."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# .gitlab-ci.yml - GitLab CI equivalent with unit and integration jobs\nstages: [test]\ndefault:\n  image: python:3.12\nvariables:\n  PIP_CACHE_DIR: \"$CI_PROJECT_DIR/.cache/pip\"\ncache:\n  key:\n    files: [requirements.txt]\n  paths: [.cache/pip]\n\nunit-tests:\n  stage: test\n  script:\n    - pip install -r requirements.txt\n    - pytest -m \"not integration\" --junitxml=report.xml\n  artifacts:\n    when: always\n    reports:\n      junit: report.xml\n\nintegration-tests:\n  stage: test\n  services:\n    - name: postgres:16\n      alias: db\n  variables:\n    POSTGRES_PASSWORD: test\n    DATABASE_URL: \"postgresql://postgres:test@db:5432/postgres\"\n  script:\n    - pip install -r requirements.txt\n    - pytest -m integration --junitxml=report.xml\n  artifacts:\n    when: always\n    reports:\n      junit: report.xml\n  retry:\n    max: 1\n    when: [runner_system_failure]   # retry infrastructure problems only",
+        "note": "In GitHub Actions the same idea uses services: postgres: with an image, env and a health check."
+      }
+    },
+    {
+      "title": "Securing the pipeline: OIDC instead of keys, and the supply chain",
+      "text": [
+        "A CI system can deploy to production, so attackers target it. The first risk is long-lived credentials: a cloud access key stored as a CI secret works from anywhere, for years, until someone notices it leaked. OpenID Connect (OIDC) removes it. The job asks the CI platform for a short-lived signed token that says 'I am repository acme/api, branch main, environment production'; the cloud provider checks the signature and the claims against a trust policy and returns temporary credentials valid for about an hour. In GitHub Actions you grant permissions: id-token: write and use the provider’s login action; in GitLab CI you request a token with id_tokens:. The trust policy should be narrow, for example only the production environment of one repository.",
+        "The second risk is the code you did not write: third-party actions, base images and packages. An action referenced by a tag like @v4 can be changed by whoever controls the tag; pinning it to a full commit SHA makes the reference immutable, and Dependabot or Renovate keeps those pins up to date. Set permissions: at workflow level to the minimum (contents: read) and widen per job. Be careful with workflows triggered by pull requests from forks: pull_request_target runs with secrets in the context of the base repository, so never check out and run the fork’s code in it.",
+        "Finally, make your own artifacts verifiable. A Software Bill of Materials (SBOM) lists every component and version inside an image, so when a new vulnerability is published you can answer 'are we affected?' in minutes. Signing the image (for example with Sigstore cosign) lets the deployment side check that the image really comes from your pipeline and was not replaced in the registry."
+      ],
+      "points": [
+        "OIDC: short-lived credentials per job, no static cloud keys to leak or rotate.",
+        "Restrict the trust policy on the token’s claims (repository, branch, environment).",
+        "Pin third-party actions to a full commit SHA; let Dependabot update the pins.",
+        "Default to permissions: contents: read and add only what each job needs.",
+        "SBOM to know what is inside; signature to prove where it came from."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "name: deploy-site\non:\n  push:\n    branches: [main]\npermissions:\n  contents: read            # default for every job\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    environment: production\n    permissions:\n      contents: read\n      id-token: write       # allow this job to request an OIDC token\n    steps:\n      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2, pinned\n      - uses: aws-actions/configure-aws-credentials@v4\n        with:\n          role-to-assume: arn:aws:iam::123456789012:role/github-deploy-site\n          aws-region: eu-west-3\n      - run: aws s3 sync ./public s3://acme-site --delete\n\n# AWS trust policy condition on the role (excerpt):\n#   \"token.actions.githubusercontent.com:aud\": \"sts.amazonaws.com\"\n#   \"token.actions.githubusercontent.com:sub\": \"repo:acme/site:environment:production\"",
+        "note": "No AWS key is stored anywhere: the role can only be assumed by this repository’s production environment."
+      }
+    },
+    {
+      "title": "Progressive delivery and rollbacks in practice",
+      "text": [
+        "Deploying is not the end of the pipeline; verifying is. Production environments should have protection rules (required reviewers, deployment only from main, a wait timer if needed) and their own secrets, and only one deployment at a time per environment, so two releases never overwrite each other halfway. After each deployment, smoke tests and monitoring decide whether the release stays: error rate, latency and key business events compared to before.",
+        "Blue-green and canary limit the blast radius in different ways. Blue-green keeps two complete environments and switches all traffic at once, which makes rollback instant but doubles the infrastructure during the switch. A canary sends 5%, then 25%, then 100% of traffic to the new version, checking metrics at each step; tools like Argo Rollouts or Flagger automate the analysis and roll back on their own. Feature flags go one step further: code is deployed turned off and enabled for internal users, then a percentage of customers, without a new deployment. That makes 'turning it off' faster than any rollback, as long as old flags are removed.",
+        "A rollback must be boring and rehearsed: redeploy the previous artifact, which still exists because you tag and keep images. The trap is the database. If release 2.0 renames a column, 1.9 crashes after rollback. Use the expand and contract pattern: first add the new column and write to both (expand), deploy the code that reads the new one, and only in a later release remove the old column (contract). Each step is backward compatible, so any single release can be rolled back."
+      ],
+      "points": [
+        "One deployment at a time per environment (concurrency group), with protection rules.",
+        "Smoke tests plus metrics decide whether a release stays.",
+        "Canary: gradual traffic with automatic analysis; blue-green: instant switch.",
+        "Feature flags separate deploy from release; clean up old flags.",
+        "Expand and contract keeps database changes compatible with rollback."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "name: deploy-production\non:\n  workflow_dispatch:\n    inputs:\n      version:\n        description: \"Image tag to deploy (commit SHA)\"\n        required: true\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    environment: production         # required reviewers approve first\n    concurrency:\n      group: deploy-production      # never two deploys at once\n      cancel-in-progress: false\n    steps:\n      # cluster credentials are configured in earlier steps (e.g. via OIDC)\n      - run: kubectl set image deployment/api api=ghcr.io/acme/api:${{ inputs.version }}\n      - run: kubectl rollout status deployment/api --timeout=5m\n      - run: curl --fail --retry 5 --retry-delay 10 https://api.acme.com/health\n      - if: failure()\n        run: kubectl rollout undo deployment/api   # automatic rollback",
+        "note": "Running the same workflow with the previous SHA is the manual rollback path."
+      }
     }
   ],
   "cheatsheet": [
@@ -101,6 +181,32 @@
       ["Lead time for changes", "Commit to production time"],
       ["Change failure rate", "Share of releases that cause a problem"],
       ["Time to restore", "How fast you recover from a failure"]
+    ]},
+    { "group": "Pipeline design", "items": [
+      ["needs: [lint, unit]", "Start a job when its real dependencies pass"],
+      ["actions/upload-artifact / download-artifact", "Pass build outputs between jobs"],
+      ["concurrency: group", "Limit runs per branch or environment"],
+      ["cancel-in-progress", "Cancel the superseded run"],
+      ["paths-ignore", "Skip the workflow for docs-only changes"],
+      ["fail-fast: false", "Let every matrix combination finish"],
+      ["GitLab: cache:key:files", "Cache keyed on a lock file"],
+      ["GitLab: artifacts:reports:junit", "Show test results in the merge request"]
+    ]},
+    { "group": "Tests & security", "items": [
+      ["Test pyramid", "Many unit, fewer integration, few end-to-end tests"],
+      ["Flaky test", "Passes and fails on the same code"],
+      ["services: postgres", "Real dependency started for the job"],
+      ["permissions: id-token: write", "Allow a job to request an OIDC token"],
+      ["OIDC", "Short-lived cloud credentials instead of stored keys"],
+      ["uses: action@<full SHA>", "Pin an action to an immutable version"],
+      ["SBOM", "List of components inside an artifact"],
+      ["cosign sign", "Sign a container image"]
+    ]},
+    { "group": "Releasing", "items": [
+      ["environment: production", "Apply protection rules and environment secrets"],
+      ["workflow_dispatch", "Start a workflow manually with inputs"],
+      ["kubectl rollout undo", "Return a Kubernetes deployment to the previous version"],
+      ["Expand and contract", "Backward-compatible database changes in steps"]
     ]}
   ],
   "pitfalls": [
@@ -108,7 +214,11 @@
     "Rebuilding the artifact for each environment: build once, promote the same version.",
     "Slow pipelines nobody waits for: cache dependencies and run the fastest checks first.",
     "No rollback plan: always keep the previous version deployable in one step.",
-    "Ignoring flaky tests: fix or quarantine them, or people stop trusting a red pipeline."
+    "Ignoring flaky tests: fix or quarantine them, or people stop trusting a red pipeline.",
+    "Long-lived cloud keys stored as CI secrets when the cloud supports OIDC.",
+    "Referencing third-party actions by a movable tag or branch, with write permissions on the token.",
+    "Retrying the whole pipeline until it is green: flaky tests hide real bugs.",
+    "Destructive database migrations in the same release as the code: rollback becomes impossible."
   ],
   "exercises": [
     { "q": "Write a GitHub Actions workflow that runs npm ci and npm test on every pull request.", "hint": "on: pull_request, actions/checkout, actions/setup-node with cache: npm.", "code": "yaml",
@@ -116,11 +226,23 @@
     { "q": "Your production release fails at 18:00 and users see errors. What do you do, in order?", "hint": "Restore first, investigate after.",
       "answer": "Roll back to the previous known-good version (redeploy the previous artifact), confirm with the health check and monitoring that errors stop, communicate the impact and status, then investigate the cause on the failed version in staging, add a test that would have caught it, and write a short post-mortem." },
     { "q": "Which tag would you give the image built from commit 3f2c9ab for release 2.1.0, and why?", "hint": "Traceability and readability.",
-      "answer": "Two tags on the same image: ghcr.io/acme/api:3f2c9ab (exact commit, always traceable) and ghcr.io/acme/api:2.1.0 (human-readable release). Never rely on :latest to know what runs in production." }
+      "answer": "Two tags on the same image: ghcr.io/acme/api:3f2c9ab (exact commit, always traceable) and ghcr.io/acme/api:2.1.0 (human-readable release). Never rely on :latest to know what runs in production." },
+    { "q": "Your pipeline takes 25 minutes: install (6 min, every job), lint, unit tests, integration tests and build run one after the other. Propose four changes to cut it down.", "hint": "Parallelism, cache, ordering, filters.",
+      "answer": "1) Cache dependencies keyed on the lock file so install takes seconds. 2) Run lint and unit tests in parallel, and integration tests in parallel with or after them using needs:, not in a strict sequence. 3) Build once and pass the artifact instead of rebuilding later. 4) Skip runs for docs-only changes with path filters and cancel superseded pull request runs with a concurrency group. Then measure again." },
+    { "q": "Write the job-level settings that let a GitHub Actions job assume an AWS role through OIDC, with no stored keys.", "code": "yaml",
+      "answer": "permissions:\n  contents: read\n  id-token: write\nsteps:\n  - uses: aws-actions/configure-aws-credentials@v4\n    with:\n      role-to-assume: arn:aws:iam::123456789012:role/github-deploy\n      aws-region: eu-west-3" },
+    { "q": "A test fails about one run in ten on main, and people just click 'Re-run'. What do you do?", "hint": "Restore trust first, then fix the cause.",
+      "answer": "Record it as a flaky test with an owner, reproduce it by running it in a loop or in random order, and look for the usual causes: timing and sleeps, shared state, test order, time zones, external calls. If it cannot be fixed quickly, quarantine it in a non-blocking job with a deadline, so the main pipeline is trusted again. Do not add blanket retries that hide it." },
+    { "q": "Release 3.0 must rename the column users.fullname to users.display_name. How do you deploy it so every release can be rolled back?", "hint": "Expand and contract.",
+      "answer": "Release A: add display_name, write to both columns, backfill existing rows. Release B: read from display_name (still writing both). Release C, once B is stable: stop writing fullname. Release D: drop fullname. At each step the previous version still works with the schema, so a rollback is safe." }
   ],
   "interview": [
     { "q": "What is the difference between continuous delivery and continuous deployment?", "a": "Both build and test every change automatically. With continuous delivery, a passing change is ready to release but a person decides when; with continuous deployment, every passing change goes to production automatically. Deployment needs strong automated tests and monitoring." },
     { "q": "How do you manage secrets in a pipeline?", "a": "Never in the code or YAML. I use the CI secret store or a vault, give each job the minimum permissions, prefer short-lived credentials through OIDC instead of static cloud keys, and rotate secrets. Secrets are masked in logs, but I still avoid printing them." },
-    { "q": "Describe a deployment strategy that limits risk.", "a": "A canary release: deploy the new version to a small share of traffic, watch error rate and latency for a few minutes, then increase gradually or roll back automatically if metrics degrade. Blue-green is the alternative when you need an instant switch back." }
+    { "q": "Describe a deployment strategy that limits risk.", "a": "A canary release: deploy the new version to a small share of traffic, watch error rate and latency for a few minutes, then increase gradually or roll back automatically if metrics degrade. Blue-green is the alternative when you need an instant switch back." },
+    { "q": "What is the difference between a cache and an artifact in CI?", "a": "A cache speeds up jobs by reusing things that can be rebuilt, like dependencies; if it is missing or stale the job is only slower. An artifact is a job output passed to later jobs or kept after the run, like a package or test report; it must be exact, because it is what gets tested and deployed. Build once, store the artifact, deploy that same artifact." },
+    { "q": "Why use OIDC to deploy from a pipeline?", "a": "Instead of storing a long-lived cloud key as a secret, the job gets a short-lived signed token from the CI platform and exchanges it for temporary credentials. Nothing permanent can leak, there is nothing to rotate, and the cloud trust policy can restrict access to a specific repository, branch or environment." },
+    { "q": "How do you deal with flaky tests?", "a": "I treat them as bugs: track them, reproduce them by looping or randomising order, and fix the usual causes such as timing, shared state, order dependence or external calls. While they are being fixed I quarantine them in a non-blocking job with an owner, so the main pipeline stays trustworthy. I only auto-retry infrastructure failures." },
+    { "q": "How do you make a release with a database migration safe to roll back?", "a": "I keep every migration backward compatible with the previous version of the code, using expand and contract: add new structures first, migrate data and switch the code over in later releases, and remove old structures only once nothing uses them. The application can then be rolled back at any step without breaking on the schema." }
   ]
 }

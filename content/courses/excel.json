@@ -70,6 +70,90 @@
         "code": "=LET(\n  sales, Table1[Amount],\n  region, Table1[Region],\n  SORT(UNIQUE(region))\n)\n\n=FILTER(Table1, (Table1[Region]=\"North\") * (Table1[Amount]>1000), \"none\")\n=SUMIFS(Table1[Amount], Table1[Region], H2, Table1[Month], H$1)",
         "note": "Each formula fills as many cells as needed; no dragging down."
       }
+    },
+    {
+      "title": "Advanced lookups and French Excel",
+      "text": [
+        "Basic lookups match one key and return the first hit. Real files ask harder questions: the amount for a client and a month, the last order of a customer, the salary band a value falls into, or a value at the crossing of a row and a column. XLOOKUP handles all of them with its optional arguments, and INDEX/MATCH remains the fallback for colleagues on older versions.",
+        "For several criteria, XLOOKUP can search for 1 inside an array of conditions multiplied together: each product is 1 only where every condition is true. The fifth argument, match_mode, controls the type of match: 0 exact (default), -1 exact or next smaller, 1 exact or next larger, 2 wildcards. With -1 you can map a salary to a band from a table of lower bounds, without nested IFs. The sixth argument, search_mode, set to -1 searches from the last row upwards, which returns the most recent record when the data is sorted by date. XMATCH is the modern MATCH with the same options.",
+        "Many French companies run Excel in French. Function names are translated (XLOOKUP is RECHERCHEX, INDEX/MATCH is INDEX/EQUIV, VLOOKUP is RECHERCHEV, IF is SI, SUMIFS is SOMME.SI.ENS, COUNTIFS is NB.SI.ENS, IFERROR is SIERREUR, FILTER is FILTRE, SORT is TRIER) and the argument separator is a semicolon because the comma is the decimal mark. A file keeps working when opened in another language: Excel translates the formulas automatically. Only formulas you type or copy from the web need adapting.",
+        "In a timed test, say which version you are using and test the 'not found' case on purpose with a key that does not exist."
+      ],
+      "points": [
+        "Multiple criteria: XLOOKUP(1, (col1=a)*(col2=b), return_col, \"none\").",
+        "Bands: XLOOKUP(value, lower_bounds, labels, , -1) returns the largest lower bound not above the value.",
+        "Last match: XLOOKUP(key, keys, values, , 0, -1).",
+        "Two-way: INDEX(table, MATCH(row_key, rows, 0), MATCH(col_key, headers, 0)).",
+        "French Excel: same logic, French names, \";\" between arguments."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=XLOOKUP(1, (Sales[Client]=$A2)*(Sales[Month]=B$1), Sales[Amount], 0)\n=XLOOKUP([@Salary], Bands[Min], Bands[Band], \"below range\", -1)\n=XLOOKUP($A2, Orders[Client], Orders[Date], \"no order\", 0, -1)\n=INDEX(Targets[[Jan]:[Dec]], MATCH($A2, Targets[Region], 0), XMATCH(B$1, Targets[[#Headers],[Jan]:[Dec]]))",
+        "note": "In French Excel the first line is =RECHERCHEX(1; (Sales[Client]=$A2)*(Sales[Month]=B$1); Sales[Amount]; 0)."
+      }
+    },
+    {
+      "title": "Power Query: clean and combine files",
+      "text": [
+        "Power Query is the extract-and-transform tool built into Excel (Data > Get Data). Each action you click becomes a step in the Applied Steps list, written in a language called M. The query reruns all steps on new data when you click Refresh, so cleaning becomes a process you build once instead of a task you redo every month.",
+        "The most useful pattern for an analyst is Get Data > From File > From Folder. Power Query lists every file in the folder, and Combine & Transform applies the same steps to each one before appending them into a single table. Add a column with the source file name to trace each row back. Next month, drop the new file in the folder and refresh.",
+        "Merge Queries is a join between two queries, with the join kinds you know from SQL: Left Outer, Inner, Full Outer, and the anti joins (Left Anti keeps rows with no match, perfect to list unknown product codes). Append Queries stacks tables with the same columns. Unpivot Columns turns a wide report with one column per month into a long table that pivot tables can use. Group By aggregates inside Power Query.",
+        "Types matter. Set them explicitly at the end of the query, and use Change Type > Using Locale when a CSV comes from a French system with decimal commas and day/month dates. Load the result as a Table, or as Connection Only when it only feeds the Data Model."
+      ],
+      "points": [
+        "Every step is replayable: rename steps so the list reads like a recipe.",
+        "From Folder + Combine appends monthly files with the same layout.",
+        "Left Anti merge lists the keys missing from a reference table.",
+        "Unpivot Other Columns after selecting the ID columns is robust to new months.",
+        "Remove unused columns early: the query refreshes faster."
+      ],
+      "example": {
+        "lang": "m",
+        "code": "let\n    Source = Folder.Files(\"C:\\Reports\\Sales\"),\n    CsvOnly = Table.SelectRows(Source, each [Extension] = \".csv\"),\n    Parsed = Table.AddColumn(CsvOnly, \"Data\", each Table.PromoteHeaders(\n        Csv.Document([Content], [Delimiter = \";\", Encoding = 65001]))),\n    Combined = Table.Combine(Parsed[Data]),\n    Typed = Table.TransformColumnTypes(Combined,\n        {{\"Date\", type date}, {\"Amount\", type number}}, \"fr-FR\"),\n    NoBlanks = Table.SelectRows(Typed, each [Amount] <> null)\nin\n    NoBlanks",
+        "note": "The \"fr-FR\" culture reads 1234,50 and 31/01/2026 correctly. You rarely type M by hand: the editor writes it as you click."
+      }
+    },
+    {
+      "title": "PivotTables in depth and the Data Model",
+      "text": [
+        "Once you can build a basic pivot, the next level is making it answer comparison questions. Value Field Settings > Show Values As turns a sum into % of Column Total, % of Row Total, Difference From the previous month, % Difference From, Running Total In or Rank. You keep one source field and get several views of it without helper columns.",
+        "A calculated field (PivotTable Analyze > Fields, Items & Sets) computes a formula on the summed fields, for example Margin % = Profit / Revenue. It is calculated on the totals of each cell, so it gives the ratio of totals, which is the correct way to average a rate. Slicers add filter buttons, and Report Connections links one slicer to several pivots built on the same source. A Timeline is a slicer for dates that filters by month, quarter or year with a drag.",
+        "When the data is in several tables (sales, customers, products, a calendar), do not merge them into one huge sheet. Tick 'Add this data to the Data Model' when creating the pivot, then create relationships between keys (Data > Relationships, or the diagram view in Power Pivot). The Data Model stores millions of rows compressed, enables Distinct Count, and lets you write measures in DAX, the same language as Power BI.",
+        "Measures are better than calculated fields for anything serious: they are defined once, reused in every pivot, and can change the filter context, for example to compare with last year."
+      ],
+      "points": [
+        "Show Values As: % of total, difference from, running total, rank.",
+        "Calculated fields work on sums: right for ratios of totals.",
+        "Report Connections lets one slicer filter several pivots.",
+        "Data Model: relationships instead of lookups, Distinct Count, DAX measures.",
+        "A proper date table makes time comparisons in DAX work."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Total Sales := SUM ( Sales[Amount] )\nOrders := DISTINCTCOUNT ( Sales[OrderID] )\nAverage Basket := DIVIDE ( [Total Sales], [Orders] )\nSales LY := CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( Dates[Date] ) )\nGrowth % := DIVIDE ( [Total Sales] - [Sales LY], [Sales LY] )",
+        "note": "Create them in Power Pivot > Measures > New Measure. SAMEPERIODLASTYEAR needs a Dates table marked as date table and related to Sales."
+      }
+    },
+    {
+      "title": "A KPI dashboard people can trust: validation and protection",
+      "text": [
+        "A good Excel dashboard is built in layers. Raw data lives in Tables (or Power Query outputs) on one sheet, calculations on another, and the Dashboard sheet only shows results. Nobody types in the data area of the dashboard, and every number on it comes from a formula or a pivot that you can trace. This separation is what lets you refresh next month without rebuilding anything.",
+        "Start from the questions, not the charts: three to six KPIs, each with a definition, a comparison (previous month, target or last year) and a direction (is up good?). Put the KPI cards at the top, the trend underneath, and the detail at the bottom. A single input cell, for example the selected month with a dropdown, drives the SUMIFS formulas, so the whole page updates at once. Use conditional formatting or icon sets sparingly to flag what is off target, sparklines (Insert > Sparklines) for a small trend inside a cell, and simple bar or line charts rather than 3D or pie charts with many slices.",
+        "Data Validation (Data > Data Validation) protects inputs: a List restricted to allowed values (it can point to a spilled UNIQUE range with #), whole numbers or dates within a range, or a Custom formula such as a uniqueness rule. Add an input message and a clear error alert.",
+        "Then lock the structure. All cells are Locked by default, but locking only applies once the sheet is protected: unlock the input cells (Format Cells > Protection), then Review > Protect Sheet. Protect Workbook prevents adding, deleting or renaming sheets. Sheet protection prevents accidents, not determined users; for confidentiality use file encryption and access rights."
+      ],
+      "points": [
+        "Layers: Data, Calculations, Dashboard; no hard-coded numbers on the dashboard.",
+        "Each KPI: definition, comparison, target or direction.",
+        "One input cell with a validation list drives every formula.",
+        "Unlock input cells before Protect Sheet, or users cannot use them.",
+        "Add a 'Last refreshed' date and the data source on the page."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "C2  (selected month, Data Validation > List, Source: =$H$2#)\nH2  =SORT(UNIQUE(Sales[Month]), , -1)\nC5  =SUMIFS(Sales[Amount], Sales[Month], $C$2)\nC6  =SUMIFS(Sales[Amount], Sales[Month], EDATE($C$2, -1))\nC7  =IFERROR(C5 / C6 - 1, \"n/a\")\nC8  =COUNTIFS(Sales[Month], $C$2, Sales[Status], \"Refunded\") / COUNTIFS(Sales[Month], $C$2)\nA2:A1000 custom validation rule: =COUNTIF($A$2:$A$1000, A2)=1",
+        "note": "Sales[Month] holds the first day of each month as a real date, so EDATE gives the previous month."
+      }
     }
   ],
   "cheatsheet": [
@@ -169,13 +253,107 @@
           "AutoSum"
         ]
       ]
+    },
+    {
+      "group": "Advanced lookup",
+      "items": [
+        [
+          "XLOOKUP(1, (c1=a)*(c2=b), ret)",
+          "Lookup on several criteria"
+        ],
+        [
+          "XLOOKUP(v, mins, labels, , -1)",
+          "Exact or next smaller: bands"
+        ],
+        [
+          "XLOOKUP(k, keys, ret, , 0, -1)",
+          "Last match (search from the end)"
+        ],
+        [
+          "XMATCH(k, range)",
+          "Modern MATCH, exact by default"
+        ],
+        [
+          "RECHERCHEX / INDEX + EQUIV",
+          "French names of XLOOKUP / INDEX + MATCH"
+        ],
+        [
+          "; instead of ,",
+          "Argument separator in French Excel"
+        ]
+      ]
+    },
+    {
+      "group": "Power Query & pivots",
+      "items": [
+        [
+          "Get Data > From Folder",
+          "Combine files with the same layout"
+        ],
+        [
+          "Merge Queries (Left Anti)",
+          "Rows with no match in the other table"
+        ],
+        [
+          "Unpivot Columns",
+          "Wide report to long table"
+        ],
+        [
+          "Show Values As",
+          "% of total, difference, running total"
+        ],
+        [
+          "Calculated field",
+          "Formula on summed fields"
+        ],
+        [
+          "Timeline",
+          "Date slicer by month, quarter, year"
+        ],
+        [
+          "Measure := DIVIDE(a, b)",
+          "DAX measure in the Data Model"
+        ]
+      ]
+    },
+    {
+      "group": "Dashboard & protection",
+      "items": [
+        [
+          "Data Validation > List",
+          "Dropdown of allowed values"
+        ],
+        [
+          "=COUNTIF($A$2:$A$1000, A2)=1",
+          "Custom rule: unique values"
+        ],
+        [
+          "Format Cells > Protection > Locked",
+          "Unlock input cells first"
+        ],
+        [
+          "Review > Protect Sheet",
+          "Block edits outside unlocked cells"
+        ],
+        [
+          "Protect Workbook",
+          "Lock sheet structure"
+        ],
+        [
+          "Insert > Sparklines",
+          "Mini trend chart in a cell"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "VLOOKUP without FALSE: approximate match returns wrong values silently.",
     "Merged cells and blank rows inside data: they break sorting, filters and pivots.",
     "Hard-coded numbers inside formulas instead of a cell or table reference.",
-    "Forgetting to Refresh a pivot table after changing data."
+    "Forgetting to Refresh a pivot table after changing data.",
+    "Typing formulas with commas in French Excel (or semicolons in English Excel): fix the separators, the logic is the same.",
+    "Merging everything into one wide sheet with lookups instead of loading related tables into the Data Model.",
+    "Protecting a sheet without unlocking the input cells first, or treating sheet protection as security for confidential data."
   ],
   "exercises": [
     {
@@ -197,6 +375,25 @@
       "hint": "FILTER inside SORT; Amount is the third column.",
       "code": "excel",
       "answer": "=SORT(FILTER(Sales, Sales[Amount]>5000), 3, -1)"
+    },
+    {
+      "q": "Table Sales has columns Client, Month and Amount. Return the amount for the client in A2 and the month in B1, or 0 if there is none.",
+      "code": "excel",
+      "answer": "=XLOOKUP(1, (Sales[Client]=$A2)*(Sales[Month]=B$1), Sales[Amount], 0)"
+    },
+    {
+      "q": "Table Bands has columns Min (0, 30000, 45000, 60000, sorted ascending) and Band (Junior, Confirmed, Senior, Lead). Return the band of the salary in C2.",
+      "hint": "match_mode -1: exact or next smaller.",
+      "code": "excel",
+      "answer": "=XLOOKUP(C2, Bands[Min], Bands[Band], \"below range\", -1)"
+    },
+    {
+      "q": "Each month you receive a CSV export in the same format, and you must list the product codes that do not exist in the Products reference table. How do you do it in Power Query?",
+      "answer": "Create a From Folder query that combines all the CSV files and sets the types, load Products as a second query, then Merge Queries from the sales query to Products on the product code with the Left Anti join kind. The result contains only the unknown codes; remove duplicates and load it as a check table. Next month, drop the new file in the folder and click Refresh."
+    },
+    {
+      "q": "Your dashboard has an input cell C2 for the month. How do you make sure users can only change C2 and only pick a valid month?",
+      "answer": "Put a Data Validation List on C2 pointing to the list of months (for example a spilled =SORT(UNIQUE(Sales[Month])) with H2#), add an error alert, unlock C2 in Format Cells > Protection, then use Review > Protect Sheet. Optionally Protect Workbook to stop sheets being renamed or deleted."
     }
   ],
   "interview": [
@@ -215,6 +412,22 @@
     {
       "q": "You receive the same report as a new Excel file every month and spend hours cleaning it. What do you do?",
       "a": "Automate the cleaning in Power Query: connect to the folder where the files arrive, record the steps once (remove columns, fix types, split and merge), load the result into a table or the data model, and build the pivot tables or charts on top. Each month I drop the file in the folder and click Refresh. I also document the steps and check row counts after refresh."
+    },
+    {
+      "q": "How would you look up a value using two criteria?",
+      "a": "With XLOOKUP on 1 and the product of two conditions: XLOOKUP(1, (Client=A2)*(Month=B1), Amount). Each condition returns TRUE or FALSE, multiplying gives 1 only where both are true. In older versions I would use INDEX/MATCH with the same array, or a helper key column concatenating the two criteria."
+    },
+    {
+      "q": "What is the difference between a calculated field in a pivot and a DAX measure?",
+      "a": "A calculated field computes a formula on the summed fields of one pivot cache, with limited functions. A measure lives in the Data Model, is reused by every pivot, supports functions like DISTINCTCOUNT, DIVIDE and CALCULATE, and can change the filter context, for example to compare with the same period last year."
+    },
+    {
+      "q": "How do you design an Excel dashboard that someone else will update every month?",
+      "a": "Separate data, calculations and presentation. Data comes in through Power Query or Tables, so refreshing is one click. KPIs are formulas or measures driven by one input cell with a validation list. I document definitions and the data source on the sheet, add a last refreshed date, and protect the dashboard sheet with only the input cells unlocked."
+    },
+    {
+      "q": "A colleague with French Excel says your formula does not work. Why?",
+      "a": "If the file itself was shared, Excel translates functions automatically, so the issue is elsewhere, often regional dates or decimals in the source data. If they typed or pasted my formula, they need the French function names, such as RECHERCHEX for XLOOKUP, and semicolons as separators because the comma is the decimal mark."
     }
   ]
 }

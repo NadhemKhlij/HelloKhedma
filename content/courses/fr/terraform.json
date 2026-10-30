@@ -71,6 +71,86 @@
         "lang": "hcl",
         "code": "module \"reports_dev\" {\n  source = \"./modules/bucket\"\n  env    = \"dev\"\n}\n\nmodule \"reports_prod\" {\n  source     = \"./modules/bucket\"\n  env        = \"prod\"\n  versioning = true\n}"
       }
+    },
+    {
+      "title": "Variables, locals et outputs en profondeur : types, validation et secrets",
+      "text": [
+        "Une variable est le contrat de votre code : celui qui l’appelle doit savoir quoi fournir. Utilisez des types précis plutôt que de simples chaînes : list(string), map(number) ou un objet avec des attributs nommés. Depuis Terraform 1.3, optional() permet de donner une valeur par défaut à un attribut d’objet, pour que l’appelant ne passe que ce qu’il veut changer. Un bloc validation rejette une mauvaise valeur dès le plan avec un message clair, ce qui vaut bien mieux qu’une erreur d’API obscure au milieu d’un apply.",
+        "Les valeurs viennent de plusieurs endroits, et les dernières l’emportent : variables d’environnement (TF_VAR_env), terraform.tfvars, fichiers *.auto.tfvars, puis -var et -var-file en ligne de commande. Gardez un fichier tfvars par environnement et évitez -var dans les pipelines, où personne ne peut le relire. Les locals servent aux noms et valeurs calculées utilisés plusieurs fois, comme un préfixe de nom ou une map de tags fusionnée ; si un local n’est utilisé qu’une fois, écrivez la valeur directement.",
+        "Les outputs exposent des valeurs à la personne qui lance Terraform, à un module parent ou à une autre configuration. Un output qui utilise une valeur sensible doit lui-même être marqué sensitive = true. Retenez ce que fait vraiment sensitive : la valeur est masquée dans l’affichage du plan et de l’apply, mais elle reste stockée en clair dans le state. Les secrets ont donc leur place dans un gestionnaire de secrets (AWS Secrets Manager, Azure Key Vault, Vault), lu au moment de l’apply ou, mieux, lu directement par l’application, et le state doit être chiffré avec un accès restreint. Les versions récentes de Terraform ajoutent les valeurs éphémères et les arguments en écriture seule, jamais écrits dans le state, et OpenTofu sait chiffrer le state côté client."
+      ],
+      "points": [
+        "Typez chaque variable et ajoutez une description : c’est la documentation de votre module.",
+        "validation { condition, error_message } échoue tôt, dès le plan.",
+        "Ne mettez jamais de mot de passe dans un fichier .tfvars versionné dans Git.",
+        "sensitive = true masque une valeur à l’affichage, pas dans le state.",
+        "Générez les mots de passe avec random_password ou laissez le service les gérer, et protégez le state."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "variable \"env\" {\n  type        = string\n  description = \"Deployment environment\"\n  validation {\n    condition     = contains([\"dev\", \"staging\", \"prod\"], var.env)\n    error_message = \"env must be dev, staging or prod.\"\n  }\n}\n\nvariable \"bucket\" {\n  type = object({\n    name       = string\n    versioning = optional(bool, false)\n    tags       = optional(map(string), {})\n  })\n}\n\nlocals {\n  tags = merge({ env = var.env, managed_by = \"terraform\" }, var.bucket.tags)\n}\n\noutput \"bucket_name\" {\n  value = aws_s3_bucket.this.bucket\n}",
+        "note": "Passer env = \"production\" échoue dès le plan avec le message d’erreur, avant tout appel d’API."
+      }
+    },
+    {
+      "title": "count, for_each et blocs dynamiques",
+      "text": [
+        "Une vraie infrastructure contient beaucoup d’éléments similaires : trois buckets, un utilisateur par membre de l’équipe, une liste de règles de pare-feu. Copier les blocs ne passe pas à l’échelle ; Terraform propose donc deux méta-arguments pour créer plusieurs instances à partir d’un seul bloc : count et for_each. Vous ne pouvez pas utiliser les deux sur la même ressource.",
+        "count crée N copies numérotées, adressées aws_iam_user.dev[0], [1], [2]. C’est parfait pour « zéro ou un » (count = var.enable_logs ? 1 : 0) mais dangereux pour les listes : supprimez le premier élément et tous les index se décalent, si bien que Terraform veut détruire et recréer les autres. for_each prend une map ou un set de chaînes et adresse chaque instance par sa clé, aws_iam_user.dev[\"alice\"]. Supprimer alice ne touche qu’alice. Dans le bloc, each.key et each.value donnent l’élément courant. Les clés doivent être connues au moment du plan : construisez-les à partir de variables, pas d’attributs de ressources qui n’existent pas encore.",
+        "Certaines ressources contiennent des blocs imbriqués répétés, comme les règles ingress d’un security group. Un bloc dynamic les génère à partir d’une collection : dynamic \"ingress\" avec for_each et un bloc content où ingress.value est l’élément courant. Servez-vous-en pour garder un module flexible, pas pour cacher du code simple : trois blocs statiques se lisent mieux qu’un bloc dynamique. Pour les listes et maps construites dans des expressions, les expressions for font la transformation : { for u in var.users : u.name => u if u.active }."
+      ],
+      "points": [
+        "count pour les ressources optionnelles, for_each pour les collections d’éléments nommés.",
+        "Passer de count à for_each change les adresses : ajoutez des blocs moved.",
+        "for_each attend une map ou un set : utilisez toset() sur une liste de chaînes.",
+        "Les blocs dynamic génèrent des blocs imbriqués ; ne les utilisez pas à outrance.",
+        "terraform console permet de tester des expressions avant de les utiliser."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "variable \"buckets\" {\n  type = map(object({ versioning = bool }))\n  default = {\n    raw     = { versioning = true }\n    curated = { versioning = true }\n    tmp     = { versioning = false }\n  }\n}\n\nresource \"aws_s3_bucket\" \"data\" {\n  for_each = var.buckets\n  bucket   = \"acme-${each.key}-${var.env}\"\n}\n\nresource \"aws_security_group\" \"api\" {\n  name   = \"api-${var.env}\"\n  vpc_id = var.vpc_id\n\n  dynamic \"ingress\" {\n    for_each = var.allowed_ports\n    content {\n      from_port   = ingress.value\n      to_port     = ingress.value\n      protocol    = \"tcp\"\n      cidr_blocks = [var.vpc_cidr]\n    }\n  }\n}",
+        "note": "Adresses : aws_s3_bucket.data[\"raw\"], aws_s3_bucket.data[\"tmp\"]. Supprimer tmp ne touche pas aux autres."
+      }
+    },
+    {
+      "title": "Les modules en profondeur et un state par environnement",
+      "text": [
+        "Un bon module fait une seule chose (un réseau, une base de données, un service) et cache les détails derrière un petit ensemble d’entrées et de sorties. Le module racine, le dossier où vous lancez terraform, les assemble : il transmet les identifiants de sous-réseaux du module réseau au module base de données, et ainsi de suite. Gardez des modules peu imbriqués : un module qui appelle un module qui appelle un module devient difficile à déboguer. Rédigez un README avec les entrées, les sorties et un exemple, et laissez les blocs provider dans le module racine, pas dans les modules réutilisables.",
+        "Versionnez les modules comme du logiciel. Un module du registre public s’appelle avec source = \"terraform-aws-modules/vpc/aws\" et une contrainte de version ; un module partagé de l’entreprise dans Git est figé sur un tag (?ref=v1.4.0). Faites les montées de version volontairement, en lisant le changelog et le plan, et appliquez le versionnage sémantique à vos propres modules : un changement d’entrée incompatible implique une version majeure. terraform init -upgrade récupère des versions plus récentes dans les contraintes, et le fichier .terraform.lock.hcl, versionné dans Git, fige les versions exactes des providers.",
+        "Les environnements doivent être isolés. Les workspaces de la CLI (terraform workspace new staging) donnent plusieurs states pour le même code et le même backend ; ils sont pratiques pour des copies éphémères, comme un environnement de test par branche. Pour dev, staging et prod, la plupart des équipes préfèrent un dossier par environnement avec sa propre clé de backend, son propre tfvars et ses propres identifiants, qui appellent tous les mêmes modules versionnés. Une erreur en dev ne peut alors pas toucher le state de prod, la prod peut rester en v1.4 du module pendant que la dev essaie la v1.5, et les permissions peuvent différer. Des outils comme Terragrunt suppriment la duplication restante, mais ils restent optionnels."
+      ],
+      "points": [
+        "Module = entrées (variables) + ressources + sorties ; pas de configuration de provider cachée.",
+        "Figez les versions de modules et versionnez .terraform.lock.hcl.",
+        "Préférez un dossier et un state par environnement aux workspaces pour la prod.",
+        "Découpez les gros states par composant (réseau, données, applications) pour réduire le rayon d’impact et la durée du plan.",
+        "Lisez les outputs d’un autre state avec la data source terraform_remote_state, ou mieux, retrouvez les ressources avec des data sources."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "# envs/prod/main.tf\nmodule \"network\" {\n  source  = \"terraform-aws-modules/vpc/aws\"\n  version = \"~> 5.0\"\n\n  name            = \"acme-prod\"\n  cidr            = \"10.20.0.0/16\"\n  azs             = [\"eu-west-3a\", \"eu-west-3b\"]\n  private_subnets = [\"10.20.1.0/24\", \"10.20.2.0/24\"]\n  public_subnets  = [\"10.20.101.0/24\", \"10.20.102.0/24\"]\n}\n\nmodule \"database\" {\n  source     = \"../../modules/postgres\"\n  env        = \"prod\"\n  subnet_ids = module.network.private_subnets\n  multi_az   = true\n}",
+        "note": "envs/dev et envs/prod appellent les mêmes modules avec des valeurs et des clés de backend différentes."
+      }
+    },
+    {
+      "title": "Opérations sur le state, dérive et Terraform en CI",
+      "text": [
+        "Tôt ou tard, vous refactorisez le code ou reprenez des ressources créées à la main. Faites-le avec du code relu, pas avec des commandes risquées sur un poste. Un bloc import (Terraform 1.5+) adopte une ressource existante pendant un plan et un apply normaux ; terraform plan -generate-config-out=generated.tf écrit même une première version du bloc de ressource pour vous. Un bloc moved indique à Terraform qu’une ressource a changé d’adresse (renommée, déplacée dans un module, passée en for_each) pour qu’elle ne soit pas détruite puis recréée. Un bloc removed avec destroy = false arrête de gérer une ressource sans la supprimer. Les anciennes commandes terraform state mv, state rm et terraform import fonctionnent toujours, mais elles modifient le state immédiatement, sans plan ni relecture.",
+        "La dérive (drift) survient quand quelqu’un modifie l’infrastructure en dehors de Terraform. terraform plan -refresh-only montre ce qui a changé dans le monde réel sans proposer de revenir en arrière ; vous mettez ensuite le code à jour pour accepter le changement, ou vous lancez un apply normal pour rétablir la version du code. Un plan planifié en CI qui alerte quand il n’est pas vide détecte la dérive tôt. Pour forcer le remplacement d’une ressource cassée, utilisez terraform apply -replace=ADRESSE plutôt que l’ancienne commande taint.",
+        "Dans un pipeline, chaque pull request lance terraform fmt -check, validate, un linter (tflint) et un plan enregistré dans un fichier avec -out. Les contrôles de politiques s’exécutent sur ce plan : checkov ou conftest (Open Policy Agent) sur terraform show -json, ou Sentinel dans HCP Terraform, peuvent bloquer un bucket public ou un tag manquant. Le plan est publié sur la pull request pour relecture. Après le merge, le pipeline applique exactement ce plan enregistré, avec des identifiants temporaires obtenus par OIDC et une validation manuelle pour la production. OpenTofu, le fork open source, suit le même processus avec la commande tofu."
+      ],
+      "points": [
+        "Les blocs import, moved et removed rendent les changements de state relisibles dans une pull request.",
+        "plan -refresh-only montre la dérive ; apply -replace force une recréation.",
+        "Appliquez le fichier de plan enregistré, pour que ce qui a été relu soit ce qui s’exécute ; un plan périmé est refusé.",
+        "Les politiques en code (checkov, conftest, Sentinel) transforment les règles en contrôles automatiques.",
+        "Identifiants de CI : OIDC et un rôle dédié, jamais de clés longue durée dans des variables."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "# Adopt a bucket that was created by hand\nimport {\n  to = aws_s3_bucket.legacy_exports\n  id = \"acme-legacy-exports\"\n}\n\n# The block was renamed: keep the same database\nmoved {\n  from = aws_db_instance.main\n  to   = module.database.aws_db_instance.this\n}\n\n# Stop managing this queue, but do not delete it\nremoved {\n  from = aws_sqs_queue.old_jobs\n  lifecycle {\n    destroy = false\n  }\n}",
+        "note": "Pipeline : terraform fmt -check, terraform validate, terraform plan -out=tfplan, contrôles de politiques sur terraform show -json tfplan, puis terraform apply tfplan après le merge."
+      }
     }
   ],
   "cheatsheet": [
@@ -94,14 +174,58 @@
       ["terraform state list", "Ressources suivies par Terraform"],
       ["terraform import addr id", "Adopter une ressource existante"],
       ["terraform state mv a b", "Renommer une ressource sans la recréer"]
-    ]}
+    ]},
+    {
+      "group": "Variables et expressions",
+      "items": [
+        ["validation { condition, error_message }", "Rejeter une mauvaise valeur dès le plan"],
+        ["optional(type, default)", "Attribut optionnel dans une variable objet"],
+        ["sensitive = true", "Masquer une valeur à l’affichage (toujours dans le state)"],
+        ["TF_VAR_name", "Définir une variable depuis l’environnement"],
+        ["*.auto.tfvars", "Fichiers de variables chargés automatiquement"],
+        ["count = var.on ? 1 : 0", "Créer une ressource sous condition"],
+        ["for_each = toset(var.names)", "Une instance par clé, adressée par sa clé"],
+        ["each.key / each.value", "Élément courant dans un for_each"],
+        ["dynamic \"block\" { for_each, content }", "Générer des blocs imbriqués répétés"],
+        ["{ for k, v in m : k => v if cond }", "Transformer ou filtrer une collection"]
+      ]
+    },
+    {
+      "group": "Modules et environnements",
+      "items": [
+        ["version = \"~> 5.0\"", "Figer la version d’un module du registre"],
+        ["?ref=v1.4.0", "Figer un module Git sur un tag"],
+        [".terraform.lock.hcl", "Versions exactes des providers, à versionner"],
+        ["terraform init -upgrade", "Récupérer des versions plus récentes dans les contraintes"],
+        ["terraform workspace new/select", "Plusieurs states pour le même code"],
+        ["Un dossier + une clé de backend par env", "State isolé pour dev, staging, prod"]
+      ]
+    },
+    {
+      "group": "Refactorisation et CI",
+      "items": [
+        ["import { to, id }", "Adopter une ressource existante dans un plan"],
+        ["plan -generate-config-out=file.tf", "Écrire le code des ressources importées"],
+        ["moved { from, to }", "Changer une adresse sans recréer"],
+        ["removed { from, lifecycle { destroy = false } }", "Arrêter de gérer sans supprimer"],
+        ["terraform state rm addr", "Oublier une ressource immédiatement (sans plan)"],
+        ["terraform plan -refresh-only", "Montrer la dérive sans la corriger"],
+        ["terraform apply -replace=addr", "Forcer la recréation d’une ressource"],
+        ["terraform plan -out=tfplan", "Enregistrer le plan pour l’appliquer plus tard"],
+        ["terraform fmt -check", "Faire échouer la CI si le code n’est pas formaté"],
+        ["checkov / conftest / Sentinel", "Contrôles de politiques sur le code ou le plan"]
+      ]
+    }
   ],
   "pitfalls": [
     "Appliquer sans lire le plan : un renommage peut signifier destruction puis recréation.",
     "Commiter terraform.tfstate ou des secrets dans Git.",
     "Un état local en équipe : deux personnes appliquent en même temps et cassent tout.",
     "Modifier des ressources à la main dans la console : le prochain apply annule ou entre en conflit.",
-    "Des versions de providers non figées : une nouvelle version majeure change le comportement du jour au lendemain."
+    "Des versions de providers non figées : une nouvelle version majeure change le comportement du jour au lendemain.",
+    "Utiliser count sur une liste de noms : supprimer un élément décale les index et recrée les autres.",
+    "Croire que sensitive = true protège un secret : il reste en clair dans le state.",
+    "Lancer terraform state mv ou rm à la main en production au lieu de blocs moved ou removed relus."
   ],
   "exercises": [
     { "q": "Écrivez une variable instance_type avec t3.micro par défaut, et un output qui affiche l’IP publique de aws_instance.web.", "hint": "Bloc variable avec type et default ; bloc output avec value.", "code": "hcl",
@@ -109,11 +233,50 @@
     { "q": "terraform plan affiche « 1 to destroy, 1 to add » pour votre base de données après que vous avez renommé son bloc resource. Que s’est-il passé et comment éviter de perdre les données ?", "hint": "Terraform suit les ressources par leur adresse.",
       "answer": "Terraform suit les ressources par leur adresse dans le code. Renommer le bloc a changé l’adresse : Terraform croit que l’ancienne doit disparaître et qu’une nouvelle doit être créée. Utilisez un bloc moved (moved { from = aws_db_instance.old to = aws_db_instance.new }) ou terraform state mv avant d’appliquer, puis vérifiez que le plan n’affiche plus de destruction." },
     { "q": "Votre équipe lance Terraform depuis ses ordinateurs avec un état local. Proposez une organisation plus sûre en trois points.", "hint": "État, verrou, pipeline.",
-      "answer": "1) Déplacer l’état vers un backend distant chiffré avec verrouillage. 2) Lancer plan à chaque pull request dans la CI et n’appliquer que depuis le pipeline après relecture, avec des identifiants dédiés. 3) Séparer l’état par environnement, figer les versions et ajouter fmt, validate et un analyseur de sécurité au pipeline." }
+      "answer": "1) Déplacer l’état vers un backend distant chiffré avec verrouillage. 2) Lancer plan à chaque pull request dans la CI et n’appliquer que depuis le pipeline après relecture, avec des identifiants dédiés. 3) Séparer l’état par environnement, figer les versions et ajouter fmt, validate et un analyseur de sécurité au pipeline." },
+    {
+      "q": "Écrivez une variable instance_type qui n’accepte que des valeurs commençant par t3. ou m6i., avec un message d’erreur clair.",
+      "hint": "Bloc validation avec can(regex(...)) ou startswith().",
+      "code": "hcl",
+      "answer": "variable \"instance_type\" {\n  type    = string\n  default = \"t3.micro\"\n  validation {\n    condition     = startswith(var.instance_type, \"t3.\") || startswith(var.instance_type, \"m6i.\")\n    error_message = \"instance_type must be a t3 or m6i size.\"\n  }\n}"
+    },
+    {
+      "q": "Créez un utilisateur IAM par nom de var.users (une liste de chaînes) de façon à ce que supprimer un nom ne recrée jamais les autres utilisateurs.",
+      "hint": "for_each avec toset().",
+      "code": "hcl",
+      "answer": "variable \"users\" {\n  type    = list(string)\n  default = [\"alice\", \"bob\", \"chloe\"]\n}\n\nresource \"aws_iam_user\" \"team\" {\n  for_each = toset(var.users)\n  name     = each.value\n}"
+    },
+    {
+      "q": "Vous avez déplacé la ressource aws_s3_bucket.logs dans un nouveau module logging (où elle s’appelle aws_s3_bucket.this). Le plan affiche 1 to destroy et 1 to add. Corrigez sans modifier le state à la main.",
+      "hint": "Un bloc qui enregistre la nouvelle adresse.",
+      "code": "hcl",
+      "answer": "moved {\n  from = aws_s3_bucket.logs\n  to   = module.logging.aws_s3_bucket.this\n}"
+    },
+    {
+      "q": "Votre équipe veut gérer dev, staging et prod avec Terraform. Faut-il utiliser des workspaces ou des dossiers séparés ? Justifiez en quelques lignes.",
+      "hint": "Isolation, identifiants, versions.",
+      "answer": "Des dossiers séparés (ou des configurations racines séparées), avec une clé de backend, un fichier tfvars et un jeu d’identifiants par environnement, qui appellent tous les mêmes modules versionnés. La prod est isolée des erreurs faites en dev, elle peut rester sur une ancienne version de module pendant que la dev en teste une nouvelle, et le pipeline peut exiger une validation uniquement pour la prod. Les workspaces partagent le même code, le même backend et en général les mêmes identifiants : ils conviennent mieux aux copies éphémères qu’aux environnements de production durables."
+    }
   ],
   "interview": [
     { "q": "Qu’est-ce que l’état Terraform et pourquoi est-il important ?", "a": "L’état relie les ressources du code aux ressources réelles dans le cloud, avec leurs identifiants et attributs. Terraform s’en sert pour calculer le plan. Il doit être partagé, verrouillé et protégé : stocké dans un backend distant avec verrouillage et chiffrement, jamais modifié à la main ni commité, car il peut contenir des secrets." },
     { "q": "Comment gérez-vous plusieurs environnements avec Terraform ?", "a": "Je réutilise les mêmes modules avec des variables différentes et je garde un état séparé par environnement, par exemple un dossier ou un workspace par environnement avec ses propres tfvars. La production a des réglages plus stricts et une étape de validation dans le pipeline." },
-    { "q": "Qu’est-ce que la dérive de configuration et comment la détectez-vous ?", "a": "La dérive, c’est quand l’infrastructure réelle ne correspond plus au code, généralement après une modification manuelle. terraform plan la montre comme un changement inattendu. Je lance des plans planifiés dans la CI pour la détecter, puis soit j’intègre le changement dans le code, soit je laisse Terraform l’annuler, et je limite les droits d’écriture dans la console." }
+    { "q": "Qu’est-ce que la dérive de configuration et comment la détectez-vous ?", "a": "La dérive, c’est quand l’infrastructure réelle ne correspond plus au code, généralement après une modification manuelle. terraform plan la montre comme un changement inattendu. Je lance des plans planifiés dans la CI pour la détecter, puis soit j’intègre le changement dans le code, soit je laisse Terraform l’annuler, et je limite les droits d’écriture dans la console." },
+    {
+      "q": "Quelle est la différence entre count et for_each ?",
+      "a": "Les deux créent plusieurs instances à partir d’un bloc. count crée des instances numérotées (index 0, 1, 2) : c’est bien pour un interrupteur marche/arrêt mais fragile pour les listes, car supprimer un élément décale les index et recrée des ressources. for_each prend une map ou un set et adresse chaque instance par une clé stable : ajouter ou retirer un élément n’affecte que cet élément. J’utilise count pour la création conditionnelle et for_each pour les collections."
+    },
+    {
+      "q": "Comment reprenez-vous dans Terraform des ressources créées à la main ?",
+      "a": "J’écris un bloc import avec l’adresse cible et l’identifiant de la ressource, je lance terraform plan -generate-config-out pour obtenir une première version du code, je nettoie ce code et je vérifie que le plan ne montre que l’import, sans aucun changement. Le tout passe par une pull request et un apply normaux. L’ancienne commande terraform import fonctionne aussi, mais elle modifie directement le state sans plan relu."
+    },
+    {
+      "q": "Comment gérez-vous les secrets dans Terraform ?",
+      "a": "Je les garde hors du code et hors des tfvars versionnés dans Git. Les secrets vivent dans un gestionnaire de secrets comme Secrets Manager, Key Vault ou Vault ; Terraform crée le conteneur du secret et laisse l’application lire la valeur, ou la lit au moment de l’apply. Les variables et outputs qui portent des secrets sont marqués sensitive, mais comme les valeurs peuvent quand même se retrouver dans le state, celui-ci est dans un backend distant chiffré à accès restreint. Les versions récentes proposent aussi des valeurs éphémères qui ne sont pas stockées dans le state."
+    },
+    {
+      "q": "Décrivez un bon pipeline CI/CD pour Terraform.",
+      "a": "À chaque pull request : terraform fmt -check, validate, tflint, une analyse de sécurité ou de politiques comme checkov ou conftest, et un plan enregistré avec -out et publié sur la pull request. Après relecture et merge, le pipeline applique ce plan enregistré, environnement par environnement, avec une validation avant la production. Les identifiants sont temporaires via OIDC, le state est distant et verrouillé, et un plan planifié détecte la dérive."
+    }
   ]
 }

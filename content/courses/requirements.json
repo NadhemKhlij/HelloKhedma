@@ -63,6 +63,86 @@
         "code": "ID    Requirement                     Priority  Source          Story    Test case   Status\nR-12  Export the claims list to CSV   Must      Claims manager  CL-88    TC-201/202  Done\nR-13  Filter claims by status         Should    Workshop 03/10  CL-91    TC-210      In UAT\nR-14  Email a weekly summary          Could     Director        -        -           Backlog\nR-15  Mobile app                      Won't     -               -        -           Out of scope (v2)",
         "note": "One line per requirement: where it came from, how it is built and how it is tested."
       }
+    },
+    {
+      "title": "Elicitation techniques and running a workshop",
+      "text": [
+        "No single technique finds every requirement. Interviews give depth and the political picture, but people describe what they think they do. Observation (job shadowing) shows the real work: the workarounds, the Excel file kept on the side, the sticky notes on the screen. Document analysis (procedures, existing reports, screens, tickets, regulations) gives you the rules and the vocabulary before you meet anyone, so you ask better questions. Surveys reach many users but mostly confirm hypotheses you already have. Combine them: read first, interview, observe, then converge in a workshop.",
+        "A good interview is prepared: a goal, eight to ten open questions, and requests for the last real case rather than the general rule ('show me the last claim you rejected'). Leave silence after a question; the useful detail often comes second. End with 'who else should I talk to?' and 'what did I not ask?'. Send a short written summary within a day: the corrections people make to it are often worth more than the interview itself.",
+        "A workshop brings several stakeholders together to decide or converge, which a series of interviews cannot do. It needs a precise objective ('agree on the claim approval rules'), the right five to eight people including someone who can decide, a timeboxed agenda, a facilitator who is not also the main contributor, and a visible artefact everyone works on: a process on the wall, a list of rules, a prototype. Keep a 'parking lot' for off-topic points so they are noted without derailing the session. Close with the decisions taken, the open questions with an owner and a date, and the next steps."
+      ],
+      "points": [
+        "Read the documents before the first meeting: you arrive with the vocabulary and precise questions.",
+        "Ask 'show me' as often as 'tell me': observation reveals workarounds nobody mentions.",
+        "Separate the facilitator and note-taker roles whenever you can.",
+        "Write decisions and open questions on a shared screen during the workshop, not afterwards.",
+        "Prototypes and real examples trigger more precise feedback than abstract questions."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# Workshop: claim approval rules (2h, on site)\nObjective: agree on who approves a claim and above which amount\nParticipants: claims manager (decides), 2 handlers, finance controller, IT lead, BA (facilitator), PO (notes)\nPre-read: current procedure v3, 10 real claims from last month\n\n| Time | Topic                                 | Output                     |\n|------|---------------------------------------|----------------------------|\n| 0:00 | Goal, scope, rules of the session     | Shared objective           |\n| 0:10 | Walk through 3 real claims            | Steps and exceptions noted |\n| 0:50 | Draft approval rules on the board     | Rule list v1               |\n| 1:30 | Check the rules against the 10 claims | Rules confirmed or changed |\n| 1:50 | Decisions, open questions, next steps | Owners and dates           |\n\nParking lot: notification emails, archive period",
+        "note": "Real cases as pre-read and as test material keep the discussion concrete."
+      }
+    },
+    {
+      "title": "Testable acceptance criteria and non-functional requirements",
+      "text": [
+        "A criterion is testable when two people running it would agree on pass or fail. 'Easy to use', 'fast' and 'secure' are not testable; 'the search returns results in under 2 seconds for 95% of requests' is. Write criteria from the user's observable behaviour rather than the implementation, and use concrete data. Gherkin gives the structure: Given (the context), When (one action), Then (the observable outcome). A Scenario Outline with an Examples table covers a business rule with several values without copying the scenario.",
+        "Business rules need explicit boundaries. If free shipping applies 'above 100 euros', is exactly 100 included? Boundary values are where many defects hide, so put them in the examples. Keep one behaviour per scenario, and avoid steps such as 'click the blue button' unless the interface itself is what you are specifying: they break with every redesign and hide the rule.",
+        "Non-functional requirements (NFRs) describe how well the system works: performance, availability, security, accessibility, usability, compliance (GDPR, retention periods), scalability, maintainability. They are often forgotten because nobody asks for them until production fails. Make each one measurable with a metric, a target and a context, and decide where it lives: in the Definition of Done when it applies to every story (accessibility checks, security review), or as acceptance criteria on the story it concerns."
+      ],
+      "points": [
+        "Testable means observable, measurable, with concrete data and a clear pass or fail.",
+        "Use Scenario Outline and Examples for rules with several values, including the boundaries.",
+        "Ask NFR questions during discovery: how many users, how fast, kept how long, who may see what.",
+        "'Highly available' is a wish; '99.5% per month during office hours' is a requirement.",
+        "Review NFRs with the tech lead or architect: some are expensive and change the design."
+      ],
+      "example": {
+        "lang": "gherkin",
+        "code": "Feature: Shipping fee\n\n  Scenario Outline: Free shipping from 100 euros\n    Given a basket total of <total> euros\n    When I go to checkout\n    Then the shipping fee is <fee> euros\n\n    Examples:\n      | total  | fee  |\n      | 99.99  | 4.90 |\n      | 100.00 | 0.00 |\n      | 150.00 | 0.00 |",
+        "note": "The boundary (exactly 100) is written down, so nobody has to guess whether it is included."
+      }
+    },
+    {
+      "title": "Prioritisation beyond MoSCoW: cost of delay, WSJF and Kano",
+      "text": [
+        "MoSCoW defines a release scope, but it says little about the order inside the Musts, and stakeholders tend to call everything a Must. Value versus effort is a quick next step: place items on a two-by-two grid; high value and low effort items (quick wins) go first, low value and high effort items are questioned. The scores are relative estimates, so agree on them together rather than letting each requester score their own item.",
+        "Cost of delay asks what we lose for each week an item is not delivered: revenue, a regulatory penalty, a missed market window, a growing risk. WSJF (Weighted Shortest Job First), popularised by SAFe, divides the cost of delay by the job size. The cost of delay is the sum of three relative scores: business value, time criticality, and risk reduction or opportunity enablement, usually on a Fibonacci-like scale (1, 2, 3, 5, 8, 13, 20). The highest WSJF goes first, so small items with a high cost of delay rise to the top.",
+        "The Kano model classifies features by their effect on satisfaction. Basic needs cause anger when missing but no delight when present: the login works, the invoice is correct. Performance needs increase satisfaction in proportion: faster search, more filters. Delighters surprise and please but nobody expects them, and over time they become basic needs. Kano reminds you to secure the basics first, then compete on performance, and keep room for a few delighters. Whatever the method, the output is a ranked list with its rationale, shared with the sponsor."
+      ],
+      "points": [
+        "Score each item relative to the others, not in absolute terms.",
+        "WSJF favours small, urgent items; split big items so their value is not hidden in a large size.",
+        "A regulatory deadline has a high time criticality: missing it has a fixed, known cost.",
+        "A Kano survey asks two questions per feature: how would you feel if it is present, and if it is absent?",
+        "Record the decision and its reasons next to the ranking so it is not renegotiated every week."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Item                          Value  Time crit.  Risk/Opp.  CoD  Size  WSJF\nGDPR data export (deadline)     5       13          8       26    5    5.2\nClaim status in client app      8        3          3       14    3    4.7\nBulk upload of claims           5        5          5       15    8    1.9\nNew dashboard for directors    13        2          1       16   13    1.2\n\nOrder: GDPR export, client status, bulk upload, dashboard",
+        "note": "CoD = value + time criticality + risk/opportunity; WSJF = CoD / size. The big dashboard drops despite its high value."
+      }
+    },
+    {
+      "title": "Data requirements and documentation that stays usable",
+      "text": [
+        "Many projects are really about data: a report, an interface, a migration, a dashboard. 'Show the customers' is not a requirement until you know which customers, which fields, from which source, how fresh and with which rules. A data dictionary lists each business data element with its definition, type and format, allowed values, source system, owner, whether it is mandatory and whether it is sensitive (personal data). It ends arguments such as 'active customer' meaning three different things in three departments.",
+        "A report specification describes the purpose and audience, the questions the report answers, each measure with its exact calculation rule, the dimensions and filters, the level of detail, the refresh frequency, the data sources, who may see what, and a mock-up. For each measure, write a worked example with real numbers that the business validates: it becomes the test case. Ask about history ('do we change last month's figures when a claim is reopened?') and about missing or late data.",
+        "Documentation only helps if people find it and trust it. In Confluence, keep one page per topic with an owner and a status (draft, validated), a decision log, and links to the Jira epics instead of copied text. In Jira, use the hierarchy (epic, story, sub-task) consistently, one need per story, the acceptance criteria in the ticket itself, labels and components agreed with the team, and close what is obsolete. A backlog of 600 tickets that nobody reads is not a source of truth."
+      ],
+      "points": [
+        "Define every business term once in the glossary or data dictionary and link to it.",
+        "Each measure gets a formula, a worked example and an owner who validates it.",
+        "Flag personal and sensitive data early: it drives access rights and GDPR retention.",
+        "Link Confluence pages and Jira tickets rather than duplicating content.",
+        "Archive stale pages and close stale tickets: an outdated document is worse than none."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "| Field           | Definition                                 | Type / format     | Allowed values                  | Source    | Mandatory | Sensitive  |\n|-----------------|--------------------------------------------|-------------------|---------------------------------|-----------|-----------|------------|\n| claim_id        | Unique claim reference                     | Text, CL-000000   | -                               | ClaimsApp | Yes       | No         |\n| claim_status    | Current step of the claim                  | Code              | OPEN, IN_REVIEW, PAID, REJECTED | ClaimsApp | Yes       | No         |\n| claim_amount    | Amount claimed, VAT included               | Decimal(10,2) EUR | >= 0                            | ClaimsApp | Yes       | No         |\n| customer_email  | Contact email of the policyholder          | Text, email       | -                               | CRM       | No        | Yes (GDPR) |\n| active_customer | Has at least one policy in force today     | Boolean           | true / false                    | Derived   | Yes       | No         |",
+        "note": "Extract of a data dictionary: one line per business field, agreed with the data owners."
+      }
     }
   ],
   "cheatsheet": [
@@ -128,13 +208,66 @@
           "Requirement ↔ story ↔ test case"
         ]
       ]
+    },
+    {
+      "group": "Elicitation & NFRs",
+      "items": [
+        [
+          "Observation / job shadowing",
+          "Watch the real work, find the workarounds"
+        ],
+        [
+          "Document analysis",
+          "Rules and vocabulary from existing material"
+        ],
+        [
+          "Workshop parking lot",
+          "Off-topic points noted for later"
+        ],
+        [
+          "Scenario Outline + Examples",
+          "One Gherkin scenario, several data rows"
+        ],
+        [
+          "NFR",
+          "How well: performance, security, availability, compliance"
+        ]
+      ]
+    },
+    {
+      "group": "Prioritisation & data",
+      "items": [
+        [
+          "Cost of delay",
+          "What we lose per week of waiting"
+        ],
+        [
+          "WSJF",
+          "Cost of delay / job size"
+        ],
+        [
+          "Kano",
+          "Basic needs, performance needs, delighters"
+        ],
+        [
+          "Data dictionary",
+          "Definition, format, source, owner per field"
+        ],
+        [
+          "Report specification",
+          "Measures with rules, filters, refresh, access"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Writing the solution the stakeholder asked for without understanding the problem.",
     "Stories with no acceptance criteria, or criteria that cannot be tested ('the page is fast').",
     "Forgetting edge cases and error cases.",
-    "Starting UAT without agreed exit criteria."
+    "Starting UAT without agreed exit criteria.",
+    "Running a workshop without a clear objective or without a decision-maker in the room: a lot of discussion, no decision.",
+    "Discovering non-functional requirements at go-live ('it must handle 5,000 users') because nobody asked during discovery.",
+    "Report measures without a written calculation rule, so each team computes 'active customer' its own way."
   ],
   "exercises": [
     {
@@ -154,6 +287,23 @@
       "q": "Two days before UAT, a director asks to add a new approval step to the process. What do you do?",
       "hint": "Impact, decision, update.",
       "answer": "Thank them and capture the request precisely, then assess the impact with the team: process and screens to change, rules, tests, training, and the effect on the UAT date. Present the options to the sponsor: include it and move the date, deliver it in the next release, or swap it with a lower-priority item. Once decided, update the backlog, the traceability matrix and the test plan, and tell everyone affected."
+    },
+    {
+      "q": "You join a project to replace the tool used by 40 claims handlers. Which elicitation techniques do you use, and in which order?",
+      "hint": "Read, ask, watch, converge.",
+      "answer": "First document analysis: the current procedure, screens, reports, a sample of real claims and recent incidents, to learn the vocabulary and prepare questions. Then interviews with the claims manager, a few handlers of different seniority, finance and IT. Then observation of two or three handlers for half a day to see the real work and the workarounds. Finally workshops to agree on the target process and rules with a decision-maker in the room, and a quick prototype to collect feedback."
+    },
+    {
+      "q": "Make this requirement testable: 'The search must be fast and the customer data must be secure.'",
+      "answer": "Split it into measurable criteria, for example: the search returns results in under 2 seconds for 95% of requests with 50,000 offers and 200 concurrent users; only users with the 'advisor' role can see the customer's phone and email; every access to a customer record is logged with user, date and record; customer data is encrypted in transit and at rest. Then confirm the targets with the business and the tech lead."
+    },
+    {
+      "q": "Rank by WSJF: A has a cost of delay of 20 and a size of 10, B a cost of delay of 9 and a size of 3, C a cost of delay of 13 and a size of 13.",
+      "answer": "WSJF = cost of delay / size: A = 2, B = 3, C = 1. Order: B, then A, then C. B goes first although it has the smallest cost of delay, because it is small and delivers value quickly."
+    },
+    {
+      "q": "A director asks for 'a monthly claims report'. List the questions you ask before writing the specification.",
+      "answer": "What decision will the report support and who reads it? Which measures exactly (number of claims, amounts, handling time) and with which calculation rules? Which breakdowns and filters (region, product, status)? Monthly as of which date, and are past months restated when a claim changes? Which source system, and how are missing data handled? Who may see it, at which level of detail? Format and delivery (dashboard, export, email)? Then build a mock-up with real figures and have it validated."
     }
   ],
   "interview": [
@@ -172,6 +322,22 @@
     {
       "q": "How do you handle conflicting priorities between two stakeholders?",
       "a": "I make the conflict explicit with facts: what each request brings, its cost and its link to the project goal. I bring both stakeholders, or the sponsor who owns the decision, to agree on criteria such as value, risk and deadline, use MoSCoW or value versus effort to decide, and record the decision and its rationale in the backlog so it is not reopened every week."
+    },
+    {
+      "q": "Which elicitation techniques do you know, and when do you use each?",
+      "a": "Document analysis to prepare and learn the rules, interviews for depth and individual concerns, observation to see the real work and workarounds, workshops to converge and decide with several stakeholders, surveys to reach many users, and prototypes to get concrete feedback. I combine them: read, interview, observe, then validate in a workshop, and I always send a written summary."
+    },
+    {
+      "q": "How do you write a good non-functional requirement?",
+      "a": "I make it measurable with a metric, a target and a context, for example 'the search answers in under 2 seconds for 95% of requests with 200 concurrent users'. I ask about performance, availability, security, accessibility and data retention during discovery, check feasibility and cost with the tech lead, and put cross-cutting ones in the Definition of Done and specific ones in the story's acceptance criteria."
+    },
+    {
+      "q": "How do you prioritise when MoSCoW is not enough?",
+      "a": "I use value versus effort for a quick view, and cost of delay or WSJF when timing matters: cost of delay divided by size brings small, urgent items forward, such as a regulatory deadline. The Kano model helps make sure basic needs are covered before adding delighters. I score with the stakeholders, relatively, and record the rationale with the decision."
+    },
+    {
+      "q": "How do you specify a report or a dashboard?",
+      "a": "I start from the decisions it supports and its audience, then define each measure with a precise calculation rule, the dimensions, filters, refresh frequency, sources and access rights, and I check the terms against the data dictionary. I validate a mock-up with real figures and a worked example per measure, which then become the test cases for UAT."
     }
   ]
 }

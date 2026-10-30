@@ -71,6 +71,84 @@
         "code": "ls -l deploy.sh\n# -rw-r--r-- 1 anna devops 812 Oct 30 09:12 deploy.sh\nchmod u+x deploy.sh            # owner can execute\nsudo chown app:app /srv/app -R  # give the folder to the app user\n\nssh-keygen -t ed25519 -C \"anna@laptop\"\nssh-copy-id anna@server.example.com\nssh anna@server.example.com 'df -h /'\nscp report.csv anna@server.example.com:/tmp/",
         "note": "Keep private keys private (chmod 600) and protect them with a passphrase."
       }
+    },
+    {
+      "title": "Processes and services with systemd",
+      "text": [
+        "On almost every modern Linux server, applications run as systemd services. A service is described by a unit file (for example /etc/systemd/system/myapp.service) that says which command to start, as which user, in which folder, and what to do if it crashes. systemd starts it at boot, restarts it on failure, and sends everything it prints to the journal, which you read with journalctl. Knowing this chain is what lets you answer 'is the app running, since when, and why did it stop?' in a minute.",
+        "When something is wrong, go from the service to the process. systemctl status shows whether the unit is active, its main PID, its memory and the last log lines. systemctl list-units --failed lists every unit that crashed. journalctl -u myapp -p err --since \"1 hour ago\" filters the journal to that service, errors only, recent only; add -f to follow it live. Then look at the processes themselves: ps with custom columns sorted by CPU or memory finds the greedy one, and the load average from uptime tells you whether the machine is overloaded compared to its number of CPUs (nproc).",
+        "Stopping a process is done with signals. kill sends SIGTERM (15) by default, which asks the program to finish cleanly: close files, finish requests, release locks. SIGKILL (-9) cannot be caught, so the process dies immediately and may leave corrupted temporary files or locks behind; keep it for processes that ignore SIGTERM. Many daemons reload their configuration on SIGHUP. For services, prefer systemctl restart or reload over kill, so systemd knows what happened."
+      ],
+      "points": [
+        "systemctl enable --now myapp starts the service and enables it at boot.",
+        "After editing a unit file, run systemctl daemon-reload before restarting.",
+        "Restart=on-failure in the unit file restarts a crashed service automatically.",
+        "journalctl -u myapp -b shows the logs since the last boot; -o short-iso gives exact timestamps.",
+        "pgrep -a name finds PIDs with their command line; lsof -p PID lists the files a process holds open."
+      ],
+      "example": {
+        "lang": "ini",
+        "code": "# /etc/systemd/system/myapp.service\n[Unit]\nDescription=Job search API\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nUser=app\nWorkingDirectory=/srv/myapp\nEnvironment=PORT=8080\nExecStart=/srv/myapp/.venv/bin/gunicorn -b 0.0.0.0:8080 app:app\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n\n# then:\n# sudo systemctl daemon-reload\n# sudo systemctl enable --now myapp\n# journalctl -u myapp -f",
+        "note": "Running the service as a dedicated user (User=app) limits the damage if the application is compromised."
+      }
+    },
+    {
+      "title": "Troubleshooting the network, layer by layer",
+      "text": [
+        "'The app cannot reach the database' can mean many different things. Work through the layers in order and stop at the first one that fails: does the name resolve to an IP (DNS)? Is the host reachable (routing)? Is the port open and listening (firewall, service)? Does the application protocol answer correctly (HTTP status, TLS, authentication)? Each layer has its own tool, and the first failing layer tells you whom to call: network team, DNS, the service owner, or yourself.",
+        "dig api.example.com shows what DNS returns; getent hosts api.example.com resolves the name the way most applications do, including /etc/hosts. ping tests basic reachability, but many networks block ICMP, so a failed ping alone proves little. nc -zv host 5432 tests whether a TCP port accepts connections. The error message itself is a clue: 'connection refused' means the host answered but nothing listens on that port (or a firewall actively rejects it), while a timeout usually means packets are silently dropped by a firewall or a routing problem. traceroute or mtr shows where along the path packets stop.",
+        "On the server side, ss -tlnp lists listening TCP ports with the process behind each one. Check the address: a service listening on 127.0.0.1:8080 only accepts local connections, while 0.0.0.0:8080 accepts them on all interfaces. Then check the host firewall (ufw status, firewall-cmd --list-all or nft list ruleset depending on the distribution) and, in the cloud, the security group. Finally curl -v shows the whole HTTP exchange: DNS result, connection, TLS handshake, request and response headers."
+      ],
+      "points": [
+        "Order: DNS, reachability, port, protocol. Do not jump to conclusions.",
+        "'Connection refused' = nothing listening or rejected; timeout = dropped on the way.",
+        "ss -tlnp: is the service listening, on which address and port, which process?",
+        "curl -sS -o /dev/null -w \"%{http_code} %{time_total}\\n\" url measures status and response time.",
+        "ip a and ip route show the server’s own addresses and routes."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# from the app server: can we reach the database?\ndig +short db.internal.example.com      # 1. DNS\nping -c 3 db.internal.example.com       # 2. reachability (ICMP may be blocked)\nnc -zv db.internal.example.com 5432     # 3. TCP port\n\n# on the database server: is it listening, and where?\nsudo ss -tlnp | grep 5432\n# LISTEN 0 244 127.0.0.1:5432 ...  -> only local! fix listen_addresses\nsudo ufw status                          # 4. host firewall\n\n# HTTP service: full exchange, then timing\ncurl -v https://api.example.com/health\ncurl -sS -o /dev/null -w \"%{http_code} %{time_total}s\\n\" https://api.example.com/health"
+      }
+    },
+    {
+      "title": "Text processing pipelines: grep, awk, sed, sort, xargs",
+      "text": [
+        "Most support and data questions on a server are text questions: which IP sends the most requests, how many 500 errors per hour, which files contain an old hostname. The Unix approach is to chain small tools, each doing one thing, with pipes. Build a pipeline step by step: run the first command with head, check the output, add the next step, check again. That way you always know which step is wrong.",
+        "grep selects lines. -E enables extended regular expressions (alternatives with |, + and ?), -v inverts the match, -o prints only the matching part, -r searches folders and -l lists only file names. awk works on columns: it splits each line into fields $1, $2... on whitespace by default (or -F for another separator), can filter with conditions like $9 >= 500, and can sum or count with an END block. sed edits streams: s/old/new/g replaces, -n '100,120p' prints a range of lines, and -i edits a file in place (write -i.bak to keep a backup).",
+        "sort and uniq turn lines into statistics. uniq only merges adjacent identical lines, so always sort before uniq -c; then sort -nr ranks by count. sort -k3,3n sorts on the third field numerically, -t sets the separator. xargs takes lines from the input and passes them as arguments to another command, for example to delete or compress the files that find returned; use find -print0 with xargs -0 so names containing spaces do not break it."
+      ],
+      "points": [
+        "Test each step with | head before adding the next one.",
+        "grep -E \"timeout|refused\" matches either word; grep -v DEBUG removes noise.",
+        "awk -F',' '{print $2}' reads CSV-like columns; awk '{s+=$10} END {print s}' sums a column.",
+        "sort | uniq -c | sort -nr | head is the classic 'top N' pipeline.",
+        "sed -i edits files in place: try it without -i first and keep a backup."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# top 10 client IPs with server errors (status in field 9)\nawk '$9 >= 500 {print $1}' access.log | sort | uniq -c | sort -nr | head\n\n# 5xx errors per hour (timestamp like [30/Oct/2026:14:05:11 +0100])\nawk '$9 >= 500 {print substr($4, 2, 14)}' access.log | sort | uniq -c\n\n# extract request durations (ms) and show the 5 slowest\ngrep -E \"duration=[0-9]+ms\" app.log | sed -E 's/.*duration=([0-9]+)ms.*/\\1/' | sort -n | tail -5\n\n# replace an old hostname in all configs, keeping .bak copies\ngrep -rl \"db-old.internal\" /etc/myapp/ | xargs -r sed -i.bak 's/db-old\\.internal/db.internal/g'\n\n# compress logs older than 7 days, safe with spaces in names\nfind /var/log/myapp -name \"*.log\" -mtime +7 -print0 | xargs -0 -r gzip"
+      }
+    },
+    {
+      "title": "Robust Bash scripts and scheduled jobs",
+      "text": [
+        "A script that works once on your laptop is not the same as one that runs every night unattended. Robust scripts fail loudly and early. set -euo pipefail stops at the first failing command (-e), treats undefined variables as errors (-u) and makes a pipeline fail if any of its commands fails, not just the last one (pipefail). Every command returns an exit code: 0 means success, anything else is a failure; your script should also exit with a non-zero code when it fails, so cron, systemd or a CI job can detect it.",
+        "Quote every variable: \"$file\" stays one argument even if it contains spaces, while $file unquoted is split and expanded. Use \"$@\" to pass all arguments on unchanged. Put logic in functions with local variables, check required inputs at the start (${1:?usage: backup.sh DIR} stops with a message if the argument is missing), and use trap to clean up temporary files whatever happens: trap 'rm -rf \"$tmp\"' EXIT runs on success, on error and on Ctrl+C. Run shellcheck on your scripts; it catches most quoting mistakes before they bite.",
+        "To run a script on a schedule, cron is the classic tool: crontab -e opens your table, and each line has five time fields (minute, hour, day of month, month, day of week) followed by the command. Cron runs with a minimal environment, so use absolute paths, redirect output to a log file, and wrap long jobs in flock so two runs never overlap. On systemd machines, a timer is the modern alternative: a .service plus a .timer with OnCalendar=, logs in the journal, and Persistent=true to catch up on runs missed while the server was off."
+      ],
+      "points": [
+        "set -euo pipefail at the top; exit 1 with a clear message on failure.",
+        "Always \"$quote\" variables; ${VAR:-default} gives a default value.",
+        "trap cleanup EXIT guarantees temporary files are removed.",
+        "Cron line: 30 2 * * * = every day at 02:30; */15 * * * * = every 15 minutes.",
+        "systemctl list-timers shows the next and last run of every timer."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "#!/usr/bin/env bash\n# backup.sh DIR: archive DIR to /backup, keep 7 days\nset -euo pipefail\n\nsrc=${1:?usage: backup.sh DIR}\ndest=/backup\ntmp=$(mktemp -d)\ntrap 'rm -rf \"$tmp\"' EXIT\n\nlog() { echo \"$(date '+%F %T') $*\"; }\n\nmain() {\n  local name\n  name=\"$(basename \"$src\")-$(date +%F).tar.gz\"\n  tar -czf \"$tmp/$name\" -C \"$(dirname \"$src\")\" \"$(basename \"$src\")\"\n  mv \"$tmp/$name\" \"$dest/\"\n  find \"$dest\" -name \"*.tar.gz\" -mtime +7 -delete\n  log \"backup ok: $name\"\n}\n\nmain \"$@\"\n\n# crontab -e: every day at 02:30, no overlap, output kept\n# 30 2 * * * /usr/bin/flock -n /tmp/backup.lock /opt/scripts/backup.sh /srv/data >> /var/log/backup.log 2>&1",
+        "note": "With a systemd timer instead: OnCalendar=*-*-* 02:30:00 and Persistent=true in backup.timer."
+      }
     }
   ],
   "cheatsheet": [
@@ -173,13 +251,145 @@
           "Reachability / DNS"
         ]
       ]
+    },
+    {
+      "group": "Services & processes",
+      "items": [
+        [
+          "systemctl enable --now svc",
+          "Start now and at every boot"
+        ],
+        [
+          "systemctl daemon-reload",
+          "Reload unit files after editing"
+        ],
+        [
+          "systemctl list-units --failed",
+          "Units that crashed"
+        ],
+        [
+          "journalctl -u svc -p err --since today",
+          "Today’s errors of a service"
+        ],
+        [
+          "ps -eo pid,user,%cpu,%mem,cmd --sort=-%cpu | head",
+          "Top processes by CPU"
+        ],
+        [
+          "kill PID / kill -9 PID",
+          "Ask to stop (SIGTERM) / force kill (SIGKILL)"
+        ]
+      ]
+    },
+    {
+      "group": "Network troubleshooting",
+      "items": [
+        [
+          "dig +short host",
+          "What DNS returns"
+        ],
+        [
+          "nc -zv host 5432",
+          "Is a TCP port reachable?"
+        ],
+        [
+          "curl -v url",
+          "Full HTTP and TLS exchange"
+        ],
+        [
+          "traceroute host / mtr host",
+          "Where packets stop"
+        ],
+        [
+          "ip a / ip route",
+          "Own addresses / routes"
+        ],
+        [
+          "ufw status / firewall-cmd --list-all",
+          "Host firewall rules"
+        ]
+      ]
+    },
+    {
+      "group": "Text pipelines",
+      "items": [
+        [
+          "grep -E \"a|b\" / grep -v x",
+          "Either pattern / exclude lines"
+        ],
+        [
+          "grep -rl \"text\" dir/",
+          "Files containing text"
+        ],
+        [
+          "awk '$9 >= 500' f",
+          "Lines where field 9 is at least 500"
+        ],
+        [
+          "sed -n '100,120p' f",
+          "Print lines 100 to 120"
+        ],
+        [
+          "sed -i.bak 's/old/new/g' f",
+          "Replace in place, keep a backup"
+        ],
+        [
+          "sort -t',' -k3,3n",
+          "Sort CSV on the 3rd field, numerically"
+        ],
+        [
+          "find . -print0 | xargs -0 cmd",
+          "Pass file names safely to a command"
+        ]
+      ]
+    },
+    {
+      "group": "Scripts, scheduling & users",
+      "items": [
+        [
+          "set -euo pipefail",
+          "Stop on errors, unset variables, failed pipes"
+        ],
+        [
+          "trap 'cmd' EXIT",
+          "Run cleanup when the script ends"
+        ],
+        [
+          "echo $?",
+          "Exit code of the last command"
+        ],
+        [
+          "crontab -e / crontab -l",
+          "Edit / list scheduled jobs"
+        ],
+        [
+          "systemctl list-timers",
+          "Next and last run of systemd timers"
+        ],
+        [
+          "umask 027",
+          "New files: no access for others"
+        ],
+        [
+          "sudo usermod -aG grp user",
+          "Add a user to a group (log in again)"
+        ],
+        [
+          "sudo -u app cmd",
+          "Run a command as another user"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "rm -rf with a variable that turns out empty: always quote variables and double-check paths.",
     "Restarting a service before saving the logs that explain the crash.",
     "Using kill -9 first: the process cannot clean up.",
-    "Scripts without set -e that keep going after a failed step."
+    "Scripts without set -e that keep going after a failed step.",
+    "Testing connectivity with ping only: ICMP is often blocked while the TCP port works fine, and the reverse.",
+    "uniq -c without sort first: identical lines that are not adjacent are counted separately.",
+    "Cron jobs that work in your shell but fail at night: cron has a minimal PATH and environment, use absolute paths.",
+    "Editing a unit file and restarting without systemctl daemon-reload: the old definition keeps running."
   ],
   "exercises": [
     {
@@ -202,6 +412,27 @@
       "hint": "7 = rwx, 5 = r-x, 0 = nothing.",
       "code": "bash",
       "answer": "chmod 750 /srv/app/backup.sh\nsudo chown backup:ops /srv/app/backup.sh"
+    },
+    {
+      "q": "The service myapp keeps restarting. Show its state, then only its error logs from the last 30 minutes, then follow its logs live.",
+      "code": "bash",
+      "answer": "systemctl status myapp\njournalctl -u myapp -p err --since \"30min ago\"\njournalctl -u myapp -f"
+    },
+    {
+      "q": "From the app server, curl to http://10.0.2.15:8080/health fails. On 10.0.2.15, ss -tlnp shows 127.0.0.1:8080. What is wrong and what is the fix?",
+      "hint": "Look at the listening address.",
+      "answer": "The service listens only on the loopback interface, so it accepts local connections only and remote clients get 'connection refused'. Configure it to listen on 0.0.0.0:8080 (or the server’s private IP), restart it, check ss -tlnp again, and make sure the host firewall and security group allow port 8080 from the app server only."
+    },
+    {
+      "q": "In app.log, lines look like '2026-10-30 14:05:11 ERROR [payment] Timeout calling bank'. Count errors per component (the word in brackets), most frequent first.",
+      "code": "bash",
+      "answer": "grep ' ERROR ' app.log | grep -oE '\\[[a-z-]+\\]' | sort | uniq -c | sort -nr"
+    },
+    {
+      "q": "Schedule /opt/scripts/report.sh every weekday at 07:00, never two runs at the same time, with output appended to /var/log/report.log.",
+      "hint": "Day of week 1-5; flock prevents overlaps.",
+      "code": "text",
+      "answer": "0 7 * * 1-5 /usr/bin/flock -n /tmp/report.lock /opt/scripts/report.sh >> /var/log/report.log 2>&1"
     }
   ],
   "interview": [
@@ -220,6 +451,22 @@
     {
       "q": "An application cannot write its log file after a deployment. How do you investigate?",
       "a": "Check which user the process runs as (ps -o user= -p PID or the service file), then ls -l on the log file and its folder to see owner, group and permissions, and whether the disk is full (df -h) or the filesystem read-only. Fix the ownership or permissions for that user specifically with chown or chmod, never with 777, and add it to the deployment so it does not come back."
+    },
+    {
+      "q": "What is the difference between kill and kill -9?",
+      "a": "kill sends SIGTERM by default: the process is asked to stop and can close files, finish work and release locks. kill -9 sends SIGKILL, which the process cannot catch: it dies immediately, possibly leaving locks or half-written files. I use SIGTERM first, wait, and use -9 only if the process ignores it; for services I use systemctl stop or restart."
+    },
+    {
+      "q": "A user says the website is unreachable. How do you narrow it down?",
+      "a": "I go layer by layer: does the name resolve (dig), is the host reachable (ping, traceroute, keeping in mind ICMP may be blocked), is the port open (nc -zv, ss -tlnp on the server), is the firewall or security group allowing it, and what does the application return (curl -v: status, TLS, headers, time). I also check whether it affects everyone or one network, and what changed recently."
+    },
+    {
+      "q": "Why put set -euo pipefail at the top of a Bash script?",
+      "a": "-e stops the script when a command fails instead of continuing with bad state, -u makes using an undefined variable an error (avoiding things like rm -rf \"$DIR/\" with an empty DIR), and pipefail makes a pipeline fail if any command in it fails, not only the last one. Together they make failures visible and give a non-zero exit code to cron or CI."
+    },
+    {
+      "q": "Cron or systemd timer: which would you use?",
+      "a": "Cron is simple and available everywhere, fine for small jobs if I use absolute paths, log the output and prevent overlaps with flock. On systemd servers I prefer timers for important jobs: logs go to the journal, failures are visible with systemctl, Persistent=true catches up missed runs, and I get resource limits and dependencies from the service unit."
     }
   ]
 }

@@ -70,6 +70,90 @@
         "code": "-- snapshots/customers_snapshot.sql\n{% snapshot customers_snapshot %}\n{{ config(target_schema='snapshots', unique_key='customer_id',\n          strategy='timestamp', updated_at='updated_at') }}\nselect * from {{ source('crm', 'customers') }}\n{% endsnapshot %}\n\n-- macros/cents_to_euros.sql\n{% macro cents_to_euros(col) %} round({{ col }} / 100.0, 2) {% endmacro %}\n\n-- in a model\nselect order_id, {{ cents_to_euros('amount_cents') }} as amount_eur\nfrom {{ ref('stg_orders') }}",
         "note": "The macro turns cents into euros the same way in every model."
       }
+    },
+    {
+      "title": "Incremental models in depth: strategies and late data",
+      "text": [
+        "An incremental model only processes new or changed rows after its first build. Three choices decide whether it stays correct: which rows to select on each run (the filter inside is_incremental()), how to write them into the existing table (the incremental_strategy), and what makes a row unique (unique_key).",
+        "Available strategies depend on the adapter. append only inserts, so a rerun creates duplicates: keep it for immutable event logs. merge (the default on Snowflake, BigQuery and Databricks) updates rows whose unique_key already exists and inserts the others. delete+insert deletes the matching keys, then inserts, which is often faster for large batches. insert_overwrite (BigQuery, Spark and Databricks) replaces whole partitions, ideal for date-partitioned facts. dbt 1.9 added microbatch, which splits the work into time batches based on an event_time column, each one retried or backfilled on its own.",
+        "Data arrives late. A filter on 'greater than the latest date already loaded' misses a row that lands two days late with an older date, and nothing ever tells you. Use a lookback window: re-select the last few days on every run and let merge or delete+insert replace them. The window costs a little compute and prevents silent gaps.",
+        "Schema changes need a decision too. on_schema_change='ignore' (the default) leaves new source columns out of the table; append_new_columns adds them; sync_all_columns also removes dropped ones; fail stops the run. When the logic of the model changes, rebuild it with dbt run --full-refresh -s model, and protect very large tables from accidental rebuilds with full_refresh=false in their config."
+      ],
+      "points": [
+        "unique_key can be a list: unique_key=['offer_id', 'source'].",
+        "append never deduplicates: use it only for data that is never updated.",
+        "Filter with a lookback (latest date minus a few days), not with > max(date).",
+        "on_schema_change='append_new_columns' keeps up with new source columns.",
+        "Add a unique test on the unique_key: duplicates are the classic incremental bug."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "{{ config(\n    materialized='incremental',\n    incremental_strategy='merge',\n    unique_key='offer_id',\n    on_schema_change='append_new_columns'\n) }}\n\nselect offer_id, title, company, status, updated_at\nfrom {{ ref('stg_offers') }}\n{% if is_incremental() %}\n  -- lookback: re-read 3 days to catch late or updated rows\n  where updated_at >= (select {{ dbt.dateadd('day', -3, 'max(updated_at)') }} from {{ this }})\n{% endif %}",
+        "note": "dbt.dateadd writes the date arithmetic for your warehouse, so the model stays portable."
+      }
+    },
+    {
+      "title": "Jinja, macros and packages in practice",
+      "text": [
+        "dbt compiles every model with Jinja before sending it to the warehouse. {{ }} prints a value, {% %} runs logic (set, if, for) and {# #} is a comment. dbt compile writes the final SQL to the target/compiled folder: when a macro misbehaves, read the compiled SQL before anything else.",
+        "Use Jinja to remove repetition, not to hide logic. Good uses: a loop that builds one column per payment method, a macro for a conversion used in ten models, a filter that only applies in development (target.name == 'dev') to keep builds cheap, a var() for a parameter such as a start date. If a model needs three nested loops to be understood, plain SQL is probably better for the next person.",
+        "Packages are dbt projects you install like libraries. List them in packages.yml with a version range, run dbt deps, and call their macros with the package prefix. dbt_utils is the most common: generate_surrogate_key builds a hashed key from several columns, date_spine creates a calendar, star selects all columns except some, union_relations stacks tables that do not have exactly the same columns. Pin versions so an upgrade never breaks a build by surprise.",
+        "Macros can also run queries with run_query, guarded by {% if execute %} because dbt parses the project before executing it, for example to list the distinct values of a column. Each such query adds a round trip to the warehouse, so keep them rare, and prefer run-operation or hooks for maintenance tasks such as granting access."
+      ],
+      "points": [
+        "{% set methods = ['card', 'paypal'] %} then {% for m in methods %} ... {% endfor %}.",
+        "{{ var('start_date', '2024-01-01') }} reads a project variable with a default; override with --vars.",
+        "{{ target.name }} tells which environment is running (dev, ci, prod).",
+        "dbt_utils.generate_surrogate_key(['col_a', 'col_b']) builds a stable hashed key.",
+        "dbt compile -s model shows the SQL that is actually sent."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- packages.yml (installed with dbt deps):\n--   packages:\n--     - package: dbt-labs/dbt_utils\n--       version: [\">=1.1.0\", \"<2.0.0\"]\n\n{% set methods = ['card', 'paypal', 'transfer'] %}\n\nselect\n    {{ dbt_utils.generate_surrogate_key(['order_id', 'customer_id']) }} as order_key,\n    order_id,\n    customer_id,\n    {% for m in methods %}\n    sum(case when payment_method = '{{ m }}' then amount else 0 end) as amount_{{ m }},\n    {% endfor %}\n    sum(amount) as amount_total\nfrom {{ ref('stg_payments') }}\n{% if target.name == 'dev' %}\nwhere created_at >= {{ dbt.dateadd('day', -30, 'current_date') }}\n{% endif %}\ngroup by order_id, customer_id",
+        "note": "In development only the last 30 days are built; in production the filter disappears."
+      }
+    },
+    {
+      "title": "Source freshness, data tests and unit tests",
+      "text": [
+        "Tests check the data you have; freshness checks whether new data arrived at all. Declare a loaded_at_field and thresholds on a source, and dbt source freshness compares the newest timestamp with the current time, warning or failing when the loader is late. Run it before the build in your scheduled job: a dashboard built on yesterday's data should fail loudly, not look fine.",
+        "Data tests (the tests: key, renamed data_tests: in dbt 1.8) run against real tables after they are built: unique, not_null, relationships, accepted_values, or your own SQL. Tune noisy tests instead of deleting them: severity: warn for a rule that is informative, warn_if / error_if thresholds such as '>10' for a known small number of bad rows, a where config to test only recent data, store_failures to keep the failing rows in a table for investigation.",
+        "Unit tests (dbt 1.8+) check the logic of a model, not the data. You give a few input rows for each ref() or source() and the rows you expect; dbt builds the model on these fixtures and compares. They catch a wrong CASE, an off-by-one date window or a broken join before real data is involved, and they run in CI on every change. Write them for complex transformations, not for simple renames.",
+        "Together they form layers. Freshness says the data arrived, unit tests say the code is right, data tests say this batch of data respects the rules. Each fails for a different reason and points to a different owner: the loading pipeline, the developer, or the source system."
+      ],
+      "points": [
+        "dbt source freshness compares loaded_at_field with warn_after / error_after.",
+        "severity: warn turns a test into an alert that does not block the build.",
+        "store_failures: true saves the failing rows in the warehouse.",
+        "unit_tests: given input rows, expect output rows; run them with dbt test -s test_type:unit.",
+        "Fixtures only need the columns the logic uses."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "sources:\n  - name: job_api\n    schema: raw\n    loaded_at_field: _loaded_at\n    freshness:\n      warn_after: {count: 12, period: hour}\n      error_after: {count: 24, period: hour}\n    tables:\n      - name: raw_offers\n\nmodels:\n  - name: int_offers\n    columns:\n      - name: offer_id\n        data_tests:\n          - unique\n          - not_null:\n              config:\n                severity: warn\n\nunit_tests:\n  - name: salary_band_is_computed\n    model: int_offers\n    given:\n      - input: ref('stg_offers')\n        rows:\n          - {offer_id: 1, salary_max: 35000}\n          - {offer_id: 2, salary_max: 60000}\n    expect:\n      rows:\n        - {offer_id: 1, salary_band: 'junior'}\n        - {offer_id: 2, salary_band: 'senior'}",
+        "note": "Recent dbt versions also accept loaded_at_field and freshness inside a config: block."
+      }
+    },
+    {
+      "title": "Documentation, exposures, environments and slim CI",
+      "text": [
+        "Documentation belongs with the model, not in a wiki next to it. Use descriptions in YAML, longer doc blocks in .md files ({% docs name %} ... {% enddocs %}, reused with doc('name')), and persist_docs to copy them into the warehouse as table and column comments, so analysts see them in their SQL tool. dbt docs generate builds the site and the lineage graph from the same files.",
+        "Exposures declare who uses your models downstream: a dashboard, a notebook, an ML model, an application. With an owner and depends_on, they appear in the lineage graph and can be selected: dbt build -s +exposure:weekly_offers rebuilds and tests everything a dashboard needs. Before changing a model, the graph tells you which dashboards and owners are affected.",
+        "Environments are targets in profiles.yml: each developer builds into a personal schema (dbt_nadia), CI into a temporary schema, production into the real one. The same code runs everywhere, only the target changes. By default dbt names custom schemas <target_schema>_<custom_schema>; override the generate_schema_name macro if you want clean names in production.",
+        "Slim CI keeps pull requests fast. Production runs save artifacts, mainly manifest.json. The CI job compares the branch with it: state:modified+ selects changed models and their children, --defer reads unchanged parents from production instead of rebuilding them, and dbt retry re-runs only what failed. Model contracts (contract: enforced: true) add a guarantee that the columns and types of a public model do not change by accident."
+      ],
+      "points": [
+        "{{ doc('offer_status') }} reuses a doc block in several descriptions.",
+        "persist_docs: {relation: true, columns: true} writes descriptions as warehouse comments.",
+        "Exposure types: dashboard, notebook, analysis, ml, application.",
+        "dbt build -s state:modified+ --defer --state prod-artifacts is the usual CI command.",
+        "dbt retry re-runs the nodes that failed in the previous command."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "exposures:\n  - name: weekly_offers\n    label: Weekly offers dashboard\n    type: dashboard\n    maturity: high\n    owner:\n      name: BI team\n      email: bi@example.com\n    depends_on:\n      - ref('fct_offers')\n      - ref('dim_company')\n    description: Offers per company and week, read by the sales team every Monday.\n\nmodels:\n  - name: fct_offers\n    config:\n      contract:\n        enforced: true\n    columns:\n      - name: offer_id\n        data_type: bigint\n        constraints:\n          - type: not_null\n      - name: company_id\n        data_type: bigint\n      - name: posted_date\n        data_type: date",
+        "note": "With an enforced contract, every column of the model must be listed with its data_type."
+      }
     }
   ],
   "cheatsheet": [
@@ -143,13 +227,120 @@
           "Foreign key check"
         ]
       ]
+    },
+    {
+      "group": "Incremental models",
+      "items": [
+        [
+          "incremental_strategy='merge'",
+          "Update existing keys, insert new ones"
+        ],
+        [
+          "incremental_strategy='insert_overwrite'",
+          "Replace whole partitions"
+        ],
+        [
+          "on_schema_change='append_new_columns'",
+          "Add new columns automatically"
+        ],
+        [
+          "dbt run --full-refresh -s model",
+          "Rebuild from scratch"
+        ],
+        [
+          "full_refresh=false",
+          "Block accidental full rebuilds"
+        ]
+      ]
+    },
+    {
+      "group": "Jinja and packages",
+      "items": [
+        [
+          "{% set x = [...] %} / {% for %}",
+          "Variables and loops"
+        ],
+        [
+          "{{ var('name', default) }}",
+          "Project variable"
+        ],
+        [
+          "{{ target.name }}",
+          "Current environment"
+        ],
+        [
+          "dbt deps",
+          "Install packages.yml"
+        ],
+        [
+          "dbt_utils.generate_surrogate_key([...])",
+          "Hashed key from columns"
+        ],
+        [
+          "dbt compile -s model",
+          "See the compiled SQL"
+        ]
+      ]
+    },
+    {
+      "group": "Quality and freshness",
+      "items": [
+        [
+          "dbt source freshness",
+          "Check that sources are up to date"
+        ],
+        [
+          "severity: warn",
+          "Alert without failing"
+        ],
+        [
+          "store_failures: true",
+          "Keep the failing rows"
+        ],
+        [
+          "unit_tests: given / expect",
+          "Test logic on fixture rows"
+        ]
+      ]
+    },
+    {
+      "group": "Docs, exposures and CI",
+      "items": [
+        [
+          "{% docs name %} ... {% enddocs %}",
+          "Reusable doc block"
+        ],
+        [
+          "exposures: depends_on: [ref('x')]",
+          "Declare a downstream dashboard"
+        ],
+        [
+          "-s +exposure:name",
+          "Everything a dashboard needs"
+        ],
+        [
+          "--defer --state path",
+          "Reuse production for unchanged parents"
+        ],
+        [
+          "dbt retry",
+          "Re-run the failed nodes"
+        ],
+        [
+          "contract: enforced: true",
+          "Guarantee columns and types"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Hard-coding schema.table names instead of ref() / source(): dbt cannot order the models.",
     "Business logic in staging models: keep staging to cleaning and renaming.",
     "Incremental models without unique_key, which create duplicates on reruns.",
-    "No tests on primary keys."
+    "No tests on primary keys.",
+    "An incremental filter on > max(date) with no lookback: late-arriving rows are lost for good.",
+    "Deleting noisy tests instead of tuning severity, thresholds or a where config.",
+    "Jinja so clever nobody can read the model: check dbt compile and prefer plain SQL when in doubt."
   ],
   "exercises": [
     {
@@ -171,6 +362,26 @@
       "hint": "dbt deps, then dbt build with a state selector.",
       "code": "bash",
       "answer": "dbt deps\ndbt build --select state:modified+ --defer --state ./prod-artifacts"
+    },
+    {
+      "q": "Write an incremental model on stg_payments that merges on payment_id and re-reads the last 2 days on each run to catch late rows.",
+      "hint": "config with incremental_strategy and unique_key, then a lookback inside is_incremental().",
+      "code": "sql",
+      "answer": "{{ config(materialized='incremental', incremental_strategy='merge', unique_key='payment_id') }}\n\nselect payment_id, order_id, amount, paid_at\nfrom {{ ref('stg_payments') }}\n{% if is_incremental() %}\nwhere paid_at >= (select {{ dbt.dateadd('day', -2, 'max(paid_at)') }} from {{ this }})\n{% endif %}"
+    },
+    {
+      "q": "Declare freshness on the source crm.customers using the column _synced_at: warn after 6 hours, error after 1 day.",
+      "code": "yaml",
+      "answer": "sources:\n  - name: crm\n    tables:\n      - name: customers\n        loaded_at_field: _synced_at\n        freshness:\n          warn_after: {count: 6, period: hour}\n          error_after: {count: 1, period: day}"
+    },
+    {
+      "q": "Write a unit test checking that stg_orders turns amount_cents = 1250 from source('shop', 'orders') into amount_eur = 12.5.",
+      "code": "yaml",
+      "answer": "unit_tests:\n  - name: amount_is_converted_to_euros\n    model: stg_orders\n    given:\n      - input: source('shop', 'orders')\n        rows:\n          - {order_id: 1, amount_cents: 1250}\n    expect:\n      rows:\n        - {order_id: 1, amount_eur: 12.5}"
+    },
+    {
+      "q": "The unique test on an incremental model started failing after a reload of the source. What do you check?",
+      "answer": "Whether unique_key is set and matches the real grain, and whether the strategy deduplicates (append does not). Whether the source itself now sends duplicate keys within one batch, which merge cannot resolve: deduplicate in the model with row_number(). Then fix the existing rows with dbt run --full-refresh -s model if the table is affordable to rebuild."
     }
   ],
   "interview": [
@@ -189,6 +400,22 @@
     {
       "q": "How do you keep the history of a slowly changing source table in dbt?",
       "a": "With a snapshot: dbt compares the source with the last snapshot using a unique key and either an updated_at timestamp or a check on chosen columns, and stores each version with dbt_valid_from and dbt_valid_to. I schedule it often enough to catch changes and build type 2 dimensions from it."
+    },
+    {
+      "q": "Which incremental strategies do you know, and how do you choose?",
+      "a": "append for immutable events; merge to update rows by unique_key, the usual default; delete+insert when merge is slow on large batches; insert_overwrite to replace date partitions on BigQuery or Spark; microbatch in recent dbt for large time-based tables processed in batches. I also add a lookback window for late data and a unique test on the key."
+    },
+    {
+      "q": "What is the difference between a data test and a unit test in dbt?",
+      "a": "A data test runs on the real built table and checks that the data respects a rule, such as unique keys or valid values. A unit test runs the model on small fixture rows and compares with expected rows, so it checks the transformation logic independently of the data. Data tests catch bad data, unit tests catch bad code."
+    },
+    {
+      "q": "How does slim CI work in a dbt project?",
+      "a": "Production jobs save their artifacts, especially manifest.json. On a pull request, CI runs dbt build -s state:modified+ --defer --state with those artifacts: only changed models and their children are built and tested, in a temporary schema, and unchanged parents are read from production. It keeps CI fast and cheap while still testing everything affected."
+    },
+    {
+      "q": "What are exposures and why declare them?",
+      "a": "Exposures describe what uses the models downstream: dashboards, notebooks, ML models, applications, with an owner and their dependencies. They complete the lineage graph, so before changing a model I can see which dashboards and people are affected, and I can rebuild and test everything a dashboard needs with -s +exposure:name."
     }
   ]
 }

@@ -66,6 +66,89 @@
         "code": "import numpy as np\nfrom scipy import stats\n\nads = np.array([10, 15, 20, 25, 30, 35])        # ad spend (k€)\nsales = np.array([110, 135, 170, 180, 220, 240])  # sales (k€)\n\nr, p = stats.pearsonr(ads, sales)\nfit = stats.linregress(ads, sales)\nprint(f\"r = {r:.2f}, slope = {fit.slope:.1f} k€ sales per k€ of ads\")\n# r = 0.99, slope = 5.2 -> strong association, not proof of cause",
         "note": "Forte corrélation ; le budget et la saison peuvent tous deux faire monter les ventes."
       }
+    },
+    {
+      "title": "Échantillonnage et biais : qui est dans vos données ?",
+      "text": [
+        "Vous ne mesurez presque jamais toute la population : vous travaillez sur un échantillon (les clients qui ont répondu à une enquête, un mois de logs, les utilisateurs de l’application). Un échantillon n’est utile que s’il ressemble à la population dont vous voulez parler. La première question à poser sur un jeu de données est donc : comment ces lignes sont-elles arrivées ici, et qui manque ?",
+        "Deux problèmes différents se cachent derrière « l’échantillon n’est pas parfait ». L’erreur aléatoire vient du hasard : un autre échantillon aléatoire donnerait un chiffre légèrement différent. Elle diminue quand l’échantillon grandit, mais lentement : l’erreur type d’une moyenne est l’écart-type divisé par la racine carrée de n, il faut donc quatre fois plus de données pour la diviser par deux. Le biais est un écart systématique entre l’échantillon et la population, et davantage de données ne le réduit pas du tout ; un échantillon biaisé d’un million de lignes est tout aussi faux, simplement plus sûr de lui.",
+        "Biais classiques dans les données d’entreprise : le biais de sélection (seuls les clients qui ont accepté le suivi), le biais de non-réponse (les clients satisfaits répondent rarement aux enquêtes, les mécontents le font), le biais du survivant (n’étudier que les entreprises ou les clients encore actifs) et les échantillons de convenance (tester une fonctionnalité sur des collègues). Le calendrier compte aussi : une semaine de données en août ou autour du Black Friday n’est pas une semaine typique.",
+        "La protection : l’échantillonnage aléatoire quand vous contrôlez la sélection, l’échantillonnage stratifié quand de petits groupes doivent être représentés (tirer séparément dans chaque région ou segment) et, quand vous ne contrôlez rien, une description honnête de qui est dans les données et de qui n’y est pas."
+      ],
+      "points": [
+        "Erreur type d’une moyenne = s / √n : quatre fois plus de données divisent l’erreur par deux.",
+        "Plus de données réduit l’erreur aléatoire, jamais le biais.",
+        "Demandez-vous qui ne pouvait pas ou ne voulait pas apparaître dans les données (clients partis, non-répondants, utilisateurs non suivis).",
+        "Stratifiez quand il vous faut des chiffres fiables sur de petits segments.",
+        "Comparez l’échantillon à des totaux connus (âge, région, offre) pour repérer les écarts."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import numpy as np\n\nrng = np.random.default_rng(42)\n# Population: 100,000 basket values, skewed like real revenue\npopulation = rng.lognormal(mean=3.5, sigma=0.8, size=100_000)\nprint(round(population.mean(), 1))\n\nfor n in [100, 400, 1600]:\n    means = [rng.choice(population, n).mean() for _ in range(1000)]\n    print(n, round(np.std(means), 2))   # spread of the sample mean halves when n is x4\n\n# Biased sample: bigger baskets are more likely to answer a survey\nanswered = population[rng.random(population.size) < population / population.max()]\nprint(len(answered), round(answered.mean(), 1))   # far above the true mean",
+        "note": "L’échantillon biaisé compte encore des milliers de lignes ; sa moyenne reste fausse, quel que soit le nombre de réponses collectées."
+      }
+    },
+    {
+      "title": "Les intervalles de confiance en pratique",
+      "text": [
+        "Un chiffre seul comme « la conversion est de 4,2 % » cache sa précision. Un intervalle de confiance donne une plage de valeurs plausibles pour le vrai chiffre, par exemple 4,2 % [3,5 % ; 5,0 %]. Les 95 % portent sur la méthode : si vous répétiez l’échantillonnage de nombreuses fois, environ 95 % des intervalles construits ainsi contiendraient la vraie valeur. L’intervalle ne couvre pas les biais des données, seulement l’erreur aléatoire.",
+        "Trois cas couvrent l’essentiel du travail d’analyste. Pour une moyenne, utilisez la loi de Student avec l’erreur type s / √n ; à partir de quelques dizaines d’observations, c’est proche de moyenne ± 2 erreurs types. Pour une proportion (conversion, churn, part de tickets), utilisez l’intervalle de Wilson, qui se comporte bien avec de petits effectifs et des taux proches de 0 % ou 100 %. Pour une médiane, un percentile ou toute statistique sans formule simple, utilisez le bootstrap : rééchantillonnez vos données avec remise des milliers de fois, calculez la statistique à chaque fois et prenez les percentiles 2,5 et 97,5.",
+        "Bien lire un intervalle, c’est la moitié de la compétence. Un intervalle large signifie que vous en savez encore peu, quoi que dise l’estimation ponctuelle. Si deux intervalles ne se chevauchent pas, la différence est significative ; s’ils se chevauchent un peu, elle peut l’être quand même : testez la différence elle-même au lieu de juger à l’œil. Et la largeur diminue avec √n : doubler la précision coûte quatre fois plus de données.",
+        "Devant un public métier, énoncez la plage en mots simples : « entre 3,5 % et 5,0 %, le plus probablement autour de 4,2 % ». Une décision doit tenir sur toute la plage, pas seulement sur l’estimation ponctuelle."
+      ],
+      "points": [
+        "Moyenne : moyenne ± t × s / √n (scipy.stats.t.interval).",
+        "Proportion : intervalle de Wilson (statsmodels proportion_confint, method=\"wilson\").",
+        "Médiane ou autre statistique : bootstrap (scipy.stats.bootstrap).",
+        "Des intervalles qui se chevauchent ne prouvent pas « aucune différence » : testez la différence.",
+        "Affichez toujours le n derrière un taux et son intervalle."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import numpy as np\nfrom scipy import stats\nfrom statsmodels.stats.proportion import proportion_confint\n\nbasket = np.array([42, 55, 38, 61, 47, 52, 39, 70, 44, 58, 49, 63])\nlow, high = stats.t.interval(0.95, df=len(basket) - 1,\n                             loc=basket.mean(), scale=stats.sem(basket))\nprint(f\"mean {basket.mean():.1f}, 95% CI [{low:.1f}; {high:.1f}]\")\n\nlow, high = proportion_confint(count=126, nobs=3000, alpha=0.05, method=\"wilson\")\nprint(f\"conversion 4.2%, 95% CI [{low:.1%}; {high:.1%}]\")\n\nres = stats.bootstrap((basket,), np.median, confidence_level=0.95)\nprint(res.confidence_interval)   # low and high for the median"
+      }
+    },
+    {
+      "title": "Tests d’hypothèse et pièges de la p-value",
+      "text": [
+        "Un test d’hypothèse cherche à savoir si une différence observée pourrait facilement venir du hasard. Vous posez une hypothèse nulle (pas de différence), calculez une statistique de test à partir des données et obtenez une p-value : la probabilité d’un résultat au moins aussi extrême si l’hypothèse nulle était vraie. Le test se choisit selon les données, pas selon celui qui donne la plus petite p-value.",
+        "Comparer les moyennes de deux groupes indépendants (panier moyen dans deux régions, délai de résolution avant et après un changement de processus) appelle un test t ; utilisez la version de Welch (equal_var=False), qui ne suppose pas des variances égales. Quand les mêmes unités sont mesurées deux fois (les mêmes agents avant et après une formation), utilisez le test t apparié. Avec des données très asymétriques et de petits échantillons, le test de Mann-Whitney compare les groupes sans supposer la normalité. Pour des effectifs par catégorie (type de contrat par site d’emploi, offre par pays), utilisez le test du khi-deux d’indépendance sur le tableau de contingence.",
+        "La plupart des erreurs sont dans la lecture. Une p-value n’est pas la probabilité que l’hypothèse nulle soit vraie, et p > 0,05 ne prouve pas l’absence d’effet : l’échantillon est peut-être simplement trop petit. Avec un échantillon énorme, des différences minuscules et inutiles deviennent « significatives » : indiquez toujours la taille de l’effet et son intervalle de confiance à côté de la p-value. Enfin, si vous faites 20 tests au seuil de 5 %, attendez-vous à un faux positif par hasard : corrigez les comparaisons multiples (Holm ou Bonferroni) ou fixez à l’avance un seul indicateur principal.",
+        "Rédigez la conclusion comme une décision accompagnée de son incertitude, pas seulement « significatif » ou « non significatif »."
+      ],
+      "points": [
+        "Deux moyennes indépendantes : test t de Welch, stats.ttest_ind(a, b, equal_var=False).",
+        "Mêmes unités mesurées deux fois : test apparié, stats.ttest_rel.",
+        "Catégories : khi-deux, stats.chi2_contingency(table).",
+        "Indiquez taille d’effet + intervalle + p-value, jamais la p-value seule.",
+        "Nombreux tests : statsmodels multipletests(pvals, method=\"holm\")."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import numpy as np\nfrom scipy import stats\n\n# Ticket resolution time (hours) with the old and the new triage process\nold = np.array([5.2, 6.1, 4.8, 7.3, 5.9, 6.5, 8.0, 5.5, 6.8, 7.1])\nnew = np.array([4.1, 5.0, 4.6, 5.8, 4.9, 5.2, 6.3, 4.4, 5.6, 5.1])\nt, p = stats.ttest_ind(new, old, equal_var=False)   # Welch t-test\nprint(f\"difference {new.mean() - old.mean():.2f} h, t = {t:.2f}, p = {p:.4f}\")\n\n# Contract type of applications on two job boards\ntable = np.array([[120, 80, 40],    # board A: permanent, fixed-term, freelance\n                  [150, 60, 30]])   # board B\nchi2, p, dof, expected = stats.chi2_contingency(table)\nprint(f\"chi2 = {chi2:.1f}, dof = {dof}, p = {p:.3f}\")",
+        "note": "Vérifiez que chaque effectif attendu dans « expected » vaut au moins 5 avant de vous fier au khi-deux."
+      }
+    },
+    {
+      "title": "Concevoir un A/B test et communiquer le résultat",
+      "text": [
+        "La plupart des A/B tests ratés l’étaient avant même de commencer. Rédigez d’abord un court plan : l’hypothèse, un indicateur principal, les indicateurs garde-fous, l’unité de randomisation (l’utilisateur, pas la page vue, si la même personne revient), l’effet minimal détectable (MDE) qui justifierait une mise en production, le seuil de significativité (en général 5 %) et la puissance (en général 80 %). Ces choix fixent la taille d’échantillon, et la taille d’échantillon divisée par le trafic quotidien donne la durée.",
+        "La taille d’échantillon augmente vite quand l’effet est petit : diviser le MDE par deux demande environ quatre fois plus d’utilisateurs. Si la durée nécessaire est irréaliste, testez un changement plus ambitieux, choisissez un indicateur plus sensible ou acceptez que le test ne puisse pas répondre à la question. Faites tourner des semaines entières pour que jours ouvrés et week-ends soient représentés.",
+        "Le « peeking » est le piège classique : regarder la p-value tous les jours et arrêter dès qu’elle passe sous 0,05 peut multiplier plusieurs fois le taux de faux positifs. Attendez la taille d’échantillon prévue ou utilisez une méthode conçue pour le suivi en continu (tests séquentiels). Avant de lire l’indicateur, vérifiez le ratio d’échantillonnage : si une répartition 50/50 finit à 51/49 sur 100 000 utilisateurs, un test du khi-deux le signale, et un tel écart révèle en général un bug d’affectation ou de tracking qui invalide le résultat.",
+        "Pour présenter le résultat, commencez par la décision et la taille de l’effet, puis l’incertitude : « B a augmenté la conversion de 0,5 point, plausiblement entre 0,1 et 0,9 ; avec 90 000 visiteurs par mois, cela représente environ 90 à 810 commandes supplémentaires ; les garde-fous sont stables ; nous recommandons le déploiement. » Évitez les mots « prouvé » et « aucun effet » ; dites « nous n’avons pas pu détecter d’effet supérieur à X »."
+      ],
+      "points": [
+        "Planifiez avant le lancement : indicateur, MDE, alpha, puissance, durée, garde-fous.",
+        "Diviser le MDE par deux demande environ quatre fois plus d’échantillon.",
+        "Pas de peeking : attendez la taille prévue ou utilisez une méthode séquentielle.",
+        "Vérifiez le déséquilibre de ratio d’échantillonnage (SRM) avant de lire les résultats.",
+        "Traduisez l’intervalle en unités métier (commandes, euros) pour les décideurs."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from scipy.stats import chisquare\nfrom statsmodels.stats.power import NormalIndPower\nfrom statsmodels.stats.proportion import proportion_effectsize\n\nbaseline, target = 0.040, 0.045   # +0.5 pt is the smallest lift worth shipping\neffect = proportion_effectsize(target, baseline)\nn_per_group = NormalIndPower().solve_power(effect_size=effect, alpha=0.05,\n                                           power=0.8, ratio=1)\nprint(round(n_per_group))   # about 25,500 users per group\n\n# Sample ratio check on a planned 50/50 split\nstat, p = chisquare([50_912, 49_088])\nprint(f\"SRM p-value = {p:.1e}\")   # far below 0.001: investigate before reading results",
+        "note": "Avec 3 000 utilisateurs éligibles par jour, 2 x 25 500 utilisateurs prennent environ 17 jours : faites tourner le test 3 semaines complètes."
+      }
     }
   ],
   "cheatsheet": [
@@ -135,13 +218,78 @@
           "Effet minimal détectable, fixe la taille d’échantillon"
         ]
       ]
+    },
+    {
+      "group": "Échantillons et intervalles",
+      "items": [
+        [
+          "Erreur type = s / √n",
+          "Précision d’une moyenne d’échantillon"
+        ],
+        [
+          "Biais",
+          "Écart systématique ; plus de données ne le corrige pas"
+        ],
+        [
+          "Biais du survivant",
+          "Seuls les « survivants » sont dans les données"
+        ],
+        [
+          "Intervalle de confiance à 95 %",
+          "Méthode qui capture la vraie valeur 95 % du temps"
+        ],
+        [
+          "Intervalle de Wilson",
+          "Intervalle pour une proportion"
+        ],
+        [
+          "Bootstrap",
+          "Rééchantillonner avec remise pour obtenir un intervalle"
+        ]
+      ]
+    },
+    {
+      "group": "Tests et conception d’A/B tests",
+      "items": [
+        [
+          "ttest_ind(a, b, equal_var=False)",
+          "Test t de Welch, deux moyennes indépendantes"
+        ],
+        [
+          "chi2_contingency(table)",
+          "Indépendance de deux variables catégorielles"
+        ],
+        [
+          "Taille d’effet",
+          "Ampleur de la différence, au-delà de la p-value"
+        ],
+        [
+          "Holm / Bonferroni",
+          "Corriger les tests multiples"
+        ],
+        [
+          "NormalIndPower().solve_power(...)",
+          "Taille d’échantillon pour un MDE et une puissance donnés"
+        ],
+        [
+          "Sample ratio mismatch (SRM)",
+          "Répartition différente du plan : bug probable"
+        ],
+        [
+          "Peeking",
+          "Arrêter dès que p < 0,05 gonfle les faux positifs"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Présenter la moyenne d’une distribution asymétrique comme une valeur « typique ».",
     "Arrêter un A/B test trop tôt parce qu’il « semble significatif ».",
     "Tester de nombreux indicateurs et ne présenter que celui qui est ressorti significatif.",
-    "Conclure à une causalité à partir d’une corrélation dans des données observationnelles."
+    "Conclure à une causalité à partir d’une corrélation dans des données observationnelles.",
+    "Croire qu’un jeu de données plus gros supprime le biais : un million de réponses auto-sélectionnées restent auto-sélectionnées.",
+    "Lire p > 0,05 comme « aucun effet » alors que le test manquait simplement d’échantillon pour en détecter un.",
+    "Lancer un A/B test sans taille d’échantillon ni durée prévues, puis l’arrêter quand le tableau de bord passe au vert."
   ],
   "exercises": [
     {
@@ -160,6 +308,26 @@
       "q": "Un manager affirme : « Les clients qui utilisent notre application dépensent 40 % de plus, donc pousser tout le monde vers l’application augmentera le chiffre d’affaires de 40 %. » Qu’est-ce qui ne va pas, et comment vérifieriez-vous ?",
       "hint": "Qui choisit d’utiliser l’application ?",
       "answer": "Auto-sélection : les clients les plus engagés choisissent l’application, ils dépenseraient donc plus de toute façon ; l’application est corrélée aux dépenses, cela ne prouve pas qu’elle les cause. Vérifier en comparant des clients similaires (même ancienneté, mêmes dépenses passées) avant et après l’adoption, ou mieux, lancer une expérience qui encourage au hasard un groupe à utiliser l’application et comparer son chiffre d’affaires à un groupe témoin."
+    },
+    {
+      "q": "Une enquête envoyée à tous les clients obtient 8 % de réponses et affiche 92 % de satisfaction. Le manager veut publier « 92 % de nos clients sont satisfaits ». Que lui dites-vous ?",
+      "answer": "Le chiffre décrit les répondants, pas les clients : un biais de non-réponse est probable, car clients satisfaits et mécontents ne répondent pas au même rythme. Comparez les répondants à la base clients (ancienneté, offre, région, réclamations passées), présentez le chiffre comme « 92 % des répondants » et, si le chiffre compte, interrogez un échantillon aléatoire avec relances pour augmenter le taux de réponse."
+    },
+    {
+      "q": "Sur 1 200 utilisateurs en essai, 180 sont passés à l’offre payante. Calculez le taux de conversion avec un intervalle de confiance de Wilson à 95 % en Python.",
+      "code": "python",
+      "answer": "from statsmodels.stats.proportion import proportion_confint\n\nrate = 180 / 1200\nlow, high = proportion_confint(180, 1200, alpha=0.05, method=\"wilson\")\nprint(f\"{rate:.1%} [{low:.1%}; {high:.1%}]\")"
+    },
+    {
+      "q": "Deux tableaux, a et b, contiennent les montants de commande des clients de deux régions indépendantes. Testez si le montant moyen diffère, sans supposer des variances égales.",
+      "code": "python",
+      "answer": "from scipy import stats\n\nt, p = stats.ttest_ind(a, b, equal_var=False)\nprint(f\"diff = {a.mean() - b.mean():.2f}, p = {p:.4f}\")"
+    },
+    {
+      "q": "La conversion actuelle du paiement est de 10 %. L’équipe veut détecter une hausse à 11 % avec une puissance de 80 % au seuil de 5 %. Calculez le nombre d’utilisateurs nécessaires par groupe.",
+      "hint": "proportion_effectsize puis NormalIndPower().solve_power.",
+      "code": "python",
+      "answer": "from statsmodels.stats.power import NormalIndPower\nfrom statsmodels.stats.proportion import proportion_effectsize\n\neffect = proportion_effectsize(0.11, 0.10)\nn = NormalIndPower().solve_power(effect_size=effect, alpha=0.05, power=0.8, ratio=1)\nprint(round(n))   # about 14,700 per group"
     }
   ],
   "interview": [
@@ -178,6 +346,22 @@
     {
       "q": "Comment expliquez-vous à un manager que corrélation n’est pas causalité ?",
       "a": "Avec un exemple concret tiré de ses données : les utilisateurs qui adoptent une fonctionnalité étaient déjà les plus engagés, ils dépenseraient donc plus de toute façon. La fonctionnalité et les dépenses évoluent ensemble, mais c’est l’engagement qui fait monter les deux. Pour mesurer l’effet réel, il faut une expérience où la fonctionnalité est attribuée au hasard, ou au moins une comparaison d’utilisateurs similaires avant et après."
+    },
+    {
+      "q": "Quelle différence entre erreur aléatoire et biais ?",
+      "a": "L’erreur aléatoire est le bruit lié au fait de travailler sur un échantillon : un autre échantillon donnerait une valeur un peu différente, et elle diminue quand l’échantillon grandit. Le biais est un écart systématique, parce que l’échantillon ne représente pas la population, par exemple quand seuls les utilisateurs engagés répondent à une enquête. Plus de données réduit l’erreur aléatoire mais laisse le biais intact ; on corrige un biais en changeant la collecte ou en l’ajustant."
+    },
+    {
+      "q": "Comment interprétez-vous un intervalle de confiance à 95 % ?",
+      "a": "C’est une plage de valeurs plausibles pour le vrai chiffre. Si l’on répétait l’étude de nombreuses fois, 95 % des intervalles construits ainsi contiendraient la vraie valeur. En pratique, je lis sa largeur comme notre précision, et je vérifie si la décision serait la même aux deux bornes de l’intervalle."
+    },
+    {
+      "q": "Votre A/B test donne p = 0,30. Le product manager en conclut que la fonctionnalité n’a aucun effet. Êtes-vous d’accord ?",
+      "a": "Pas forcément. Une p-value élevée signifie que nous n’avons pas pu distinguer l’effet du bruit, pas que l’effet est nul. Je regarde l’intervalle de confiance : s’il est étroit autour de zéro, un éventuel effet est probablement trop petit pour compter ; s’il est large, le test manquait de puissance et un effet important reste possible. Ensuite, nous décidons si un test plus grand vaut la peine."
+    },
+    {
+      "q": "Comment décidez-vous de la durée d’un A/B test ?",
+      "a": "À partir de la taille d’échantillon, qui dépend du taux de base, de l’effet minimal qui vaut la peine d’être détecté, du seuil de significativité et de la puissance. Je divise cet échantillon par le trafic quotidien éligible et j’arrondis à des semaines entières pour couvrir les cycles hebdomadaires. Je fixe la durée avant le lancement et je n’arrête pas plus tôt parce que le résultat semble bon."
     }
   ]
 }

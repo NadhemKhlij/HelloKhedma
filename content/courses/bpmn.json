@@ -63,6 +63,86 @@
         "code": "(Start: order received)\n  → [Check stock]\n  → <X> in stock?\n       yes → [Ship order] → (End: order shipped)\n       no  → [Order from supplier]\n               ⏱ boundary timer 5 days on the task → [Notify customer of delay]\n               → [Ship order] → (End: order shipped)\nMessage flow: [Order from supplier] ⇢ Supplier pool",
         "note": "The timer handles the delay case without a second copy of the process."
       }
+    },
+    {
+      "title": "Gateways in depth: exclusive, parallel, inclusive, event-based",
+      "text": [
+        "Gateways control how the flow splits and merges. They do no work and make no decision themselves: the decision is made in the task before ('Check credit'), and the gateway routes on its result ('Credit OK?'). The exclusive gateway (a diamond with an X, or an empty diamond) sends the flow down exactly one outgoing path. Give it a default flow, drawn with a small slash on the arrow, so the process never gets stuck when no condition is true. The parallel gateway (+) starts all outgoing paths without any condition; when used to join, it waits until every incoming path has arrived.",
+        "The inclusive gateway (a diamond with a circle) activates one or more paths, each condition being evaluated on its own: send an email and/or an SMS depending on the customer's preferences. The joining inclusive gateway waits only for the paths that were actually activated. The event-based gateway (a diamond containing a pentagon inside a double circle) chooses the path by whichever event happens first, not by data: the customer replies, or 10 days pass. It is followed only by intermediate catching events or receive tasks, and once one event occurs the others are no longer awaited.",
+        "Mismatched splits and joins cause most modelling errors. Joining two exclusive paths with a parallel gateway creates a deadlock: the join waits forever for a path that was never taken. Joining parallel paths without a gateway, or with an exclusive one, lets the next task run twice. The rule of thumb is to close with the same type you opened, and to name the splitting gateway as a question with labelled answers."
+      ],
+      "points": [
+        "Decision in the task, routing in the gateway: 'Check credit', then 'Credit OK?'.",
+        "Add a default flow on exclusive and inclusive gateways.",
+        "Parallel means 'all of them, in any order', not necessarily at the same moment.",
+        "Event-based gateway: the first event that arrives wins.",
+        "Close with the same gateway type you opened to avoid deadlocks and duplicate runs."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "[Send quote to customer]\n  → <Event-based>\n       → (✉ Customer accepts)  → [Create order]\n       → (✉ Customer declines) → [Close opportunity] → (End: lost)\n       → (⏱ 10 days)           → [Call customer]\n[Create order] → <+ split>\n       → [Reserve stock]\n       → [Prepare invoice]\n  <+ join> → [Ship order] → (End: order shipped)",
+        "note": "Whichever event comes first decides the path; the parallel join waits for both branches."
+      }
+    },
+    {
+      "title": "Events in depth: messages, timers, errors and boundary events",
+      "text": [
+        "An event has a type, shown by the marker inside the circle (an envelope for a message, a clock for a timer, a lightning bolt for an error, a triangle for a signal), and a position: start, intermediate or end. Catching events wait for something and have an outlined marker; throwing events send something and have a filled marker. A message start event means another participant starts the process (an order arrives); a timer start event means the calendar starts it ('every Monday at 8:00'). Timers can be a date, a duration or a cycle.",
+        "Boundary events sit on the border of an activity and handle what can happen while it runs. An interrupting boundary event (solid double circle) cancels the activity and takes the exception path: a 48-hour timer on 'Approve expense' escalates and stops waiting. A non-interrupting one (dashed double circle) starts an extra path while the activity continues: after 24 hours, send a reminder but keep waiting for the approval. Error boundary events are always interrupting: an error end event inside a sub-process throws the error, the boundary event on the sub-process catches it, and the exception path takes over.",
+        "A signal is broadcast to anyone listening ('product recalled'), whereas a message goes to one specific participant. The terminate end event (thick circle with a filled dot) stops the whole process instance, including other paths still running. Use events when they add meaning for the reader: a diagram full of rare markers is hard to read for a business audience. For most BA work, message, timer and error events, their boundary variants and the terminate end event are enough."
+      ],
+      "points": [
+        "Outlined marker = catch (wait); filled marker = throw (send).",
+        "Interrupting boundary: solid border, the activity is cancelled.",
+        "Non-interrupting boundary: dashed border, the activity continues.",
+        "Error events are caught by boundary events or event sub-processes and always interrupt.",
+        "Terminate end event: stops every remaining path of the instance."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "[Approve expense] (user task, Manager lane)\n  ◌ non-interrupting timer 24h → [Send reminder to manager] → (End: reminder sent)\n  ◎ interrupting timer 48h     → [Escalate to finance] → [Finance approves]\n[Pay expense +] (sub-process)\n  ◎ error boundary 'Invalid bank details' → [Ask employee for new details]",
+        "note": "◌ = dashed border (task continues), ◎ = solid border (task cancelled)."
+      }
+    },
+    {
+      "title": "Collaboration, sub-processes and levels of modelling",
+      "text": [
+        "A collaboration diagram shows several pools, one per participant: your company, the customer, a supplier, a bank. Sequence flows never cross the boundary of a pool; communication between pools is a message flow, a dashed line with a small circle at its start and an open arrowhead. When you do not know or do not need a partner's internal process, draw it as a collapsed pool, an empty band also called a black box, and attach the message flows to its edge. Lanes stay inside a pool and represent roles or departments, not separate organisations.",
+        "Sub-processes manage complexity. A collapsed sub-process (a task with a [+] marker) hides details drawn in another diagram; an expanded one shows them inline. A call activity (thick border) calls a global, reusable process, such as 'Verify identity' used by several processes. An event sub-process (dotted border) lives inside a process and starts when its event occurs, for example a 'customer cancels' message received at any point during the order.",
+        "Practitioners usually distinguish three levels of models, in line with the BPMN conformance classes. Descriptive: the happy path and the main exceptions with a small set of symbols, for business readers. Analytical: all significant exceptions and events, precise enough to analyse the process and derive requirements, still readable by the business. Executable: technical details such as data, service calls, forms and expressions, for a workflow engine such as Camunda or Flowable, usually owned by developers. Choose the level for the audience: a steering committee wants a descriptive overview, the team writing requirements needs the analytical level."
+      ],
+      "points": [
+        "One pool per participant; lanes for roles inside that pool.",
+        "Message flows only between pools; sequence flows only inside a pool.",
+        "Use a black-box pool for external partners whose process you do not model.",
+        "Call activity for reusable processes; collapsed sub-process to hide detail.",
+        "A process map (level 0) gives the overview and links to the detailed models."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Pool: Customer (black box)\n   ⇣ message 'Order'               ⇡ message 'Invoice'\nPool: Shop\n  Lane Sales:   (✉ Start: order received) → [Validate order] → [Fulfil order +]\n  Lane Finance: → [Send invoice] → (End: order invoiced)\n  Event sub-process (dotted): (✉ Cancellation received) → [Cancel order] → (End: order cancelled)\nPool: Carrier (black box)\n   ⇡ message 'Pickup request' from [Fulfil order +]",
+        "note": "Partners are black boxes: only the messages exchanged with them are modelled."
+      }
+    },
+    {
+      "title": "Analyse a process and turn the to-be into requirements",
+      "text": [
+        "A model becomes useful when you add numbers. For each step, capture the volume, the processing (touch) time, the waiting time, the rework or error rate and who does it. Lead time is the total from trigger to result; process efficiency is touch time divided by lead time, and in administrative processes it is often very low: most of the time the file is simply waiting. Process KPIs follow from this: lead time, first-time-right rate, cost per case, number of cases in progress, share of cases within the service level.",
+        "Lean gives a vocabulary for waste: waiting, defects and rework, over-processing (approvals nobody needs, data typed twice), transport and handoffs, inventory (piles of cases waiting), motion, overproduction (reports nobody reads) and unused skills. The bottleneck is the step with the least capacity: the queue builds up in front of it, and improving any other step does not shorten the lead time. Some modelling tools can simulate a to-be with arrival rates, durations and resources; even a spreadsheet estimate (cases per day times minutes per case, compared with available hours) catches unrealistic designs before they are built.",
+        "The to-be model is also a source of requirements. Walk through it element by element: each user task suggests screens and user stories, each service task an integration or automation, each gateway a business rule to write down with its data, each boundary event an exception scenario for acceptance criteria, each message flow an interface or notification, and each lane a role with its access rights. Give model elements IDs and reference them in the stories, so the link between process and backlog is kept when either one changes."
+      ],
+      "points": [
+        "Measure before improving: volumes, touch time, waiting time, rework rate.",
+        "Find the bottleneck first; speeding up any other step does not shorten the lead time.",
+        "Removing a handoff often saves more time than automating a task.",
+        "Gateway = business rule, boundary event = exception scenario, message flow = interface.",
+        "Keep IDs on model elements so stories and test cases can refer to them."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "To-be element                         → Requirement\nUT-03 [Review claim] (Handler lane)   → Story: one claim screen with documents and history\nGW-02 <Amount > 5,000 EUR?>           → Rule BR-07: above 5,000 EUR, manager approval required\nBE-01 ⏱ 48h on [Approve claim]        → Scenario: escalate to finance after 48h without decision\nST-02 [Pay claim] (service task)      → Interface: send payment order to the banking system\nMF-01 'Claim acknowledged' ⇢ Customer → Notification: email with claim number within 1 hour",
+        "note": "Each element of the to-be model becomes a traceable requirement."
+      }
     }
   ],
   "cheatsheet": [
@@ -137,13 +217,74 @@
           "Message between pools"
         ]
       ]
+    },
+    {
+      "group": "Gateways & events in depth",
+      "items": [
+        [
+          "◇ Event-based gateway",
+          "Path chosen by the first event that occurs"
+        ],
+        [
+          "Default flow (slash)",
+          "Taken when no condition is true"
+        ],
+        [
+          "Interrupting boundary (solid)",
+          "Cancels the activity, exception path"
+        ],
+        [
+          "Non-interrupting boundary (dashed)",
+          "Extra path, activity continues"
+        ],
+        [
+          "Error event",
+          "Thrown by an error end, caught on the boundary"
+        ],
+        [
+          "Terminate end",
+          "Stops every path of the instance"
+        ]
+      ]
+    },
+    {
+      "group": "Collaboration & analysis",
+      "items": [
+        [
+          "Black-box pool",
+          "Partner shown only through its messages"
+        ],
+        [
+          "Call activity (thick border)",
+          "Calls a reusable process"
+        ],
+        [
+          "Event sub-process (dotted)",
+          "Starts when its event occurs during the process"
+        ],
+        [
+          "Descriptive / analytical / executable",
+          "Three levels of modelling detail"
+        ],
+        [
+          "Bottleneck",
+          "Step with the least capacity, queue in front"
+        ],
+        [
+          "Process efficiency",
+          "Touch time / lead time"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Too much detail in one diagram: nobody reads it.",
     "Gateways without labelled conditions.",
     "Mapping the official procedure instead of what people really do.",
-    "Mixing systems and roles in the same lanes without clear names."
+    "Mixing systems and roles in the same lanes without clear names.",
+    "Closing an exclusive split with a parallel join (deadlock), or not joining parallel paths at all (the next task runs twice).",
+    "Using an interrupting timer when you only wanted a reminder: the task is cancelled instead of continuing.",
+    "Drawing sequence flows between pools, or modelling the internal process of a partner you do not know, instead of a black box with message flows."
   ],
   "exercises": [
     {
@@ -162,6 +303,23 @@
       "q": "Review this model and list what you would fix: tasks named 'Stock', 'Supplier' and 'Mail', an exclusive gateway with unlabelled outflows, and one path that stops at a task with no end event.",
       "hint": "Naming, labels, ends.",
       "answer": "Rename tasks as verb + object: 'Check stock', 'Order from supplier', 'Email the customer'. Label each gateway outflow with its condition (in stock: yes / no) and phrase the gateway as a question. Add an end event named with the result on the path that stops, so every path ends. Also check that the gateway that splits the flow is matched where the paths join again if needed."
+    },
+    {
+      "q": "A customer is notified by email, by SMS or both, depending on their preferences, and the process continues once the notifications are sent. Which gateways do you use?",
+      "answer": "An inclusive gateway (O) to split, with one condition per channel ('email allowed', 'SMS allowed') and ideally a default flow, then an inclusive gateway to join, which waits only for the branches that were activated. A parallel join would deadlock when only one channel is used."
+    },
+    {
+      "q": "After sending a quote, the process waits for the customer to accept or decline, and closes the opportunity after 15 days without an answer. How do you model it?",
+      "answer": "An event-based gateway after 'Send quote', followed by three intermediate catching events: message 'Quote accepted' leading to 'Create order', message 'Quote declined' leading to 'Close opportunity', and a 15-day timer also leading to 'Close opportunity' (or a reminder first). The first event to occur decides the path."
+    },
+    {
+      "q": "A manager must approve a request. After 2 days a reminder is sent but the approval is still awaited; after 5 days the request is escalated to the director. Which events?",
+      "hint": "One keeps the task open, the other ends it.",
+      "answer": "On the 'Approve request' task: a non-interrupting boundary timer of 2 days (dashed border) leading to 'Send reminder' and an end event, and an interrupting boundary timer of 5 days (solid border) leading to 'Escalate to director'. The first keeps the task waiting, the second cancels it and takes the escalation path."
+    },
+    {
+      "q": "90 cases arrive per day. Register: 2 minutes per case, 1 person. Review: 20 minutes, 3 people. Approve: 4 minutes, 1 person. Each person works 480 minutes a day. Where is the bottleneck?",
+      "answer": "Capacity per day: Register 480 / 2 = 240 cases, Review 3 × 480 / 20 = 72 cases, Approve 480 / 4 = 120 cases. Review is the bottleneck: 72 is below the 90 arriving, so its queue grows by about 18 cases a day. Improving Register or Approve changes nothing; reduce review time, add a reviewer or remove simple cases from review."
     }
   ],
   "interview": [
@@ -180,6 +338,22 @@
     {
       "q": "How do you make sure a process model is correct?",
       "a": "I walk through it with the people who do the work, using real recent cases, including exceptions: what happens if a document is missing, a deadline passes or a system is down. I check that every path ends, gateways are labelled, names are clear verb plus object, and the level of detail suits the audience. I update the model until the people doing the job recognise their process."
+    },
+    {
+      "q": "What is the difference between an inclusive and an event-based gateway?",
+      "a": "An inclusive gateway evaluates data conditions and can activate one or more paths, and its join waits for the activated ones. An event-based gateway does not look at data: it waits for several possible events, such as a message or a timer, and the first one that occurs decides the single path taken."
+    },
+    {
+      "q": "Interrupting versus non-interrupting boundary event?",
+      "a": "Both are attached to an activity and fire while it runs. An interrupting event, with a solid border, cancels the activity and continues on the exception path, for example escalation after 48 hours. A non-interrupting one, with a dashed border, starts an additional path while the activity continues, for example a reminder after 24 hours."
+    },
+    {
+      "q": "When do you use pools, lanes and message flows?",
+      "a": "One pool per independent participant, such as the company, the customer or a supplier. Lanes split a pool by role or department. Inside a pool the order is shown with sequence flows; between pools only message flows are allowed, because separate participants communicate by exchanging messages. Partners whose process I do not model are drawn as black-box pools."
+    },
+    {
+      "q": "How do you go from a to-be BPMN model to requirements?",
+      "a": "I walk through the model element by element: user tasks become user stories and screens, service tasks become integrations or automations, gateways become documented business rules, boundary and error events become exception scenarios in the acceptance criteria, message flows become interfaces or notifications, and lanes define roles and access rights. I give the elements IDs and reference them in the backlog for traceability."
     }
   ]
 }

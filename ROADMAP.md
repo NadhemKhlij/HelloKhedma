@@ -97,8 +97,10 @@ hand-written hours were 3 to 5 times too high (SQL said 14 h, the content is abo
 Kafka, cloud data warehouses, Tableau / Looker Studio / data storytelling) and deeper courses (SQL and Python 10
 lessons, Power BI 9, Docker 8, Kubernetes 8, monitoring 7 with Prometheus and Grafana): 25 courses, every path keyword
 has a course except Confluence. 4.5 portfolio projects: 3 per path (15, EN + FR) with steps, self-check, data links and
-a CV line (Training page, #/project/<id>). Still to do: deepen the other 4-lesson courses, sync lesson and project
-progress to the account, expert review (CHECKLIST O11).
+a CV line (Training page, #/project/<id>). Same day, second pass: the 15 remaining 4-lesson courses brought to 8
+lessons (intermediate topics, more exercises, interview questions and cheat-sheet items): every course now has 7-10
+lessons, about 2.5-3.5 h of reading and practice each. Still to do: sync lesson and project progress to the account,
+expert review (CHECKLIST O11), advanced level for the core courses if users ask for it.
 Done (2026-10-29): 4.4 Interview prep page: 55 questions per path on average (14 behavioral, 8 role-specific, plus the
 technical questions of the path's courses) with example answers, 2-minute timer, "got it / to review" decks; STAR story
 builder linked to question themes; before/during/after checklist, questions to ask, salary tips; upcoming interviews from

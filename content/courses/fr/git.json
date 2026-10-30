@@ -70,6 +70,85 @@
         "code": "git restore app.py              # drop local changes to a file\ngit restore --staged app.py     # unstage, keep the changes\ngit commit --amend              # fix the last commit (not pushed yet)\ngit stash push -m \"wip\"         # put work aside\ngit stash pop                   # bring it back\ngit revert 3f2c9ab              # new commit that undoes 3f2c9ab (safe on shared branches)\ngit reflog                      # find a 'lost' commit",
         "note": "revert est le choix sûr par défaut sur main ; reset et amend sont pour un travail que personne d’autre n’a récupéré."
       }
+    },
+    {
+      "title": "Rebase ou merge, et rebase interactif",
+      "text": [
+        "Merge et rebase répondent au même besoin : votre branche doit intégrer le travail le plus récent de main. git merge main ajoute un commit de merge qui relie les deux historiques ; rien n’est réécrit, c’est donc toujours sûr, mais une branche qui vit longtemps accumule les commits « Merge branch main ». git rebase main prend vos commits et les rejoue, un par un, au-dessus du main actuel. Le résultat est une ligne droite, comme si vous aviez commencé votre travail ce matin. Chaque commit rejoué reçoit un nouveau SHA : c’est pour cela que le rebase réécrit l’historique.",
+        "La règle d’or en découle : ne rebasez que des commits sur lesquels personne d’autre n’a basé son travail. Rebaser votre propre branche de fonctionnalité avant une pull request est une pratique normale ; rebaser main ou une branche sur laquelle un collègue pousse aussi ne l’est pas, car sa copie pointe encore vers les anciens commits et Git essaiera de fusionner les deux versions. Après avoir rebasé une branche déjà poussée, publiez-la avec git push --force-with-lease : contrairement à un simple --force, il refuse d’écraser le dépôt distant si quelqu’un a poussé entre-temps.",
+        "Le rebase interactif (git rebase -i) sert à ranger votre branche avant la revue. Git ouvre la liste de vos commits avec une action devant chacun : pick le garde, reword change son message, squash et fixup le fusionnent dans le commit précédent, drop le supprime, et vous pouvez réordonner les lignes. Le relecteur lit alors trois commits clairs au lieu de « wip », « fix typo », « fix again ». Si quelque chose se passe mal en cours de route, git rebase --abort remet tout dans l’état d’avant."
+      ],
+      "points": [
+        "Merge : historique fidèle, sûr sur les branches partagées. Rebase : historique linéaire, uniquement sur vos propres commits.",
+        "git pull --rebase rejoue vos commits locaux au-dessus du distant au lieu de créer un commit de merge.",
+        "git commit --fixup <sha> puis git rebase -i --autosquash main range automatiquement les corrections dans le bon commit.",
+        "Après le rebase d’une branche poussée, utilisez --force-with-lease, jamais un --force seul.",
+        "Beaucoup d’équipes choisissent « Squash and merge » sur la pull request : la branche reste brouillonne, main reçoit un seul commit propre."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "git switch feature/salary-filter\ngit fetch origin\ngit rebase origin/main          # replay my commits on top of the latest main\ngit rebase -i origin/main       # tidy up before review\n# editor opens:\n#   pick   1a2b3c4 Add salary filter\n#   fixup  5d6e7f8 fix typo\n#   reword 9a8b7c6 tests\ngit push --force-with-lease     # update my already-pushed branch safely",
+        "note": "Si une étape échoue, résolvez le conflit puis lancez git rebase --continue, ou git rebase --abort pour revenir en arrière."
+      }
+    },
+    {
+      "title": "Résoudre les conflits sans stress",
+      "text": [
+        "Un conflit n’est pas une erreur, c’est une question que pose Git : deux modifications touchent les mêmes lignes et il ne peut pas deviner laquelle est la bonne. Rien n’est perdu pendant que vous répondez. Commencez par git status : il liste les fichiers « both modified » et indique si vous êtes au milieu d’un merge ou d’un rebase, ce qui compte, car les commandes pour continuer ou annuler ne sont pas les mêmes.",
+        "Ouvrez chaque fichier et lisez les deux côtés avant de modifier. Entre <<<<<<< et ======= se trouve le côté courant, entre ======= et >>>>>>> le côté entrant. Régler merge.conflictStyle sur zdiff3 (Git 2.35+, diff3 sur les versions plus anciennes) affiche aussi l’ancêtre commun d’origine, ce qui montre ce que chacun a réellement changé ; c’est en général suffisant pour écrire la bonne version combinée, souvent un mélange des deux plutôt qu’un seul côté. Supprimez ensuite les marqueurs, lancez les tests, faites git add puis continuez. Pour un fichier où un côté a clairement raison, git checkout --ours ou --theirs le prend en entier. Attention : pendant un rebase, les rôles sont inversés, « ours » est la branche sur laquelle vous rebasez et « theirs » votre propre commit.",
+        "Si cela devient confus, arrêtez-vous : git merge --abort ou git rebase --abort revient à l’état d’avant, et vous pouvez recommencer ou demander à l’auteur de l’autre modification. Pour avoir moins de conflits, gardez des branches courtes, synchronisez-vous souvent avec main, et évitez de reformater massivement le code dans la même pull request que de vrais changements."
+      ],
+      "points": [
+        "git status montre les fichiers en conflit et si un merge ou un rebase est en cours.",
+        "git diff --name-only --diff-filter=U liste uniquement les fichiers encore en conflit.",
+        "L’annulation est toujours possible : git merge --abort, git rebase --abort.",
+        "Lancez les tests après la résolution : un merge sans conflit peut quand même produire du code cassé.",
+        "git config rerere.enabled true permet à Git de mémoriser une résolution et de la réutiliser la fois suivante."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "git config --global merge.conflictStyle zdiff3\ngit merge main\n# CONFLICT (content): Merge conflict in search.py\ngit status                          # both modified: search.py\ngit diff --name-only --diff-filter=U\n# edit search.py: keep the right lines, remove all markers\npytest -q                           # check the result still works\ngit add search.py\ngit commit                          # or: git rebase --continue during a rebase\n# lost? start over:\ngit merge --abort"
+      }
+    },
+    {
+      "title": "Workflows de branches, pull requests et releases",
+      "text": [
+        "Un workflow est l’accord de l’équipe sur la façon dont le travail arrive en production. Avec le GitHub flow, main est toujours déployable : vous créez une branche depuis main, ouvrez une pull request, obtenez une revue et une CI verte, mergez, puis déployez. Le trunk-based development va plus loin : les branches vivent un ou deux jours au plus, tout le monde intègre dans main plusieurs fois par semaine, et les fonctionnalités inachevées sont masquées derrière des feature flags. Git Flow, avec des branches develop et release de longue durée, existe encore pour les logiciels livrés par versions, mais il est plus lourd et provoque plus de conflits ; la plupart des équipes web utilisent l’un des deux premiers.",
+        "La pull request est l’endroit où se joue la qualité. Rendez-la facile à relire : un seul objectif, quelques centaines de lignes modifiées au maximum, un titre qui dit ce qu’elle fait, et une description avec le pourquoi, la façon dont vous avez testé et les points à regarder de près. En tant que relecteur, vérifiez l’exactitude, la clarté et le risque, pas vos goûts personnels ; formulez vos commentaires comme des questions ou des suggestions, et approuvez quand il ne reste que des points mineurs. Les règles de protection de branche imposent le minimum : pas de push direct sur main, au moins une approbation et des checks au vert. Un fichier CODEOWNERS demande automatiquement la revue de la bonne équipe.",
+        "Une release marque un commit précis comme « ceci est la version 1.4.0 ». Git le fait avec un tag annoté, qui enregistre l’auteur, la date et un message. Le versionnage sémantique donne un sens au numéro : MAJOR pour les changements incompatibles, MINOR pour les nouvelles fonctionnalités, PATCH pour les corrections. Les tags ne sont pas poussés par défaut, poussez-les donc explicitement ; les pipelines de CI déclenchent souvent le build de release sur un nouveau tag."
+      ],
+      "points": [
+        "GitHub flow : branche courte, pull request, revue, merge, déploiement depuis main.",
+        "Trunk-based : branches très courtes et feature flags, pour que main ne s’éloigne jamais de ce qui est déployé.",
+        "Les petites pull requests sont relues plus vite et mieux ; séparez le refactoring des changements de comportement.",
+        "git tag -a v1.4.0 -m \"...\" crée un tag annoté ; git push origin v1.4.0 le publie.",
+        "git describe --tags indique de quelle release un commit est le plus proche."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# release 1.4.0 from an up-to-date main\ngit switch main\ngit pull --ff-only\ngit tag -a v1.4.0 -m \"Release 1.4.0: salary filter\"\ngit push origin v1.4.0\ngit tag --list \"v1.*\"\ngit log --oneline v1.3.0..v1.4.0     # what changed since the last release\ngh release create v1.4.0 --generate-notes   # GitHub CLI: release page with notes",
+        "note": "Ne déplacez ni ne supprimez jamais un tag que d’autres ont pu récupérer : publiez plutôt une v1.4.1."
+      }
+    },
+    {
+      "title": "Garder un dépôt propre : .gitignore, gros fichiers et secrets divulgués",
+      "text": [
+        "Un dépôt doit contenir le code source, des modèles de configuration et de petites données de test, pas d’environnements virtuels, de résultats de build, d’exports de données ni d’identifiants. Le .gitignore liste les motifs que Git ne doit pas suivre : une barre oblique finale désigne un dossier, une barre oblique initiale ancre le motif à la racine du dépôt, et ! réintègre un fichier. Il ne concerne que les fichiers non suivis : si un fichier est déjà commité, ajoutez-le au .gitignore et lancez git rm --cached dessus pour que Git arrête de le suivre tout en le laissant sur votre disque. git check-ignore -v indique quelle règle ignore un fichier.",
+        "Git conserve toutes les versions de tous les fichiers pour toujours : un CSV de 300 Mo commité une seule fois alourdit chaque clone, même après sa suppression. GitHub refuse les fichiers de plus de 100 Mo. Pour les gros fichiers binaires qui ont vraiment leur place dans le projet (modèles, images, fichiers parquet d’exemple), utilisez Git LFS : le dépôt stocke un petit pointeur et le contenu vit dans un stockage séparé. Les vraies données, elles, restent hors de Git ; documentez simplement d’où elles viennent.",
+        "Un secret qui a atteint un dépôt distant doit être considéré comme compromis, même si vous le supprimez une minute plus tard : des robots scannent les dépôts publics en quelques secondes et les clones gardent l’historique. L’ordre compte : d’abord révoquer ou renouveler la clé, ensuite vérifier dans les logs du service qu’elle n’a pas été utilisée, et seulement après nettoyer l’historique si nécessaire avec git filter-repo (ou BFG), faire un force-push et demander à l’équipe de recloner. Prévenir coûte moins cher : gardez les secrets dans des variables d’environnement ou un fichier .env listé dans le .gitignore, commitez un .env.example avec des valeurs factices, et activez le secret scanning ou un hook pre-commit qui bloque les clés avant le commit."
+      ],
+      "points": [
+        "Ajoutez le .gitignore dès le premier commit ; GitHub propose des modèles par langage.",
+        "git rm --cached fichier arrête de suivre un fichier sans le supprimer localement.",
+        "git lfs track \"*.parquet\" stocke les fichiers correspondants avec Git LFS (enregistré dans .gitattributes).",
+        "Clé divulguée : d’abord la renouveler, ensuite nettoyer l’historique. Supprimer la ligne ne suffit pas.",
+        "Commitez un .env.example, jamais le vrai .env."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# .env was committed by mistake (not pushed yet)\necho \".env\" >> .gitignore\ngit rm --cached .env\ngit commit -m \"Stop tracking .env\"\ngit check-ignore -v .env           # .gitignore:1:.env  .env\n\n# large binary files that belong in the repo\ngit lfs install\ngit lfs track \"*.parquet\"\ngit add .gitattributes\n\n# a pushed secret: rotate it first, then rewrite history\ngit filter-repo --path config/prod.env --invert-paths\ngit push --force-with-lease --all",
+        "note": "git filter-repo est un outil séparé (pip install git-filter-repo). Réécrire l’historique concerne toute l’équipe : coordonnez-vous."
+      }
     }
   ],
   "cheatsheet": [
@@ -160,13 +239,79 @@
           "Corriger le dernier commit (avant le push)"
         ]
       ]
+    },
+    {
+      "group": "Rebase et conflits",
+      "items": [
+        [
+          "git rebase main",
+          "Rejouer mes commits au-dessus de main"
+        ],
+        [
+          "git rebase -i HEAD~3",
+          "Modifier, fusionner ou réordonner les 3 derniers commits"
+        ],
+        [
+          "git rebase --continue / --abort",
+          "Poursuivre après un conflit / annuler le rebase"
+        ],
+        [
+          "git merge --abort",
+          "Annuler un merge en conflit"
+        ],
+        [
+          "git push --force-with-lease",
+          "Forcer le push seulement si personne d’autre n’a poussé"
+        ],
+        [
+          "git checkout --ours / --theirs <file>",
+          "Prendre un côté du conflit"
+        ],
+        [
+          "git reflog",
+          "Où pointait HEAD : retrouver des commits perdus"
+        ]
+      ]
+    },
+    {
+      "group": "Releases et hygiène",
+      "items": [
+        [
+          "git tag -a v1.2.0 -m \"msg\"",
+          "Créer un tag de release annoté"
+        ],
+        [
+          "git push origin v1.2.0",
+          "Publier un tag"
+        ],
+        [
+          "git describe --tags",
+          "Tag le plus proche du commit courant"
+        ],
+        [
+          "git rm --cached <file>",
+          "Arrêter de suivre un fichier, le garder sur le disque"
+        ],
+        [
+          "git check-ignore -v <file>",
+          "Quelle règle du .gitignore s’applique"
+        ],
+        [
+          "git lfs track \"*.bin\"",
+          "Stocker les gros binaires avec Git LFS"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Commiter des mots de passe ou des clés d’API. Même supprimés, ils restent dans l’historique : changez la clé.",
     "Travailler directement sur main et pousser du code cassé.",
     "Des commits énormes qui mélangent des changements sans rapport, avec des messages comme « update ».",
-    "Utiliser git push --force sur une branche partagée."
+    "Utiliser git push --force sur une branche partagée.",
+    "Rebaser une branche que des collègues utilisent aussi : leurs copies divergent et des commits en double apparaissent.",
+    "Résoudre un conflit en prenant aveuglément « ma version » partout, sans lancer les tests.",
+    "Croire qu’un secret est en sécurité parce qu’un commit suivant l’a supprimé : il reste dans l’historique tant qu’il n’est pas renouvelé.",
+    "Des pull requests de milliers de lignes mélangeant refactoring et fonctionnalités : les relecteurs approuvent sans vraiment lire."
   ],
   "exercises": [
     {
@@ -188,6 +333,28 @@
       "hint": "Ne réécrivez pas l’historique partagé.",
       "code": "bash",
       "answer": "git revert a1b2c3d\ngit push"
+    },
+    {
+      "q": "Votre branche contient 4 commits : « Add export », « wip », « fix typo », « Add export tests ». Nettoyez-la en 2 commits avant d’ouvrir la pull request, puis mettez à jour la branche déjà poussée.",
+      "hint": "Rebase interactif sur main, fixup pour les commits parasites.",
+      "code": "bash",
+      "answer": "git fetch origin\ngit rebase -i origin/main\n# pick   aaa1111 Add export\n# fixup  bbb2222 wip\n# fixup  ccc3333 fix typo\n# pick   ddd4444 Add export tests\ngit push --force-with-lease"
+    },
+    {
+      "q": "Pendant un rebase, Git s’arrête sur un conflit dans config.py. Vous êtes perdu et voulez revenir exactement à votre point de départ. Ensuite, vous recommencez et le résolvez. Quelles commandes ?",
+      "code": "bash",
+      "answer": "git rebase --abort\ngit rebase origin/main\n# edit config.py, remove the markers\ngit add config.py\ngit rebase --continue"
+    },
+    {
+      "q": "Vous avez lancé git reset --hard HEAD~2 sur votre branche et perdu deux commits dont vous aviez besoin. Comment les récupérer ?",
+      "hint": "Git enregistre chaque déplacement de HEAD.",
+      "code": "bash",
+      "answer": "git reflog\n# e.g. 7c1d2e3 HEAD@{1}: commit: Add export tests\ngit reset --hard HEAD@{1}"
+    },
+    {
+      "q": "Un collègue a poussé une clé d’accès AWS dans un dépôt public il y a dix minutes, puis l’a supprimée dans un nouveau commit. Que faites-vous, dans l’ordre ?",
+      "hint": "La clé est déjà compromise.",
+      "answer": "1) Désactiver et renouveler la clé immédiatement dans AWS. 2) Vérifier CloudTrail et la facturation pour détecter toute utilisation. 3) La retirer de l’historique avec git filter-repo ou BFG, faire un force-push et demander à tout le monde de recloner. 4) Ajouter le fichier au .gitignore, garder les secrets dans des variables d’environnement ou un gestionnaire de secrets, et activer le secret scanning / la push protection pour que cela ne se reproduise pas."
     }
   ],
   "interview": [
@@ -206,6 +373,22 @@
     {
       "q": "Quelle est la différence entre git revert et git reset ?",
       "a": "revert ajoute un nouveau commit qui annule les changements d’un commit précédent : l’historique est conservé et c’est sûr sur une branche partagée. reset fait reculer le pointeur de branche et retire des commits de son historique ; c’est acceptable pour un travail local non poussé, mais réécrire un historique poussé oblige les autres à réparer leur copie, donc je l’évite sur les branches partagées."
+    },
+    {
+      "q": "Quand n’utiliseriez-vous pas le rebase ?",
+      "a": "Sur toute branche que d’autres ont récupérée ou sur laquelle ils travaillent, comme main ou une branche de fonctionnalité partagée, car le rebase crée de nouveaux commits et leurs copies divergeraient. Aussi quand l’équipe veut garder l’historique exact de l’intégration. Je rebase ma propre branche avant la revue et je pousse avec --force-with-lease."
+    },
+    {
+      "q": "Comment gérez-vous un conflit de merge ?",
+      "a": "Je regarde git status pour voir les fichiers et savoir si un merge ou un rebase est en cours, je lis les deux côtés (avec zdiff3 je vois aussi l’ancêtre commun), j’écris la bonne version combinée, je supprime les marqueurs, je lance les tests, puis git add et je continue. Si ce n’est pas clair, j’annule et j’en parle à l’auteur de l’autre modification plutôt que de deviner."
+    },
+    {
+      "q": "Quelle différence entre GitHub flow et Git Flow ?",
+      "a": "GitHub flow n’a qu’une branche longue, main, toujours déployable ; les fonctionnalités passent par des branches courtes et des pull requests et sont déployées après le merge. Git Flow ajoute des branches develop, release et hotfix, utiles pour un logiciel livré par versions, mais plus lourdes et plus sujettes aux conflits. Le trunk-based development est la version extrême du GitHub flow, avec des branches très courtes et des feature flags."
+    },
+    {
+      "q": "Que regardez-vous quand vous relisez une pull request ?",
+      "a": "Qu’elle fait ce que dit la description, qu’elle est correcte y compris sur les cas limites et la gestion d’erreurs, qu’elle a des tests, qu’elle n’ajoute pas de problème de sécurité comme des secrets ou des injections, et qu’elle reste lisible pour la personne suivante. Je laisse des commentaires clairs et bienveillants, je distingue ce qui bloque des simples suggestions, et je laisse mes préférences de style de côté sauf si l’équipe a une règle."
     }
   ]
 }

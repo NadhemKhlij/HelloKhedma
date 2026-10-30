@@ -66,6 +66,89 @@
         "code": "import numpy as np\nfrom scipy import stats\n\nads = np.array([10, 15, 20, 25, 30, 35])        # ad spend (k€)\nsales = np.array([110, 135, 170, 180, 220, 240])  # sales (k€)\n\nr, p = stats.pearsonr(ads, sales)\nfit = stats.linregress(ads, sales)\nprint(f\"r = {r:.2f}, slope = {fit.slope:.1f} k€ sales per k€ of ads\")\n# r = 0.99, slope = 5.2 -> strong association, not proof of cause",
         "note": "Strong correlation; the budget and the season may both drive sales."
       }
+    },
+    {
+      "title": "Sampling and bias: who is in your data?",
+      "text": [
+        "You almost never measure the whole population: you work on a sample (the customers who answered a survey, one month of logs, the users of the app). A sample is useful only if it resembles the population you want to talk about. The first question to ask about any dataset is therefore: how did these rows get here, and who is missing?",
+        "Two different problems hide behind 'the sample is not perfect'. Random error comes from chance: another random sample would give a slightly different number. It shrinks as the sample grows, but slowly: the standard error of a mean is the standard deviation divided by the square root of n, so you need four times more data to halve it. Bias is a systematic gap between the sample and the population, and more data does not reduce it at all; a biased sample of one million rows is just as wrong, only more confident.",
+        "Classic biases in business data: selection bias (only customers who opted in to tracking), non-response bias (satisfied customers rarely answer surveys, angry ones do), survivorship bias (studying only the companies or customers still active), and convenience samples (testing a feature on colleagues). Time also matters: a week of data in August or around Black Friday is not a typical week.",
+        "The protection is random sampling where you control the selection, stratified sampling when small groups must be represented (draw separately in each region or segment), and, when you cannot control it, an honest description of who is in the data and who is not."
+      ],
+      "points": [
+        "Standard error of a mean = s / √n: four times the data halves the error.",
+        "More data reduces random error, never bias.",
+        "Ask who could not or would not appear in the data (churned customers, non-respondents, untracked users).",
+        "Stratify when you need reliable numbers for small segments.",
+        "Compare the sample with known totals (age, region, plan) to spot gaps."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import numpy as np\n\nrng = np.random.default_rng(42)\n# Population: 100,000 basket values, skewed like real revenue\npopulation = rng.lognormal(mean=3.5, sigma=0.8, size=100_000)\nprint(round(population.mean(), 1))\n\nfor n in [100, 400, 1600]:\n    means = [rng.choice(population, n).mean() for _ in range(1000)]\n    print(n, round(np.std(means), 2))   # spread of the sample mean halves when n is x4\n\n# Biased sample: bigger baskets are more likely to answer a survey\nanswered = population[rng.random(population.size) < population / population.max()]\nprint(len(answered), round(answered.mean(), 1))   # far above the true mean",
+        "note": "The biased sample still has thousands of rows; its mean stays wrong however many you collect."
+      }
+    },
+    {
+      "title": "Confidence intervals in practice",
+      "text": [
+        "A single number such as 'conversion is 4.2%' hides how precise it is. A confidence interval gives a range of plausible values for the true figure, for example 4.2% [3.5%; 5.0%]. The 95% refers to the method: if you repeated the sampling many times, about 95% of the intervals built this way would contain the true value. It does not cover bias in the data, only random error.",
+        "Three cases cover most analyst work. For a mean, use the t distribution with the standard error s / √n; with a few dozen observations or more it is close to mean ± 2 standard errors. For a proportion (conversion, churn, share of tickets), use the Wilson interval, which behaves well with small counts and rates near 0% or 100%. For a median, a percentile or any statistic without a simple formula, use the bootstrap: resample your data with replacement thousands of times, compute the statistic each time and take the 2.5th and 97.5th percentiles.",
+        "Reading intervals well is half the skill. A wide interval means you do not know much yet, whatever the point estimate says. If two intervals do not overlap, the difference is significant; if they overlap a little, the difference may still be significant, so test the difference itself rather than eyeballing. And the width shrinks with √n, so reaching twice the precision costs four times the data.",
+        "For a business audience, state the range in plain words: 'between 3.5% and 5.0%, most likely around 4.2%'. Decisions should hold across the whole range, not only at the point estimate."
+      ],
+      "points": [
+        "Mean: mean ± t × s / √n (scipy.stats.t.interval).",
+        "Proportion: Wilson interval (statsmodels proportion_confint, method=\"wilson\").",
+        "Median or other statistics: bootstrap (scipy.stats.bootstrap).",
+        "Overlapping intervals do not prove 'no difference': test the difference.",
+        "Always show the n behind a rate and its interval."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import numpy as np\nfrom scipy import stats\nfrom statsmodels.stats.proportion import proportion_confint\n\nbasket = np.array([42, 55, 38, 61, 47, 52, 39, 70, 44, 58, 49, 63])\nlow, high = stats.t.interval(0.95, df=len(basket) - 1,\n                             loc=basket.mean(), scale=stats.sem(basket))\nprint(f\"mean {basket.mean():.1f}, 95% CI [{low:.1f}; {high:.1f}]\")\n\nlow, high = proportion_confint(count=126, nobs=3000, alpha=0.05, method=\"wilson\")\nprint(f\"conversion 4.2%, 95% CI [{low:.1%}; {high:.1%}]\")\n\nres = stats.bootstrap((basket,), np.median, confidence_level=0.95)\nprint(res.confidence_interval)   # low and high for the median"
+      }
+    },
+    {
+      "title": "Hypothesis tests and p-value pitfalls",
+      "text": [
+        "A hypothesis test asks whether an observed difference could easily come from chance. You state a null hypothesis (no difference), compute a test statistic from the data and get a p-value: the probability of a result at least this extreme if the null hypothesis were true. The test you choose depends on the data, not on which one gives the smallest p-value.",
+        "Comparing the means of two independent groups (basket value in two regions, resolution time before and after a process change) calls for a t-test; use Welch's version (equal_var=False), which does not assume equal variances. When the same units are measured twice (the same agents before and after a training), use the paired t-test. With very skewed data and small samples, the Mann-Whitney test compares the groups without assuming normality. For counts in categories (contract type by job board, plan by country), use the chi-square test of independence on the contingency table.",
+        "Most mistakes are in the reading. A p-value is not the probability that the null hypothesis is true, and p > 0.05 does not prove there is no effect: the sample may simply be too small. With a huge sample, tiny and useless differences become 'significant', so always report the effect size and its confidence interval next to the p-value. Finally, if you run 20 tests at the 5% level, you should expect one false positive by chance: correct for multiple comparisons (Holm or Bonferroni) or decide on one primary metric in advance.",
+        "Write the conclusion as a decision with its uncertainty, not as 'significant' or 'not significant' alone."
+      ],
+      "points": [
+        "Two independent means: Welch t-test, stats.ttest_ind(a, b, equal_var=False).",
+        "Same units twice: paired test, stats.ttest_rel.",
+        "Categories: chi-square, stats.chi2_contingency(table).",
+        "Report effect size + interval + p-value, never the p-value alone.",
+        "Many tests: statsmodels multipletests(pvals, method=\"holm\")."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import numpy as np\nfrom scipy import stats\n\n# Ticket resolution time (hours) with the old and the new triage process\nold = np.array([5.2, 6.1, 4.8, 7.3, 5.9, 6.5, 8.0, 5.5, 6.8, 7.1])\nnew = np.array([4.1, 5.0, 4.6, 5.8, 4.9, 5.2, 6.3, 4.4, 5.6, 5.1])\nt, p = stats.ttest_ind(new, old, equal_var=False)   # Welch t-test\nprint(f\"difference {new.mean() - old.mean():.2f} h, t = {t:.2f}, p = {p:.4f}\")\n\n# Contract type of applications on two job boards\ntable = np.array([[120, 80, 40],    # board A: permanent, fixed-term, freelance\n                  [150, 60, 30]])   # board B\nchi2, p, dof, expected = stats.chi2_contingency(table)\nprint(f\"chi2 = {chi2:.1f}, dof = {dof}, p = {p:.3f}\")",
+        "note": "Check that every expected count in 'expected' is at least 5 before trusting the chi-square result."
+      }
+    },
+    {
+      "title": "Designing an A/B test and communicating the result",
+      "text": [
+        "Most failed A/B tests were lost before they started. Write a short plan first: the hypothesis, one primary metric, the guardrail metrics, the unit of randomisation (user, not page view, if the same person comes back), the minimum detectable effect (MDE) worth shipping, the significance level (usually 5%) and the power (usually 80%). These choices fix the sample size, and the sample size divided by the daily traffic gives the duration.",
+        "Sample size grows fast when the effect is small: halving the MDE needs about four times more users. If the required duration is unrealistic, test a bolder change, pick a more sensitive metric or accept that the test cannot answer the question. Run whole weeks so that weekdays and weekends are both represented.",
+        "Peeking is the classic trap: checking the p-value every day and stopping as soon as it drops below 0.05 can multiply the false positive rate several times. Either wait for the planned sample size or use a method built for continuous monitoring (sequential tests). Before reading the metric, check the sample ratio: if a 50/50 split ends 51/49 on 100,000 users, a chi-square test will flag it, and a mismatch usually means a bug in assignment or tracking that invalidates the result.",
+        "When you present the result, lead with the decision and the size of the effect, then the uncertainty: 'B increased conversion by 0.5 points, plausibly between 0.1 and 0.9; with 90,000 visitors a month that is roughly 90 to 810 extra orders; guardrails are flat; we recommend shipping.' Avoid the words 'proved' and 'no effect'; say 'we could not detect an effect larger than X'."
+      ],
+      "points": [
+        "Plan before launch: metric, MDE, alpha, power, duration, guardrails.",
+        "Halving the MDE needs about four times the sample.",
+        "No peeking: wait for the planned size or use a sequential method.",
+        "Check sample ratio mismatch before reading results.",
+        "Translate the interval into business units (orders, euros) for decision makers."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from scipy.stats import chisquare\nfrom statsmodels.stats.power import NormalIndPower\nfrom statsmodels.stats.proportion import proportion_effectsize\n\nbaseline, target = 0.040, 0.045   # +0.5 pt is the smallest lift worth shipping\neffect = proportion_effectsize(target, baseline)\nn_per_group = NormalIndPower().solve_power(effect_size=effect, alpha=0.05,\n                                           power=0.8, ratio=1)\nprint(round(n_per_group))   # about 25,500 users per group\n\n# Sample ratio check on a planned 50/50 split\nstat, p = chisquare([50_912, 49_088])\nprint(f\"SRM p-value = {p:.1e}\")   # far below 0.001: investigate before reading results",
+        "note": "With 3,000 eligible users a day, 2 x 25,500 users take about 17 days: run 3 full weeks."
+      }
     }
   ],
   "cheatsheet": [
@@ -135,13 +218,78 @@
           "Minimum detectable effect, sets sample size"
         ]
       ]
+    },
+    {
+      "group": "Sampling & intervals",
+      "items": [
+        [
+          "Standard error = s / √n",
+          "Precision of a sample mean"
+        ],
+        [
+          "Bias",
+          "Systematic gap; more data does not fix it"
+        ],
+        [
+          "Survivorship bias",
+          "Only the survivors are in the data"
+        ],
+        [
+          "95% confidence interval",
+          "Method that captures the true value 95% of the time"
+        ],
+        [
+          "Wilson interval",
+          "Interval for a proportion"
+        ],
+        [
+          "Bootstrap",
+          "Resample with replacement to get an interval"
+        ]
+      ]
+    },
+    {
+      "group": "Tests & A/B design",
+      "items": [
+        [
+          "ttest_ind(a, b, equal_var=False)",
+          "Welch t-test, two independent means"
+        ],
+        [
+          "chi2_contingency(table)",
+          "Independence of two categorical variables"
+        ],
+        [
+          "Effect size",
+          "How big the difference is, beyond the p-value"
+        ],
+        [
+          "Holm / Bonferroni",
+          "Correct for multiple tests"
+        ],
+        [
+          "NormalIndPower().solve_power(...)",
+          "Sample size for a given MDE and power"
+        ],
+        [
+          "Sample ratio mismatch (SRM)",
+          "Split differs from plan: likely a bug"
+        ],
+        [
+          "Peeking",
+          "Stopping when p < 0.05 inflates false positives"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Reporting the mean of a skewed distribution as 'typical'.",
     "Stopping an A/B test early because it 'looks significant'.",
     "Testing many metrics and only reporting the one that came out significant.",
-    "Concluding causation from a correlation in observational data."
+    "Concluding causation from a correlation in observational data.",
+    "Believing a bigger dataset removes bias: a million self-selected survey answers are still self-selected.",
+    "Reading p > 0.05 as 'no effect' when the test simply lacked the sample size to detect one.",
+    "Launching an A/B test without a planned sample size and duration, then stopping when the dashboard turns green."
   ],
   "exercises": [
     {
@@ -160,6 +308,26 @@
       "q": "A manager says: 'Customers who use our app spend 40% more, so pushing everyone to the app will raise revenue by 40%.' What is wrong, and how would you check?",
       "hint": "Who chooses to use the app?",
       "answer": "Self-selection: the most engaged customers choose the app, so they would spend more anyway; the app is correlated with spending, it does not prove it causes it. Check by comparing similar customers (same tenure, past spend) before and after adopting the app, or better, run an experiment that randomly encourages a group to use the app and compare its revenue with a control group."
+    },
+    {
+      "q": "A survey sent to all customers gets 8% responses and shows 92% satisfaction. The manager wants to publish '92% of our customers are satisfied'. What do you say?",
+      "answer": "The figure describes respondents, not customers: non-response bias is likely because satisfied and unhappy customers do not answer at the same rate. Compare respondents with the customer base (tenure, plan, region, past complaints), report it as '92% of respondents', and if the number matters, survey a random sample with follow-ups to raise the response rate."
+    },
+    {
+      "q": "Out of 1,200 trial users, 180 converted to paid. Compute the conversion rate with a 95% Wilson confidence interval in Python.",
+      "code": "python",
+      "answer": "from statsmodels.stats.proportion import proportion_confint\n\nrate = 180 / 1200\nlow, high = proportion_confint(180, 1200, alpha=0.05, method=\"wilson\")\nprint(f\"{rate:.1%} [{low:.1%}; {high:.1%}]\")"
+    },
+    {
+      "q": "Two arrays, a and b, hold the order values of customers in two independent regions. Test whether the mean order value differs, without assuming equal variances.",
+      "code": "python",
+      "answer": "from scipy import stats\n\nt, p = stats.ttest_ind(a, b, equal_var=False)\nprint(f\"diff = {a.mean() - b.mean():.2f}, p = {p:.4f}\")"
+    },
+    {
+      "q": "Baseline checkout conversion is 10%. The team wants to detect a lift to 11% with 80% power at the 5% level. Compute the users needed per group.",
+      "hint": "proportion_effectsize then NormalIndPower().solve_power.",
+      "code": "python",
+      "answer": "from statsmodels.stats.power import NormalIndPower\nfrom statsmodels.stats.proportion import proportion_effectsize\n\neffect = proportion_effectsize(0.11, 0.10)\nn = NormalIndPower().solve_power(effect_size=effect, alpha=0.05, power=0.8, ratio=1)\nprint(round(n))   # about 14,700 per group"
     }
   ],
   "interview": [
@@ -178,6 +346,22 @@
     {
       "q": "How do you explain to a manager that correlation is not causation?",
       "a": "With a concrete example from their data: the users who adopt a feature were already the most engaged, so they would spend more anyway. The feature and spending move together, but engagement drives both. To measure the real effect, we need an experiment where users are randomly given the feature, or at least a comparison of similar users before and after."
+    },
+    {
+      "q": "What is the difference between random error and bias?",
+      "a": "Random error is the noise from working on a sample: another sample would give a slightly different value, and it shrinks as the sample grows. Bias is a systematic gap because the sample does not represent the population, for example only engaged users answering a survey. More data reduces random error but leaves bias untouched; you fix bias by changing how the data is collected or by adjusting for it."
+    },
+    {
+      "q": "How do you interpret a 95% confidence interval?",
+      "a": "It is a range of plausible values for the true figure. If we repeated the study many times, 95% of intervals built this way would contain the true value. In practice I read its width as our precision, and I check whether the decision would be the same at both ends of the interval."
+    },
+    {
+      "q": "Your A/B test shows p = 0.30. The product manager concludes the feature has no effect. Do you agree?",
+      "a": "Not necessarily. A high p-value means we could not distinguish the effect from noise, not that the effect is zero. I look at the confidence interval: if it is narrow around zero, any effect is probably too small to matter; if it is wide, the test was underpowered and a meaningful effect is still possible. Then we decide whether a larger test is worth running."
+    },
+    {
+      "q": "How do you decide how long an A/B test should run?",
+      "a": "From the sample size, which comes from the baseline rate, the minimum effect worth detecting, the significance level and the power. I divide that sample by the eligible daily traffic and round up to full weeks to cover weekly patterns. I fix the duration before launch and do not stop early because the result looks good."
     }
   ]
 }

@@ -71,6 +71,86 @@
         "lang": "hcl",
         "code": "module \"reports_dev\" {\n  source = \"./modules/bucket\"\n  env    = \"dev\"\n}\n\nmodule \"reports_prod\" {\n  source     = \"./modules/bucket\"\n  env        = \"prod\"\n  versioning = true\n}"
       }
+    },
+    {
+      "title": "Variables, locals and outputs in depth: types, validation and secrets",
+      "text": [
+        "A variable is the contract of your code: whoever calls it must know what to pass. Use precise types rather than plain strings: list(string), map(number) or an object with named attributes. Since Terraform 1.3, optional() lets an object attribute have a default, so callers pass only what they want to change. A validation block rejects bad input at plan time with a clear message, which is far better than a cryptic API error halfway through an apply.",
+        "Values come from several places, and the later ones win: environment variables (TF_VAR_env), terraform.tfvars, *.auto.tfvars files, then -var and -var-file on the command line. Keep one tfvars file per environment and avoid -var in pipelines, where nobody can review it. Locals are for names and computed values used more than once, such as a name prefix or a merged map of tags; if a local is used once, inline it.",
+        "Outputs expose values to the person running Terraform, to a parent module or to another configuration. An output that uses a sensitive value must itself be marked sensitive = true. Remember what sensitive really does: it hides the value in plan and apply output, but the value is still stored in plain text in the state. Secrets therefore belong in a secret manager (AWS Secrets Manager, Azure Key Vault, Vault), read at apply time or, better, read by the application itself, and the state must be encrypted with restricted access. Recent Terraform versions add ephemeral values and write-only arguments that are never written to state, and OpenTofu can encrypt the state on the client side."
+      ],
+      "points": [
+        "Type every variable and add a description: it is the documentation of your module.",
+        "validation { condition, error_message } fails fast at plan time.",
+        "Never put a password in a .tfvars file committed to Git.",
+        "sensitive = true hides a value in the output, not in the state.",
+        "Generate passwords with random_password or let the service manage them, and protect the state."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "variable \"env\" {\n  type        = string\n  description = \"Deployment environment\"\n  validation {\n    condition     = contains([\"dev\", \"staging\", \"prod\"], var.env)\n    error_message = \"env must be dev, staging or prod.\"\n  }\n}\n\nvariable \"bucket\" {\n  type = object({\n    name       = string\n    versioning = optional(bool, false)\n    tags       = optional(map(string), {})\n  })\n}\n\nlocals {\n  tags = merge({ env = var.env, managed_by = \"terraform\" }, var.bucket.tags)\n}\n\noutput \"bucket_name\" {\n  value = aws_s3_bucket.this.bucket\n}",
+        "note": "Passing env = \"production\" fails at plan time with the error message, before any API call."
+      }
+    },
+    {
+      "title": "count, for_each and dynamic blocks",
+      "text": [
+        "Real infrastructure has many similar things: three buckets, one user per team member, a list of firewall rules. Copying blocks does not scale, so Terraform offers two meta-arguments to create several instances from one block: count and for_each. You cannot use both on the same resource.",
+        "count creates N numbered copies, addressed as aws_iam_user.dev[0], [1], [2]. It is perfect for 'zero or one' (count = var.enable_logs ? 1 : 0) but dangerous for lists: remove the first item and every index shifts, so Terraform wants to destroy and recreate the others. for_each takes a map or a set of strings and addresses each instance by its key, aws_iam_user.dev[\"alice\"]. Removing alice touches only alice. Inside the block, each.key and each.value give you the current element. The keys must be known at plan time, so build them from variables, not from attributes of resources that do not exist yet.",
+        "Some resources contain repeated nested blocks, such as ingress rules in a security group. A dynamic block generates them from a collection: dynamic \"ingress\" with for_each and a content block where ingress.value is the current element. Use it to keep a module flexible, not to hide simple code: three static blocks are easier to read than a dynamic one. For lists and maps you build in expressions, for expressions do the transformation: { for u in var.users : u.name => u if u.active }."
+      ],
+      "points": [
+        "count for optional resources, for_each for collections of named things.",
+        "Switching from count to for_each changes addresses: add moved blocks.",
+        "for_each needs a map or a set: use toset() on a list of strings.",
+        "dynamic blocks generate nested blocks; do not overuse them.",
+        "terraform console lets you test expressions before using them."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "variable \"buckets\" {\n  type = map(object({ versioning = bool }))\n  default = {\n    raw     = { versioning = true }\n    curated = { versioning = true }\n    tmp     = { versioning = false }\n  }\n}\n\nresource \"aws_s3_bucket\" \"data\" {\n  for_each = var.buckets\n  bucket   = \"acme-${each.key}-${var.env}\"\n}\n\nresource \"aws_security_group\" \"api\" {\n  name   = \"api-${var.env}\"\n  vpc_id = var.vpc_id\n\n  dynamic \"ingress\" {\n    for_each = var.allowed_ports\n    content {\n      from_port   = ingress.value\n      to_port     = ingress.value\n      protocol    = \"tcp\"\n      cidr_blocks = [var.vpc_cidr]\n    }\n  }\n}",
+        "note": "Addresses: aws_s3_bucket.data[\"raw\"], aws_s3_bucket.data[\"tmp\"]. Removing tmp leaves the others untouched."
+      }
+    },
+    {
+      "title": "Modules in depth and one state per environment",
+      "text": [
+        "A good module does one job (a network, a database, a service) and hides details behind a small set of inputs and outputs. The root module, the folder where you run terraform, composes them: it passes the network module's subnet ids to the database module and so on. Keep modules shallow: a module calling a module calling a module is hard to debug. Write a README with inputs, outputs and an example, and keep provider blocks in the root module, not inside reusable modules.",
+        "Version modules like software. A module from the public registry takes source = \"terraform-aws-modules/vpc/aws\" and a version constraint; a shared company module in Git is pinned with a tag (?ref=v1.4.0). Upgrade on purpose, read the changelog and the plan, and use semantic versioning for your own modules: a breaking input change means a major version. terraform init -upgrade fetches newer versions within the constraints, and the .terraform.lock.hcl file, committed to Git, pins the exact provider versions.",
+        "Environments need isolation. CLI workspaces (terraform workspace new staging) give several states for the same code and backend; they are handy for short-lived copies such as a test environment per branch. For dev, staging and prod, most teams prefer a separate folder per environment with its own backend key, its own tfvars and its own credentials, all calling the same versioned modules. A mistake in dev then cannot touch prod's state, prod can stay on module v1.4 while dev tries v1.5, and permissions can differ. Tools such as Terragrunt remove the remaining duplication but are optional."
+      ],
+      "points": [
+        "Module = inputs (variables) + resources + outputs; no hidden provider config.",
+        "Pin module versions and commit .terraform.lock.hcl.",
+        "Prefer one folder and one state per environment over workspaces for prod.",
+        "Split big states by component (network, data, apps) to reduce blast radius and plan time.",
+        "Read another state's outputs with the terraform_remote_state data source, or better, look resources up with data sources."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "# envs/prod/main.tf\nmodule \"network\" {\n  source  = \"terraform-aws-modules/vpc/aws\"\n  version = \"~> 5.0\"\n\n  name            = \"acme-prod\"\n  cidr            = \"10.20.0.0/16\"\n  azs             = [\"eu-west-3a\", \"eu-west-3b\"]\n  private_subnets = [\"10.20.1.0/24\", \"10.20.2.0/24\"]\n  public_subnets  = [\"10.20.101.0/24\", \"10.20.102.0/24\"]\n}\n\nmodule \"database\" {\n  source     = \"../../modules/postgres\"\n  env        = \"prod\"\n  subnet_ids = module.network.private_subnets\n  multi_az   = true\n}",
+        "note": "envs/dev and envs/prod call the same modules with different values and different backend keys."
+      }
+    },
+    {
+      "title": "State operations, drift and Terraform in CI",
+      "text": [
+        "Sooner or later you refactor code or adopt resources created by hand. Do it with code that is reviewed, not with risky commands on a laptop. An import block (Terraform 1.5+) adopts an existing resource during a normal plan and apply; terraform plan -generate-config-out=generated.tf even writes a first version of the resource block for you. A moved block tells Terraform that a resource changed address (renamed, moved into a module, switched to for_each) so it is not destroyed and recreated. A removed block with destroy = false stops managing a resource without deleting it. The older commands terraform state mv, state rm and terraform import still work, but they change state immediately, without a plan or a review.",
+        "Drift happens when someone changes infrastructure outside Terraform. terraform plan -refresh-only shows what changed in the real world without proposing to revert it; you then either update the code to accept the change or run a normal apply to restore the code's version. A scheduled plan in CI that alerts when it is not empty catches drift early. To force the replacement of a broken resource, use terraform apply -replace=ADDRESS instead of the old taint command.",
+        "In a pipeline, each pull request runs terraform fmt -check, validate, a linter (tflint) and a plan saved to a file with -out. Policy checks run on that plan: checkov or conftest (Open Policy Agent) on terraform show -json, or Sentinel in HCP Terraform, can block a public bucket or a missing tag. The plan is posted on the pull request for review. After merge, the pipeline applies exactly that saved plan, with short-lived credentials obtained by OIDC and a manual approval for production. OpenTofu, the open-source fork, runs the same workflow with the tofu command."
+      ],
+      "points": [
+        "import, moved and removed blocks make state changes reviewable in a pull request.",
+        "plan -refresh-only shows drift; apply -replace forces a recreation.",
+        "Apply the saved plan file, so what was reviewed is what runs; a stale plan is refused.",
+        "Policy as code (checkov, conftest, Sentinel) turns rules into automatic checks.",
+        "CI credentials: OIDC and a dedicated role, never long-lived keys in variables."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "# Adopt a bucket that was created by hand\nimport {\n  to = aws_s3_bucket.legacy_exports\n  id = \"acme-legacy-exports\"\n}\n\n# The block was renamed: keep the same database\nmoved {\n  from = aws_db_instance.main\n  to   = module.database.aws_db_instance.this\n}\n\n# Stop managing this queue, but do not delete it\nremoved {\n  from = aws_sqs_queue.old_jobs\n  lifecycle {\n    destroy = false\n  }\n}",
+        "note": "Pipeline: terraform fmt -check, terraform validate, terraform plan -out=tfplan, policy checks on terraform show -json tfplan, then terraform apply tfplan after merge."
+      }
     }
   ],
   "cheatsheet": [
@@ -94,14 +174,58 @@
       ["terraform state list", "Resources Terraform tracks"],
       ["terraform import addr id", "Adopt an existing resource"],
       ["terraform state mv a b", "Rename a resource without recreating it"]
-    ]}
+    ]},
+    {
+      "group": "Variables and expressions",
+      "items": [
+        ["validation { condition, error_message }", "Reject bad input at plan time"],
+        ["optional(type, default)", "Optional attribute in an object variable"],
+        ["sensitive = true", "Hide a value in output (still in state)"],
+        ["TF_VAR_name", "Set a variable from the environment"],
+        ["*.auto.tfvars", "Variable files loaded automatically"],
+        ["count = var.on ? 1 : 0", "Create a resource conditionally"],
+        ["for_each = toset(var.names)", "One instance per key, addressed by key"],
+        ["each.key / each.value", "Current element in a for_each"],
+        ["dynamic \"block\" { for_each, content }", "Generate repeated nested blocks"],
+        ["{ for k, v in m : k => v if cond }", "Transform or filter a collection"]
+      ]
+    },
+    {
+      "group": "Modules and environments",
+      "items": [
+        ["version = \"~> 5.0\"", "Pin a registry module version"],
+        ["?ref=v1.4.0", "Pin a Git module to a tag"],
+        [".terraform.lock.hcl", "Exact provider versions, commit it"],
+        ["terraform init -upgrade", "Fetch newer versions within constraints"],
+        ["terraform workspace new/select", "Several states for the same code"],
+        ["One folder + backend key per env", "Isolated state for dev, staging, prod"]
+      ]
+    },
+    {
+      "group": "Refactoring and CI",
+      "items": [
+        ["import { to, id }", "Adopt an existing resource in a plan"],
+        ["plan -generate-config-out=file.tf", "Write code for imported resources"],
+        ["moved { from, to }", "Change an address without recreating"],
+        ["removed { from, lifecycle { destroy = false } }", "Stop managing without deleting"],
+        ["terraform state rm addr", "Forget a resource immediately (no plan)"],
+        ["terraform plan -refresh-only", "Show drift without reverting it"],
+        ["terraform apply -replace=addr", "Force recreation of one resource"],
+        ["terraform plan -out=tfplan", "Save the plan to apply it later"],
+        ["terraform fmt -check", "Fail CI if code is not formatted"],
+        ["checkov / conftest / Sentinel", "Policy checks on code or plan"]
+      ]
+    }
   ],
   "pitfalls": [
     "Applying without reading the plan: a rename can mean destroy and recreate.",
     "Committing terraform.tfstate or secrets to Git.",
     "Local state in a team: two people apply at once and break things.",
     "Changing resources by hand in the console: the next apply reverts or conflicts.",
-    "Unpinned provider versions: a new major version changes behaviour overnight."
+    "Unpinned provider versions: a new major version changes behaviour overnight.",
+    "Using count on a list of names: removing one item shifts the indexes and recreates the others.",
+    "Believing sensitive = true protects a secret: it is still in the state in plain text.",
+    "Running terraform state mv or rm by hand in production instead of reviewed moved or removed blocks."
   ],
   "exercises": [
     { "q": "Write a variable instance_type with default t3.micro, and an output that prints the public IP of aws_instance.web.", "hint": "variable block with type and default; output block with value.", "code": "hcl",
@@ -109,11 +233,50 @@
     { "q": "terraform plan shows '1 to destroy, 1 to add' for your database after you renamed its resource block. What happened and how do you avoid losing data?", "hint": "Terraform tracks resources by address.",
       "answer": "Terraform tracks resources by their address in the code. Renaming the block changed the address, so Terraform thinks the old one must go and a new one must be created. Use a moved block (moved { from = aws_db_instance.old to = aws_db_instance.new }) or terraform state mv before applying, then check that the plan shows no destroy." },
     { "q": "Your team runs Terraform from laptops with local state. Propose a safer setup in three points.", "hint": "State, locking, pipeline.",
-      "answer": "1) Move state to a remote backend with encryption and locking. 2) Run plan on each pull request in CI and apply only from the pipeline after review, with dedicated credentials. 3) Separate state per environment, pin versions and add fmt, validate and a security scanner to the pipeline." }
+      "answer": "1) Move state to a remote backend with encryption and locking. 2) Run plan on each pull request in CI and apply only from the pipeline after review, with dedicated credentials. 3) Separate state per environment, pin versions and add fmt, validate and a security scanner to the pipeline." },
+    {
+      "q": "Write a variable instance_type that only accepts values starting with t3. or m6i., with a clear error message.",
+      "hint": "validation block with can(regex(...)) or startswith().",
+      "code": "hcl",
+      "answer": "variable \"instance_type\" {\n  type    = string\n  default = \"t3.micro\"\n  validation {\n    condition     = startswith(var.instance_type, \"t3.\") || startswith(var.instance_type, \"m6i.\")\n    error_message = \"instance_type must be a t3 or m6i size.\"\n  }\n}"
+    },
+    {
+      "q": "Create one IAM user per name in var.users (a list of strings) so that removing a name never recreates the other users.",
+      "hint": "for_each with toset().",
+      "code": "hcl",
+      "answer": "variable \"users\" {\n  type    = list(string)\n  default = [\"alice\", \"bob\", \"chloe\"]\n}\n\nresource \"aws_iam_user\" \"team\" {\n  for_each = toset(var.users)\n  name     = each.value\n}"
+    },
+    {
+      "q": "You moved the resource aws_s3_bucket.logs into a new module called logging (where it is named aws_s3_bucket.this). Plan shows 1 to destroy and 1 to add. Fix it without touching the state by hand.",
+      "hint": "A block that records the new address.",
+      "code": "hcl",
+      "answer": "moved {\n  from = aws_s3_bucket.logs\n  to   = module.logging.aws_s3_bucket.this\n}"
+    },
+    {
+      "q": "Your team wants to manage dev, staging and prod with Terraform. Should they use workspaces or separate folders? Justify in a few lines.",
+      "hint": "Isolation, credentials, versions.",
+      "answer": "Separate folders (or separate root configurations) with one backend key, one tfvars file and one set of credentials per environment, all calling the same versioned modules. Prod is isolated from mistakes in dev, can stay on an older module version while dev tests a new one, and the pipeline can require an approval only for prod. Workspaces share the same code, backend and usually the same credentials, so they fit short-lived copies better than long-lived production environments."
+    }
   ],
   "interview": [
     { "q": "What is Terraform state and why does it matter?", "a": "State maps the resources in the code to real resources in the cloud, with their ids and attributes. Terraform uses it to compute the plan. It must be shared, locked and protected: stored in a remote backend with locking and encryption, never edited by hand or committed, because it can contain secrets." },
     { "q": "How do you handle different environments with Terraform?", "a": "Reuse the same modules with different variables, and keep a separate state per environment, for example one folder or workspace per environment with its own tfvars. Production gets stricter settings and an approval step in the pipeline." },
-    { "q": "What is configuration drift and how do you detect it?", "a": "Drift is when the real infrastructure no longer matches the code, usually after a manual change. terraform plan shows it as an unexpected change. I run scheduled plans in CI to detect drift, then either import the change into the code or let Terraform revert it, and restrict console write access." }
+    { "q": "What is configuration drift and how do you detect it?", "a": "Drift is when the real infrastructure no longer matches the code, usually after a manual change. terraform plan shows it as an unexpected change. I run scheduled plans in CI to detect drift, then either import the change into the code or let Terraform revert it, and restrict console write access." },
+    {
+      "q": "What is the difference between count and for_each?",
+      "a": "Both create several instances from one block. count creates numbered instances (index 0, 1, 2), which is fine for an on/off switch but fragile for lists, because removing an item shifts the indexes and recreates resources. for_each takes a map or set and addresses each instance by a stable key, so adding or removing one element only affects that element. I use count for conditional creation and for_each for collections."
+    },
+    {
+      "q": "How do you bring resources created manually under Terraform management?",
+      "a": "I write an import block with the target address and the resource id, run terraform plan -generate-config-out to get a first version of the code, clean that code, and make sure the plan shows only the import and no changes. It goes through a normal pull request and apply. The older terraform import command works too, but it changes the state directly without a reviewed plan."
+    },
+    {
+      "q": "How do you handle secrets in Terraform?",
+      "a": "I keep them out of the code and out of tfvars in Git. Secrets live in a secret manager such as Secrets Manager, Key Vault or Vault; Terraform either creates the secret container and lets the application read the value, or reads it at apply time. Variables and outputs that carry secrets are marked sensitive, but since values can still end up in the state, the state is in an encrypted remote backend with restricted access. Newer versions also offer ephemeral values that are not stored in state."
+    },
+    {
+      "q": "Describe a good CI/CD pipeline for Terraform.",
+      "a": "On each pull request: terraform fmt -check, validate, tflint, a security or policy scan such as checkov or conftest, and a plan saved with -out and posted on the pull request. After review and merge, the pipeline applies that saved plan, environment by environment, with an approval before production. Credentials are short-lived via OIDC, state is remote and locked, and a scheduled plan detects drift."
+    }
   ]
 }

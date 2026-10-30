@@ -66,6 +66,90 @@
         "code": "CREATE TABLE dim_customer (\n  customer_key   BIGINT PRIMARY KEY,   -- surrogate key, one per version\n  customer_id    TEXT NOT NULL,        -- business key from the source\n  city           TEXT,\n  segment        TEXT,\n  valid_from     DATE NOT NULL,\n  valid_to       DATE,                 -- NULL = current version\n  is_current     BOOLEAN NOT NULL\n);\n\n-- the fact stores the version that was true at order time\nSELECT f.order_id, d.city\nFROM fact_orders f\nJOIN dim_customer d ON d.customer_key = f.customer_key;",
         "note": "Revenue by city 'at the time of the order' is a plain join on the surrogate key."
       }
+    },
+    {
+      "title": "The Kimball method: grain, conformed dimensions and the bus matrix",
+      "text": [
+        "Kimball's dimensional design follows four steps, always in this order: choose the business process (orders, applications, payments), declare the grain, identify the dimensions, then the facts. Starting from a process instead of from one report keeps the model useful for questions nobody has asked yet.",
+        "The grain is the most important decision: what exactly one row of the fact table represents. Choose the most atomic grain the source can give you, one row per order line rather than per order, because you can always aggregate up but never split down. Every dimension and measure must be true at that grain: a value that belongs to the whole order, such as shipping cost, placed on an order-line table is counted once per line unless you allocate it or store it in another fact table.",
+        "Conformed dimensions are shared by several fact tables with the same keys, attributes and values: one dim_customer and one dim_date for orders, returns and support tickets. They make cross-process analysis possible, since 'return rate by customer segment' only works if both facts use the same customer dimension. The bus matrix is a simple grid with business processes as rows and dimensions as columns; a tick says which process uses which dimension, and it becomes the team's plan to build the warehouse one process at a time.",
+        "Measures differ in how they add up. Additive measures (amount, quantity) can be summed across every dimension. Semi-additive ones, such as an account balance or a stock level, can be summed across accounts or products but not across time: take the last or the average value of the period. Non-additive ones such as ratios and unit prices must be recomputed from their parts, never summed."
+      ],
+      "points": [
+        "Four steps: business process, grain, dimensions, facts.",
+        "Pick the most atomic grain available; aggregate tables can come later.",
+        "Conformed dimension: the same table and keys used by several facts.",
+        "Degenerate dimension: an id such as order_number kept in the fact with no dimension table.",
+        "Store the numerator and the denominator, not the ratio."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Bus matrix        | date | customer | product | store | promotion\n------------------+------+----------+---------+-------+----------\nOrders            |  x   |    x     |    x    |   x   |    x\nReturns           |  x   |    x     |    x    |   x   |\nInventory (daily) |  x   |          |    x    |   x   |\nSupport tickets   |  x   |    x     |    x    |       |\n\nGrain of fact_order_line: one row per product line of an order.",
+        "note": "Columns ticked by several processes (date, customer, product, store) must be conformed."
+      }
+    },
+    {
+      "title": "Fact table types: transaction, periodic and accumulating snapshots",
+      "text": [
+        "Kimball describes three main kinds of fact table, and choosing the wrong one makes common questions painful. A transaction fact stores one row per event at the moment it happens: an order line, a payment, a click. It is the most detailed and flexible kind, and it only receives inserts.",
+        "A periodic snapshot stores the state of something at regular intervals: stock per product per day, balance per account per month, open job offers per company per week. There is one row per entity per period even when nothing happened, which makes trends easy and gives a natural home to semi-additive measures such as balances. It is often built from transaction facts or from a daily copy of an operational table.",
+        "An accumulating snapshot follows one instance of a process through its milestones, with one row per instance and one date column per step: application received, screened, interviewed, hired. The row is updated as each milestone happens, and durations between steps become simple columns. It answers 'where do applications get stuck?' far more easily than a pile of status events.",
+        "A factless fact table has keys but no measures: it records that something happened (a student attended a class) or could have happened (products on promotion), and you count its rows. Real models often combine kinds: a transaction fact of status changes, plus an accumulating snapshot of applications built from it."
+      ],
+      "points": [
+        "Transaction: one row per event, inserts only, finest detail.",
+        "Periodic snapshot: one row per entity per period, regular and dense.",
+        "Accumulating snapshot: one row per process instance, updated at each milestone.",
+        "Factless fact: keys only; the measure is counting rows.",
+        "Never sum a balance from a snapshot across periods."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "CREATE TABLE fact_application_pipeline (\n  application_key     BIGINT PRIMARY KEY,\n  candidate_key       BIGINT NOT NULL,\n  offer_key           BIGINT NOT NULL,\n  received_date_key   INT NOT NULL,\n  screened_date_key   INT,          -- NULL until the step happens\n  interview_date_key  INT,\n  hired_date_key      INT,\n  days_to_screen      INT,\n  days_to_hire        INT\n);\n\n-- where do applications get stuck?\nSELECT\n  COUNT(*) FILTER (WHERE screened_date_key IS NULL) AS waiting_screening,\n  COUNT(*) FILTER (WHERE screened_date_key IS NOT NULL\n                     AND interview_date_key IS NULL) AS waiting_interview,\n  AVG(days_to_screen) AS avg_days_to_screen\nFROM fact_application_pipeline;",
+        "note": "FILTER is PostgreSQL syntax; elsewhere use SUM(CASE WHEN ... THEN 1 ELSE 0 END)."
+      }
+    },
+    {
+      "title": "More dimension patterns: SCD type 3, role-playing, junk and unknown members",
+      "text": [
+        "Besides types 1 and 2, type 3 keeps a limited history in an extra column: region and previous_region, for example during a sales reorganisation, so reports can show the new and the old territory side by side. It holds only one previous value and is rare, but it answers 'compare under both structures' simply. Type 0 never changes (date of birth, original sign-up channel), and hybrids such as type 6 add a current-value column to a type 2 history.",
+        "A role-playing dimension is one physical dimension used several times by a fact with different meanings: order_date_key, ship_date_key and delivery_date_key all point to dim_date. In BI tools, create one view or alias per role (Order date, Ship date) so users never wonder which date they are filtering on.",
+        "A date dimension is worth building on day one: one row per day with year, quarter, month name, ISO week, weekday, holiday flag and fiscal period, so date logic is not repeated in every report. A junk dimension groups small low-cardinality flags (is_remote, is_urgent, payment_type) into one table with one row per combination, instead of a dozen tiny dimensions or many flags in the fact.",
+        "Facts should never have NULL foreign keys: inner joins drop those rows and totals stop matching. Add an unknown member to every dimension, often with key -1 and labels such as 'Unknown', and point facts with a missing or late reference to it. When the real dimension row arrives later, update the fact's key."
+      ],
+      "points": [
+        "Type 0: never changes; type 1: overwrite; type 2: new row; type 3: previous-value column.",
+        "Role-playing: one dim_date, several date keys in the fact, one alias per role.",
+        "Junk dimension: one row per combination of small flags.",
+        "Unknown member (-1) instead of NULL foreign keys.",
+        "Date keys such as 20261028 are readable and sort correctly."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- SCD type 3: keep the previous value in its own column\nALTER TABLE dim_store ADD COLUMN previous_region TEXT;\nUPDATE dim_store\nSET previous_region = region, region = 'North-East'\nWHERE region IN ('North', 'East');\n\n-- unknown member so facts never need a NULL key\nINSERT INTO dim_store (store_key, store_id, region)\nVALUES (-1, 'UNKNOWN', 'Unknown');\n\n-- role-playing date dimension\nSELECT od.month_name AS order_month, sd.month_name AS ship_month, COUNT(*) AS orders\nFROM fact_orders f\nJOIN dim_date od ON od.date_key = f.order_date_key\nJOIN dim_date sd ON sd.date_key = f.ship_date_key\nGROUP BY od.month_name, sd.month_name;",
+        "note": "In the UPDATE, previous_region receives the old region before the new one is written."
+      }
+    },
+    {
+      "title": "Data Vault, One Big Table and modelling conventions",
+      "text": [
+        "Data Vault is a modelling style for the integration layer of large warehouses fed by many sources. Hubs hold business keys (one row per customer id), links hold relationships between hubs (customer placed order), and satellites hold descriptive attributes with load timestamps, so every change is kept and a new source adds satellites without touching existing tables. Loads are insert-only and auditable, but the model is hard to query: teams still build star schemas on top of it for reporting.",
+        "One Big Table (OBT) goes the other way: a single wide, denormalised table with the facts and all the dimension attributes already joined. In columnar warehouses and lakehouses (BigQuery, Snowflake, Databricks with Delta or Iceberg tables), scanning extra columns is cheap compared with joins, so an OBT can be fast and very easy for analysts and BI tools. The costs: the grain must still be clear, history and corrections mean rebuilding large tables, and attributes are repeated on many rows.",
+        "A common lakehouse layout combines them: raw data in a bronze layer, cleaned and conformed entities in silver (normalised or Data Vault style), and star schemas or OBTs per use case in gold. Choose per layer: integration needs flexibility and history, consumption needs simplicity and speed.",
+        "Whatever the style, conventions make a model usable by others. Prefix tables by role (stg_, int_, dim_, fct_), name keys consistently (customer_key for surrogate keys, customer_id for business keys), use snake_case and one rule for singular or plural, give dates and timestamps clear suffixes (_date, _at), and write the grain and owner of every fact table in its description. A model nobody understands gets rebuilt next to yours."
+      ],
+      "points": [
+        "Hub = business key, link = relationship, satellite = attributes over time.",
+        "Data Vault suits many changing sources and audit needs; stars still serve reporting.",
+        "OBT: the easiest to use, but heavy to rebuild and full of repeated attributes.",
+        "Medallion layers: bronze raw, silver cleaned and conformed, gold for consumption.",
+        "Document grain, keys and owner for every table."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Data Vault: hub, link and satellite\nCREATE TABLE hub_customer (\n  customer_hk   CHAR(32) PRIMARY KEY,  -- hash of the business key\n  customer_id   TEXT NOT NULL,\n  load_ts       TIMESTAMP NOT NULL,\n  record_source TEXT NOT NULL\n);\nCREATE TABLE link_customer_order (\n  customer_order_hk CHAR(32) PRIMARY KEY,\n  customer_hk       CHAR(32) NOT NULL,\n  order_hk          CHAR(32) NOT NULL,\n  load_ts           TIMESTAMP NOT NULL,\n  record_source     TEXT NOT NULL\n);\nCREATE TABLE sat_customer_details (\n  customer_hk   CHAR(32) NOT NULL,\n  load_ts       TIMESTAMP NOT NULL,\n  hash_diff     CHAR(32) NOT NULL,     -- detects changed attributes\n  city          TEXT,\n  segment       TEXT,\n  PRIMARY KEY (customer_hk, load_ts)\n);\n\n-- One Big Table for reporting: facts with dimension attributes already joined\nCREATE TABLE obt_orders AS\nSELECT f.order_id, f.amount, d.full_date AS order_date, c.city, c.segment, p.category\nFROM fct_orders f\nJOIN dim_date d     ON d.date_key = f.order_date_key\nJOIN dim_customer c ON c.customer_key = f.customer_key\nJOIN dim_product p  ON p.product_key = f.product_key;",
+        "note": "The vault keeps every version for audit; the OBT serves the dashboards."
+      }
     }
   ],
   "cheatsheet": [
@@ -148,13 +232,108 @@
           "Write-optimised vs read-optimised"
         ]
       ]
+    },
+    {
+      "group": "Kimball design",
+      "items": [
+        [
+          "Grain",
+          "What one fact row represents"
+        ],
+        [
+          "Conformed dimension",
+          "Shared by several facts with the same keys"
+        ],
+        [
+          "Bus matrix",
+          "Grid of processes × dimensions"
+        ],
+        [
+          "Degenerate dimension",
+          "Id kept in the fact, no table"
+        ],
+        [
+          "Semi-additive measure",
+          "Summable across some dimensions, not time"
+        ]
+      ]
+    },
+    {
+      "group": "Fact table types",
+      "items": [
+        [
+          "Transaction fact",
+          "One row per event"
+        ],
+        [
+          "Periodic snapshot",
+          "One row per entity per period"
+        ],
+        [
+          "Accumulating snapshot",
+          "One row per process, updated at each milestone"
+        ],
+        [
+          "Factless fact",
+          "Keys only, count the rows"
+        ]
+      ]
+    },
+    {
+      "group": "Dimension patterns",
+      "items": [
+        [
+          "SCD type 0",
+          "Never changes"
+        ],
+        [
+          "SCD type 3",
+          "Previous value in an extra column"
+        ],
+        [
+          "Role-playing dimension",
+          "One dimension, several roles (order / ship date)"
+        ],
+        [
+          "Junk dimension",
+          "Combinations of small flags"
+        ],
+        [
+          "Unknown member (-1)",
+          "Replaces NULL foreign keys"
+        ]
+      ]
+    },
+    {
+      "group": "Other approaches",
+      "items": [
+        [
+          "Hub / link / satellite",
+          "Data Vault building blocks"
+        ],
+        [
+          "One Big Table",
+          "Wide denormalised table for consumption"
+        ],
+        [
+          "Bronze / silver / gold",
+          "Lakehouse layers"
+        ],
+        [
+          "stg_ / int_ / dim_ / fct_",
+          "Common table prefixes"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Not stating the grain of a fact table, then double counting.",
     "Storing lists in one column ('SQL, Python') instead of a bridge table.",
     "Using names or emails as primary keys.",
-    "Snowflaking dimensions everywhere, which makes BI models slower and harder to use."
+    "Snowflaking dimensions everywhere, which makes BI models slower and harder to use.",
+    "Mixing grains in one fact table (order totals next to order lines), so sums double count.",
+    "Summing semi-additive measures such as balances or stock levels across days.",
+    "NULL foreign keys in facts instead of an unknown member, which silently drops rows in joins."
   ],
   "exercises": [
     {
@@ -174,6 +353,25 @@
       "hint": "Join on the surrogate key for history; join again on the business key with is_current for today's value.",
       "code": "sql",
       "answer": "SELECT d.city, SUM(f.amount) AS revenue\nFROM fact_orders f\nJOIN dim_customer d ON d.customer_key = f.customer_key\nGROUP BY d.city;\n\n-- current city instead:\nSELECT cur.city, SUM(f.amount) AS revenue\nFROM fact_orders f\nJOIN dim_customer d   ON d.customer_key = f.customer_key\nJOIN dim_customer cur ON cur.customer_id = d.customer_id AND cur.is_current\nGROUP BY cur.city;"
+    },
+    {
+      "q": "An e-commerce team wants revenue per product and the average shipping cost per order. The source has orders (with shipping_cost) and order lines. Which fact table(s) and grain(s) do you propose?",
+      "hint": "Shipping cost belongs to the order, not to a line.",
+      "answer": "fact_order_line at the grain 'one row per product line of an order' with product, quantity and amount, for revenue per product. Shipping cost is true at the order grain, so either a fact_order table (one row per order) or an allocation rule to lines, documented. Copying the order's shipping cost on every line would multiply it by the number of lines."
+    },
+    {
+      "q": "Which fact table type fits each need: (a) daily stock per warehouse, (b) every payment, (c) following loan applications from request to payout?",
+      "answer": "(a) Periodic snapshot: one row per warehouse and product per day. (b) Transaction fact: one row per payment. (c) Accumulating snapshot: one row per application with one date per milestone (requested, approved, signed, paid out), updated as it progresses."
+    },
+    {
+      "q": "fact_inventory_daily(date_key, product_key, qty_on_hand) stores stock per product per day. Write the stock at the end of each month per product.",
+      "hint": "Stock is semi-additive: do not sum the days, keep the last day of the month.",
+      "code": "sql",
+      "answer": "SELECT d.year_month, f.product_key, SUM(f.qty_on_hand) AS qty_month_end\nFROM fact_inventory_daily f\nJOIN dim_date d ON d.date_key = f.date_key\nWHERE d.is_month_end\nGROUP BY d.year_month, f.product_key;"
+    },
+    {
+      "q": "A CRM sends customers and an online shop sends orders. Sketch a Data Vault model: which hubs, links and satellites?",
+      "answer": "Hubs: hub_customer (customer business key) and hub_order (order number). Link: link_customer_order between them. Satellites: sat_customer_crm for customer attributes from the CRM, sat_order_details for order attributes (status, amount), each with load timestamp and record source. A second customer source later adds its own satellite on hub_customer."
     }
   ],
   "interview": [
@@ -192,6 +390,22 @@
     {
       "q": "Explain SCD type 1 versus type 2 and when you would use each.",
       "a": "Type 1 overwrites the attribute, keeping only the current value: good for corrections or attributes nobody analyses historically. Type 2 keeps every version as a new row with a surrogate key and validity dates, so facts stay linked to the value true at the time: needed when reports must reflect history, like sales by the region a customer was in at the time."
+    },
+    {
+      "q": "What is a conformed dimension and why does it matter?",
+      "a": "A dimension shared by several fact tables with the same keys, attributes and values, such as one dim_customer used by orders, returns and support tickets. It lets you compare and combine processes, for example return rate by customer segment, and guarantees that a 'segment' means the same thing in every report."
+    },
+    {
+      "q": "Explain the three main types of fact tables with an example each.",
+      "a": "Transaction fact: one row per event, such as each payment. Periodic snapshot: the state of an entity at regular intervals, such as stock per product per day, good for balances and trends. Accumulating snapshot: one row per process instance updated at each milestone, such as a job application from receipt to hire, good for durations and bottlenecks."
+    },
+    {
+      "q": "What is Data Vault and when would you choose it over a star schema?",
+      "a": "A modelling style with hubs for business keys, links for relationships and satellites for attributes over time, loaded insert-only with load dates and sources. I would use it for the integration layer when many sources change often and auditability matters, and still publish star schemas on top for reporting, because the vault itself is hard to query."
+    },
+    {
+      "q": "One Big Table or star schema in a modern warehouse?",
+      "a": "It depends on the consumer. An OBT is very easy for analysts and fast in columnar engines, but it duplicates attributes and is heavy to rebuild when history or a dimension changes. A star schema keeps dimensions reusable and history manageable. A common answer is both: conformed stars as the core, and OBTs generated from them for specific dashboards."
     }
   ]
 }

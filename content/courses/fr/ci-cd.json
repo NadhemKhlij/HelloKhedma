@@ -72,6 +72,86 @@
         "code": "  deploy-prod:\n    needs: deploy-staging\n    runs-on: ubuntu-latest\n    environment: production   # requires a reviewer's approval\n    steps:\n      - run: ./deploy.sh ghcr.io/acme/api:${{ github.sha }}\n      - run: curl --fail https://api.acme.com/health",
         "note": "Retour arrière = relancer le même job avec le tag de l’image précédente."
       }
+    },
+    {
+      "title": "Concevoir un pipeline : étapes, cache, artefacts et concurrence",
+      "text": [
+        "Un bon pipeline est assez rapide pour qu’on l’attende et assez fiable pour qu’on lui fasse confiance. Concevez-le comme un entonnoir : les vérifications les moins coûteuses qui attrapent le plus de problèmes passent en premier et en parallèle (lint, vérification de types, tests unitaires) ; les plus coûteuses (tests d’intégration, build d’image, scans de sécurité) ne tournent qu’une fois les premières réussies. Des jobs qui ne dépendent pas les uns des autres ne doivent pas s’attendre ; needs: dans GitHub Actions et GitLab CI décrit le vrai graphe de dépendances au lieu d’une suite rigide d’étapes.",
+        "Deux mécanismes rendent les pipelines rapides et cohérents. Un cache conserve ce que l’on peut reconstruire mais qu’on préfère ne pas refaire, comme les dépendances téléchargées ; sa clé est basée sur le fichier de verrouillage, pour qu’il soit invalidé quand les dépendances changent. Un cache périmé ou absent ne coûte que du temps. Un artefact est un résultat qu’un job transmet à un autre, comme un package, un rapport de tests ou un site compilé ; il doit être exact, car c’est lui que vous testez et déployez. Construisez une fois, publiez l’artefact, et laissez les jobs suivants télécharger ce même fichier au lieu de le reconstruire.",
+        "Quelques réglages évitent beaucoup de gaspillage. Les filtres de chemins sautent le pipeline quand seule la documentation a changé. Un groupe de concurrence annule l’exécution précédente d’une pull request quand un nouveau commit arrive, mais ne doit pas annuler les exécutions sur main, où un déploiement interrompu peut laisser les choses à moitié faites. Une matrice lance le même job pour plusieurs versions ou systèmes ; mettez fail-fast: false pour voir toutes les combinaisons en échec, pas seulement la première. GitLab CI reprend les mêmes idées avec d’autres mots : stages, cache:key:files, artifacts:paths, parallel:matrix et interruptible."
+      ],
+      "points": [
+        "Vérifications rapides d’abord et en parallèle ; les lentes derrière, avec needs:.",
+        "Cache = vitesse (on peut le perdre) ; artefact = résultat transmis entre jobs (doit être exact).",
+        "Basez la clé du cache de dépendances sur le fichier de verrouillage (requirements.txt, package-lock.json).",
+        "Annulez les exécutions dépassées sur les pull requests, jamais les déploiements sur main.",
+        "Surveillez la durée du pipeline dans le temps ; un pipeline de 30 minutes change la façon de travailler de l’équipe."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "name: ci\non:\n  pull_request:\n    paths-ignore: [\"docs/**\", \"**.md\"]\n  push:\n    branches: [main]\nconcurrency:\n  group: ci-${{ github.ref }}\n  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\njobs:\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with: { python-version: \"3.12\", cache: pip }\n      - run: pip install ruff && ruff check .\n  unit:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with: { python-version: \"3.12\", cache: pip }\n      - run: pip install -r requirements.txt && pytest -q -m \"not integration\"\n  build:\n    needs: [lint, unit]          # waits for both parallel jobs\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with: { python-version: \"3.12\" }\n      - run: pip install build && python -m build     # creates dist/\n      - uses: actions/upload-artifact@v4\n        with: { name: dist, path: dist/, retention-days: 7 }\n  deploy-staging:\n    needs: build\n    if: github.ref == 'refs/heads/main'\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/download-artifact@v4\n        with: { name: dist, path: dist/ }\n      - run: ls dist/   # deploy exactly what was built and tested",
+        "note": "lint et unit tournent en parallèle ; build ne démarre que si les deux réussissent ; la préproduction reçoit le même artefact."
+      }
+    },
+    {
+      "title": "Stratégie de tests en CI et tests instables",
+      "text": [
+        "Tous les tests n’ont pas leur place au même endroit du pipeline. La pyramide des tests est un bon repère : beaucoup de tests unitaires rapides qui vérifient la logique de façon isolée, moins de tests d’intégration qui utilisent une vraie base de données, une file de messages ou une API, et une poignée de tests de bout en bout qui pilotent toute l’application. Les tests unitaires tournent à chaque push en quelques secondes ; les tests d’intégration à chaque pull request, avec de vraies dépendances lancées en conteneurs de service ; les tests de bout en bout et de performance, plus lents, peuvent tourner après le déploiement en préproduction ou de façon planifiée. L’objectif : le retour le plus rapide qui attrape quand même les bugs importants.",
+        "En CI, les tests d’intégration doivent être reproductibles : démarrez les dépendances dans le pipeline (un conteneur de service postgres, un schéma neuf, les migrations appliquées, les données de test chargées) au lieu de viser une base de test partagée que quelqu’un d’autre modifie. Publiez les résultats au format JUnit XML pour que l’outil de CI affiche les tests en échec, et gardez la couverture comme un signal, pas comme un objectif à atteindre coûte que coûte : une baisse de couverture sur une pull request mérite un coup d’œil, viser 100 % produit des tests inutiles.",
+        "Un test instable (flaky) réussit et échoue sur le même code. Les causes classiques sont le timing (un sleep au lieu d’attendre une condition), un état partagé entre tests, l’ordre des tests, l’heure réelle et les fuseaux horaires, et les appels réseau vers des services externes. Ces tests sont dangereux, car l’équipe prend l’habitude de cliquer sur « relancer » et ne lit plus les pipelines rouges. Suivez-les, corrigez la cause, ou mettez-les en quarantaine dans un job séparé non bloquant, avec un responsable et une échéance. Les relances automatiques sont acceptables pour les pannes d’infrastructure (un runner perdu), pas pour masquer des tests instables."
+      ],
+      "points": [
+        "Beaucoup de tests unitaires, moins de tests d’intégration, peu de tests de bout en bout.",
+        "Lancez les vraies dépendances en conteneurs de service pour que chaque exécution parte de zéro.",
+        "Marquez les tests lents (pytest -m integration) pour les lancer dans un job séparé.",
+        "Publiez des rapports JUnit pour que les échecs soient visibles dans la pull request.",
+        "Relancez les pannes de runner, pas les échecs de tests ; mettez les tests instables en quarantaine avec un responsable."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# .gitlab-ci.yml - GitLab CI equivalent with unit and integration jobs\nstages: [test]\ndefault:\n  image: python:3.12\nvariables:\n  PIP_CACHE_DIR: \"$CI_PROJECT_DIR/.cache/pip\"\ncache:\n  key:\n    files: [requirements.txt]\n  paths: [.cache/pip]\n\nunit-tests:\n  stage: test\n  script:\n    - pip install -r requirements.txt\n    - pytest -m \"not integration\" --junitxml=report.xml\n  artifacts:\n    when: always\n    reports:\n      junit: report.xml\n\nintegration-tests:\n  stage: test\n  services:\n    - name: postgres:16\n      alias: db\n  variables:\n    POSTGRES_PASSWORD: test\n    DATABASE_URL: \"postgresql://postgres:test@db:5432/postgres\"\n  script:\n    - pip install -r requirements.txt\n    - pytest -m integration --junitxml=report.xml\n  artifacts:\n    when: always\n    reports:\n      junit: report.xml\n  retry:\n    max: 1\n    when: [runner_system_failure]   # retry infrastructure problems only",
+        "note": "Dans GitHub Actions, la même idée passe par services: postgres: avec une image, des variables d’environnement et un health check."
+      }
+    },
+    {
+      "title": "Sécuriser le pipeline : OIDC plutôt que des clés, et la chaîne d’approvisionnement",
+      "text": [
+        "Un système de CI peut déployer en production : les attaquants le ciblent donc. Le premier risque, ce sont les identifiants de longue durée : une clé d’accès cloud stockée comme secret de CI fonctionne depuis n’importe où, pendant des années, jusqu’à ce que quelqu’un remarque sa fuite. OpenID Connect (OIDC) la supprime. Le job demande à la plateforme de CI un jeton signé de courte durée qui dit « je suis le dépôt acme/api, branche main, environnement production » ; le fournisseur cloud vérifie la signature et les claims par rapport à une politique de confiance, puis renvoie des identifiants temporaires valables environ une heure. Dans GitHub Actions, vous accordez permissions: id-token: write et utilisez l’action de connexion du fournisseur ; dans GitLab CI, vous demandez un jeton avec id_tokens:. La politique de confiance doit être restreinte, par exemple au seul environnement production d’un dépôt.",
+        "Le deuxième risque, c’est le code que vous n’avez pas écrit : actions tierces, images de base et packages. Une action référencée par un tag comme @v4 peut être modifiée par quiconque contrôle ce tag ; l’épingler sur le SHA complet d’un commit rend la référence immuable, et Dependabot ou Renovate tient ces versions à jour. Réglez permissions: au niveau du workflow sur le minimum (contents: read) et élargissez job par job. Méfiez-vous des workflows déclenchés par des pull requests venant de forks : pull_request_target s’exécute avec les secrets dans le contexte du dépôt de base, ne récupérez donc jamais le code du fork pour l’exécuter dedans.",
+        "Enfin, rendez vos propres artefacts vérifiables. Une SBOM (Software Bill of Materials) liste chaque composant et sa version dans une image : quand une nouvelle vulnérabilité est publiée, vous savez en quelques minutes si vous êtes concerné. Signer l’image (par exemple avec cosign de Sigstore) permet au côté déploiement de vérifier qu’elle vient bien de votre pipeline et n’a pas été remplacée dans le registre."
+      ],
+      "points": [
+        "OIDC : des identifiants de courte durée par job, aucune clé cloud statique à fuiter ou à renouveler.",
+        "Restreignez la politique de confiance sur les claims du jeton (dépôt, branche, environnement).",
+        "Épinglez les actions tierces sur un SHA de commit complet ; laissez Dependabot mettre à jour les versions.",
+        "Par défaut, permissions: contents: read, puis ajoutez seulement ce dont chaque job a besoin.",
+        "La SBOM pour savoir ce qu’il y a dedans ; la signature pour prouver d’où ça vient."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "name: deploy-site\non:\n  push:\n    branches: [main]\npermissions:\n  contents: read            # default for every job\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    environment: production\n    permissions:\n      contents: read\n      id-token: write       # allow this job to request an OIDC token\n    steps:\n      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2, pinned\n      - uses: aws-actions/configure-aws-credentials@v4\n        with:\n          role-to-assume: arn:aws:iam::123456789012:role/github-deploy-site\n          aws-region: eu-west-3\n      - run: aws s3 sync ./public s3://acme-site --delete\n\n# AWS trust policy condition on the role (excerpt):\n#   \"token.actions.githubusercontent.com:aud\": \"sts.amazonaws.com\"\n#   \"token.actions.githubusercontent.com:sub\": \"repo:acme/site:environment:production\"",
+        "note": "Aucune clé AWS n’est stockée : le rôle ne peut être assumé que par l’environnement production de ce dépôt."
+      }
+    },
+    {
+      "title": "Livraison progressive et retours arrière en pratique",
+      "text": [
+        "Déployer n’est pas la fin du pipeline ; vérifier, si. Les environnements de production doivent avoir des règles de protection (relecteurs obligatoires, déploiement uniquement depuis main, délai d’attente si besoin) et leurs propres secrets, avec un seul déploiement à la fois par environnement, pour que deux livraisons ne s’écrasent jamais à mi-chemin. Après chaque déploiement, les smoke tests et le monitoring décident si la version reste : taux d’erreur, latence et événements métier clés comparés à l’avant.",
+        "Le blue-green et le canary limitent l’impact de façons différentes. Le blue-green garde deux environnements complets et bascule tout le trafic d’un coup : le retour arrière est instantané, mais l’infrastructure est doublée pendant la bascule. Un canary envoie 5 %, puis 25 %, puis 100 % du trafic vers la nouvelle version, en vérifiant les métriques à chaque palier ; des outils comme Argo Rollouts ou Flagger automatisent l’analyse et reviennent en arrière tout seuls. Les feature flags vont encore plus loin : le code est déployé désactivé, puis activé pour les utilisateurs internes, puis pour un pourcentage de clients, sans nouveau déploiement. « Couper » devient alors plus rapide que n’importe quel rollback, à condition de supprimer les anciens flags.",
+        "Un rollback doit être banal et répété : redéployer l’artefact précédent, qui existe toujours puisque vous taguez et conservez les images. Le piège, c’est la base de données. Si la version 2.0 renomme une colonne, la 1.9 plante après le retour arrière. Utilisez le modèle expand and contract : d’abord ajouter la nouvelle colonne et écrire dans les deux (expand), déployer le code qui lit la nouvelle, et seulement dans une version ultérieure supprimer l’ancienne (contract). Chaque étape reste compatible avec la précédente, donc n’importe quelle version peut être annulée."
+      ],
+      "points": [
+        "Un seul déploiement à la fois par environnement (groupe de concurrence), avec des règles de protection.",
+        "Les smoke tests et les métriques décident si une version reste.",
+        "Canary : trafic progressif avec analyse automatique ; blue-green : bascule instantanée.",
+        "Les feature flags séparent déploiement et mise en service ; nettoyez les anciens flags.",
+        "Expand and contract garde les changements de base compatibles avec un rollback."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "name: deploy-production\non:\n  workflow_dispatch:\n    inputs:\n      version:\n        description: \"Image tag to deploy (commit SHA)\"\n        required: true\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    environment: production         # required reviewers approve first\n    concurrency:\n      group: deploy-production      # never two deploys at once\n      cancel-in-progress: false\n    steps:\n      # cluster credentials are configured in earlier steps (e.g. via OIDC)\n      - run: kubectl set image deployment/api api=ghcr.io/acme/api:${{ inputs.version }}\n      - run: kubectl rollout status deployment/api --timeout=5m\n      - run: curl --fail --retry 5 --retry-delay 10 https://api.acme.com/health\n      - if: failure()\n        run: kubectl rollout undo deployment/api   # automatic rollback",
+        "note": "Relancer le même workflow avec le SHA précédent est le chemin de rollback manuel."
+      }
     }
   ],
   "cheatsheet": [
@@ -101,6 +181,32 @@
       ["Lead time for changes", "Délai entre le commit et la production"],
       ["Change failure rate", "Part des livraisons qui causent un problème"],
       ["Time to restore", "Rapidité de rétablissement après une panne"]
+    ]},
+    { "group": "Conception du pipeline", "items": [
+      ["needs: [lint, unit]", "Lancer un job quand ses vraies dépendances réussissent"],
+      ["actions/upload-artifact / download-artifact", "Transmettre les résultats de build entre jobs"],
+      ["concurrency: group", "Limiter les exécutions par branche ou environnement"],
+      ["cancel-in-progress", "Annuler l’exécution dépassée"],
+      ["paths-ignore", "Sauter le workflow pour des changements de doc uniquement"],
+      ["fail-fast: false", "Laisser finir toutes les combinaisons de la matrice"],
+      ["GitLab : cache:key:files", "Cache dont la clé dépend d’un fichier de verrouillage"],
+      ["GitLab : artifacts:reports:junit", "Afficher les résultats de tests dans la merge request"]
+    ]},
+    { "group": "Tests et sécurité", "items": [
+      ["Pyramide des tests", "Beaucoup d’unitaires, moins d’intégration, peu de bout en bout"],
+      ["Test instable (flaky)", "Réussit et échoue sur le même code"],
+      ["services: postgres", "Vraie dépendance lancée pour le job"],
+      ["permissions: id-token: write", "Autoriser un job à demander un jeton OIDC"],
+      ["OIDC", "Identifiants cloud de courte durée au lieu de clés stockées"],
+      ["uses: action@<full SHA>", "Épingler une action sur une version immuable"],
+      ["SBOM", "Liste des composants d’un artefact"],
+      ["cosign sign", "Signer une image de conteneur"]
+    ]},
+    { "group": "Mise en production", "items": [
+      ["environment: production", "Appliquer règles de protection et secrets d’environnement"],
+      ["workflow_dispatch", "Lancer un workflow à la main avec des paramètres"],
+      ["kubectl rollout undo", "Revenir à la version précédente d’un déploiement Kubernetes"],
+      ["Expand and contract", "Changements de base de données compatibles, par étapes"]
     ]}
   ],
   "pitfalls": [
@@ -108,7 +214,11 @@
     "Reconstruire l’artefact pour chaque environnement : construisez une fois, promouvez la même version.",
     "Des pipelines lents que personne n’attend : mettez en cache et lancez les contrôles rapides en premier.",
     "Aucun plan de retour arrière : gardez toujours la version précédente déployable en une étape.",
-    "Ignorer les tests instables : corrigez-les ou isolez-les, sinon plus personne ne croit un pipeline rouge."
+    "Ignorer les tests instables : corrigez-les ou isolez-les, sinon plus personne ne croit un pipeline rouge.",
+    "Des clés cloud de longue durée stockées comme secrets de CI alors que le cloud prend en charge OIDC.",
+    "Référencer des actions tierces par un tag ou une branche modifiable, avec un jeton qui a des droits d’écriture.",
+    "Relancer tout le pipeline jusqu’à ce qu’il passe au vert : les tests instables cachent de vrais bugs.",
+    "Des migrations de base destructives dans la même version que le code : le rollback devient impossible."
   ],
   "exercises": [
     { "q": "Écrivez un workflow GitHub Actions qui lance npm ci et npm test à chaque pull request.", "hint": "on: pull_request, actions/checkout, actions/setup-node avec cache: npm.", "code": "yaml",
@@ -116,11 +226,23 @@
     { "q": "Votre livraison en production échoue à 18 h et les utilisateurs voient des erreurs. Que faites-vous, dans l’ordre ?", "hint": "Rétablir d’abord, analyser ensuite.",
       "answer": "Revenir à la dernière version saine (redéployer l’artefact précédent), vérifier avec le contrôle de santé et la supervision que les erreurs cessent, communiquer l’impact et l’état, puis analyser la cause sur la version fautive en préproduction, ajouter un test qui l’aurait détectée et rédiger un court post-mortem." },
     { "q": "Quel tag donneriez-vous à l’image construite depuis le commit 3f2c9ab pour la version 2.1.0, et pourquoi ?", "hint": "Traçabilité et lisibilité.",
-      "answer": "Deux tags sur la même image : ghcr.io/acme/api:3f2c9ab (commit exact, toujours traçable) et ghcr.io/acme/api:2.1.0 (version lisible). Ne comptez jamais sur :latest pour savoir ce qui tourne en production." }
+      "answer": "Deux tags sur la même image : ghcr.io/acme/api:3f2c9ab (commit exact, toujours traçable) et ghcr.io/acme/api:2.1.0 (version lisible). Ne comptez jamais sur :latest pour savoir ce qui tourne en production." },
+    { "q": "Votre pipeline dure 25 minutes : installation (6 min, dans chaque job), lint, tests unitaires, tests d’intégration et build s’enchaînent l’un après l’autre. Proposez quatre changements pour le raccourcir.", "hint": "Parallélisme, cache, ordre, filtres.",
+      "answer": "1) Mettre les dépendances en cache avec une clé basée sur le fichier de verrouillage, pour que l’installation prenne quelques secondes. 2) Lancer lint et tests unitaires en parallèle, et les tests d’intégration en parallèle ou après grâce à needs:, plutôt qu’en séquence stricte. 3) Construire une seule fois et transmettre l’artefact au lieu de reconstruire plus tard. 4) Sauter les exécutions pour les changements de doc avec des filtres de chemins et annuler les exécutions dépassées des pull requests avec un groupe de concurrence. Puis mesurer à nouveau." },
+    { "q": "Écrivez les réglages au niveau du job qui permettent à un job GitHub Actions d’assumer un rôle AWS via OIDC, sans clé stockée.", "code": "yaml",
+      "answer": "permissions:\n  contents: read\n  id-token: write\nsteps:\n  - uses: aws-actions/configure-aws-credentials@v4\n    with:\n      role-to-assume: arn:aws:iam::123456789012:role/github-deploy\n      aws-region: eu-west-3" },
+    { "q": "Un test échoue environ une fois sur dix sur main, et l’équipe clique simplement sur « Re-run ». Que faites-vous ?", "hint": "Rétablir la confiance d’abord, puis corriger la cause.",
+      "answer": "Le déclarer comme test instable avec un responsable, le reproduire en le lançant en boucle ou dans un ordre aléatoire, et chercher les causes habituelles : timing et sleeps, état partagé, ordre des tests, fuseaux horaires, appels externes. S’il ne peut pas être corrigé rapidement, le mettre en quarantaine dans un job non bloquant avec une échéance, pour que l’on fasse de nouveau confiance au pipeline principal. Ne pas ajouter de relances générales qui le masquent." },
+    { "q": "La version 3.0 doit renommer la colonne users.fullname en users.display_name. Comment la déployer pour que chaque version puisse être annulée ?", "hint": "Expand and contract.",
+      "answer": "Version A : ajouter display_name, écrire dans les deux colonnes, remplir les lignes existantes. Version B : lire display_name (en écrivant toujours dans les deux). Version C, une fois B stable : arrêter d’écrire fullname. Version D : supprimer fullname. À chaque étape, la version précédente fonctionne encore avec le schéma, donc un rollback est sans risque." }
   ],
   "interview": [
     { "q": "Quelle est la différence entre livraison continue et déploiement continu ?", "a": "Les deux construisent et testent chaque changement automatiquement. En livraison continue, un changement validé est prêt à être livré mais une personne décide quand ; en déploiement continu, chaque changement validé part automatiquement en production. Le déploiement continu exige des tests automatisés et une supervision solides." },
     { "q": "Comment gérez-vous les secrets dans un pipeline ?", "a": "Jamais dans le code ni dans le YAML. J’utilise le coffre de secrets de la CI ou un vault, je donne à chaque job le minimum de droits, je privilégie les identifiants temporaires via OIDC plutôt que des clés cloud statiques, et je fais tourner les secrets. Ils sont masqués dans les logs, mais j’évite quand même de les afficher." },
-    { "q": "Décrivez une stratégie de déploiement qui limite le risque.", "a": "Une livraison canary : déployer la nouvelle version pour une petite part du trafic, surveiller le taux d’erreur et la latence quelques minutes, puis augmenter progressivement ou revenir en arrière automatiquement si les indicateurs se dégradent. Le blue-green est l’alternative quand il faut pouvoir rebasculer instantanément." }
+    { "q": "Décrivez une stratégie de déploiement qui limite le risque.", "a": "Une livraison canary : déployer la nouvelle version pour une petite part du trafic, surveiller le taux d’erreur et la latence quelques minutes, puis augmenter progressivement ou revenir en arrière automatiquement si les indicateurs se dégradent. Le blue-green est l’alternative quand il faut pouvoir rebasculer instantanément." },
+    { "q": "Quelle différence entre un cache et un artefact en CI ?", "a": "Un cache accélère les jobs en réutilisant ce qui peut être reconstruit, comme les dépendances ; s’il est absent ou périmé, le job est seulement plus lent. Un artefact est un résultat de job transmis aux jobs suivants ou conservé après l’exécution, comme un package ou un rapport de tests ; il doit être exact, car c’est lui qui est testé et déployé. On construit une fois, on stocke l’artefact, on déploie ce même artefact." },
+    { "q": "Pourquoi utiliser OIDC pour déployer depuis un pipeline ?", "a": "Au lieu de stocker une clé cloud de longue durée comme secret, le job obtient de la plateforme de CI un jeton signé de courte durée et l’échange contre des identifiants temporaires. Rien de permanent ne peut fuiter, il n’y a rien à renouveler, et la politique de confiance du cloud peut limiter l’accès à un dépôt, une branche ou un environnement précis." },
+    { "q": "Comment gérez-vous les tests instables ?", "a": "Je les traite comme des bugs : je les suis, je les reproduis en boucle ou en ordre aléatoire, et je corrige les causes habituelles comme le timing, l’état partagé, la dépendance à l’ordre ou les appels externes. Pendant la correction, je les mets en quarantaine dans un job non bloquant avec un responsable, pour que le pipeline principal reste fiable. Je ne relance automatiquement que les pannes d’infrastructure." },
+    { "q": "Comment rendre annulable une version qui contient une migration de base de données ?", "a": "Je garde chaque migration compatible avec la version précédente du code, avec le modèle expand and contract : ajouter d’abord les nouvelles structures, migrer les données et basculer le code dans les versions suivantes, et ne supprimer les anciennes structures qu’une fois que plus rien ne les utilise. L’application peut alors revenir en arrière à n’importe quelle étape sans casser sur le schéma." }
   ]
 }

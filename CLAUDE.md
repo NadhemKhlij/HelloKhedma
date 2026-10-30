@@ -12,6 +12,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - `npm run check-links`: checks every URL in supabase/seed.sql (Node 18+).
 - Translations: `perl scripts/check-i18n.pl js` (every t() text has French) and
   `powershell -File scripts/check-fr-content.ps1 -Root .` (French course / interview files match the English structure).
+- Course times: `powershell -File scripts/course-times.ps1 -Root .` writes `minutes` and `lessonCount` into
+  content/courses/index.json (same formula as js/coursetime.js). Run it after adding or extending a course.
 - Windows: deep checkout paths need `git config core.longpaths true`.
 - When the owner deploys a function or runs SQL from the dashboard, give commit-pinned raw links
   (raw.githubusercontent.com/<owner>/<repo>/<commit>/…): the branch link is cached for ~5 minutes.

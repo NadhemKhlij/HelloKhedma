@@ -63,6 +63,86 @@
         "code": "(Start: order received)\n  → [Check stock]\n  → <X> in stock?\n       yes → [Ship order] → (End: order shipped)\n       no  → [Order from supplier]\n               ⏱ boundary timer 5 days on the task → [Notify customer of delay]\n               → [Ship order] → (End: order shipped)\nMessage flow: [Order from supplier] ⇢ Supplier pool",
         "note": "La minuterie gère le cas du retard sans dupliquer le processus."
       }
+    },
+    {
+      "title": "Les passerelles en détail : exclusive, parallèle, inclusive, basée sur les événements",
+      "text": [
+        "Les passerelles (gateways) contrôlent la façon dont le flux se sépare et se rejoint. Elles ne font aucun travail et ne prennent aucune décision elles-mêmes : la décision est prise dans la tâche qui précède (« Vérifier la solvabilité »), et la passerelle aiguille selon son résultat (« Solvable ? »). La passerelle exclusive (losange avec un X, ou losange vide) envoie le flux sur un seul chemin sortant. Donnez-lui un flux par défaut, dessiné avec une petite barre oblique sur la flèche, pour que le processus ne reste jamais bloqué quand aucune condition n’est vraie. La passerelle parallèle (+) lance tous les chemins sortants sans condition ; utilisée en jonction, elle attend que tous les chemins entrants soient arrivés.",
+        "La passerelle inclusive (losange avec un cercle) active un ou plusieurs chemins, chaque condition étant évaluée séparément : envoyer un e-mail et/ou un SMS selon les préférences du client. La passerelle inclusive de jonction n’attend que les chemins réellement activés. La passerelle basée sur les événements (losange contenant un pentagone dans un double cercle) choisit le chemin selon l’événement qui survient en premier, et non selon des données : le client répond, ou 10 jours passent. Elle n’est suivie que d’événements intermédiaires en réception ou de tâches de réception, et dès qu’un événement survient, les autres ne sont plus attendus.",
+        "Des séparations et jonctions mal assorties causent la plupart des erreurs de modélisation. Rejoindre deux chemins exclusifs avec une passerelle parallèle crée un blocage (deadlock) : la jonction attend indéfiniment un chemin qui n’a jamais été pris. Rejoindre des chemins parallèles sans passerelle, ou avec une passerelle exclusive, fait exécuter la tâche suivante deux fois. La règle pratique : refermer avec le même type que celui qui a ouvert, et formuler la passerelle de séparation comme une question avec des réponses étiquetées."
+      ],
+      "points": [
+        "La décision dans la tâche, l’aiguillage dans la passerelle : « Vérifier la solvabilité », puis « Solvable ? ».",
+        "Ajoutez un flux par défaut sur les passerelles exclusives et inclusives.",
+        "Parallèle signifie « tous, dans n’importe quel ordre », pas forcément au même moment.",
+        "Passerelle basée sur les événements : le premier événement qui arrive l’emporte.",
+        "Refermez avec le même type de passerelle que celui qui a ouvert, pour éviter blocages et exécutions en double."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "[Send quote to customer]\n  → <Event-based>\n       → (✉ Customer accepts)  → [Create order]\n       → (✉ Customer declines) → [Close opportunity] → (End: lost)\n       → (⏱ 10 days)           → [Call customer]\n[Create order] → <+ split>\n       → [Reserve stock]\n       → [Prepare invoice]\n  <+ join> → [Ship order] → (End: order shipped)",
+        "note": "Le premier événement survenu décide du chemin ; la jonction parallèle attend les deux branches."
+      }
+    },
+    {
+      "title": "Les événements en détail : messages, minuteries, erreurs et événements de bordure",
+      "text": [
+        "Un événement a un type, indiqué par le symbole dans le cercle (une enveloppe pour un message, une horloge pour une minuterie, un éclair pour une erreur, un triangle pour un signal), et une position : début, intermédiaire ou fin. Les événements en réception (catch) attendent quelque chose et ont un symbole vide ; les événements en émission (throw) envoient quelque chose et ont un symbole plein. Un événement de début de type message signifie qu’un autre participant déclenche le processus (une commande arrive) ; un événement de début de type minuterie signifie que c’est le calendrier qui le déclenche (« chaque lundi à 8 h »). Une minuterie peut être une date, une durée ou un cycle.",
+        "Les événements de bordure (boundary events) sont posés sur le bord d’une activité et gèrent ce qui peut arriver pendant son exécution. Un événement de bordure interruptif (double cercle plein) annule l’activité et prend le chemin d’exception : une minuterie de 48 heures sur « Valider la note de frais » déclenche une escalade et cesse d’attendre. Un événement non interruptif (double cercle en pointillés) lance un chemin supplémentaire pendant que l’activité continue : après 24 heures, envoyer une relance tout en continuant d’attendre la validation. Les événements de bordure de type erreur sont toujours interruptifs : un événement de fin de type erreur dans un sous-processus lève l’erreur, l’événement de bordure du sous-processus l’intercepte, et le chemin d’exception prend le relais.",
+        "Un signal est diffusé à tous ceux qui écoutent (« produit rappelé »), alors qu’un message va à un participant précis. L’événement de fin terminal (cercle épais avec un disque plein) arrête toute l’instance du processus, y compris les autres chemins encore en cours. Utilisez les événements quand ils apportent du sens au lecteur : un diagramme rempli de symboles rares est difficile à lire pour un public métier. Pour l’essentiel du travail de BA, les événements message, minuterie et erreur, leurs variantes de bordure et l’événement de fin terminal suffisent."
+      ],
+      "points": [
+        "Symbole vide = réception (attente) ; symbole plein = émission (envoi).",
+        "Bordure interruptive : trait plein, l’activité est annulée.",
+        "Bordure non interruptive : trait pointillé, l’activité continue.",
+        "Les erreurs sont interceptées par des événements de bordure ou des sous-processus événementiels, et elles interrompent toujours.",
+        "Événement de fin terminal : arrête tous les chemins restants de l’instance."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "[Approve expense] (user task, Manager lane)\n  ◌ non-interrupting timer 24h → [Send reminder to manager] → (End: reminder sent)\n  ◎ interrupting timer 48h     → [Escalate to finance] → [Finance approves]\n[Pay expense +] (sub-process)\n  ◎ error boundary 'Invalid bank details' → [Ask employee for new details]",
+        "note": "◌ = bordure en pointillés (la tâche continue), ◎ = bordure pleine (la tâche est annulée)."
+      }
+    },
+    {
+      "title": "Collaboration, sous-processus et niveaux de modélisation",
+      "text": [
+        "Un diagramme de collaboration montre plusieurs pools, un par participant : votre entreprise, le client, un fournisseur, une banque. Les flux de séquence ne franchissent jamais la frontière d’un pool ; la communication entre pools passe par un flux de messages, une ligne en pointillés avec un petit cercle au départ et une flèche ouverte. Quand vous ne connaissez pas ou n’avez pas besoin du processus interne d’un partenaire, dessinez-le comme un pool replié, une bande vide aussi appelée boîte noire, et rattachez les flux de messages à son bord. Les couloirs (lanes) restent à l’intérieur d’un pool et représentent des rôles ou des services, pas des organisations distinctes.",
+        "Les sous-processus permettent de maîtriser la complexité. Un sous-processus replié (une tâche avec un marqueur [+]) masque des détails dessinés dans un autre diagramme ; un sous-processus déplié les montre sur place. Une activité d’appel (call activity, bordure épaisse) appelle un processus global réutilisable, comme « Vérifier l’identité » utilisé par plusieurs processus. Un sous-processus événementiel (bordure pointillée) vit à l’intérieur d’un processus et démarre quand son événement survient, par exemple un message « le client annule » reçu à n’importe quel moment de la commande.",
+        "Les praticiens distinguent généralement trois niveaux de modèles, en cohérence avec les classes de conformité de BPMN. Descriptif : le chemin nominal et les principales exceptions avec un petit jeu de symboles, pour les lecteurs métier. Analytique : toutes les exceptions et tous les événements significatifs, assez précis pour analyser le processus et en déduire les exigences, tout en restant lisible par le métier. Exécutable : les détails techniques comme les données, les appels de services, les formulaires et les expressions, pour un moteur de workflow tel que Camunda ou Flowable, en général pris en charge par les développeurs. Choisissez le niveau selon le public : un comité de pilotage veut une vue descriptive, l’équipe qui rédige les exigences a besoin du niveau analytique."
+      ],
+      "points": [
+        "Un pool par participant ; des couloirs pour les rôles à l’intérieur de ce pool.",
+        "Flux de messages uniquement entre pools ; flux de séquence uniquement dans un pool.",
+        "Utilisez un pool boîte noire pour les partenaires externes dont vous ne modélisez pas le processus.",
+        "Activité d’appel pour les processus réutilisables ; sous-processus replié pour masquer le détail.",
+        "Une cartographie des processus (niveau 0) donne la vue d’ensemble et renvoie vers les modèles détaillés."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Pool: Customer (black box)\n   ⇣ message 'Order'               ⇡ message 'Invoice'\nPool: Shop\n  Lane Sales:   (✉ Start: order received) → [Validate order] → [Fulfil order +]\n  Lane Finance: → [Send invoice] → (End: order invoiced)\n  Event sub-process (dotted): (✉ Cancellation received) → [Cancel order] → (End: order cancelled)\nPool: Carrier (black box)\n   ⇡ message 'Pickup request' from [Fulfil order +]",
+        "note": "Les partenaires sont des boîtes noires : seuls les messages échangés avec eux sont modélisés."
+      }
+    },
+    {
+      "title": "Analyser un processus et transformer le to-be en exigences",
+      "text": [
+        "Un modèle devient utile quand on y ajoute des chiffres. Pour chaque étape, relevez le volume, le temps de traitement effectif, le temps d’attente, le taux de reprise ou d’erreur et qui la réalise. Le délai total (lead time) va du déclencheur au résultat ; l’efficacité du processus est le temps de traitement divisé par le délai total, et dans les processus administratifs elle est souvent très faible : la plupart du temps, le dossier attend. Les indicateurs (KPI) du processus en découlent : délai total, taux de bon du premier coup, coût par dossier, nombre de dossiers en cours, part des dossiers traités dans le niveau de service.",
+        "Le Lean fournit un vocabulaire pour les gaspillages : attente, défauts et reprises, sur-traitement (validations inutiles, données saisies deux fois), transport et transferts entre équipes, stocks (piles de dossiers en attente), mouvements inutiles, surproduction (rapports que personne ne lit) et compétences inexploitées. Le goulot d’étranglement est l’étape qui a la plus faible capacité : la file d’attente se forme devant elle, et améliorer n’importe quelle autre étape ne réduit pas le délai total. Certains outils de modélisation savent simuler un to-be avec des taux d’arrivée, des durées et des ressources ; même une estimation sur tableur (dossiers par jour multipliés par les minutes par dossier, comparés aux heures disponibles) repère les conceptions irréalistes avant qu’elles soient construites.",
+        "Le modèle to-be est aussi une source d’exigences. Parcourez-le élément par élément : chaque tâche utilisateur suggère des écrans et des user stories, chaque tâche de service une intégration ou une automatisation, chaque passerelle une règle métier à écrire avec ses données, chaque événement de bordure un scénario d’exception pour les critères d’acceptation, chaque flux de messages une interface ou une notification, et chaque couloir un rôle avec ses droits d’accès. Donnez des identifiants aux éléments du modèle et citez-les dans les stories, pour garder le lien entre processus et backlog quand l’un des deux évolue."
+      ],
+      "points": [
+        "Mesurez avant d’améliorer : volumes, temps de traitement, temps d’attente, taux de reprise.",
+        "Trouvez d’abord le goulot ; accélérer une autre étape ne réduit pas le délai total.",
+        "Supprimer un transfert entre équipes fait souvent gagner plus de temps qu’automatiser une tâche.",
+        "Passerelle = règle métier, événement de bordure = scénario d’exception, flux de messages = interface.",
+        "Gardez des identifiants sur les éléments du modèle pour que les stories et les cas de test puissent s’y référer."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "To-be element                         → Requirement\nUT-03 [Review claim] (Handler lane)   → Story: one claim screen with documents and history\nGW-02 <Amount > 5,000 EUR?>           → Rule BR-07: above 5,000 EUR, manager approval required\nBE-01 ⏱ 48h on [Approve claim]        → Scenario: escalate to finance after 48h without decision\nST-02 [Pay claim] (service task)      → Interface: send payment order to the banking system\nMF-01 'Claim acknowledged' ⇢ Customer → Notification: email with claim number within 1 hour",
+        "note": "Chaque élément du modèle to-be devient une exigence traçable."
+      }
     }
   ],
   "cheatsheet": [
@@ -137,13 +217,74 @@
           "Message entre pools"
         ]
       ]
+    },
+    {
+      "group": "Passerelles et événements en détail",
+      "items": [
+        [
+          "◇ Passerelle basée sur les événements",
+          "Chemin choisi par le premier événement survenu"
+        ],
+        [
+          "Flux par défaut (barre oblique)",
+          "Pris quand aucune condition n’est vraie"
+        ],
+        [
+          "Bordure interruptive (trait plein)",
+          "Annule l’activité, chemin d’exception"
+        ],
+        [
+          "Bordure non interruptive (pointillés)",
+          "Chemin supplémentaire, l’activité continue"
+        ],
+        [
+          "Événement erreur",
+          "Levé par une fin erreur, intercepté en bordure"
+        ],
+        [
+          "Fin terminale",
+          "Arrête tous les chemins de l’instance"
+        ]
+      ]
+    },
+    {
+      "group": "Collaboration et analyse",
+      "items": [
+        [
+          "Pool boîte noire",
+          "Partenaire montré uniquement par ses messages"
+        ],
+        [
+          "Activité d’appel (bordure épaisse)",
+          "Appelle un processus réutilisable"
+        ],
+        [
+          "Sous-processus événementiel (pointillés)",
+          "Démarre quand son événement survient pendant le processus"
+        ],
+        [
+          "Descriptif / analytique / exécutable",
+          "Trois niveaux de détail de modélisation"
+        ],
+        [
+          "Goulot d’étranglement",
+          "Étape de plus faible capacité, file d’attente devant"
+        ],
+        [
+          "Efficacité du processus",
+          "Temps de traitement / délai total"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Trop de détails dans un seul diagramme : personne ne le lit.",
     "Des passerelles sans conditions libellées.",
     "Modéliser la procédure officielle au lieu de ce que les gens font réellement.",
-    "Mélanger systèmes et rôles dans les mêmes couloirs sans noms clairs."
+    "Mélanger systèmes et rôles dans les mêmes couloirs sans noms clairs.",
+    "Refermer une séparation exclusive avec une jonction parallèle (blocage), ou ne pas rejoindre des chemins parallèles (la tâche suivante s’exécute deux fois).",
+    "Utiliser une minuterie interruptive alors qu’on voulait seulement une relance : la tâche est annulée au lieu de continuer.",
+    "Tracer des flux de séquence entre pools, ou modéliser le processus interne d’un partenaire que l’on ne connaît pas, au lieu d’une boîte noire avec des flux de messages."
   ],
   "exercises": [
     {
@@ -162,6 +303,23 @@
       "q": "Relisez ce modèle et listez ce que vous corrigeriez : des tâches nommées « Stock », « Fournisseur » et « Mail », une passerelle exclusive aux sorties non étiquetées, et un chemin qui s’arrête sur une tâche sans événement de fin.",
       "hint": "Nommage, étiquettes, fins.",
       "answer": "Renommer les tâches en verbe + objet : « Vérifier le stock », « Commander au fournisseur », « Envoyer un e-mail au client ». Étiqueter chaque sortie de passerelle avec sa condition (en stock : oui / non) et formuler la passerelle comme une question. Ajouter un événement de fin nommé par son résultat sur le chemin qui s’arrête, pour que chaque chemin se termine. Vérifier aussi que la passerelle qui sépare le flux est refermée là où les chemins se rejoignent si nécessaire."
+    },
+    {
+      "q": "Un client est prévenu par e-mail, par SMS ou les deux selon ses préférences, et le processus continue une fois les notifications envoyées. Quelles passerelles utilisez-vous ?",
+      "answer": "Une passerelle inclusive (O) pour séparer, avec une condition par canal (« e-mail autorisé », « SMS autorisé ») et idéalement un flux par défaut, puis une passerelle inclusive pour rejoindre, qui n’attend que les branches activées. Une jonction parallèle bloquerait quand un seul canal est utilisé."
+    },
+    {
+      "q": "Après l’envoi d’un devis, le processus attend que le client accepte ou refuse, et clôt l’opportunité après 15 jours sans réponse. Comment le modélisez-vous ?",
+      "answer": "Une passerelle basée sur les événements après « Envoyer le devis », suivie de trois événements intermédiaires en réception : le message « Devis accepté » menant à « Créer la commande », le message « Devis refusé » menant à « Clore l’opportunité », et une minuterie de 15 jours menant elle aussi à « Clore l’opportunité » (ou d’abord à une relance). Le premier événement survenu décide du chemin."
+    },
+    {
+      "q": "Un manager doit valider une demande. Après 2 jours, une relance est envoyée mais la validation reste attendue ; après 5 jours, la demande est escaladée au directeur. Quels événements ?",
+      "hint": "L’un laisse la tâche ouverte, l’autre y met fin.",
+      "answer": "Sur la tâche « Valider la demande » : une minuterie de bordure non interruptive de 2 jours (trait pointillé) menant à « Envoyer une relance » puis à un événement de fin, et une minuterie de bordure interruptive de 5 jours (trait plein) menant à « Escalader au directeur ». La première laisse la tâche en attente, la seconde l’annule et prend le chemin d’escalade."
+    },
+    {
+      "q": "90 dossiers arrivent par jour. Enregistrer : 2 minutes par dossier, 1 personne. Examiner : 20 minutes, 3 personnes. Valider : 4 minutes, 1 personne. Chaque personne travaille 480 minutes par jour. Où est le goulot d’étranglement ?",
+      "answer": "Capacité par jour : Enregistrer 480 / 2 = 240 dossiers, Examiner 3 × 480 / 20 = 72 dossiers, Valider 480 / 4 = 120 dossiers. L’examen est le goulot : 72 est inférieur aux 90 arrivées, donc sa file d’attente grossit d’environ 18 dossiers par jour. Améliorer l’enregistrement ou la validation ne change rien ; il faut réduire le temps d’examen, ajouter une personne ou sortir les dossiers simples de l’examen."
     }
   ],
   "interview": [
@@ -180,6 +338,22 @@
     {
       "q": "Comment vous assurez-vous qu’un modèle de processus est juste ?",
       "a": "Je le déroule avec les personnes qui font le travail, sur des cas réels récents, exceptions comprises : que se passe-t-il si un document manque, si un délai expire ou si un système est indisponible. Je vérifie que chaque chemin se termine, que les passerelles sont étiquetées, que les noms sont clairs (verbe + objet) et que le niveau de détail convient au public. Je mets le modèle à jour jusqu’à ce que les personnes du métier reconnaissent leur processus."
+    },
+    {
+      "q": "Quelle différence entre une passerelle inclusive et une passerelle basée sur les événements ?",
+      "a": "Une passerelle inclusive évalue des conditions sur les données et peut activer un ou plusieurs chemins, et sa jonction attend ceux qui ont été activés. Une passerelle basée sur les événements ne regarde pas les données : elle attend plusieurs événements possibles, comme un message ou une minuterie, et le premier qui survient décide du seul chemin emprunté."
+    },
+    {
+      "q": "Événement de bordure interruptif ou non interruptif ?",
+      "a": "Les deux sont attachés à une activité et se déclenchent pendant son exécution. Un événement interruptif, à trait plein, annule l’activité et continue sur le chemin d’exception, par exemple une escalade après 48 heures. Un événement non interruptif, à trait pointillé, lance un chemin supplémentaire pendant que l’activité continue, par exemple une relance après 24 heures."
+    },
+    {
+      "q": "Quand utilisez-vous les pools, les couloirs et les flux de messages ?",
+      "a": "Un pool par participant indépendant, comme l’entreprise, le client ou un fournisseur. Les couloirs découpent un pool par rôle ou par service. À l’intérieur d’un pool, l’ordre est montré par des flux de séquence ; entre pools, seuls les flux de messages sont autorisés, car des participants distincts communiquent en échangeant des messages. Les partenaires dont je ne modélise pas le processus sont dessinés en pools boîte noire."
+    },
+    {
+      "q": "Comment passez-vous d’un modèle BPMN to-be aux exigences ?",
+      "a": "Je parcours le modèle élément par élément : les tâches utilisateur deviennent des user stories et des écrans, les tâches de service des intégrations ou des automatisations, les passerelles des règles métier documentées, les événements de bordure et d’erreur des scénarios d’exception dans les critères d’acceptation, les flux de messages des interfaces ou des notifications, et les couloirs définissent les rôles et les droits d’accès. Je donne des identifiants aux éléments et je les cite dans le backlog pour la traçabilité."
     }
   ]
 }

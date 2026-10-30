@@ -66,6 +66,90 @@
         "code": "CREATE TABLE dim_customer (\n  customer_key   BIGINT PRIMARY KEY,   -- surrogate key, one per version\n  customer_id    TEXT NOT NULL,        -- business key from the source\n  city           TEXT,\n  segment        TEXT,\n  valid_from     DATE NOT NULL,\n  valid_to       DATE,                 -- NULL = current version\n  is_current     BOOLEAN NOT NULL\n);\n\n-- the fact stores the version that was true at order time\nSELECT f.order_id, d.city\nFROM fact_orders f\nJOIN dim_customer d ON d.customer_key = f.customer_key;",
         "note": "Le chiffre d’affaires par ville « au moment de la commande » est une simple jointure sur la clé de substitution."
       }
+    },
+    {
+      "title": "La méthode Kimball : granularité, dimensions conformes et matrice en bus",
+      "text": [
+        "La modélisation dimensionnelle de Kimball suit quatre étapes, toujours dans cet ordre : choisir le processus métier (commandes, candidatures, paiements), déclarer la granularité, identifier les dimensions, puis les faits. Partir d’un processus plutôt que d’un rapport garde le modèle utile pour des questions que personne n’a encore posées.",
+        "La granularité est la décision la plus importante : ce que représente exactement une ligne de la table de faits. Choisissez la granularité la plus fine que la source peut fournir, une ligne par ligne de commande plutôt que par commande, car on peut toujours agréger mais jamais redécouper. Chaque dimension et chaque mesure doivent être vraies à cette granularité : une valeur qui appartient à toute la commande, comme les frais de port, placée dans une table par ligne de commande est comptée une fois par ligne, sauf si vous la répartissez ou la stockez dans une autre table de faits.",
+        "Les dimensions conformes sont partagées par plusieurs tables de faits avec les mêmes clés, attributs et valeurs : une seule dim_customer et une seule dim_date pour les commandes, les retours et les tickets de support. Elles rendent possible l’analyse entre processus : « taux de retour par segment client » ne fonctionne que si les deux faits utilisent la même dimension client. La matrice en bus est une simple grille avec les processus métier en lignes et les dimensions en colonnes ; une croix indique quel processus utilise quelle dimension, et elle devient le plan de l’équipe pour construire l’entrepôt un processus à la fois.",
+        "Les mesures ne s’additionnent pas toutes de la même façon. Les mesures additives (montant, quantité) se somment sur toutes les dimensions. Les semi-additives, comme un solde de compte ou un niveau de stock, se somment sur les comptes ou les produits mais pas dans le temps : prenez la dernière valeur ou la moyenne de la période. Les non additives, comme les ratios et les prix unitaires, doivent être recalculées à partir de leurs composants, jamais sommées."
+      ],
+      "points": [
+        "Quatre étapes : processus métier, granularité, dimensions, faits.",
+        "Choisissez la granularité la plus fine disponible ; les tables agrégées peuvent venir ensuite.",
+        "Dimension conforme : la même table et les mêmes clés utilisées par plusieurs faits.",
+        "Dimension dégénérée : un identifiant comme order_number gardé dans le fait, sans table de dimension.",
+        "Stockez le numérateur et le dénominateur, pas le ratio."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Bus matrix        | date | customer | product | store | promotion\n------------------+------+----------+---------+-------+----------\nOrders            |  x   |    x     |    x    |   x   |    x\nReturns           |  x   |    x     |    x    |   x   |\nInventory (daily) |  x   |          |    x    |   x   |\nSupport tickets   |  x   |    x     |    x    |       |\n\nGrain of fact_order_line: one row per product line of an order.",
+        "note": "Les colonnes cochées par plusieurs processus (date, client, produit, magasin) doivent être conformes."
+      }
+    },
+    {
+      "title": "Types de tables de faits : transaction, snapshot périodique et snapshot cumulatif",
+      "text": [
+        "Kimball décrit trois grands types de tables de faits, et choisir le mauvais rend pénibles des questions courantes. Une table de faits de transaction stocke une ligne par événement, au moment où il se produit : une ligne de commande, un paiement, un clic. C’est le type le plus détaillé et le plus souple, et il ne reçoit que des insertions.",
+        "Un snapshot périodique stocke l’état de quelque chose à intervalles réguliers : stock par produit et par jour, solde par compte et par mois, offres d’emploi ouvertes par entreprise et par semaine. Il y a une ligne par entité et par période même quand rien ne s’est passé, ce qui facilite les tendances et offre une place naturelle aux mesures semi-additives comme les soldes. Il est souvent construit à partir des faits de transaction ou d’une copie quotidienne d’une table opérationnelle.",
+        "Un snapshot cumulatif (accumulating snapshot) suit une instance de processus à travers ses jalons, avec une ligne par instance et une colonne de date par étape : candidature reçue, présélectionnée, entretien, embauche. La ligne est mise à jour à chaque jalon, et les durées entre étapes deviennent de simples colonnes. Il répond à « où les candidatures bloquent-elles ? » bien plus facilement qu’une pile d’événements de statut.",
+        "Une table de faits sans mesure (factless) a des clés mais aucune mesure : elle enregistre qu’un événement s’est produit (un étudiant a assisté à un cours) ou aurait pu se produire (produits en promotion), et l’on compte ses lignes. Les modèles réels combinent souvent les types : un fait de transaction des changements de statut, plus un snapshot cumulatif des candidatures construit à partir de lui."
+      ],
+      "points": [
+        "Transaction : une ligne par événement, insertions seulement, détail le plus fin.",
+        "Snapshot périodique : une ligne par entité et par période, régulier et dense.",
+        "Snapshot cumulatif : une ligne par instance de processus, mise à jour à chaque jalon.",
+        "Fait sans mesure : des clés seulement ; la mesure consiste à compter les lignes.",
+        "Ne sommez jamais un solde issu d’un snapshot sur plusieurs périodes."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "CREATE TABLE fact_application_pipeline (\n  application_key     BIGINT PRIMARY KEY,\n  candidate_key       BIGINT NOT NULL,\n  offer_key           BIGINT NOT NULL,\n  received_date_key   INT NOT NULL,\n  screened_date_key   INT,          -- NULL until the step happens\n  interview_date_key  INT,\n  hired_date_key      INT,\n  days_to_screen      INT,\n  days_to_hire        INT\n);\n\n-- where do applications get stuck?\nSELECT\n  COUNT(*) FILTER (WHERE screened_date_key IS NULL) AS waiting_screening,\n  COUNT(*) FILTER (WHERE screened_date_key IS NOT NULL\n                     AND interview_date_key IS NULL) AS waiting_interview,\n  AVG(days_to_screen) AS avg_days_to_screen\nFROM fact_application_pipeline;",
+        "note": "FILTER est une syntaxe PostgreSQL ; ailleurs, utilisez SUM(CASE WHEN ... THEN 1 ELSE 0 END)."
+      }
+    },
+    {
+      "title": "D’autres motifs de dimensions : SCD de type 3, rôles, junk et membre inconnu",
+      "text": [
+        "En plus des types 1 et 2, le type 3 garde un historique limité dans une colonne supplémentaire : region et previous_region, par exemple lors d’une réorganisation commerciale, pour que les rapports montrent côte à côte le nouveau et l’ancien territoire. Il ne conserve qu’une valeur précédente et reste rare, mais il répond simplement à « comparer selon les deux découpages ». Le type 0 ne change jamais (date de naissance, canal d’inscription d’origine), et des hybrides comme le type 6 ajoutent une colonne de valeur actuelle à un historique de type 2.",
+        "Une dimension à rôles multiples (role-playing) est une seule dimension physique utilisée plusieurs fois par un fait avec des sens différents : order_date_key, ship_date_key et delivery_date_key pointent toutes vers dim_date. Dans les outils BI, créez une vue ou un alias par rôle (Date de commande, Date d’expédition) pour que les utilisateurs sachent toujours sur quelle date ils filtrent.",
+        "Une dimension date mérite d’être construite dès le premier jour : une ligne par jour avec année, trimestre, nom du mois, semaine ISO, jour de la semaine, indicateur de jour férié et période fiscale, pour ne pas répéter la logique de dates dans chaque rapport. Une junk dimension regroupe de petits indicateurs à faible cardinalité (is_remote, is_urgent, payment_type) dans une table avec une ligne par combinaison, au lieu d’une douzaine de mini-dimensions ou de nombreux indicateurs dans le fait.",
+        "Les faits ne doivent jamais avoir de clés étrangères NULL : les jointures internes suppriment ces lignes et les totaux ne correspondent plus. Ajoutez un membre inconnu à chaque dimension, souvent avec la clé -1 et des libellés comme « Unknown », et faites pointer vers lui les faits dont la référence est manquante ou en retard. Quand la vraie ligne de dimension arrive, mettez à jour la clé du fait."
+      ],
+      "points": [
+        "Type 0 : ne change jamais ; type 1 : écrasement ; type 2 : nouvelle ligne ; type 3 : colonne de valeur précédente.",
+        "Rôles multiples : une seule dim_date, plusieurs clés de date dans le fait, un alias par rôle.",
+        "Junk dimension : une ligne par combinaison de petits indicateurs.",
+        "Membre inconnu (-1) au lieu de clés étrangères NULL.",
+        "Des clés de date comme 20261028 sont lisibles et se trient correctement."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- SCD type 3: keep the previous value in its own column\nALTER TABLE dim_store ADD COLUMN previous_region TEXT;\nUPDATE dim_store\nSET previous_region = region, region = 'North-East'\nWHERE region IN ('North', 'East');\n\n-- unknown member so facts never need a NULL key\nINSERT INTO dim_store (store_key, store_id, region)\nVALUES (-1, 'UNKNOWN', 'Unknown');\n\n-- role-playing date dimension\nSELECT od.month_name AS order_month, sd.month_name AS ship_month, COUNT(*) AS orders\nFROM fact_orders f\nJOIN dim_date od ON od.date_key = f.order_date_key\nJOIN dim_date sd ON sd.date_key = f.ship_date_key\nGROUP BY od.month_name, sd.month_name;",
+        "note": "Dans l’UPDATE, previous_region reçoit l’ancienne région avant que la nouvelle ne soit écrite."
+      }
+    },
+    {
+      "title": "Data Vault, One Big Table et conventions de modélisation",
+      "text": [
+        "Data Vault est un style de modélisation pour la couche d’intégration des grands entrepôts alimentés par de nombreuses sources. Les hubs contiennent les clés métier (une ligne par identifiant client), les links les relations entre hubs (le client a passé la commande) et les satellites les attributs descriptifs avec leur horodatage de chargement : chaque changement est conservé et une nouvelle source ajoute des satellites sans toucher aux tables existantes. Les chargements se font uniquement par insertion et sont auditables, mais le modèle est difficile à interroger : les équipes construisent encore des schémas en étoile par-dessus pour le reporting.",
+        "One Big Table (OBT) prend le chemin inverse : une seule table large et dénormalisée avec les faits et tous les attributs des dimensions déjà joints. Dans les entrepôts colonnes et les lakehouses (BigQuery, Snowflake, Databricks avec des tables Delta ou Iceberg), lire des colonnes en plus coûte peu par rapport aux jointures : une OBT peut donc être rapide et très simple pour les analystes et les outils BI. Les contreparties : la granularité doit rester claire, l’historique et les corrections imposent de reconstruire de grosses tables, et les attributs sont répétés sur de nombreuses lignes.",
+        "Une organisation lakehouse courante combine les deux : données brutes dans une couche bronze, entités nettoyées et conformes en silver (normalisées ou de style Data Vault), et schémas en étoile ou OBT par cas d’usage en gold. Choisissez par couche : l’intégration a besoin de souplesse et d’historique, la consommation de simplicité et de rapidité.",
+        "Quel que soit le style, des conventions rendent un modèle utilisable par d’autres. Préfixez les tables selon leur rôle (stg_, int_, dim_, fct_), nommez les clés de façon cohérente (customer_key pour les clés de substitution, customer_id pour les clés métier), utilisez le snake_case et une seule règle pour le singulier ou le pluriel, donnez des suffixes clairs aux dates et horodatages (_date, _at), et écrivez la granularité et le responsable de chaque table de faits dans sa description. Un modèle que personne ne comprend finit reconstruit à côté du vôtre."
+      ],
+      "points": [
+        "Hub = clé métier, link = relation, satellite = attributs dans le temps.",
+        "Data Vault convient aux nombreuses sources changeantes et aux besoins d’audit ; les étoiles servent toujours le reporting.",
+        "OBT : la plus simple à utiliser, mais lourde à reconstruire et pleine d’attributs répétés.",
+        "Couches médaillon : bronze brut, silver nettoyé et conforme, gold pour la consommation.",
+        "Documentez la granularité, les clés et le responsable de chaque table."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Data Vault: hub, link and satellite\nCREATE TABLE hub_customer (\n  customer_hk   CHAR(32) PRIMARY KEY,  -- hash of the business key\n  customer_id   TEXT NOT NULL,\n  load_ts       TIMESTAMP NOT NULL,\n  record_source TEXT NOT NULL\n);\nCREATE TABLE link_customer_order (\n  customer_order_hk CHAR(32) PRIMARY KEY,\n  customer_hk       CHAR(32) NOT NULL,\n  order_hk          CHAR(32) NOT NULL,\n  load_ts           TIMESTAMP NOT NULL,\n  record_source     TEXT NOT NULL\n);\nCREATE TABLE sat_customer_details (\n  customer_hk   CHAR(32) NOT NULL,\n  load_ts       TIMESTAMP NOT NULL,\n  hash_diff     CHAR(32) NOT NULL,     -- detects changed attributes\n  city          TEXT,\n  segment       TEXT,\n  PRIMARY KEY (customer_hk, load_ts)\n);\n\n-- One Big Table for reporting: facts with dimension attributes already joined\nCREATE TABLE obt_orders AS\nSELECT f.order_id, f.amount, d.full_date AS order_date, c.city, c.segment, p.category\nFROM fct_orders f\nJOIN dim_date d     ON d.date_key = f.order_date_key\nJOIN dim_customer c ON c.customer_key = f.customer_key\nJOIN dim_product p  ON p.product_key = f.product_key;",
+        "note": "Le vault garde chaque version pour l’audit ; l’OBT alimente les tableaux de bord."
+      }
     }
   ],
   "cheatsheet": [
@@ -148,13 +232,108 @@
           "Optimisé pour l’écriture vs optimisé pour la lecture"
         ]
       ]
+    },
+    {
+      "group": "Conception Kimball",
+      "items": [
+        [
+          "Granularité",
+          "Ce que représente une ligne de faits"
+        ],
+        [
+          "Dimension conforme",
+          "Partagée par plusieurs faits avec les mêmes clés"
+        ],
+        [
+          "Matrice en bus",
+          "Grille processus × dimensions"
+        ],
+        [
+          "Dimension dégénérée",
+          "Identifiant gardé dans le fait, sans table"
+        ],
+        [
+          "Mesure semi-additive",
+          "Sommable sur certaines dimensions, pas dans le temps"
+        ]
+      ]
+    },
+    {
+      "group": "Types de tables de faits",
+      "items": [
+        [
+          "Fait de transaction",
+          "Une ligne par événement"
+        ],
+        [
+          "Snapshot périodique",
+          "Une ligne par entité et par période"
+        ],
+        [
+          "Snapshot cumulatif",
+          "Une ligne par processus, mise à jour à chaque jalon"
+        ],
+        [
+          "Fait sans mesure (factless)",
+          "Des clés seulement, on compte les lignes"
+        ]
+      ]
+    },
+    {
+      "group": "Motifs de dimensions",
+      "items": [
+        [
+          "SCD type 0",
+          "Ne change jamais"
+        ],
+        [
+          "SCD type 3",
+          "Valeur précédente dans une colonne en plus"
+        ],
+        [
+          "Dimension à rôles multiples",
+          "Une dimension, plusieurs rôles (date de commande / d’expédition)"
+        ],
+        [
+          "Junk dimension",
+          "Combinaisons de petits indicateurs"
+        ],
+        [
+          "Membre inconnu (-1)",
+          "Remplace les clés étrangères NULL"
+        ]
+      ]
+    },
+    {
+      "group": "Autres approches",
+      "items": [
+        [
+          "Hub / link / satellite",
+          "Briques de base de Data Vault"
+        ],
+        [
+          "One Big Table",
+          "Table large dénormalisée pour la consommation"
+        ],
+        [
+          "Bronze / silver / gold",
+          "Couches d’un lakehouse"
+        ],
+        [
+          "stg_ / int_ / dim_ / fct_",
+          "Préfixes de tables courants"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Ne pas définir la granularité d’une table de faits, puis compter en double.",
     "Stocker des listes dans une seule colonne (« SQL, Python ») au lieu d’une table de liaison.",
     "Utiliser des noms ou des e-mails comme clés primaires.",
-    "Normaliser les dimensions en flocon partout, ce qui rend les modèles BI plus lents et plus difficiles à utiliser."
+    "Normaliser les dimensions en flocon partout, ce qui rend les modèles BI plus lents et plus difficiles à utiliser.",
+    "Mélanger des granularités dans une même table de faits (totaux de commande à côté des lignes de commande) : les sommes comptent en double.",
+    "Sommer des mesures semi-additives comme des soldes ou des niveaux de stock sur plusieurs jours.",
+    "Des clés étrangères NULL dans les faits au lieu d’un membre inconnu, ce qui supprime silencieusement des lignes lors des jointures."
   ],
   "exercises": [
     {
@@ -174,6 +353,25 @@
       "hint": "Jointure sur la clé de substitution pour l’historique ; nouvelle jointure sur la clé métier avec is_current pour la valeur actuelle.",
       "code": "sql",
       "answer": "SELECT d.city, SUM(f.amount) AS revenue\nFROM fact_orders f\nJOIN dim_customer d ON d.customer_key = f.customer_key\nGROUP BY d.city;\n\n-- current city instead:\nSELECT cur.city, SUM(f.amount) AS revenue\nFROM fact_orders f\nJOIN dim_customer d   ON d.customer_key = f.customer_key\nJOIN dim_customer cur ON cur.customer_id = d.customer_id AND cur.is_current\nGROUP BY cur.city;"
+    },
+    {
+      "q": "Une équipe e-commerce veut le chiffre d’affaires par produit et le coût moyen de livraison par commande. La source contient les commandes (avec shipping_cost) et les lignes de commande. Quelle(s) table(s) de faits et quelle(s) granularité(s) proposez-vous ?",
+      "hint": "Les frais de port appartiennent à la commande, pas à une ligne.",
+      "answer": "fact_order_line à la granularité « une ligne par ligne produit d’une commande », avec produit, quantité et montant, pour le chiffre d’affaires par produit. Les frais de port sont vrais à la granularité de la commande : soit une table fact_order (une ligne par commande), soit une règle de répartition sur les lignes, documentée. Recopier les frais de port de la commande sur chaque ligne les multiplierait par le nombre de lignes."
+    },
+    {
+      "q": "Quel type de table de faits convient à chaque besoin : (a) stock quotidien par entrepôt, (b) chaque paiement, (c) suivre les demandes de prêt de la demande au versement ?",
+      "answer": "(a) Snapshot périodique : une ligne par entrepôt et par produit et par jour. (b) Fait de transaction : une ligne par paiement. (c) Snapshot cumulatif : une ligne par demande avec une date par jalon (demandée, approuvée, signée, versée), mise à jour au fil de l’avancement."
+    },
+    {
+      "q": "fact_inventory_daily(date_key, product_key, qty_on_hand) stocke le stock par produit et par jour. Écrivez le stock de fin de mois par produit.",
+      "hint": "Le stock est semi-additif : ne sommez pas les jours, gardez le dernier jour du mois.",
+      "code": "sql",
+      "answer": "SELECT d.year_month, f.product_key, SUM(f.qty_on_hand) AS qty_month_end\nFROM fact_inventory_daily f\nJOIN dim_date d ON d.date_key = f.date_key\nWHERE d.is_month_end\nGROUP BY d.year_month, f.product_key;"
+    },
+    {
+      "q": "Un CRM envoie les clients et une boutique en ligne envoie les commandes. Esquissez un modèle Data Vault : quels hubs, links et satellites ?",
+      "answer": "Hubs : hub_customer (clé métier du client) et hub_order (numéro de commande). Link : link_customer_order entre les deux. Satellites : sat_customer_crm pour les attributs clients venant du CRM, sat_order_details pour les attributs de commande (statut, montant), chacun avec horodatage de chargement et source. Une deuxième source de clients ajoutera plus tard son propre satellite sur hub_customer."
     }
   ],
   "interview": [
@@ -192,6 +390,22 @@
     {
       "q": "Expliquez la différence entre SCD de type 1 et de type 2, et quand utiliser chacun.",
       "a": "Le type 1 écrase l’attribut et ne garde que la valeur actuelle : adapté aux corrections ou aux attributs que personne n’analyse dans le temps. Le type 2 garde chaque version dans une nouvelle ligne avec une clé de substitution et des dates de validité, pour que les faits restent liés à la valeur vraie à l’époque : nécessaire quand les rapports doivent refléter l’historique, comme les ventes par région où se trouvait le client à ce moment-là."
+    },
+    {
+      "q": "Qu’est-ce qu’une dimension conforme et pourquoi est-ce important ?",
+      "a": "Une dimension partagée par plusieurs tables de faits avec les mêmes clés, attributs et valeurs, comme une seule dim_customer utilisée par les commandes, les retours et les tickets de support. Elle permet de comparer et combiner les processus, par exemple le taux de retour par segment client, et garantit qu’un « segment » veut dire la même chose dans tous les rapports."
+    },
+    {
+      "q": "Expliquez les trois grands types de tables de faits avec un exemple pour chacun.",
+      "a": "Fait de transaction : une ligne par événement, comme chaque paiement. Snapshot périodique : l’état d’une entité à intervalles réguliers, comme le stock par produit et par jour, utile pour les soldes et les tendances. Snapshot cumulatif : une ligne par instance de processus mise à jour à chaque jalon, comme une candidature de la réception à l’embauche, utile pour les durées et les goulets d’étranglement."
+    },
+    {
+      "q": "Qu’est-ce que Data Vault et quand le choisiriez-vous plutôt qu’un schéma en étoile ?",
+      "a": "Un style de modélisation avec des hubs pour les clés métier, des links pour les relations et des satellites pour les attributs dans le temps, chargés uniquement par insertion avec dates de chargement et sources. Je l’utiliserais pour la couche d’intégration quand de nombreuses sources changent souvent et que l’auditabilité compte, tout en publiant des schémas en étoile par-dessus pour le reporting, car le vault lui-même est difficile à interroger."
+    },
+    {
+      "q": "One Big Table ou schéma en étoile dans un entrepôt moderne ?",
+      "a": "Cela dépend du consommateur. Une OBT est très simple pour les analystes et rapide dans les moteurs colonnes, mais elle duplique les attributs et est lourde à reconstruire quand l’historique ou une dimension change. Un schéma en étoile garde des dimensions réutilisables et un historique gérable. Une réponse courante est d’avoir les deux : des étoiles conformes au cœur, et des OBT générées à partir d’elles pour des tableaux de bord précis."
     }
   ]
 }

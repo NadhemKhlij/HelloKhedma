@@ -70,6 +70,86 @@
         "lang": "bash",
         "code": "aws s3 cp report.csv s3://acme-reports-dev/2026/10/\naws s3 presign s3://acme-reports-dev/2026/10/report.csv --expires-in 3600\naws logs tail /ecs/api --follow --since 10m"
       }
+    },
+    {
+      "title": "IAM en profondeur : types de politiques, évaluation et prise de rôle",
+      "text": [
+        "La plupart des incidents de sécurité sur AWS sont des erreurs IAM : il vaut donc la peine de savoir comment une requête est évaluée. Plusieurs types de politiques peuvent s’appliquer en même temps. Les politiques basées sur l’identité sont attachées à un utilisateur, un groupe ou un rôle. Les politiques basées sur les ressources sont attachées à une ressource, comme une bucket policy S3, une politique de file SQS ou une key policy KMS, et désignent un Principal. La politique d’approbation (trust policy) d’un rôle est une politique de ressource qui indique qui peut assumer le rôle. Les garde-fous limitent les permissions maximales sans rien accorder : les service control policies (SCP) d’AWS Organizations s’appliquent à des comptes entiers, les permission boundaries à un utilisateur ou un rôle.",
+        "La règle d’évaluation s’énonce simplement : tout est refusé au départ, un Allow explicite est nécessaire, et tout Deny explicite l’emporte sur tous les Allow. Si une SCP ou une boundary n’autorise pas une action, aucune politique d’identité ne peut l’accorder. Les conditions rendent les politiques précises : restriction par tag (aws:PrincipalTag), par région (aws:RequestedRegion), par réseau (aws:SourceIp, aws:SourceVpce) ou exigence de MFA (aws:MultiFactorAuthPresent).",
+        "Assumer un rôle est la façon dont les personnes et les workloads obtiennent des identifiants temporaires. Un pipeline, une fonction Lambda ou un ingénieur appelle sts:AssumeRole, AWS vérifie la trust policy et les permissions propres de l’appelant, puis renvoie des clés qui expirent, par défaut au bout d’une heure. L’accès entre comptes fonctionne de la même façon : le rôle du compte cible fait confiance au compte source, et l’identité source doit être autorisée à appeler sts:AssumeRole sur ce rôle. Pour atteindre le moindre privilège en pratique, partez des politiques gérées en lecture seule d’AWS, puis resserrez avec IAM Access Analyzer, qui signale les ressources partagées hors de votre compte et les permissions inutilisées, et avec les informations de dernier accès. Azure fait la même chose avec Entra ID et les attributions de rôles (RBAC), Google Cloud avec des rôles IAM liés à des principaux et des comptes de service."
+      ],
+      "points": [
+        "Deny explicite > Allow explicite > refus implicite.",
+        "Les SCP et les permission boundaries fixent un plafond ; elles n’accordent jamais de permissions.",
+        "Trust policy = qui peut assumer le rôle ; politique de permissions = ce que le rôle peut faire.",
+        "Préférez les rôles et les identifiants temporaires pour les personnes (IAM Identity Center) et les workloads.",
+        "CloudTrail montre les appels AssumeRole : qui est devenu quel rôle, et quand."
+      ],
+      "example": {
+        "lang": "json",
+        "code": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Principal\": { \"AWS\": \"arn:aws:iam::111122223333:root\" },\n    \"Action\": \"sts:AssumeRole\",\n    \"Condition\": {\n      \"Bool\": { \"aws:MultiFactorAuthPresent\": \"true\" }\n    }\n  }]\n}",
+        "note": "Trust policy d’un rôle d’audit : les identités du compte 111122223333 autorisées à appeler sts:AssumeRole peuvent l’assumer, uniquement avec MFA. Ensuite : aws sts assume-role --role-arn arn:aws:iam::444455556666:role/AuditReadOnly --role-session-name audit."
+      }
+    },
+    {
+      "title": "Le réseau VPC en profondeur : sous-réseaux, routes, NAT, pare-feu et endpoints",
+      "text": [
+        "Un VPC possède une plage d’adresses (un bloc CIDR comme 10.0.0.0/16) que vous découpez en sous-réseaux, chacun situé dans une zone de disponibilité. Ce qui rend un sous-réseau public ou privé, c’est uniquement sa table de routage. Un sous-réseau public a une route 0.0.0.0/0 vers une internet gateway, si bien que les ressources dotées d’une IP publique sont joignables. Un sous-réseau privé n’a pas cette route : ses serveurs ne peuvent atteindre internet qu’à travers une NAT gateway placée dans un sous-réseau public, qui autorise les connexions sortantes (mises à jour, API externes) mais aucune entrante. Prévoyez des plages larges et sans chevauchement avec vos autres réseaux, car les modifier ensuite est pénible.",
+        "Il existe deux pare-feu. Les security groups sont attachés aux interfaces réseau, ne contiennent que des règles d’autorisation, peuvent référencer d’autres security groups (autoriser 5432 depuis le groupe de l’application) et sont stateful : le trafic de retour est autorisé automatiquement. Les network ACL s’appliquent à tout un sous-réseau, sont stateless, contiennent des règles numérotées d’autorisation et de refus évaluées dans l’ordre, et exigent des règles explicites pour le trafic de retour sur les ports éphémères. Utilisez les security groups comme contrôle principal et les NACL pour des blocages grossiers au niveau du sous-réseau.",
+        "Les NAT gateways sont facturées à l’heure et au gigaoctet, et une seule constitue un point de défaillance unique : la production en utilise une par zone de disponibilité. Les VPC endpoints permettent aux ressources privées d’atteindre les services AWS sans passer par internet. Les gateway endpoints pour S3 et DynamoDB sont gratuits et s’ajoutent aux tables de routage ; les interface endpoints (PrivateLink) créent des IP privées pour d’autres services comme Secrets Manager ou ECR, et sont facturés. Pour relier des VPC, utilisez le peering pour quelques-uns (il n’est pas transitif) ou une Transit Gateway comme point central. Les VPC Flow Logs enregistrent les connexions acceptées et rejetées : c’est la première chose à regarder quand « le réseau bloque ». Sur Azure, les équivalents sont les VNet et les network security groups ; sur Google Cloud, un VPC est global et ses sous-réseaux sont régionaux."
+      ],
+      "points": [
+        "Public ou privé dépend de la table de routage, pas du nom du sous-réseau.",
+        "Security groups : stateful, autorisations seulement, par interface. NACL : stateless, autorisations et refus, par sous-réseau.",
+        "Une NAT gateway par zone de disponibilité en production, et surveillez ses frais de données.",
+        "Gateway endpoint S3 : privé, gratuit, et réduit le trafic NAT des traitements de données.",
+        "Flow logs et tests de joignabilité avant d’accuser l’application."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "VPC 10.0.0.0/16 (eu-west-3)\n  public-a   10.0.0.0/24   route 0.0.0.0/0 -> igw         (ALB, NAT gateway A)\n  public-b   10.0.1.0/24   route 0.0.0.0/0 -> igw         (ALB, NAT gateway B)\n  private-a  10.0.10.0/24  route 0.0.0.0/0 -> nat-gw A    (ECS tasks, RDS)\n  private-b  10.0.11.0/24  route 0.0.0.0/0 -> nat-gw B    (ECS tasks, RDS standby)\n  S3 gateway endpoint added to the private route tables\nsg-alb: 443 from 0.0.0.0/0 | sg-app: 8000 from sg-alb | sg-db: 5432 from sg-app",
+        "note": "AWS réserve 5 adresses dans chaque sous-réseau : un /24 donne donc 251 IP utilisables."
+      }
+    },
+    {
+      "title": "Services de données : RDS, classes de stockage S3, Glue et Athena",
+      "text": [
+        "RDS fait tourner PostgreSQL, MySQL, MariaDB, SQL Server ou Oracle pour vous : correctifs, sauvegardes automatiques avec restauration à un instant donné, et supervision. Deux fonctionnalités sont souvent confondues. Multi-AZ maintient une instance de secours synchrone dans une autre zone et bascule automatiquement : c’est une question de disponibilité. Les read replicas sont des copies asynchrones que l’on peut interroger : c’est une question de montée en charge en lecture et de reporting. Aurora est le moteur compatible d’AWS, avec un stockage répliqué entre zones. Avant la production, testez une restauration : une sauvegarde que personne n’a restaurée n’est qu’un espoir.",
+        "Les classes de stockage S3 arbitrent entre prix du stockage et coût d’accès. Standard sert aux données chaudes ; Standard-IA et One Zone-IA coûtent moins cher en stockage mais facturent chaque lecture et un minimum de 30 jours ; Glacier Instant Retrieval, Glacier Flexible Retrieval et Glacier Deep Archive servent aux archives, avec des durées minimales de 90 à 180 jours et des restaurations plus lentes pour les deux derniers. Intelligent-Tiering déplace les objets automatiquement quand les usages ne sont pas connus. Les règles de cycle de vie appliquent la politique pour vous : transition après N jours, expiration des anciennes données, nettoyage des anciennes versions et des uploads multipart incomplets.",
+        "Pour l’analytique sur des fichiers S3, le Glue Data Catalog stocke les définitions de tables (colonnes, formats, partitions), que les crawlers Glue peuvent déduire, et les jobs Glue exécutent de l’ETL Spark. Athena interroge ensuite les fichiers en SQL standard, sans serveur, et vous payez les données parcourues. L’organisation des fichiers devient donc une décision de coût : des fichiers Parquet en colonnes et des partitions par date peuvent faire passer une requête d’un téraoctet parcouru à quelques gigaoctets. Équivalents : Azure SQL Database et les niveaux d’accès Blob (hot, cool, cold, archive) ; sur Google Cloud, Cloud SQL, les classes de Cloud Storage et BigQuery."
+      ],
+      "points": [
+        "Multi-AZ = bascule ; read replica = montée en charge en lecture. Ils résolvent des problèmes différents.",
+        "Sauvegardes automatiques et restauration testée ; snapshots avant les changements risqués.",
+        "Choisissez la classe de stockage selon l’usage, en tenant compte des durées minimales et des frais de lecture.",
+        "Athena facture les données parcourues : Parquet, compression et partitions les réduisent.",
+        "Bloquez l’accès public et chiffrez les buckets et les bases par défaut."
+      ],
+      "example": {
+        "lang": "json",
+        "code": "{\n  \"Rules\": [{\n    \"ID\": \"raw-data-tiering\",\n    \"Filter\": { \"Prefix\": \"raw/\" },\n    \"Status\": \"Enabled\",\n    \"Transitions\": [\n      { \"Days\": 30, \"StorageClass\": \"STANDARD_IA\" },\n      { \"Days\": 180, \"StorageClass\": \"GLACIER\" }\n    ],\n    \"Expiration\": { \"Days\": 730 },\n    \"AbortIncompleteMultipartUpload\": { \"DaysAfterInitiation\": 7 }\n  }]\n}",
+        "note": "aws s3api put-bucket-lifecycle-configuration --bucket acme-data --lifecycle-configuration file://lifecycle.json. GLACIER est le nom d’API de Glacier Flexible Retrieval."
+      }
+    },
+    {
+      "title": "Serverless et événementiel : Lambda, API Gateway, SQS, SNS, EventBridge",
+      "text": [
+        "Lambda exécute votre code quand un événement arrive : une requête HTTP via API Gateway, un fichier déposé dans S3, un message dans une file, une planification. Vous choisissez la mémoire (le CPU augmente avec elle), un timeout de 15 minutes au maximum et un rôle d’exécution pour les permissions ; vous payez à la requête et à la durée. Attention aux démarrages à froid (cold starts) sur les premiers appels, aux limites de concurrence qui brident les pics, et aux connexions vers les bases relationnelles, qu’une rafale de fonctions peut épuiser (RDS Proxy aide). API Gateway expose les fonctions sous forme d’API ; les HTTP APIs sont plus simples et moins chères, les REST APIs offrent plus de fonctionnalités comme les usage plans.",
+        "L’architecture événementielle découple les producteurs des consommateurs. SQS est une file : un producteur dépose des messages, les consommateurs les traitent à leur rythme, et un message qui échoue trop souvent part dans une dead-letter queue (DLQ) au lieu de bloquer les autres. Les files standard livrent au moins une fois : les consommateurs doivent donc être idempotents ; les files FIFO conservent l’ordre. SNS fait du publish/subscribe : un message est diffusé à plusieurs abonnés, souvent plusieurs files SQS. EventBridge achemine les événements des services AWS, d’outils SaaS ou de vos applications grâce à des règles qui filtrent sur le contenu, et EventBridge Scheduler remplace les serveurs cron.",
+        "Exploitez ces systèmes avec CloudWatch : métriques Lambda Errors, Throttles et Duration, âge du plus ancien message d’une file (une valeur qui grandit signifie que les consommateurs prennent du retard), et une alarme dès qu’un message arrive dans une DLQ. Les logs vont dans un log group par fonction ; X-Ray trace une requête à travers les services. Sur Azure, les mêmes idées s’appellent Functions, Service Bus et Event Grid ; sur Google Cloud, Cloud Run functions, Pub/Sub et Eventarc."
+      ],
+      "points": [
+        "Lambda : traitements courts, sans état, déclenchés par des événements ; 15 minutes au maximum.",
+        "Une file entre les services absorbe les pics et survit aux pannes en aval.",
+        "Livraison au moins une fois = consommateurs idempotents.",
+        "Chaque file a sa DLQ, et chaque DLQ a son alarme.",
+        "SNS diffuse, SQS met en tampon, EventBridge route selon le contenu et planifie."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import json\n\ndef process(order):\n    ...  # must be idempotent: the same message can arrive twice\n\ndef handler(event, context):\n    failures = []\n    for record in event[\"Records\"]:\n        try:\n            process(json.loads(record[\"body\"]))\n        except Exception:\n            failures.append({\"itemIdentifier\": record[\"messageId\"]})\n    # only the failed messages go back to the queue\n    return {\"batchItemFailures\": failures}",
+        "note": "Lambda qui consomme une file SQS avec des réponses de lot partielles (ReportBatchItemFailures activé sur l’event source mapping)."
+      }
     }
   ],
   "cheatsheet": [
@@ -99,14 +179,67 @@
       ["EC2 ≈ Azure VM ≈ Compute Engine", "Machines virtuelles"],
       ["EKS ≈ AKS ≈ GKE", "Kubernetes managé"],
       ["Lambda ≈ Azure Functions ≈ Cloud Functions", "Fonctions serverless"]
-    ]}
+    ]},
+    {
+      "group": "IAM en profondeur",
+      "items": [
+        ["Identity-based policy", "Attachée à un utilisateur, un groupe ou un rôle"],
+        ["Resource-based policy", "Attachée à une ressource, désigne un Principal"],
+        ["Trust policy", "Qui peut assumer un rôle"],
+        ["SCP", "Garde-fou d’organisation : permissions maximales d’un compte"],
+        ["Permission boundary", "Permissions maximales d’un utilisateur ou d’un rôle"],
+        ["Explicit Deny", "L’emporte toujours sur Allow"],
+        ["aws sts assume-role", "Obtenir des identifiants temporaires pour un rôle"],
+        ["IAM Access Analyzer", "Trouver les partages externes et les accès inutilisés"]
+      ]
+    },
+    {
+      "group": "VPC en profondeur",
+      "items": [
+        ["Internet gateway", "Route vers internet pour les sous-réseaux publics"],
+        ["NAT gateway", "Internet en sortie seulement pour les sous-réseaux privés"],
+        ["Network ACL", "Pare-feu stateless de sous-réseau, règles d’autorisation et de refus"],
+        ["Gateway endpoint", "Accès privé et gratuit à S3 et DynamoDB"],
+        ["Interface endpoint (PrivateLink)", "IP privée pour un service AWS, facturée"],
+        ["VPC peering / Transit Gateway", "Relier deux VPC / point central pour plusieurs"],
+        ["VPC Flow Logs", "Enregistrer le trafic accepté et rejeté"]
+      ]
+    },
+    {
+      "group": "Données et événements",
+      "items": [
+        ["Multi-AZ vs read replica", "Bascule vs montée en charge en lecture"],
+        ["Standard-IA / Glacier", "Stockage moins cher pour les données peu lues"],
+        ["Lifecycle rule", "Transition ou expiration automatique des objets"],
+        ["Glue Data Catalog", "Définitions de tables pour les fichiers S3"],
+        ["Athena", "SQL serverless sur S3, facturé aux données parcourues"],
+        ["SQS + DLQ", "File avec une dead-letter queue pour les échecs"],
+        ["SNS", "Diffusion publish/subscribe"],
+        ["EventBridge", "Bus d’événements avec règles sur le contenu et planifications"],
+        ["API Gateway", "Point d’entrée HTTP pour Lambda et les services"]
+      ]
+    },
+    {
+      "group": "Exploiter et économiser",
+      "items": [
+        ["CloudWatch alarm", "Alerter quand une métrique franchit un seuil"],
+        ["CloudWatch Logs Insights", "Interroger les log groups"],
+        ["X-Ray", "Tracer une requête à travers les services"],
+        ["Cost allocation tags", "Répartir la facture par équipe ou projet"],
+        ["Compute Optimizer", "Recommandations de redimensionnement"],
+        ["Savings Plans", "Prix réduit contre un engagement d’usage"]
+      ]
+    }
   ],
   "pitfalls": [
     "Des clés d’accès commitées dans Git : utilisez des rôles et des identifiants temporaires.",
     "Des buckets S3 publics ou des bases de données ouvertes sur Internet.",
     "Tout dans une seule zone de disponibilité : une panne vous arrête.",
     "Des ressources oubliées qui tournent tout le mois : taguez-les et définissez une alerte de budget.",
-    "Utiliser le compte root pour le travail quotidien."
+    "Utiliser le compte root pour le travail quotidien.",
+    "Une seule NAT gateway pour toutes les zones : la panne d’une zone coupe l’accès sortant, et les frais de traitement de données grimpent sans bruit.",
+    "Utiliser Multi-AZ pour répartir les lectures, ou des read replicas comme sauvegarde : ils résolvent d’autres problèmes.",
+    "Des files sans dead-letter queue ni alarme : les messages empoisonnés sont rejoués sans fin et les échecs passent inaperçus."
   ],
   "exercises": [
     { "q": "Écrivez une policy IAM qui permet à un rôle de lire (uniquement) les objets sous le préfixe exports/ du bucket acme-data.", "hint": "s3:GetObject sur arn:aws:s3:::bucket/prefixe/*.", "code": "json",
@@ -114,11 +247,48 @@
     { "q": "Votre application web tourne sur une seule instance EC2, avec sa base de données sur la même machine. Proposez une architecture plus fiable.", "hint": "Zones, base managée, load balancer.",
       "answer": "Mettre l’application sur au moins deux instances ou conteneurs dans deux zones de disponibilité derrière un load balancer, avec auto scaling. Déplacer la base vers RDS en Multi-AZ avec sauvegardes automatiques dans des sous-réseaux privés. Restreindre les security groups (base joignable uniquement depuis l’application) et ajouter des alarmes CloudWatch sur les erreurs et la latence." },
     { "q": "La facture mensuelle a doublé. Où regardez-vous en premier ?", "hint": "Cost Explorer, tags, suspects habituels.",
-      "answer": "Ouvrir Cost Explorer groupé par service et par tag pour voir ce qui a augmenté et à qui cela appartient. Suspects habituels : instances oubliées ou surdimensionnées, volumes non attachés et vieux snapshots, NAT gateway et transfert de données, logs conservés indéfiniment. Corriger la cause puis ajouter une alerte de budget pour la détecter plus tôt la prochaine fois." }
+      "answer": "Ouvrir Cost Explorer groupé par service et par tag pour voir ce qui a augmenté et à qui cela appartient. Suspects habituels : instances oubliées ou surdimensionnées, volumes non attachés et vieux snapshots, NAT gateway et transfert de données, logs conservés indéfiniment. Corriger la cause puis ajouter une alerte de budget pour la détecter plus tôt la prochaine fois." },
+    {
+      "q": "Écrivez une bucket policy pour acme-data qui refuse toute requête n’utilisant pas HTTPS.",
+      "hint": "Deny explicite avec la condition aws:SecureTransport = false.",
+      "code": "json",
+      "answer": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Sid\": \"DenyInsecureTransport\",\n    \"Effect\": \"Deny\",\n    \"Principal\": \"*\",\n    \"Action\": \"s3:*\",\n    \"Resource\": [\n      \"arn:aws:s3:::acme-data\",\n      \"arn:aws:s3:::acme-data/*\"\n    ],\n    \"Condition\": {\n      \"Bool\": { \"aws:SecureTransport\": \"false\" }\n    }\n  }]\n}"
+    },
+    {
+      "q": "Une tâche ECS dans un sous-réseau privé ne parvient pas à télécharger des fichiers depuis S3, et la facture de la NAT gateway est élevée. Que vérifiez-vous et que changez-vous ?",
+      "hint": "Tables de routage, règles sortantes du security group, endpoints, IAM.",
+      "answer": "Vérifiez que le rôle de la tâche autorise s3:GetObject sur le bucket, que le security group autorise le HTTPS sortant et que la table de routage privée a une route vers la NAT gateway. Ajoutez ensuite un gateway endpoint S3 aux tables de routage privées : le trafic S3 reste à l’intérieur d’AWS, fonctionne sans la NAT et ne paie plus les frais de traitement de données de la NAT. Si une bucket policy restreint l’accès par aws:SourceVpce, vérifiez qu’elle cite bien cet endpoint."
+    },
+    {
+      "q": "Les requêtes Athena sur la table events parcourent 800 Go à chaque fois alors que les analystes ne regardent que les 7 derniers jours. Comment réduire le coût et la durée ?",
+      "hint": "Format des fichiers et partitions.",
+      "answer": "Réécrivez les données en Parquet compressé (en colonnes, donc seules les colonnes sélectionnées sont lues) et partitionnez-les par date, par exemple s3://bucket/events/dt=2026-10-30/. Déclarez les partitions dans le Glue Data Catalog (ou utilisez la partition projection) et assurez-vous que les requêtes filtrent sur dt. Une requête sur 7 jours et quelques colonnes ne parcourt alors qu’une petite fraction des données. Sélectionnez aussi uniquement les colonnes utiles au lieu de SELECT *."
+    },
+    {
+      "q": "Le site envoie les commandes à une fonction Lambda qui dépasse parfois son timeout quand le prestataire de paiement est lent, et des commandes sont perdues. Proposez une conception plus robuste.",
+      "hint": "Découpler avec une file.",
+      "answer": "Le site (ou API Gateway) écrit chaque commande dans une file SQS et répond immédiatement. Une fonction Lambda consomme la file par lots avec des réponses de lot partielles : une commande en échec est réessayée plus tard au lieu d’être perdue. Après quelques échecs, le message part dans une dead-letter queue surveillée par une alarme. Le consommateur est idempotent (identifiant de commande comme clé) car la livraison est au moins une fois, et des alarmes CloudWatch surveillent les erreurs et l’âge du plus ancien message."
+    }
   ],
   "interview": [
     { "q": "Expliquez le modèle de responsabilité partagée.", "a": "AWS est responsable de la sécurité du cloud : centres de données, matériel, réseau et plateformes des services managés. Le client est responsable de la sécurité dans le cloud : ses données, les droits IAM, les règles réseau, les choix de chiffrement et la configuration de ce qu’il déploie. Un bucket public est l’erreur du client, pas d’AWS." },
     { "q": "Comment donner à une application l’accès à S3 sans stocker de clés ?", "a": "En attachant un rôle IAM à l’application (un instance profile EC2, un rôle de tâche ECS, un rôle d’exécution Lambda ou OIDC pour un pipeline de CI). Le SDK récupère automatiquement des identifiants temporaires. Le rôle a une policy de moindre privilège limitée au bucket et aux actions nécessaires." },
-    { "q": "Comment rendriez-vous une application hautement disponible sur AWS ?", "a": "La faire tourner dans au moins deux zones de disponibilité derrière un load balancer avec contrôles de santé et auto scaling, utiliser une base managée avec bascule Multi-AZ et sauvegardes, garder l’état hors des instances (S3, base de données, cache), et superviser avec des alarmes. Pour la reprise après sinistre entre régions, répliquer les données et automatiser l’infrastructure avec du code." }
+    { "q": "Comment rendriez-vous une application hautement disponible sur AWS ?", "a": "La faire tourner dans au moins deux zones de disponibilité derrière un load balancer avec contrôles de santé et auto scaling, utiliser une base managée avec bascule Multi-AZ et sauvegardes, garder l’état hors des instances (S3, base de données, cache), et superviser avec des alarmes. Pour la reprise après sinistre entre régions, répliquer les données et automatiser l’infrastructure avec du code." },
+    {
+      "q": "Comment une requête IAM est-elle évaluée quand plusieurs politiques s’appliquent ?",
+      "a": "Par défaut, tout est refusé. AWS rassemble toutes les politiques applicables : SCP, permission boundaries, politiques d’identité et de ressource, politiques de session. Un Deny explicite n’importe où termine l’évaluation par un refus. Sinon, l’action a besoin d’un Allow, et elle doit aussi rester dans les garde-fous comme les SCP et les boundaries, qui limitent mais n’accordent jamais de permissions."
+    },
+    {
+      "q": "Quelle est la différence entre un security group et une network ACL ?",
+      "a": "Un security group est attaché à une interface réseau, n’a que des règles d’autorisation, peut référencer d’autres security groups et est stateful : le trafic de retour est autorisé automatiquement. Une network ACL s’applique à tout un sous-réseau, a des règles numérotées d’autorisation et de refus évaluées dans l’ordre et est stateless : le trafic de retour sur les ports éphémères doit être autorisé explicitement. Les security groups sont le contrôle principal ; les NACL ajoutent une couche grossière au niveau du sous-réseau."
+    },
+    {
+      "q": "Quand choisiriez-vous SQS, SNS ou EventBridge ?",
+      "a": "SQS quand un groupe de consommateurs doit traiter un travail de façon fiable à son rythme, avec des nouvelles tentatives et une dead-letter queue. SNS quand un message doit être poussé à plusieurs abonnés à la fois, souvent plusieurs files SQS pour faire du fan-out. EventBridge quand des événements de services AWS, de SaaS ou d’applications doivent être routés selon leur contenu vers différentes cibles, ou pour des planifications. On les combine souvent."
+    },
+    {
+      "q": "Comment maîtrisez-vous les coûts AWS dans une équipe ?",
+      "a": "Je rends le coût visible et attribué : tags obligatoires et cost allocation tags, budgets avec alertes par compte ou par équipe, et un suivi régulier dans Cost Explorer. Puis j’agis : arrêter ou planifier les ressources hors production, redimensionner avec Compute Optimizer, utiliser des règles de cycle de vie et les bonnes classes de stockage, ajouter des gateway endpoints S3 pour réduire les frais de NAT, et m’engager sur des Savings Plans pour l’usage stable."
+    }
   ]
 }

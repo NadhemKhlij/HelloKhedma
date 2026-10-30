@@ -71,6 +71,90 @@
         "code": "from datetime import datetime, timedelta\nfrom airflow.decorators import dag, task\n\n@dag(schedule=\"@daily\", start_date=datetime(2026, 1, 1), catchup=False,\n     default_args={\"retries\": 3, \"retry_delay\": timedelta(minutes=5)})\ndef sales_daily():\n    @task\n    def load(ds=None):\n        # idempotent: replace the partition of this run's date, never append blindly\n        run_sql(f\"DELETE FROM sales WHERE day = '{ds}'\")\n        run_sql(f\"INSERT INTO sales SELECT * FROM staging_sales WHERE day = '{ds}'\")\n    load()\n\nsales_daily()",
         "note": "Delete then insert for the run date: running the task twice gives the same table."
       }
+    },
+    {
+      "title": "Logical date, data intervals and catchup",
+      "text": [
+        "Every scheduled DAG run covers a data interval. With the classic Airflow 2 behaviour, the daily run with logical date 2026-10-01 covers 2026-10-01 00:00 to 2026-10-02 00:00 and starts just after that interval ends, on 2 October. This surprises everyone once: the run 'for' a day happens the day after, because only then is that day's data complete.",
+        "Inside tasks, use data_interval_start and data_interval_end (or ds, the logical date as YYYY-MM-DD) to select the rows of the run. Filtering on a half-open range, >= start and < end, never misses or double counts a row at midnight, and it keeps working if you later switch to hourly runs.",
+        "catchup decides what happens to the intervals between start_date and today that never ran. With catchup=True the scheduler creates one run per missing interval as soon as the DAG is switched on: useful for a planned history load, painful by accident. Airflow 3 defaults catchup to False, Airflow 2 to True (unless catchup_by_default was changed), so set it explicitly in every DAG.",
+        "Airflow 3 changes a few details. A plain cron schedule now uses CronTriggerTimetable by default: the run starts at the cron time and its data interval is a single point, so set [scheduler] create_cron_data_intervals = True or use CronDataIntervalTimetable when your tasks rely on intervals. Manual and asset-triggered runs can have no logical date, old context names such as execution_date, next_ds and prev_ds are removed, and backfills are created with airflow backfill create and run by the scheduler instead of the CLI process."
+      ],
+      "points": [
+        "data_interval_start / data_interval_end: the exact window a scheduled run should process.",
+        "Filter with >= start AND < end: no gap and no overlap between runs.",
+        "Set catchup explicitly: True for a planned history load, False otherwise.",
+        "Backfill in Airflow 2: airflow dags backfill -s D1 -e D2 <dag>; in Airflow 3: airflow backfill create --dag-id <dag> --from-date D1 --to-date D2.",
+        "Use a fixed, timezone-aware start_date (pendulum) so intervals are predictable."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import pendulum\nfrom airflow.decorators import dag, task\nfrom airflow.timetables.interval import CronDataIntervalTimetable\n\n# explicit data intervals: same behaviour in Airflow 2 and 3\n@dag(schedule=CronDataIntervalTimetable(\"0 0 * * *\", timezone=\"Europe/Paris\"),\n     start_date=pendulum.datetime(2026, 1, 1, tz=\"Europe/Paris\"),\n     catchup=False, max_active_runs=1)\ndef offers_by_interval():\n    @task\n    def load(data_interval_start=None, data_interval_end=None):\n        window = f\"loaded_at >= '{data_interval_start}' AND loaded_at < '{data_interval_end}'\"\n        run_sql(f\"DELETE FROM offers_daily WHERE {window}\")\n        run_sql(f\"INSERT INTO offers_daily SELECT * FROM raw_offers WHERE {window}\")\n    load()\n\noffers_by_interval()",
+        "note": "The same half-open window in the delete and the insert: re-runs are idempotent and runs never overlap. In Airflow 3, dag and task can also be imported from airflow.sdk."
+      }
+    },
+    {
+      "title": "TaskFlow, XCom limits and dynamic task mapping",
+      "text": [
+        "With the TaskFlow API, the return value of a @task function is pushed to XCom, and passing it to another task both creates the dependency and pulls the value. It reads like plain Python, but each task still runs separately, maybe on another machine: the value travels through Airflow's metadata database (or a configured XCom backend), serialised.",
+        "That is why XCom is for small things: a file path, a row count, a list of dates, a few ids. Pushing a DataFrame or a large list makes the metadata database grow, slows the UI and can fail on size or serialisation. Write the data to object storage or a table, return its location, and let the next task read it. If you really must move bigger objects, a custom XCom backend that stores values in object storage keeps only a reference in the database.",
+        "Dynamic task mapping (Airflow 2.3+) creates one task instance per element of a list that is only known at run time: one per file that arrived, per country, per customer. Call .expand() on the task with the list, and .partial() for the arguments that are the same for every copy. Each mapped instance has its own logs, retries and state, so you can clear only the one that failed.",
+        "Keep mapped lists bounded. Airflow caps a mapped task at max_map_length instances (1024 by default), and hundreds of tiny tasks cost more in scheduling than they save. Group work into batches when the list can be long, and set max_active_tis_per_dag on the task to protect a fragile API from too many parallel calls."
+      ],
+      "points": [
+        "@task(multiple_outputs=True) returning a dict pushes each key as its own XCom.",
+        "Return a path or an id, never the data itself.",
+        "task.partial(fixed=...).expand(varying=list) creates one instance per element.",
+        "The task after a mapped task receives the list of all mapped results.",
+        "In Airflow 3, import dag and task from airflow.sdk; task code can no longer query the metadata database directly."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import pendulum\nfrom airflow.decorators import dag, task\n\n@dag(schedule=\"@daily\", start_date=pendulum.datetime(2026, 1, 1, tz=\"UTC\"), catchup=False)\ndef offers_per_country():\n    @task\n    def list_files(ds=None):\n        # small value through XCom: paths, not data\n        return [f\"s3://raw/offers/{ds}/{c}.json\" for c in [\"fr\", \"be\", \"ch\"]]\n\n    @task(max_active_tis_per_dag=2)\n    def load(path: str, table: str):\n        print(f\"loading {path} into {table}\")\n        return path\n\n    @task\n    def report(paths):\n        print(f\"{len(list(paths))} files loaded\")\n\n    loaded = load.partial(table=\"raw_offers\").expand(path=list_files())\n    report(loaded)\n\noffers_per_country()",
+        "note": "Three load instances run (two at a time), each with its own logs and retries."
+      }
+    },
+    {
+      "title": "Sensors, deferrable operators and data-aware scheduling",
+      "text": [
+        "A sensor is a task that waits for a condition: a file in a bucket, a row in a table, a task in another DAG. In the default mode='poke' it holds a worker slot the whole time it waits, so ten sensors waiting all night can block real work. mode='reschedule' releases the slot between checks and suits long waits with a large poke_interval.",
+        "Deferrable operators go further. With deferrable=True, on the operators and sensors that support it, the task hands its wait to the triggerer, a separate Airflow process that watches many conditions at once with asyncio, and frees the worker completely until the event fires. A triggerer must be running (airflow triggerer); managed services and the official Docker Compose setup usually start one.",
+        "Always give sensors a timeout: the default is seven days, so a file that never arrives keeps a task waiting for a week. Decide what a missing input means: fail and alert, or soft_fail=True to mark the sensor skipped so the run ends quietly.",
+        "Often you do not need to wait at all. Data-aware scheduling triggers a DAG when another DAG has updated some data: the producer task declares outlets, and the consumer DAG uses that dataset as its schedule. It is called Dataset in Airflow 2.4+ and Asset in Airflow 3 (from airflow.sdk import Asset). It replaces many cross-DAG sensors and shows the dependency in the UI."
+      ],
+      "points": [
+        "poke_interval: seconds between checks; timeout: total seconds before giving up.",
+        "mode='reschedule' frees the worker between checks; deferrable=True frees it completely.",
+        "Deferrable tasks need the triggerer process to be running.",
+        "soft_fail=True marks the sensor skipped instead of failed when it times out.",
+        "Dataset (Airflow 2) / Asset (Airflow 3): schedule a DAG on data updates, not on a clock."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import pendulum\nfrom airflow.decorators import dag, task\nfrom airflow.datasets import Dataset  # Airflow 3: from airflow.sdk import Asset\nfrom airflow.providers.amazon.aws.sensors.s3 import S3KeySensor\n\noffers_curated = Dataset(\"s3://curated/offers/\")\n\n@dag(schedule=\"0 6 * * *\", start_date=pendulum.datetime(2026, 1, 1, tz=\"UTC\"), catchup=False)\ndef ingest_offers():\n    wait_file = S3KeySensor(\n        task_id=\"wait_file\",\n        bucket_name=\"raw\",\n        bucket_key=\"offers/{{ ds }}/_SUCCESS\",\n        aws_conn_id=\"aws_raw\",\n        deferrable=True,          # wait in the triggerer, not on a worker\n        poke_interval=300,\n        timeout=6 * 60 * 60,      # give up after 6 hours\n    )\n\n    @task(outlets=[offers_curated])\n    def load():\n        print(\"load offers\")\n\n    wait_file >> load()\n\ningest_offers()\n\n@dag(schedule=[offers_curated], start_date=pendulum.datetime(2026, 1, 1, tz=\"UTC\"), catchup=False)\ndef offers_reporting():\n    @task\n    def refresh():\n        print(\"refresh dashboards\")\n    refresh()\n\noffers_reporting()",
+        "note": "offers_reporting has no clock: it runs each time load succeeds and updates the dataset."
+      }
+    },
+    {
+      "title": "Connections, secrets and testing DAGs before production",
+      "text": [
+        "Credentials never belong in a DAG file. A connection stores host, login, password and extras under a conn_id, and tasks and hooks only know that id. Connections can live in the metadata database (UI or CLI), in environment variables named AIRFLOW_CONN_<ID>, or in a secrets backend such as HashiCorp Vault, AWS Secrets Manager or GCP Secret Manager, which Airflow checks first. Variables (AIRFLOW_VAR_<NAME> or the UI) hold small settings such as a bucket name or a list of countries.",
+        "Read variables inside tasks or templates ({{ var.value.bucket }}), not at the top of the file: top-level code runs at every parse, and each Variable.get there is a database or secrets-backend call. Airflow masks in logs the passwords of connections and the values of variables whose name contains words like password, secret or api_key, but printing a secret stored under another name will leak it.",
+        "Test DAGs like code. A DAG integrity test loads every file with DagBag and fails on import errors or cycles, plus any rule you add (tags, retries, owner); it catches most broken deployments in CI in seconds. dag.test() and airflow dags test run a whole DAG in one process for a given date, which is ideal for debugging with breakpoints. Keep business logic in plain Python functions so you can unit-test it without Airflow at all.",
+        "Production failures repeat: a slow DAG file that times out while being parsed, a naive start_date that runs at an unexpected hour, tasks stuck in queued because a pool or max_active_tasks is full, a worker killed for lack of memory that leaves a task failed with almost no log, an expired credential. Read the task log, then the scheduler and worker logs, before changing code."
+      ],
+      "points": [
+        "AIRFLOW_CONN_WAREHOUSE='postgresql://user:pass@host:5432/db' defines a connection from the environment.",
+        "Look-up order: secrets backend, then environment variables, then the metadata database.",
+        "Read variables in templates or task code, never with a top-level Variable.get.",
+        "DagBag(include_examples=False).import_errors == {} is the first test to run in CI.",
+        "airflow dags list-import-errors shows the files that failed to parse."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# tests/test_dag_integrity.py  (run with pytest in CI)\nfrom airflow.models import DagBag\n\ndef test_dags_load_without_errors():\n    dag_bag = DagBag(dag_folder=\"dags/\", include_examples=False)\n    assert dag_bag.import_errors == {}\n\ndef test_every_dag_has_retries_and_tags():\n    dag_bag = DagBag(dag_folder=\"dags/\", include_examples=False)\n    for dag_id, dag in dag_bag.dags.items():\n        assert dag.default_args.get(\"retries\", 0) >= 1, dag_id\n        assert dag.tags, f\"{dag_id} has no tags\"",
+        "note": "Run it in an environment with the same Airflow version and providers as production."
+      }
     }
   ],
   "cheatsheet": [
@@ -144,13 +228,96 @@
           "Re-run a date range"
         ]
       ]
+    },
+    {
+      "group": "Intervals and Airflow 3",
+      "items": [
+        [
+          "{{ data_interval_start }} / {{ data_interval_end }}",
+          "Window of a scheduled run"
+        ],
+        [
+          "airflow backfill create --dag-id <dag> --from-date D1 --to-date D2",
+          "Backfill in Airflow 3"
+        ],
+        [
+          "CronDataIntervalTimetable(\"0 0 * * *\", timezone=\"UTC\")",
+          "Cron schedule with real data intervals"
+        ],
+        [
+          "from airflow.sdk import dag, task",
+          "Airflow 3 imports"
+        ]
+      ]
+    },
+    {
+      "group": "Data passing and mapping",
+      "items": [
+        [
+          "@task(multiple_outputs=True)",
+          "One XCom per dict key"
+        ],
+        [
+          "t.partial(x=1).expand(y=[...])",
+          "One task instance per element"
+        ],
+        [
+          "max_active_tis_per_dag=2",
+          "Limit parallel copies of a task"
+        ]
+      ]
+    },
+    {
+      "group": "Sensors and data-aware scheduling",
+      "items": [
+        [
+          "mode=\"reschedule\"",
+          "Free the worker between pokes"
+        ],
+        [
+          "deferrable=True",
+          "Wait in the triggerer"
+        ],
+        [
+          "timeout=3600, soft_fail=True",
+          "Give up after 1 h and skip"
+        ],
+        [
+          "schedule=[Dataset(\"s3://...\")]",
+          "Run when data is updated (Asset in Airflow 3)"
+        ]
+      ]
+    },
+    {
+      "group": "Configuration and tests",
+      "items": [
+        [
+          "AIRFLOW_CONN_<ID>",
+          "Connection from an environment variable"
+        ],
+        [
+          "{{ var.value.name }}",
+          "Variable in a template"
+        ],
+        [
+          "DagBag().import_errors",
+          "DAG integrity test"
+        ],
+        [
+          "airflow dags list-import-errors",
+          "Files that failed to parse"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Heavy code at the top level of the DAG file (API calls, queries): it runs every time the scheduler parses the file.",
     "Using datetime.now() inside tasks instead of the logical date, which breaks re-runs.",
     "Passing DataFrames through XCom.",
-    "Dynamic start_date (datetime.now()) that makes the DAG never run."
+    "Dynamic start_date (datetime.now()) that makes the DAG never run.",
+    "Reading Variables or connections at the top level of a DAG file: one database or secrets call at every parse.",
+    "Sensors in poke mode with the default seven-day timeout, quietly holding worker slots.",
+    "Assuming a cron schedule gives the same data interval after upgrading to Airflow 3: check the timetable."
   ],
   "exercises": [
     {
@@ -172,6 +339,28 @@
       "hint": "airflow dags backfill with start and end dates.",
       "code": "bash",
       "answer": "airflow dags backfill sales_daily \\\n  --start-date 2026-03-01 --end-date 2026-03-07"
+    },
+    {
+      "q": "A daily DAG with classic Airflow 2 intervals has a run with logical date 2026-10-14. When does it start, and which time window should it load?",
+      "answer": "It starts just after 2026-10-15 00:00, when its interval ends. It should load from data_interval_start (2026-10-14 00:00) included to data_interval_end (2026-10-15 00:00) excluded: filter with >= start and < end."
+    },
+    {
+      "q": "Use dynamic task mapping to run process(path, table) once per path returned by list_paths(), with the same table 'staging' for every copy.",
+      "hint": "partial() for the fixed argument, expand() for the list.",
+      "code": "python",
+      "answer": "process.partial(table=\"staging\").expand(path=list_paths())"
+    },
+    {
+      "q": "A sensor waits up to 12 hours every night for a partner file and blocks a worker slot. Rewrite it so it does not occupy a worker and skips the run if the file never arrives.",
+      "hint": "deferrable, timeout and soft_fail.",
+      "code": "python",
+      "answer": "S3KeySensor(\n    task_id=\"wait_partner_file\",\n    bucket_name=\"partner\",\n    bucket_key=\"exports/{{ ds }}/data.csv\",\n    deferrable=True,\n    poke_interval=600,\n    timeout=12 * 60 * 60,\n    soft_fail=True,\n)"
+    },
+    {
+      "q": "With Airflow 3, write the command that re-runs only the failed runs of sales_daily between 1 and 7 March 2026.",
+      "hint": "airflow backfill create with a reprocess behaviour.",
+      "code": "bash",
+      "answer": "airflow backfill create --dag-id sales_daily \\\n  --from-date 2026-03-01 --to-date 2026-03-07 \\\n  --reprocess-behavior failed"
     }
   ],
   "interview": [
@@ -190,6 +379,22 @@
     {
       "q": "What does idempotent mean for a data pipeline task, and how do you achieve it?",
       "a": "Running the task several times for the same input period gives the same result, with no duplicates. I achieve it by processing a well-defined partition (the run's logical date), overwriting or merging that partition instead of appending, using upserts with keys, and avoiding side effects based on the current time."
+    },
+    {
+      "q": "What are data_interval_start and data_interval_end, and why does a daily run start the day after its date?",
+      "a": "They bound the period of data a scheduled run must process. With interval-based schedules, the run for 14 October covers 14 October 00:00 to 15 October 00:00 and starts once that period is over, because only then is the data complete. In Airflow 3, plain cron schedules run at the cron time by default, so I check the timetable and use explicit intervals when tasks depend on them."
+    },
+    {
+      "q": "Sensor in poke mode, reschedule mode or deferrable: what is the difference?",
+      "a": "Poke keeps a worker slot for the whole wait. Reschedule frees the slot between checks and re-schedules the sensor, good for long waits. Deferrable hands the wait to the triggerer process, which watches many conditions asynchronously, so no worker is used until the event happens. In every case I set a timeout and decide between failing and soft_fail."
+    },
+    {
+      "q": "How would you pass a 2 GB result from one task to the next?",
+      "a": "Not through XCom, which lives in the metadata database and is meant for small values. The first task writes the result to object storage or a warehouse table, partitioned by the run's date, and returns the path or table name; the next task reads from there. For many inputs I would use dynamic task mapping over the list of paths."
+    },
+    {
+      "q": "How do you test Airflow DAGs before they reach production?",
+      "a": "A DAG integrity test in CI that loads every file with DagBag and fails on import errors, plus team rules such as retries and tags. Unit tests on the business logic kept in plain Python functions. Then airflow dags test or dag.test() for a real date in a development environment with the same Airflow version, connections pointing to test resources."
     }
   ]
 }

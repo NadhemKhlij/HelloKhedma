@@ -63,6 +63,86 @@
         "code": "ID    Requirement                     Priority  Source          Story    Test case   Status\nR-12  Export the claims list to CSV   Must      Claims manager  CL-88    TC-201/202  Done\nR-13  Filter claims by status         Should    Workshop 03/10  CL-91    TC-210      In UAT\nR-14  Email a weekly summary          Could     Director        -        -           Backlog\nR-15  Mobile app                      Won't     -               -        -           Out of scope (v2)",
         "note": "Une ligne par exigence : d’où elle vient, comment elle est construite et comment elle est testée."
       }
+    },
+    {
+      "title": "Techniques d’élicitation et animation d’atelier",
+      "text": [
+        "Aucune technique ne trouve à elle seule toutes les exigences. Les entretiens apportent de la profondeur et la vision politique, mais les gens décrivent ce qu’ils pensent faire. L’observation (immersion, job shadowing) montre le travail réel : les contournements, le fichier Excel tenu à côté, les post-it collés sur l’écran. L’analyse documentaire (procédures, rapports existants, écrans, tickets, réglementation) vous donne les règles et le vocabulaire avant de rencontrer qui que ce soit, ce qui vous permet de poser de meilleures questions. Les questionnaires touchent beaucoup d’utilisateurs mais confirment surtout des hypothèses que vous avez déjà. Combinez-les : lire d’abord, interroger, observer, puis converger en atelier.",
+        "Un bon entretien se prépare : un objectif, huit à dix questions ouvertes, et des demandes portant sur le dernier cas réel plutôt que sur la règle générale (« montrez-moi le dernier sinistre que vous avez refusé »). Laissez un silence après une question ; le détail utile arrive souvent en second. Terminez par « à qui d’autre devrais-je parler ? » et « que ne vous ai-je pas demandé ? ». Envoyez un court compte rendu écrit dans la journée : les corrections qu’on y apporte valent souvent plus que l’entretien lui-même.",
+        "Un atelier réunit plusieurs parties prenantes pour décider ou converger, ce qu’une série d’entretiens ne permet pas. Il lui faut un objectif précis (« s’accorder sur les règles de validation des sinistres »), les bonnes cinq à huit personnes dont quelqu’un qui peut décider, un ordre du jour minuté, un animateur qui n’est pas aussi le principal contributeur, et un support visible sur lequel tout le monde travaille : un processus au mur, une liste de règles, un prototype. Tenez un « parking » pour les sujets hors périmètre, afin de les noter sans faire dérailler la séance. Concluez par les décisions prises, les questions ouvertes avec un responsable et une date, et les prochaines étapes."
+      ],
+      "points": [
+        "Lisez les documents avant la première réunion : vous arrivez avec le vocabulaire et des questions précises.",
+        "Demandez « montrez-moi » aussi souvent que « expliquez-moi » : l’observation révèle les contournements dont personne ne parle.",
+        "Séparez les rôles d’animateur et de preneur de notes chaque fois que possible.",
+        "Écrivez les décisions et les questions ouvertes sur un écran partagé pendant l’atelier, pas après.",
+        "Les prototypes et les exemples réels suscitent des retours plus précis que les questions abstraites."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# Workshop: claim approval rules (2h, on site)\nObjective: agree on who approves a claim and above which amount\nParticipants: claims manager (decides), 2 handlers, finance controller, IT lead, BA (facilitator), PO (notes)\nPre-read: current procedure v3, 10 real claims from last month\n\n| Time | Topic                                 | Output                     |\n|------|---------------------------------------|----------------------------|\n| 0:00 | Goal, scope, rules of the session     | Shared objective           |\n| 0:10 | Walk through 3 real claims            | Steps and exceptions noted |\n| 0:50 | Draft approval rules on the board     | Rule list v1               |\n| 1:30 | Check the rules against the 10 claims | Rules confirmed or changed |\n| 1:50 | Decisions, open questions, next steps | Owners and dates           |\n\nParking lot: notification emails, archive period",
+        "note": "Des cas réels en lecture préalable et comme matériau de test gardent la discussion concrète."
+      }
+    },
+    {
+      "title": "Critères d’acceptation testables et exigences non fonctionnelles",
+      "text": [
+        "Un critère est testable quand deux personnes qui l’exécutent seraient d’accord sur le résultat, réussi ou échoué. « Facile à utiliser », « rapide » et « sécurisé » ne sont pas testables ; « la recherche renvoie des résultats en moins de 2 secondes pour 95 % des requêtes » l’est. Rédigez les critères à partir du comportement observable par l’utilisateur plutôt que de l’implémentation, et utilisez des données concrètes. Gherkin fournit la structure : Given (le contexte), When (une action), Then (le résultat observable). Un Scenario Outline avec un tableau Examples couvre une règle métier à plusieurs valeurs sans recopier le scénario.",
+        "Les règles métier ont besoin de bornes explicites. Si la livraison est gratuite « au-dessus de 100 euros », 100 tout rond est-il inclus ? Les valeurs limites concentrent beaucoup d’anomalies : mettez-les dans les exemples. Gardez un seul comportement par scénario et évitez les étapes du type « cliquer sur le bouton bleu », sauf si c’est l’interface elle-même que vous spécifiez : elles cassent à chaque refonte et masquent la règle.",
+        "Les exigences non fonctionnelles (ENF, ou NFR en anglais) décrivent la qualité du fonctionnement : performance, disponibilité, sécurité, accessibilité, ergonomie, conformité (RGPD, durées de conservation), montée en charge, maintenabilité. On les oublie souvent parce que personne ne les demande avant que la production ne tombe. Rendez chacune mesurable avec un indicateur, une cible et un contexte, et décidez où elle vit : dans la Definition of Done quand elle s’applique à toutes les stories (contrôles d’accessibilité, revue de sécurité), ou en critères d’acceptation de la story concernée."
+      ],
+      "points": [
+        "Testable signifie observable, mesurable, avec des données concrètes et un résultat clair, réussi ou échoué.",
+        "Utilisez Scenario Outline et Examples pour les règles à plusieurs valeurs, bornes comprises.",
+        "Posez les questions non fonctionnelles dès la découverte : combien d’utilisateurs, quelle rapidité, conservé combien de temps, qui voit quoi.",
+        "« Hautement disponible » est un souhait ; « 99,5 % par mois aux heures ouvrées » est une exigence.",
+        "Relisez les exigences non fonctionnelles avec le tech lead ou l’architecte : certaines coûtent cher et changent la conception."
+      ],
+      "example": {
+        "lang": "gherkin",
+        "code": "Feature: Shipping fee\n\n  Scenario Outline: Free shipping from 100 euros\n    Given a basket total of <total> euros\n    When I go to checkout\n    Then the shipping fee is <fee> euros\n\n    Examples:\n      | total  | fee  |\n      | 99.99  | 4.90 |\n      | 100.00 | 0.00 |\n      | 150.00 | 0.00 |",
+        "note": "La borne (exactement 100) est écrite : personne n’a à deviner si elle est incluse."
+      }
+    },
+    {
+      "title": "Prioriser au-delà de MoSCoW : coût du retard, WSJF et Kano",
+      "text": [
+        "MoSCoW définit le périmètre d’une release, mais il dit peu de chose sur l’ordre au sein des Must, et les parties prenantes ont tendance à tout classer en Must. La matrice valeur / effort est une étape rapide : placez les éléments sur une grille à quatre cases ; ceux à forte valeur et faible effort (quick wins) passent en premier, ceux à faible valeur et fort effort sont remis en question. Les notes sont des estimations relatives : fixez-les ensemble plutôt que de laisser chaque demandeur noter sa propre demande.",
+        "Le coût du retard (cost of delay) mesure ce que l’on perd pour chaque semaine où un élément n’est pas livré : du chiffre d’affaires, une pénalité réglementaire, une fenêtre de marché manquée, un risque qui grandit. Le WSJF (Weighted Shortest Job First), popularisé par SAFe, divise le coût du retard par la taille du travail. Le coût du retard est la somme de trois notes relatives : valeur métier, criticité temporelle, et réduction de risque ou ouverture d’opportunité, en général sur une échelle de type Fibonacci (1, 2, 3, 5, 8, 13, 20). Le WSJF le plus élevé passe en premier : les petits éléments à fort coût du retard remontent en tête.",
+        "Le modèle de Kano classe les fonctionnalités selon leur effet sur la satisfaction. Les besoins de base provoquent la colère quand ils manquent mais aucun enthousiasme quand ils sont là : la connexion fonctionne, la facture est juste. Les besoins de performance augmentent la satisfaction proportionnellement : recherche plus rapide, davantage de filtres. Les facteurs d’enchantement surprennent et plaisent sans être attendus, et avec le temps ils deviennent des besoins de base. Kano rappelle de sécuriser d’abord les bases, puis de se différencier sur la performance, en gardant de la place pour quelques facteurs d’enchantement. Quelle que soit la méthode, le résultat est une liste ordonnée avec sa justification, partagée avec le sponsor."
+      ],
+      "points": [
+        "Notez chaque élément par rapport aux autres, pas dans l’absolu.",
+        "Le WSJF favorise les petits éléments urgents ; découpez les gros éléments pour que leur valeur ne soit pas noyée dans une grande taille.",
+        "Une échéance réglementaire a une forte criticité temporelle : la manquer a un coût fixe et connu.",
+        "Un questionnaire Kano pose deux questions par fonctionnalité : que ressentiriez-vous si elle est présente, et si elle est absente ?",
+        "Notez la décision et ses raisons à côté du classement pour qu’il ne soit pas renégocié chaque semaine."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Item                          Value  Time crit.  Risk/Opp.  CoD  Size  WSJF\nGDPR data export (deadline)     5       13          8       26    5    5.2\nClaim status in client app      8        3          3       14    3    4.7\nBulk upload of claims           5        5          5       15    8    1.9\nNew dashboard for directors    13        2          1       16   13    1.2\n\nOrder: GDPR export, client status, bulk upload, dashboard",
+        "note": "CoD = valeur + criticité temporelle + risque/opportunité ; WSJF = CoD / taille. Le gros tableau de bord recule malgré sa forte valeur."
+      }
+    },
+    {
+      "title": "Exigences de données et documentation qui reste utile",
+      "text": [
+        "Beaucoup de projets portent en réalité sur des données : un rapport, une interface, une migration, un tableau de bord. « Afficher les clients » n’est pas une exigence tant que vous ne savez pas quels clients, quels champs, depuis quelle source, avec quelle fraîcheur et selon quelles règles. Un dictionnaire de données liste chaque donnée métier avec sa définition, son type et son format, ses valeurs autorisées, son système source, son propriétaire, son caractère obligatoire et sa sensibilité (données personnelles). Il met fin aux débats où « client actif » signifie trois choses différentes dans trois services.",
+        "Une spécification de rapport décrit l’objectif et le public, les questions auxquelles le rapport répond, chaque indicateur avec sa règle de calcul exacte, les axes d’analyse et les filtres, le niveau de détail, la fréquence de rafraîchissement, les sources, qui voit quoi, et une maquette. Pour chaque indicateur, rédigez un exemple chiffré avec des données réelles que le métier valide : il devient le cas de test. Posez la question de l’historique (« modifie-t-on les chiffres du mois dernier quand un sinistre est rouvert ? ») et des données manquantes ou en retard.",
+        "La documentation n’aide que si on la trouve et qu’on lui fait confiance. Dans Confluence, gardez une page par sujet avec un responsable et un statut (brouillon, validé), un journal des décisions, et des liens vers les epics Jira plutôt que du texte recopié. Dans Jira, utilisez la hiérarchie (epic, story, sous-tâche) de façon cohérente, un besoin par story, les critères d’acceptation dans le ticket lui-même, des labels et composants convenus avec l’équipe, et fermez ce qui est obsolète. Un backlog de 600 tickets que personne ne lit n’est pas une source de vérité."
+      ],
+      "points": [
+        "Définissez chaque terme métier une seule fois dans le glossaire ou le dictionnaire de données, et faites-y référence.",
+        "Chaque indicateur a une formule, un exemple chiffré et un responsable qui le valide.",
+        "Signalez tôt les données personnelles et sensibles : elles conditionnent les droits d’accès et la conservation RGPD.",
+        "Liez les pages Confluence et les tickets Jira plutôt que de dupliquer le contenu.",
+        "Archivez les pages et fermez les tickets périmés : un document obsolète est pire que pas de document."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "| Field           | Definition                                 | Type / format     | Allowed values                  | Source    | Mandatory | Sensitive  |\n|-----------------|--------------------------------------------|-------------------|---------------------------------|-----------|-----------|------------|\n| claim_id        | Unique claim reference                     | Text, CL-000000   | -                               | ClaimsApp | Yes       | No         |\n| claim_status    | Current step of the claim                  | Code              | OPEN, IN_REVIEW, PAID, REJECTED | ClaimsApp | Yes       | No         |\n| claim_amount    | Amount claimed, VAT included               | Decimal(10,2) EUR | >= 0                            | ClaimsApp | Yes       | No         |\n| customer_email  | Contact email of the policyholder          | Text, email       | -                               | CRM       | No        | Yes (GDPR) |\n| active_customer | Has at least one policy in force today     | Boolean           | true / false                    | Derived   | Yes       | No         |",
+        "note": "Extrait d’un dictionnaire de données : une ligne par champ métier, validée avec les propriétaires des données."
+      }
     }
   ],
   "cheatsheet": [
@@ -128,13 +208,66 @@
           "Exigence ↔ story ↔ cas de test"
         ]
       ]
+    },
+    {
+      "group": "Élicitation et ENF",
+      "items": [
+        [
+          "Observation / immersion",
+          "Voir le travail réel, repérer les contournements"
+        ],
+        [
+          "Analyse documentaire",
+          "Règles et vocabulaire tirés de l’existant"
+        ],
+        [
+          "Parking d’atelier",
+          "Sujets hors périmètre notés pour plus tard"
+        ],
+        [
+          "Scenario Outline + Examples",
+          "Un scénario Gherkin, plusieurs lignes de données"
+        ],
+        [
+          "Exigence non fonctionnelle",
+          "Qualité : performance, sécurité, disponibilité, conformité"
+        ]
+      ]
+    },
+    {
+      "group": "Priorisation et données",
+      "items": [
+        [
+          "Coût du retard",
+          "Ce que l’on perd par semaine d’attente"
+        ],
+        [
+          "WSJF",
+          "Coût du retard / taille du travail"
+        ],
+        [
+          "Kano",
+          "Besoins de base, de performance, facteurs d’enchantement"
+        ],
+        [
+          "Dictionnaire de données",
+          "Définition, format, source, propriétaire par champ"
+        ],
+        [
+          "Spécification de rapport",
+          "Indicateurs avec règles, filtres, rafraîchissement, accès"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Rédiger la solution demandée par la partie prenante sans comprendre le problème.",
     "Des stories sans critères d’acceptation, ou avec des critères impossibles à tester (« la page est rapide »).",
     "Oublier les cas limites et les cas d’erreur.",
-    "Lancer la recette sans critères de sortie convenus."
+    "Lancer la recette sans critères de sortie convenus.",
+    "Animer un atelier sans objectif clair ou sans décideur dans la salle : beaucoup de discussion, aucune décision.",
+    "Découvrir les exigences non fonctionnelles à la mise en production (« il faut tenir 5 000 utilisateurs ») parce que personne ne les a demandées pendant la découverte.",
+    "Des indicateurs de rapport sans règle de calcul écrite, si bien que chaque équipe calcule « client actif » à sa façon."
   ],
   "exercises": [
     {
@@ -154,6 +287,23 @@
       "q": "Deux jours avant la recette (UAT), un directeur demande d’ajouter une nouvelle étape de validation au processus. Que faites-vous ?",
       "hint": "Impact, décision, mise à jour.",
       "answer": "Le remercier et noter précisément la demande, puis évaluer l’impact avec l’équipe : processus et écrans à modifier, règles, tests, formation, et l’effet sur la date de recette. Présenter les options au sponsor : l’intégrer et décaler la date, la livrer dans la version suivante, ou l’échanger contre un élément moins prioritaire. Une fois la décision prise, mettre à jour le backlog, la matrice de traçabilité et le plan de test, et prévenir toutes les personnes concernées."
+    },
+    {
+      "q": "Vous rejoignez un projet de remplacement de l’outil utilisé par 40 gestionnaires de sinistres. Quelles techniques d’élicitation utilisez-vous, et dans quel ordre ?",
+      "hint": "Lire, interroger, observer, converger.",
+      "answer": "D’abord l’analyse documentaire : la procédure actuelle, les écrans, les rapports, un échantillon de sinistres réels et les incidents récents, pour apprendre le vocabulaire et préparer les questions. Ensuite des entretiens avec le responsable sinistres, quelques gestionnaires d’ancienneté différente, la finance et l’IT. Puis l’observation de deux ou trois gestionnaires pendant une demi-journée pour voir le travail réel et les contournements. Enfin des ateliers pour s’accorder sur le processus et les règles cibles avec un décideur dans la salle, et un prototype rapide pour recueillir des retours."
+    },
+    {
+      "q": "Rendez cette exigence testable : « La recherche doit être rapide et les données clients doivent être sécurisées. »",
+      "answer": "La découper en critères mesurables, par exemple : la recherche renvoie des résultats en moins de 2 secondes pour 95 % des requêtes avec 50 000 offres et 200 utilisateurs simultanés ; seuls les utilisateurs ayant le rôle « conseiller » voient le téléphone et l’e-mail du client ; chaque accès à une fiche client est journalisé avec l’utilisateur, la date et la fiche ; les données clients sont chiffrées en transit et au repos. Puis confirmer les cibles avec le métier et le tech lead."
+    },
+    {
+      "q": "Classez par WSJF : A a un coût du retard de 20 et une taille de 10, B un coût du retard de 9 et une taille de 3, C un coût du retard de 13 et une taille de 13.",
+      "answer": "WSJF = coût du retard / taille : A = 2, B = 3, C = 1. Ordre : B, puis A, puis C. B passe en premier alors qu’il a le plus petit coût du retard, parce qu’il est petit et livre de la valeur rapidement."
+    },
+    {
+      "q": "Un directeur demande « un rapport mensuel des sinistres ». Listez les questions que vous posez avant d’écrire la spécification.",
+      "answer": "Quelle décision le rapport doit-il éclairer et qui le lit ? Quels indicateurs exactement (nombre de sinistres, montants, délai de traitement) et avec quelles règles de calcul ? Quels axes et filtres (région, produit, statut) ? Mensuel arrêté à quelle date, et recalcule-t-on les mois passés quand un sinistre change ? Quel système source, et comment traite-t-on les données manquantes ? Qui peut le voir, à quel niveau de détail ? Quel format et quel mode de diffusion (tableau de bord, export, e-mail) ? Ensuite, construire une maquette avec des chiffres réels et la faire valider."
     }
   ],
   "interview": [
@@ -172,6 +322,22 @@
     {
       "q": "Comment gérez-vous des priorités contradictoires entre deux parties prenantes ?",
       "a": "Je rends le conflit explicite avec des faits : ce qu’apporte chaque demande, son coût et son lien avec l’objectif du projet. Je réunis les deux parties prenantes, ou le sponsor qui porte la décision, pour s’accorder sur des critères comme la valeur, le risque et l’échéance, j’utilise MoSCoW ou valeur face à l’effort pour trancher, et je consigne la décision et sa justification dans le backlog pour qu’elle ne soit pas rouverte chaque semaine."
+    },
+    {
+      "q": "Quelles techniques d’élicitation connaissez-vous, et quand utilisez-vous chacune ?",
+      "a": "L’analyse documentaire pour préparer et apprendre les règles, les entretiens pour la profondeur et les préoccupations individuelles, l’observation pour voir le travail réel et les contournements, les ateliers pour converger et décider à plusieurs, les questionnaires pour toucher beaucoup d’utilisateurs, et les prototypes pour obtenir des retours concrets. Je les combine : lire, interroger, observer, puis valider en atelier, et j’envoie toujours un compte rendu écrit."
+    },
+    {
+      "q": "Comment rédigez-vous une bonne exigence non fonctionnelle ?",
+      "a": "Je la rends mesurable avec un indicateur, une cible et un contexte, par exemple « la recherche répond en moins de 2 secondes pour 95 % des requêtes avec 200 utilisateurs simultanés ». J’interroge sur la performance, la disponibilité, la sécurité, l’accessibilité et la conservation des données dès la découverte, je vérifie la faisabilité et le coût avec le tech lead, et je place les exigences transverses dans la Definition of Done et les exigences spécifiques dans les critères d’acceptation de la story."
+    },
+    {
+      "q": "Comment priorisez-vous quand MoSCoW ne suffit pas ?",
+      "a": "J’utilise la matrice valeur / effort pour une vue rapide, et le coût du retard ou le WSJF quand le calendrier compte : le coût du retard divisé par la taille fait remonter les petits éléments urgents, comme une échéance réglementaire. Le modèle de Kano aide à vérifier que les besoins de base sont couverts avant d’ajouter des facteurs d’enchantement. Je note avec les parties prenantes, de façon relative, et j’enregistre la justification avec la décision."
+    },
+    {
+      "q": "Comment spécifiez-vous un rapport ou un tableau de bord ?",
+      "a": "Je pars des décisions qu’il doit éclairer et de son public, puis je définis chaque indicateur avec une règle de calcul précise, les axes, les filtres, la fréquence de rafraîchissement, les sources et les droits d’accès, et je vérifie les termes dans le dictionnaire de données. Je fais valider une maquette avec des chiffres réels et un exemple chiffré par indicateur, qui deviennent ensuite les cas de test de la recette."
     }
   ]
 }

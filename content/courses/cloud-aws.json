@@ -70,6 +70,86 @@
         "lang": "bash",
         "code": "aws s3 cp report.csv s3://acme-reports-dev/2026/10/\naws s3 presign s3://acme-reports-dev/2026/10/report.csv --expires-in 3600\naws logs tail /ecs/api --follow --since 10m"
       }
+    },
+    {
+      "title": "IAM in depth: policy types, evaluation and assuming roles",
+      "text": [
+        "Most AWS security incidents are IAM mistakes, so it pays to know how a request is evaluated. Several kinds of policy can apply at once. Identity-based policies are attached to a user, group or role. Resource-based policies are attached to a resource, such as an S3 bucket policy, an SQS queue policy or a KMS key policy, and name a Principal. A role's trust policy is a resource-based policy that says who may assume the role. Guardrails limit the maximum permissions without granting anything: service control policies (SCPs) in AWS Organizations apply to whole accounts, permission boundaries apply to one user or role.",
+        "The evaluation rule is simple to state: everything starts denied, an explicit Allow is needed, and any explicit Deny wins over every Allow. If an SCP or a boundary does not allow an action, no identity policy can grant it. Conditions make policies precise: restrict by tag (aws:PrincipalTag), by region (aws:RequestedRegion), by network (aws:SourceIp, aws:SourceVpce) or require MFA (aws:MultiFactorAuthPresent).",
+        "Assuming a role is how people and workloads get temporary credentials. A pipeline, a Lambda function or an engineer calls sts:AssumeRole, AWS checks the trust policy and the caller's own permissions, and returns keys that expire, by default after one hour. Cross-account access works the same way: the role in the target account trusts the source account, and the source identity must be allowed to call sts:AssumeRole on it. To reach least privilege in practice, start from AWS managed read-only policies, then tighten with IAM Access Analyzer, which flags resources shared outside your account and unused permissions, and with last-accessed information. Azure does the same with Entra ID and role assignments (RBAC), Google Cloud with IAM roles bound to principals and service accounts."
+      ],
+      "points": [
+        "Explicit Deny > explicit Allow > implicit deny.",
+        "SCPs and permission boundaries set a ceiling; they never grant permissions.",
+        "Trust policy = who can assume the role; permissions policy = what the role can do.",
+        "Prefer roles and temporary credentials for people (IAM Identity Center) and workloads.",
+        "CloudTrail shows AssumeRole calls: who became which role, and when."
+      ],
+      "example": {
+        "lang": "json",
+        "code": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Principal\": { \"AWS\": \"arn:aws:iam::111122223333:root\" },\n    \"Action\": \"sts:AssumeRole\",\n    \"Condition\": {\n      \"Bool\": { \"aws:MultiFactorAuthPresent\": \"true\" }\n    }\n  }]\n}",
+        "note": "Trust policy of an audit role: identities of account 111122223333 that are allowed to call sts:AssumeRole can assume it, only with MFA. Then: aws sts assume-role --role-arn arn:aws:iam::444455556666:role/AuditReadOnly --role-session-name audit."
+      }
+    },
+    {
+      "title": "VPC networking in depth: subnets, routes, NAT, firewalls and endpoints",
+      "text": [
+        "A VPC has an address range (a CIDR block such as 10.0.0.0/16) that you split into subnets, each living in one availability zone. What makes a subnet public or private is only its route table. A public subnet has a route 0.0.0.0/0 to an internet gateway, so resources with a public IP are reachable. A private subnet has no such route: its servers can reach the internet only through a NAT gateway placed in a public subnet, which allows outbound connections (updates, external APIs) but no inbound ones. Plan addresses generously and without overlap with your other networks, because changing them later is painful.",
+        "Two firewalls exist. Security groups are attached to network interfaces, contain only allow rules, can reference other security groups (allow 5432 from the app's group) and are stateful: return traffic is allowed automatically. Network ACLs apply to a whole subnet, are stateless, contain numbered allow and deny rules evaluated in order, and need explicit rules for return traffic on ephemeral ports. Use security groups as the main control and NACLs for coarse subnet-level blocks.",
+        "NAT gateways cost money per hour and per gigabyte, and a single one is a single point of failure: production uses one per availability zone. VPC endpoints let private resources reach AWS services without the internet. Gateway endpoints for S3 and DynamoDB are free and are added to route tables; interface endpoints (PrivateLink) create private IPs for other services such as Secrets Manager or ECR, and are billed. To connect VPCs, use peering for a few (it is not transitive) or a Transit Gateway as a hub. VPC Flow Logs record accepted and rejected connections, which is the first thing to check when 'the network blocks it'. On Azure the equivalents are VNets and network security groups; on Google Cloud a VPC is global and its subnets are regional."
+      ],
+      "points": [
+        "Public or private depends on the route table, not on the subnet's name.",
+        "Security groups: stateful, allow only, per interface. NACLs: stateless, allow and deny, per subnet.",
+        "One NAT gateway per availability zone in production, and watch its data charges.",
+        "S3 gateway endpoint: private, free, and cuts NAT traffic for data jobs.",
+        "Flow logs and reachability checks before blaming the application."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "VPC 10.0.0.0/16 (eu-west-3)\n  public-a   10.0.0.0/24   route 0.0.0.0/0 -> igw         (ALB, NAT gateway A)\n  public-b   10.0.1.0/24   route 0.0.0.0/0 -> igw         (ALB, NAT gateway B)\n  private-a  10.0.10.0/24  route 0.0.0.0/0 -> nat-gw A    (ECS tasks, RDS)\n  private-b  10.0.11.0/24  route 0.0.0.0/0 -> nat-gw B    (ECS tasks, RDS standby)\n  S3 gateway endpoint added to the private route tables\nsg-alb: 443 from 0.0.0.0/0 | sg-app: 8000 from sg-alb | sg-db: 5432 from sg-app",
+        "note": "AWS reserves 5 addresses in every subnet, so a /24 gives 251 usable IPs."
+      }
+    },
+    {
+      "title": "Data services: RDS, S3 storage classes, Glue and Athena",
+      "text": [
+        "RDS runs PostgreSQL, MySQL, MariaDB, SQL Server or Oracle for you: patching, automated backups with point-in-time restore, and monitoring. Two features are often confused. Multi-AZ keeps a synchronous standby in another zone and fails over automatically, which is about availability. Read replicas are asynchronous copies you can query, which is about read scaling and reporting. Aurora is AWS's own compatible engine with storage replicated across zones. Before production, test a restore: a backup nobody has restored is only a hope.",
+        "S3 storage classes trade storage price against access cost. Standard is for hot data; Standard-IA and One Zone-IA are cheaper to store but charge per retrieval and a minimum of 30 days; Glacier Instant Retrieval, Glacier Flexible Retrieval and Glacier Deep Archive are for archives, with minimum durations of 90 to 180 days and slower restores for the last two. Intelligent-Tiering moves objects automatically when access patterns are unknown. Lifecycle rules apply the policy for you: transition after N days, expire old data, clean old versions and incomplete multipart uploads.",
+        "For analytics on files in S3, the Glue Data Catalog stores table definitions (columns, formats, partitions), which Glue crawlers can infer, and Glue jobs run Spark ETL. Athena then queries the files with standard SQL, without servers, and you pay for the data scanned. That makes file layout a cost decision: columnar Parquet files and partitions by date can cut a query from scanning a terabyte to a few gigabytes. Equivalents: Azure SQL Database and Blob tiers (hot, cool, cold, archive); on Google Cloud, Cloud SQL, Cloud Storage classes and BigQuery."
+      ],
+      "points": [
+        "Multi-AZ = failover; read replica = read scaling. They solve different problems.",
+        "Automated backups plus a tested restore; snapshots before risky changes.",
+        "Pick the storage class by access pattern, and mind minimum durations and retrieval fees.",
+        "Athena bills per data scanned: Parquet, compression and partitions reduce it.",
+        "Block public access and encrypt buckets and databases by default."
+      ],
+      "example": {
+        "lang": "json",
+        "code": "{\n  \"Rules\": [{\n    \"ID\": \"raw-data-tiering\",\n    \"Filter\": { \"Prefix\": \"raw/\" },\n    \"Status\": \"Enabled\",\n    \"Transitions\": [\n      { \"Days\": 30, \"StorageClass\": \"STANDARD_IA\" },\n      { \"Days\": 180, \"StorageClass\": \"GLACIER\" }\n    ],\n    \"Expiration\": { \"Days\": 730 },\n    \"AbortIncompleteMultipartUpload\": { \"DaysAfterInitiation\": 7 }\n  }]\n}",
+        "note": "aws s3api put-bucket-lifecycle-configuration --bucket acme-data --lifecycle-configuration file://lifecycle.json. GLACIER is the API name of Glacier Flexible Retrieval."
+      }
+    },
+    {
+      "title": "Serverless and event-driven: Lambda, API Gateway, SQS, SNS, EventBridge",
+      "text": [
+        "Lambda runs your code when an event arrives: an HTTP request through API Gateway, a file landing in S3, a message in a queue, a schedule. You choose the memory (CPU grows with it), a timeout of at most 15 minutes, and an execution role for permissions; you pay per request and per duration. Watch out for cold starts on the first calls, concurrency limits that throttle bursts, and connections to relational databases, which a burst of functions can exhaust (RDS Proxy helps). API Gateway exposes functions as an API; HTTP APIs are simpler and cheaper, REST APIs offer more features such as usage plans.",
+        "Event-driven design decouples producers from consumers. SQS is a queue: a producer drops messages, consumers process them at their own pace, and a message that fails too many times goes to a dead-letter queue (DLQ) instead of blocking the others. Standard queues deliver at least once, so consumers must be idempotent; FIFO queues keep order. SNS is publish/subscribe: one message fans out to several subscribers, often several SQS queues. EventBridge routes events from AWS services, SaaS tools or your apps with rules that match event content, and EventBridge Scheduler replaces cron servers.",
+        "Operate these systems with CloudWatch: Lambda Errors, Throttles and Duration metrics, the age of the oldest message in a queue (a growing value means consumers are falling behind), and an alarm on any message in a DLQ. Logs go to a log group per function; X-Ray traces a request across services. On Azure the same ideas are Functions, Service Bus and Event Grid; on Google Cloud, Cloud Run functions, Pub/Sub and Eventarc."
+      ],
+      "points": [
+        "Lambda: short, stateless, event-triggered work; 15-minute maximum.",
+        "Queue between services to absorb bursts and survive downstream outages.",
+        "At-least-once delivery means idempotent consumers.",
+        "Every queue gets a DLQ, and every DLQ gets an alarm.",
+        "SNS fans out, SQS buffers, EventBridge routes by content and schedules."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import json\n\ndef process(order):\n    ...  # must be idempotent: the same message can arrive twice\n\ndef handler(event, context):\n    failures = []\n    for record in event[\"Records\"]:\n        try:\n            process(json.loads(record[\"body\"]))\n        except Exception:\n            failures.append({\"itemIdentifier\": record[\"messageId\"]})\n    # only the failed messages go back to the queue\n    return {\"batchItemFailures\": failures}",
+        "note": "Lambda consuming an SQS queue with partial batch responses (ReportBatchItemFailures enabled on the event source mapping)."
+      }
     }
   ],
   "cheatsheet": [
@@ -99,14 +179,67 @@
       ["EC2 ≈ Azure VM ≈ Compute Engine", "Virtual machines"],
       ["EKS ≈ AKS ≈ GKE", "Managed Kubernetes"],
       ["Lambda ≈ Azure Functions ≈ Cloud Functions", "Serverless functions"]
-    ]}
+    ]},
+    {
+      "group": "IAM in depth",
+      "items": [
+        ["Identity-based policy", "Attached to a user, group or role"],
+        ["Resource-based policy", "Attached to a resource, names a Principal"],
+        ["Trust policy", "Who may assume a role"],
+        ["SCP", "Organization guardrail: maximum permissions of an account"],
+        ["Permission boundary", "Maximum permissions of one user or role"],
+        ["Explicit Deny", "Always wins over Allow"],
+        ["aws sts assume-role", "Get temporary credentials for a role"],
+        ["IAM Access Analyzer", "Find external sharing and unused access"]
+      ]
+    },
+    {
+      "group": "VPC in depth",
+      "items": [
+        ["Internet gateway", "Route to the internet for public subnets"],
+        ["NAT gateway", "Outbound-only internet for private subnets"],
+        ["Network ACL", "Stateless subnet firewall with allow and deny rules"],
+        ["Gateway endpoint", "Free private access to S3 and DynamoDB"],
+        ["Interface endpoint (PrivateLink)", "Private IP for an AWS service, billed"],
+        ["VPC peering / Transit Gateway", "Connect two VPCs / hub for many"],
+        ["VPC Flow Logs", "Record accepted and rejected traffic"]
+      ]
+    },
+    {
+      "group": "Data and events",
+      "items": [
+        ["Multi-AZ vs read replica", "Failover vs read scaling"],
+        ["Standard-IA / Glacier", "Cheaper storage for rarely read data"],
+        ["Lifecycle rule", "Transition or expire objects automatically"],
+        ["Glue Data Catalog", "Table definitions for files in S3"],
+        ["Athena", "Serverless SQL on S3, billed per data scanned"],
+        ["SQS + DLQ", "Queue with a dead-letter queue for failures"],
+        ["SNS", "Publish/subscribe fan-out"],
+        ["EventBridge", "Event bus with content-based rules and schedules"],
+        ["API Gateway", "HTTP front door for Lambda and services"]
+      ]
+    },
+    {
+      "group": "Operate and save",
+      "items": [
+        ["CloudWatch alarm", "Notify when a metric crosses a threshold"],
+        ["CloudWatch Logs Insights", "Query log groups"],
+        ["X-Ray", "Trace a request across services"],
+        ["Cost allocation tags", "Split the bill by team or project"],
+        ["Compute Optimizer", "Rightsizing recommendations"],
+        ["Savings Plans", "Lower price for a usage commitment"]
+      ]
+    }
   ],
   "pitfalls": [
     "Access keys committed to Git: use roles and temporary credentials.",
     "Public S3 buckets or databases open to the internet.",
     "Everything in one availability zone: one outage takes you down.",
     "Forgotten resources running all month: tag them and set a budget alert.",
-    "Using the root account for daily work."
+    "Using the root account for daily work.",
+    "A single NAT gateway for all zones: one zone failure cuts outbound access, and data processing charges grow silently.",
+    "Using Multi-AZ to scale reads, or read replicas as a backup: they solve other problems.",
+    "Queues without a dead-letter queue and alarms: poison messages retry forever and failures go unnoticed."
   ],
   "exercises": [
     { "q": "Write an IAM policy that lets a role read (only) the objects under the prefix exports/ of the bucket acme-data.", "hint": "s3:GetObject on arn:aws:s3:::bucket/prefix/*.", "code": "json",
@@ -114,11 +247,48 @@
     { "q": "Your web app runs on one EC2 instance with its database on the same machine. Propose a more reliable design.", "hint": "Zones, managed database, load balancer.",
       "answer": "Put the app on at least two instances or containers in two availability zones behind a load balancer, with auto scaling. Move the database to RDS with Multi-AZ and automated backups in private subnets. Restrict security groups (database reachable only from the app) and add CloudWatch alarms on errors and latency." },
     { "q": "The monthly bill doubled. Where do you look first?", "hint": "Cost Explorer, tags, usual suspects.",
-      "answer": "Open Cost Explorer grouped by service and by tag to see what grew and who owns it. Usual suspects: instances left running or oversized, unattached volumes and old snapshots, NAT gateway and data transfer, logs kept forever. Then fix the cause and add a budget alert so it is caught earlier next time." }
+      "answer": "Open Cost Explorer grouped by service and by tag to see what grew and who owns it. Usual suspects: instances left running or oversized, unattached volumes and old snapshots, NAT gateway and data transfer, logs kept forever. Then fix the cause and add a budget alert so it is caught earlier next time." },
+    {
+      "q": "Write a bucket policy for acme-data that denies any request not using HTTPS.",
+      "hint": "Explicit Deny with the condition aws:SecureTransport = false.",
+      "code": "json",
+      "answer": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Sid\": \"DenyInsecureTransport\",\n    \"Effect\": \"Deny\",\n    \"Principal\": \"*\",\n    \"Action\": \"s3:*\",\n    \"Resource\": [\n      \"arn:aws:s3:::acme-data\",\n      \"arn:aws:s3:::acme-data/*\"\n    ],\n    \"Condition\": {\n      \"Bool\": { \"aws:SecureTransport\": \"false\" }\n    }\n  }]\n}"
+    },
+    {
+      "q": "An ECS task in a private subnet cannot download files from S3 and the NAT gateway bill is high. What do you check and what do you change?",
+      "hint": "Route tables, security group outbound rules, endpoints, IAM.",
+      "answer": "Check the task role allows s3:GetObject on the bucket, the security group allows outbound HTTPS, and the private route table has a route to the NAT gateway. Then add an S3 gateway endpoint to the private route tables: S3 traffic stays inside AWS, works without the NAT, and stops paying NAT data processing charges. If a bucket policy restricts access by aws:SourceVpce, make sure it names this endpoint."
+    },
+    {
+      "q": "Athena queries on the events table scan 800 GB each time although analysts only look at the last 7 days. How do you reduce cost and time?",
+      "hint": "File format and partitions.",
+      "answer": "Rewrite the data as compressed Parquet (columnar, so only the selected columns are read) and partition it by date, for example s3://bucket/events/dt=2026-10-30/. Register the partitions in the Glue Data Catalog (or use partition projection) and make sure queries filter on dt. Then a query on 7 days of a few columns scans a small fraction of the data. Also select only needed columns instead of SELECT *."
+    },
+    {
+      "q": "Orders are sent by the website to a Lambda function that sometimes times out when the payment provider is slow, and orders are lost. Propose a more robust design.",
+      "hint": "Decouple with a queue.",
+      "answer": "The website (or API Gateway) writes each order to an SQS queue and answers immediately. A Lambda function consumes the queue in batches with partial batch responses, so a failed order is retried later instead of lost. After a few failed attempts the message goes to a dead-letter queue with an alarm. The consumer is idempotent (order id as key) because delivery is at least once, and CloudWatch alarms watch errors and the age of the oldest message."
+    }
   ],
   "interview": [
     { "q": "Explain the shared responsibility model.", "a": "AWS is responsible for the security of the cloud: data centres, hardware, network and the managed service platforms. The customer is responsible for security in the cloud: their data, IAM permissions, network rules, encryption choices and the configuration of what they deploy. A public bucket is the customer's mistake, not AWS's." },
     { "q": "How do you give an application access to S3 without storing keys?", "a": "Attach an IAM role to the workload (an EC2 instance profile, an ECS task role, a Lambda execution role or OIDC for a CI pipeline). The SDK picks up temporary credentials automatically. The role has a least-privilege policy limited to the bucket and actions it needs." },
-    { "q": "How would you make an application highly available on AWS?", "a": "Run it in at least two availability zones behind a load balancer with health checks and auto scaling, use a managed database with Multi-AZ failover and backups, keep state out of the instances (S3, database, cache), and monitor with alarms. For disaster recovery across regions, replicate data and automate the infrastructure with code." }
+    { "q": "How would you make an application highly available on AWS?", "a": "Run it in at least two availability zones behind a load balancer with health checks and auto scaling, use a managed database with Multi-AZ failover and backups, keep state out of the instances (S3, database, cache), and monitor with alarms. For disaster recovery across regions, replicate data and automate the infrastructure with code." },
+    {
+      "q": "How is an IAM request evaluated when several policies apply?",
+      "a": "By default everything is denied. AWS gathers all applicable policies: SCPs, permission boundaries, identity-based and resource-based policies, session policies. An explicit Deny anywhere ends the evaluation with a deny. Otherwise the action needs an Allow, and it must also fit within the guardrails such as SCPs and boundaries, which limit but never grant permissions."
+    },
+    {
+      "q": "What is the difference between a security group and a network ACL?",
+      "a": "A security group is attached to a network interface, has only allow rules, can reference other security groups and is stateful, so return traffic is allowed automatically. A network ACL applies to a whole subnet, has numbered allow and deny rules evaluated in order and is stateless, so return traffic on ephemeral ports must be allowed explicitly. Security groups are the main control; NACLs add a coarse subnet-level layer."
+    },
+    {
+      "q": "When would you choose SQS, SNS or EventBridge?",
+      "a": "SQS when one consumer group must process work reliably at its own pace, with retries and a dead-letter queue. SNS when one message must be pushed to several subscribers at once, often several SQS queues for fan-out. EventBridge when events from AWS services, SaaS or applications must be routed by their content to different targets, or for schedules. They are often combined."
+    },
+    {
+      "q": "How do you keep AWS costs under control in a team?",
+      "a": "Make cost visible and owned: mandatory tags and cost allocation tags, budgets with alerts per account or team, and a regular look at Cost Explorer. Then act: stop or schedule non-production resources, rightsize with Compute Optimizer, use lifecycle rules and the right storage classes, add S3 gateway endpoints to cut NAT charges, and commit to Savings Plans for steady usage."
+    }
   ]
 }

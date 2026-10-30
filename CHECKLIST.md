@@ -3,8 +3,9 @@
 ## 👉 Next session (written 2026-10-30)
 - **Just finished (2026-10-30):** learning content (ROADMAP Phase 4): honest times computed from the content, 4 new
   courses (Spark, Kafka, cloud warehouses, Tableau/Looker + storytelling), SQL/Python/Power BI/Docker/Kubernetes/
-  monitoring deepened, 15 portfolio projects (3 per path) on Training and #/project/<id>. EN + FR, French check
-  clean, 18 smoke tests passing. Written by Claude: part of O11 (expert review).
+  monitoring deepened, 15 portfolio projects (3 per path) on Training and #/project/<id>. Then the 15 other courses
+  went from 4 to 8 lessons: all 25 courses have 7-10 lessons. EN + FR, French check clean, smoke tests passing.
+  Written by Claude: part of O11 (expert review). Course times: scripts/course-times.ps1.
 - **Before that:** path market pulse on Home (ROADMAP 3.9, js/pulse.js): typical salary, % remote,
   % with a salary, top skills with CV gaps, levels, from the offers seen for the path (this browser only). Tested in
   the preview (EN/FR, phone) and by a new smoke test (16 passing). Fills up as the owner runs searches.
@@ -51,7 +52,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
-| 2026-10-30 | Learning content: honest course times, 4 new courses, 6 courses deepened, 15 portfolio projects (EN + FR); no setup needed |
+| 2026-10-30 | Learning content: honest course times, 4 new courses, all 25 courses at 7-10 lessons, 15 portfolio projects (EN + FR); no setup needed |
 | 2026-10-30 | O17 done: seed re-run by owner. Verified in the live database (DevOps path with French name, 3 tracks, 15 steps, 5 tools, 3 tips) and on the live site (path card, selection, tracks and courses on Training) |
 | 2026-10-30 | Path market pulse on Home ("Your market": salary, remote, top skills, levels from the offers you looked at); no setup needed |
 | 2026-10-30 | Smoke tests (Playwright) run before every deploy; a failing test stops it; no setup needed |

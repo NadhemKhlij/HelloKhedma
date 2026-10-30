@@ -68,6 +68,86 @@
         "code": "Change request CHG-2291 (normal change)\nWhat:      upgrade the payments database from PostgreSQL 15 to 16\nWhy:       end of support, performance fixes\nRisk:      medium (rollback tested in staging)\nPlan:      Sat 06:00-07:00, maintenance page on, backup verified before start\nTest:      smoke tests + 3 sample payments\nRollback:  restore snapshot taken at 05:55 (20 min)\nApproval:  CAB 28/10   Communication: users notified 25/10",
         "note": "If the rollback is not written and tested, the change is not ready."
       }
+    },
+    {
+      "title": "Problem management and root cause analysis in practice",
+      "text": [
+        "ITIL 4 describes the work as practices (incident management, problem management, change enablement, service desk, knowledge management...) that combine in value streams: the end-to-end steps that deliver an outcome, such as 'restore a live service' or 'deliver a new feature'. Problem management sits in the middle of the restore stream. It has three phases: problem identification (spot recurring incidents, trends or risks, either reactively after incidents or proactively from monitoring and vendor notices), problem control (analyse the cause and find a workaround) and error control (manage the known error until a permanent fix is deployed through a change).",
+        "Use the right analysis tool for the case. The 5 Whys is quick but follows one chain and stops at the first plausible answer; ask 'why else?' at each step and check every answer with data. An Ishikawa (fishbone) diagram lists possible causes by category, for example people, process, technology, data, suppliers and environment, which keeps the team from fixating on the first idea. A light Kepner-Tregoe problem analysis compares where the problem IS and IS NOT, on what, where, when and how much: if errors hit only the Lyon office since Monday and only on Windows 11 laptops, the distinctions (a network change in Lyon, a Windows update on Monday) point to the cause.",
+        "Always build a timeline from logs and tickets first, because memories disagree. In the ITSM tool, link every related incident to the problem record, so its real impact is visible and agents can apply the workaround. A problem is closed when the fix is deployed and the incidents stop, not when someone thinks they found the cause."
+      ],
+      "points": [
+        "Reactive problems come from incidents; proactive ones from trends, monitoring and vendor alerts.",
+        "Problem control finds cause and workaround; error control tracks the known error to a fix.",
+        "5 Whys: fast, but verify each answer and look for several causes.",
+        "Ishikawa: brainstorm causes by category before choosing.",
+        "Kepner-Tregoe IS / IS NOT: the differences point to the cause."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Problem PRB0041 - 'Timeout when printing invoices'\n           IS                               IS NOT\nWhat       invoice PDF printing             other documents\nWhere      Lyon office (42 users)           Paris, Nantes\nWhen       since Monday 08:00, peaks 9-11   before Monday\nExtent     ~30% of print jobs               all jobs\nDistinctions: Lyon print server patched Sunday night\nMost likely cause: driver update on the Lyon print server\nWorkaround (known error KE0107): print to the Paris queue",
+        "note": "The IS / IS NOT comparison narrows a vague complaint to one change worth testing."
+      }
+    },
+    {
+      "title": "Change enablement: change types, risk and approval",
+      "text": [
+        "ITIL 4 renamed change management to change enablement, and the word matters: the goal is to make changes succeed and flow quickly, not to slow them down with paperwork. Every change has a change authority, the person or group allowed to approve it, and that authority should match the risk. A Change Advisory Board (CAB) is one possible authority for significant changes, not a meeting every change must wait for.",
+        "Standard changes are low-risk, repeatable and pre-authorised, with a documented procedure: adding a user to a group, scaling a service within limits, a routine certificate renewal. They often look like service requests. Normal changes are assessed, scheduled and approved according to their risk, from a peer review for low risk to the CAB for high risk. Emergency changes fix or prevent a serious incident and are approved quickly by a smaller emergency authority (often called ECAB), then documented and reviewed afterwards. A team where most changes are emergencies has a planning problem.",
+        "Risk assessment answers a few concrete questions: what could break and for whom, how likely is it (has it been tested, done before, automated), how fast can we detect a failure and roll back, and is the timing bad (month-end closing, sales peak, freeze period)? The change schedule makes all planned changes visible, so conflicts are caught. After implementation, a post-implementation review checks whether the change met its goal and caused incidents. In ServiceNow a normal change moves through states such as New, Assess, Authorize, Scheduled, Implement, Review and Closed; with CI/CD, a well-tested automated pipeline can itself become a standard change."
+      ],
+      "points": [
+        "Change authority proportional to risk; CAB only for what needs it.",
+        "Standard = pre-authorised routine; normal = assessed; emergency = fast, reviewed after.",
+        "Every change needs a test plan, a rollback plan and a communication.",
+        "Track change success rate and the share of changes that caused incidents.",
+        "Link incidents to the change that caused them: it is the most valuable data for the next CAB."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Risk assessment - CHG0034512 (normal change)\nImpact if it fails:   billing API down for all customers      -> high\nTested in staging:    yes, same data volume                    -> lowers risk\nDone before:          no, first upgrade of this library         -> raises risk\nRollback:             redeploy previous image, 5 min, tested    -> lowers risk\nTiming:               Tuesday 10:00, not month-end              -> ok\nResult: medium risk -> approval by service owner + peer review, no CAB needed\nPIR due:              Wednesday, check error rate and incidents",
+        "note": "A short, honest assessment helps the change authority more than a long template filled in automatically."
+      }
+    },
+    {
+      "title": "Major incidents: roles, process and communication",
+      "text": [
+        "A major incident is one whose impact is so high that it needs a separate, faster process: a critical service down for many users, a security breach, data loss, an outage visible to customers. The criteria must be written in advance, and anyone on the service desk must be allowed to declare one. Declaring too often costs a few people some time; declaring too late costs the business much more.",
+        "Once declared, roles are assigned explicitly. The incident manager (or incident commander) runs the response, makes decisions and keeps the rhythm, but does not debug. The technical lead coordinates the engineers working on the fix. The communications lead writes updates for users, management and, if needed, customers through a status page. A scribe keeps a timestamped log of facts, decisions and actions, which becomes the timeline of the review. Everyone joins one bridge (a call and a dedicated channel) so information is not scattered over private messages.",
+        "Communication follows a fixed cadence, for example every 30 minutes, even with no news. Adapt the message to the audience: users need impact, workaround and next update; management needs business impact, risk and decisions needed; customers need honest, non-technical facts. Escalate functionally (to experts or the vendor) and hierarchically (to management) according to agreed thresholds. When service is restored, confirm with users before closing, open a problem record, and hold a blameless major incident review within a few days, with actions, owners and dates."
+      ],
+      "points": [
+        "Written criteria; anyone can declare; it is fine to downgrade later.",
+        "Incident manager coordinates, technical lead fixes, communications lead informs, scribe records.",
+        "One bridge, one channel, one source of truth.",
+        "Updates on a fixed cadence, tailored to each audience.",
+        "Close only after confirmation, then problem record and review."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "MAJOR INCIDENT DECLARED - INC0098812 - 14:12\nService:   online payments (all customers)\nImpact:    card payments fail since ~14:00, about 60% of attempts\nRoles:     IM: Sara | Tech lead: Karim | Comms: Julie | Scribe: Leo\nBridge:    Teams 'MI-payments' + channel #mi-0098812\nKnown:     error spike after the 13:55 deployment of payment-api 4.2\nNext step: rollback decision at 14:25\nNext update: 14:45 (management), status page updated at 14:20",
+        "note": "Short, factual, with named roles and a time for the next update."
+      }
+    },
+    {
+      "title": "Measuring support: service levels, metrics and knowledge",
+      "text": [
+        "Service levels turn expectations into numbers. An SLA with the customer defines targets per priority (respond to a P1 in 15 minutes, restore within 4 hours), an OLA defines what internal teams owe each other to make it possible, and an underpinning contract does the same with a supplier. SLOs are the internal targets you track, such as 99.9% monthly availability. In ServiceNow or Jira Service Management, SLA timers start, pause (waiting for the customer) and stop according to rules and business-hour calendars: know these rules, because they decide what counts as a breach.",
+        "Useful support metrics: MTTA (mean time to acknowledge), MTTR (mean time to restore, which some teams define as time to resolve: say which), first contact resolution (FCR), SLA compliance, backlog size and age, reopen rate and customer satisfaction. Read them together: a high FCR with a high reopen rate means tickets are closed too fast. Beware the watermelon effect, green SLA reports while users are unhappy; this is why some organisations add experience measures (XLAs) and comments to the numbers.",
+        "Knowledge management is what makes the next incident faster. Knowledge-Centered Service (KCS) means capturing knowledge while solving, in the user's words, and improving articles each time they are reused, instead of writing documentation later. A good KB article has a title that matches the symptom users report, the environment it applies to, the cause if known, numbered resolution or workaround steps, how to check it worked, and when to escalate. It has an owner and a review date. In ServiceNow, articles live in the Knowledge base and can be attached to incidents; Jira Service Management usually uses a Confluence space shown in the portal."
+      ],
+      "points": [
+        "SLA with the customer, OLA between teams, underpinning contract with suppliers, SLO as internal target.",
+        "Know when SLA clocks pause and stop; it decides what is a breach.",
+        "MTTA, MTTR, FCR, backlog age and reopen rate: read them together.",
+        "Write KB articles while solving, titled by the symptom, with steps and an owner.",
+        "Link articles to tickets to see which ones really reduce resolution time."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "KB0012345 - 'Outlook asks for password again and again after password change'\nApplies to:   Windows 11, Outlook (Microsoft 365), company laptops\nCause:        old credentials cached in Windows Credential Manager\nResolution:\n  1. Close Outlook.\n  2. Open Credential Manager > Windows Credentials.\n  3. Remove entries starting with 'MicrosoftOffice'.\n  4. Restart Outlook and sign in with the new password.\nCheck:        mail syncs, no new prompt for 10 minutes\nEscalate to:  Messaging team if the prompt continues (attach screenshot)\nOwner: Service desk L2 | Last reviewed: 2026-09",
+        "note": "Titled with the symptom users describe, so agents and users find it by searching."
+      }
     }
   ],
   "cheatsheet": [
@@ -158,13 +238,64 @@
           "Time of the next message"
         ]
       ]
+    },
+    {
+      "group": "ITIL 4 vocabulary",
+      "items": [
+        ["Practice", "Set of resources for a type of work (e.g. problem management)"],
+        ["Value stream", "End-to-end steps that deliver an outcome"],
+        ["Service value chain", "Plan, improve, engage, design and transition, obtain/build, deliver and support"],
+        ["Change enablement", "ITIL 4 name for change management"],
+        ["Change authority", "Person or group allowed to approve a change"],
+        ["CAB / ECAB", "Change advisory board / emergency change authority"],
+        ["Post-implementation review (PIR)", "Did the change reach its goal without incidents?"]
+      ]
+    },
+    {
+      "group": "Problem analysis",
+      "items": [
+        ["Problem identification", "Spot recurring incidents and risks"],
+        ["Problem control", "Find the cause and a workaround"],
+        ["Error control", "Manage known errors until fixed"],
+        ["5 Whys", "Ask why repeatedly, verify each answer"],
+        ["Ishikawa (fishbone)", "Causes grouped by category"],
+        ["Kepner-Tregoe IS / IS NOT", "Compare what is and is not affected"],
+        ["KEDB", "Known error database with workarounds"]
+      ]
+    },
+    {
+      "group": "Major incident",
+      "items": [
+        ["Incident manager", "Coordinates and decides, does not debug"],
+        ["Communications lead", "Writes updates for each audience"],
+        ["Scribe", "Timestamped log of facts and decisions"],
+        ["Bridge", "Single call and channel for the response"],
+        ["Functional / hierarchical escalation", "To experts / to management"],
+        ["Major incident review", "Blameless review with actions and owners"]
+      ]
+    },
+    {
+      "group": "Support metrics and knowledge",
+      "items": [
+        ["MTTA", "Mean time to acknowledge"],
+        ["FCR", "First contact resolution rate"],
+        ["Backlog age", "How long open tickets have waited"],
+        ["Reopen rate", "Share of tickets reopened after closure"],
+        ["Underpinning contract", "Service levels agreed with a supplier"],
+        ["Watermelon effect", "Green reports, unhappy users"],
+        ["XLA", "Experience level agreement"],
+        ["KCS", "Capture and improve knowledge while solving"]
+      ]
     }
   ],
   "pitfalls": [
     "Investigating root cause for an hour while users are still blocked: restore first.",
     "Silence during an incident; stakeholders assume the worst.",
     "Closing the incident without opening a problem for recurring issues.",
-    "Blame in post-mortems, which makes people hide information next time."
+    "Blame in post-mortems, which makes people hide information next time.",
+    "Sending every change to the CAB: real risks get less attention and teams bypass the process.",
+    "Declaring a major incident too late because nobody wants to raise the alarm.",
+    "Chasing green SLA numbers (closing tickets fast, pausing clocks) while users stay unhappy."
   ],
   "exercises": [
     {
@@ -183,6 +314,26 @@
       "q": "The same 'disk full' incident on the reporting server has been resolved five times this month by deleting old files. What should happen now?",
       "hint": "Incident versus problem.",
       "answer": "Stop treating it only as incidents: open a problem record linking the five incidents. Document the workaround as a known error so the next one is fixed quickly, then find the root cause (which process fills the disk, why old files are not purged, whether the disk is too small). Implement a permanent fix through a change, such as a log rotation or retention job and a disk usage alert at 80%, and close the problem once the incidents stop."
+    },
+    {
+      "q": "Since Tuesday, users of the expense app get 'session expired' errors several times a day. Only users connecting through the VPN are affected, in all offices, and only on the web app, not on mobile. Use IS / IS NOT to suggest where to look.",
+      "hint": "What is different between the affected and unaffected cases, and what changed on Tuesday?",
+      "answer": "IS: web app, VPN users, all offices, since Tuesday. IS NOT: mobile app, users outside the VPN, before Tuesday. The distinction is the VPN path for web sessions, so look for a change on Tuesday on the VPN or its proxy: a new idle timeout, a changed session or cookie handling, or a load balancer change that breaks session persistence. Check the change schedule for Tuesday and compare session logs of VPN and non-VPN users."
+    },
+    {
+      "q": "Classify each change as standard, normal or emergency: a) monthly renewal of an internal certificate with a documented, automated procedure; b) migration of the HR database to a new server; c) patch to stop an exploited vulnerability on the public website.",
+      "hint": "Pre-authorised routine, assessed change, urgent fix.",
+      "answer": "a) Standard: routine, low risk, documented and pre-authorised. b) Normal: significant risk and impact, so it is assessed, scheduled and approved by the right authority, probably the CAB, with a tested rollback. c) Emergency: it must be implemented quickly to stop an active threat, approved by the emergency change authority, then documented and reviewed after implementation."
+    },
+    {
+      "q": "Your team shows FCR of 85% and 98% SLA compliance, but the reopen rate went from 5% to 18% and satisfaction dropped. What is happening and what do you do?",
+      "hint": "Read metrics together.",
+      "answer": "Tickets are probably being closed too fast to protect FCR and SLA numbers, without really solving the issue: a watermelon effect. Check reopened tickets for patterns (same categories, same agents, workarounds instead of fixes), confirm resolution with the user before closing, track reopen rate and satisfaction alongside FCR and SLA, and turn repeated issues into problem records and KB articles."
+    },
+    {
+      "q": "Rewrite this KB title so users and agents can find it: 'Procedure 14 - credential manager cleanup'.",
+      "hint": "Use the words of the symptom.",
+      "answer": "'Outlook keeps asking for your password after a password change (Windows)'. The title describes the symptom in the words users type in a search or say on the phone, and states the environment. The technical solution, clearing the cached credentials in Credential Manager, goes in the resolution steps."
     }
   ],
   "interview": [
@@ -201,6 +352,22 @@
     {
       "q": "What is the difference between an SLA, an OLA and an SLO?",
       "a": "An SLA is the agreement with the customer or the business on service levels, such as a P1 resolved within 4 hours. An OLA is an agreement between internal teams that supports the SLA, for example the database team responds within 30 minutes. An SLO is a measurable target for a service, like 99.9% availability per month, used to track whether we meet our commitments."
+    },
+    {
+      "q": "Which root cause analysis techniques do you know and when do you use them?",
+      "a": "I start with a timeline from logs and tickets. For a simple chain of events the 5 Whys is quick, as long as each answer is checked with data and I look for more than one cause. When many causes are possible I use an Ishikawa diagram by category so the team does not lock onto the first idea. For a vague problem that affects some users and not others, a Kepner-Tregoe IS / IS NOT comparison quickly points to the distinguishing change."
+    },
+    {
+      "q": "What is the difference between standard, normal and emergency changes?",
+      "a": "A standard change is low risk, routine and pre-authorised with a documented procedure, so it does not need individual approval. A normal change is assessed and approved by a change authority proportional to its risk, from a peer to the CAB. An emergency change must be implemented urgently to resolve or prevent a serious incident; it is approved quickly by an emergency authority and reviewed afterwards."
+    },
+    {
+      "q": "You are the incident manager for a major incident. What are your first 15 minutes?",
+      "a": "Confirm the impact and declare the major incident, open a bridge and a dedicated channel, and assign roles: technical lead, communications lead, scribe. Ask what changed recently and agree the first restore option, often a rollback. Send a first update with impact, what we know and the next update time, and set escalation to the vendor or management if thresholds are met. Then keep the rhythm and the decisions, and leave debugging to the engineers."
+    },
+    {
+      "q": "How do you measure whether a support team performs well?",
+      "a": "With a few metrics read together: MTTA and MTTR per priority, SLA compliance, first contact resolution, backlog size and age, reopen rate and customer satisfaction, plus trends of recurring incidents. One metric alone can be gamed, for example FCR by closing too fast, so I compare them and look at user feedback. Knowledge use matters too: how often a KB article solved the ticket."
     }
   ]
 }

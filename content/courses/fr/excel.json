@@ -70,6 +70,90 @@
         "code": "=LET(\n  sales, Table1[Amount],\n  region, Table1[Region],\n  SORT(UNIQUE(region))\n)\n\n=FILTER(Table1, (Table1[Region]=\"North\") * (Table1[Amount]>1000), \"none\")\n=SUMIFS(Table1[Amount], Table1[Region], H2, Table1[Month], H$1)",
         "note": "Chaque formule remplit autant de cellules que nécessaire ; inutile de recopier vers le bas."
       }
+    },
+    {
+      "title": "Recherches avancées et Excel en français",
+      "text": [
+        "Les recherches simples rapprochent une clé et renvoient la première correspondance. Les vrais fichiers posent des questions plus difficiles : le montant pour un client et un mois, la dernière commande d’un client, la tranche dans laquelle tombe un salaire, ou une valeur au croisement d’une ligne et d’une colonne. XLOOKUP (RECHERCHEX) gère tous ces cas grâce à ses arguments optionnels, et INDEX/MATCH (INDEX/EQUIV) reste la solution de repli pour les collègues sur d’anciennes versions.",
+        "Pour plusieurs critères, XLOOKUP peut chercher 1 dans un tableau de conditions multipliées entre elles : chaque produit vaut 1 uniquement là où toutes les conditions sont vraies. Le cinquième argument, match_mode, règle le type de correspondance : 0 exacte (par défaut), -1 exacte ou valeur inférieure suivante, 1 exacte ou valeur supérieure suivante, 2 caractères génériques. Avec -1, vous associez un salaire à une tranche à partir d’une table de bornes basses, sans SI imbriqués. Le sixième argument, search_mode, à -1 cherche de la dernière ligne vers le haut, ce qui renvoie l’enregistrement le plus récent quand les données sont triées par date. XMATCH (EQUIVX) est la version moderne de MATCH, avec les mêmes options.",
+        "Beaucoup d’entreprises françaises utilisent Excel en français. Les noms de fonctions sont traduits (XLOOKUP devient RECHERCHEX, INDEX/MATCH devient INDEX/EQUIV, VLOOKUP devient RECHERCHEV, IF devient SI, SUMIFS devient SOMME.SI.ENS, COUNTIFS devient NB.SI.ENS, IFERROR devient SIERREUR, FILTER devient FILTRE, SORT devient TRIER) et le séparateur d’arguments est le point-virgule, car la virgule sert de séparateur décimal. Un fichier continue de fonctionner quand on l’ouvre dans une autre langue : Excel traduit les formules automatiquement. Seules les formules que vous tapez ou copiez depuis le web doivent être adaptées.",
+        "Lors d’un test chronométré, précisez la version que vous utilisez et testez volontairement le cas « introuvable » avec une clé qui n’existe pas."
+      ],
+      "points": [
+        "Plusieurs critères : XLOOKUP(1, (col1=a)*(col2=b), colonne_retour, \"aucun\").",
+        "Tranches : XLOOKUP(valeur, bornes_basses, libellés, , -1) renvoie la plus grande borne basse inférieure ou égale à la valeur.",
+        "Dernière correspondance : XLOOKUP(clé, clés, valeurs, , 0, -1).",
+        "Double entrée : INDEX(tableau, MATCH(clé_ligne, lignes, 0), MATCH(clé_colonne, en-têtes, 0)).",
+        "Excel en français : même logique, noms français, « ; » entre les arguments."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=XLOOKUP(1, (Sales[Client]=$A2)*(Sales[Month]=B$1), Sales[Amount], 0)\n=XLOOKUP([@Salary], Bands[Min], Bands[Band], \"below range\", -1)\n=XLOOKUP($A2, Orders[Client], Orders[Date], \"no order\", 0, -1)\n=INDEX(Targets[[Jan]:[Dec]], MATCH($A2, Targets[Region], 0), XMATCH(B$1, Targets[[#Headers],[Jan]:[Dec]]))",
+        "note": "Dans Excel en français, la première ligne s’écrit =RECHERCHEX(1; (Sales[Client]=$A2)*(Sales[Month]=B$1); Sales[Amount]; 0)."
+      }
+    },
+    {
+      "title": "Power Query : nettoyer et combiner des fichiers",
+      "text": [
+        "Power Query est l’outil d’extraction et de transformation intégré à Excel (Données > Obtenir des données). Chaque action que vous cliquez devient une étape dans la liste des étapes appliquées, écrite dans un langage appelé M. La requête rejoue toutes les étapes sur les nouvelles données quand vous cliquez sur Actualiser : le nettoyage devient un processus construit une fois, et non une tâche refaite chaque mois.",
+        "Le modèle le plus utile pour un analyste est Obtenir des données > À partir d’un fichier > À partir d’un dossier. Power Query liste tous les fichiers du dossier, et Combiner et transformer applique les mêmes étapes à chacun avant de les empiler dans une seule table. Ajoutez une colonne avec le nom du fichier source pour retrouver l’origine de chaque ligne. Le mois suivant, déposez le nouveau fichier dans le dossier et actualisez.",
+        "Fusionner des requêtes est une jointure entre deux requêtes, avec les types de jointure connus en SQL : externe gauche, interne, externe entière, et les anti-jointures (l’anti-jointure gauche garde les lignes sans correspondance, idéale pour lister les codes produits inconnus). Ajouter des requêtes empile des tables aux mêmes colonnes. Dépivoter les colonnes transforme un rapport large, avec une colonne par mois, en table longue exploitable par un tableau croisé dynamique. Regrouper par agrège directement dans Power Query.",
+        "Les types comptent. Fixez-les explicitement en fin de requête, et utilisez Modifier le type > Avec les paramètres régionaux quand un CSV vient d’un système français avec virgules décimales et dates jour/mois. Chargez le résultat dans un tableau, ou en connexion uniquement s’il alimente seulement le modèle de données."
+      ],
+      "points": [
+        "Chaque étape est rejouable : renommez les étapes pour que la liste se lise comme une recette.",
+        "À partir d’un dossier + Combiner empile des fichiers mensuels de même structure.",
+        "Une fusion en anti-jointure gauche liste les clés absentes d’une table de référence.",
+        "Dépivoter les autres colonnes, après avoir sélectionné les colonnes d’identifiant, résiste à l’arrivée de nouveaux mois.",
+        "Supprimez tôt les colonnes inutiles : la requête s’actualise plus vite."
+      ],
+      "example": {
+        "lang": "m",
+        "code": "let\n    Source = Folder.Files(\"C:\\Reports\\Sales\"),\n    CsvOnly = Table.SelectRows(Source, each [Extension] = \".csv\"),\n    Parsed = Table.AddColumn(CsvOnly, \"Data\", each Table.PromoteHeaders(\n        Csv.Document([Content], [Delimiter = \";\", Encoding = 65001]))),\n    Combined = Table.Combine(Parsed[Data]),\n    Typed = Table.TransformColumnTypes(Combined,\n        {{\"Date\", type date}, {\"Amount\", type number}}, \"fr-FR\"),\n    NoBlanks = Table.SelectRows(Typed, each [Amount] <> null)\nin\n    NoBlanks",
+        "note": "La culture \"fr-FR\" lit correctement 1234,50 et 31/01/2026. On tape rarement du M à la main : l’éditeur l’écrit au fil des clics."
+      }
+    },
+    {
+      "title": "Tableaux croisés dynamiques avancés et modèle de données",
+      "text": [
+        "Une fois le tableau croisé de base maîtrisé, l’étape suivante consiste à lui faire répondre à des questions de comparaison. Paramètres des champs de valeurs > Afficher les valeurs transforme une somme en % du total de la colonne, % du total de la ligne, différence par rapport au mois précédent, différence en %, résultat cumulé ou rang. Vous gardez un seul champ source et obtenez plusieurs vues sans colonnes intermédiaires.",
+        "Un champ calculé (Analyse du tableau croisé dynamique > Champs, éléments et jeux) applique une formule aux champs sommés, par exemple Marge % = Profit / Chiffre d’affaires. Il est calculé sur les totaux de chaque cellule : il donne donc le ratio des totaux, la bonne façon de moyenner un taux. Les segments ajoutent des boutons de filtre, et Connexions de rapport relie un segment à plusieurs tableaux croisés construits sur la même source. Une chronologie est un segment pour les dates qui filtre par mois, trimestre ou année d’un simple glissement.",
+        "Quand les données sont réparties dans plusieurs tables (ventes, clients, produits, calendrier), ne les fusionnez pas dans une seule feuille géante. Cochez « Ajouter ces données au modèle de données » en créant le tableau croisé, puis créez des relations entre les clés (Données > Relations, ou la vue de diagramme de Power Pivot). Le modèle de données stocke des millions de lignes compressées, permet le nombre distinct et l’écriture de mesures en DAX, le même langage que Power BI.",
+        "Les mesures valent mieux que les champs calculés pour tout travail sérieux : elles sont définies une fois, réutilisées dans chaque tableau croisé, et peuvent modifier le contexte de filtre, par exemple pour comparer avec l’année précédente."
+      ],
+      "points": [
+        "Afficher les valeurs : % du total, différence par rapport à, résultat cumulé, rang.",
+        "Les champs calculés travaillent sur les sommes : adaptés aux ratios de totaux.",
+        "Connexions de rapport permet à un segment de filtrer plusieurs tableaux croisés.",
+        "Modèle de données : des relations au lieu de recherches, le nombre distinct, des mesures DAX.",
+        "Une vraie table de dates fait fonctionner les comparaisons temporelles en DAX."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Total Sales := SUM ( Sales[Amount] )\nOrders := DISTINCTCOUNT ( Sales[OrderID] )\nAverage Basket := DIVIDE ( [Total Sales], [Orders] )\nSales LY := CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( Dates[Date] ) )\nGrowth % := DIVIDE ( [Total Sales] - [Sales LY], [Sales LY] )",
+        "note": "Créez-les dans Power Pivot > Mesures > Nouvelle mesure. SAMEPERIODLASTYEAR exige une table Dates marquée comme table de dates et reliée à Sales. Les fonctions DAX gardent leur nom anglais dans Excel en français."
+      }
+    },
+    {
+      "title": "Un tableau de bord KPI fiable : validation et protection",
+      "text": [
+        "Un bon tableau de bord Excel se construit en couches. Les données brutes vivent dans des tableaux (ou des sorties Power Query) sur une feuille, les calculs sur une autre, et la feuille Tableau de bord ne fait qu’afficher les résultats. Personne ne saisit dans la zone de données du tableau de bord, et chaque chiffre affiché provient d’une formule ou d’un tableau croisé traçable. C’est cette séparation qui permet d’actualiser le mois suivant sans rien reconstruire.",
+        "Partez des questions, pas des graphiques : trois à six KPI, chacun avec une définition, une comparaison (mois précédent, objectif ou année précédente) et un sens (une hausse est-elle bonne ?). Placez les cartes KPI en haut, la tendance en dessous et le détail en bas. Une seule cellule de saisie, par exemple le mois choisi dans une liste déroulante, pilote les formules SUMIFS : toute la page se met à jour d’un coup. Utilisez la mise en forme conditionnelle ou les jeux d’icônes avec parcimonie pour signaler ce qui s’écarte de l’objectif, les graphiques sparkline (Insertion > Graphiques sparkline) pour une petite tendance dans une cellule, et des histogrammes ou courbes simples plutôt que de la 3D ou des secteurs à nombreuses parts.",
+        "La validation des données (Données > Validation des données) protège les saisies : une liste limitée aux valeurs autorisées (elle peut pointer vers une plage UNIQUE propagée avec #), des nombres entiers ou des dates dans un intervalle, ou une formule personnalisée comme une règle d’unicité. Ajoutez un message de saisie et une alerte d’erreur claire.",
+        "Verrouillez ensuite la structure. Toutes les cellules sont verrouillées par défaut, mais le verrouillage ne s’applique qu’une fois la feuille protégée : déverrouillez les cellules de saisie (Format de cellule > Protection), puis Révision > Protéger la feuille. Protéger le classeur empêche d’ajouter, de supprimer ou de renommer des feuilles. La protection de feuille évite les accidents, pas les utilisateurs déterminés ; pour la confidentialité, utilisez le chiffrement du fichier et les droits d’accès."
+      ],
+      "points": [
+        "Couches : Données, Calculs, Tableau de bord ; aucun chiffre saisi en dur sur le tableau de bord.",
+        "Chaque KPI : définition, comparaison, objectif ou sens.",
+        "Une cellule de saisie avec liste de validation pilote toutes les formules.",
+        "Déverrouillez les cellules de saisie avant de protéger la feuille, sinon personne ne peut les utiliser.",
+        "Ajoutez sur la page une date de dernière actualisation et la source des données."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "C2  (selected month, Data Validation > List, Source: =$H$2#)\nH2  =SORT(UNIQUE(Sales[Month]), , -1)\nC5  =SUMIFS(Sales[Amount], Sales[Month], $C$2)\nC6  =SUMIFS(Sales[Amount], Sales[Month], EDATE($C$2, -1))\nC7  =IFERROR(C5 / C6 - 1, \"n/a\")\nC8  =COUNTIFS(Sales[Month], $C$2, Sales[Status], \"Refunded\") / COUNTIFS(Sales[Month], $C$2)\nA2:A1000 custom validation rule: =COUNTIF($A$2:$A$1000, A2)=1",
+        "note": "Sales[Month] contient le premier jour de chaque mois sous forme de vraie date : EDATE (MOIS.DECALER en français) donne le mois précédent."
+      }
     }
   ],
   "cheatsheet": [
@@ -169,13 +253,107 @@
           "Somme automatique"
         ]
       ]
+    },
+    {
+      "group": "Recherche avancée",
+      "items": [
+        [
+          "XLOOKUP(1, (c1=a)*(c2=b), ret)",
+          "Recherche sur plusieurs critères"
+        ],
+        [
+          "XLOOKUP(v, mins, labels, , -1)",
+          "Exacte ou inférieure suivante : tranches"
+        ],
+        [
+          "XLOOKUP(k, keys, ret, , 0, -1)",
+          "Dernière correspondance (recherche depuis la fin)"
+        ],
+        [
+          "XMATCH(k, range)",
+          "MATCH moderne, exacte par défaut"
+        ],
+        [
+          "RECHERCHEX / INDEX + EQUIV",
+          "Noms français de XLOOKUP / INDEX + MATCH"
+        ],
+        [
+          "; au lieu de ,",
+          "Séparateur d’arguments dans Excel en français"
+        ]
+      ]
+    },
+    {
+      "group": "Power Query et tableaux croisés",
+      "items": [
+        [
+          "Obtenir des données > À partir d’un dossier",
+          "Combiner des fichiers de même structure"
+        ],
+        [
+          "Fusionner des requêtes (anti gauche)",
+          "Lignes sans correspondance dans l’autre table"
+        ],
+        [
+          "Dépivoter les colonnes",
+          "Rapport large vers table longue"
+        ],
+        [
+          "Afficher les valeurs",
+          "% du total, différence, résultat cumulé"
+        ],
+        [
+          "Champ calculé",
+          "Formule sur les champs sommés"
+        ],
+        [
+          "Chronologie",
+          "Segment de dates par mois, trimestre, année"
+        ],
+        [
+          "Measure := DIVIDE(a, b)",
+          "Mesure DAX dans le modèle de données"
+        ]
+      ]
+    },
+    {
+      "group": "Tableau de bord et protection",
+      "items": [
+        [
+          "Validation des données > Liste",
+          "Liste déroulante de valeurs autorisées"
+        ],
+        [
+          "=COUNTIF($A$2:$A$1000, A2)=1",
+          "Règle personnalisée : valeurs uniques"
+        ],
+        [
+          "Format de cellule > Protection > Verrouillée",
+          "Déverrouiller d’abord les cellules de saisie"
+        ],
+        [
+          "Révision > Protéger la feuille",
+          "Bloquer les modifications hors cellules déverrouillées"
+        ],
+        [
+          "Protéger le classeur",
+          "Verrouiller la structure des feuilles"
+        ],
+        [
+          "Insertion > Graphiques sparkline",
+          "Mini-courbe dans une cellule"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "VLOOKUP sans FALSE : la correspondance approximative renvoie des valeurs fausses sans prévenir.",
     "Cellules fusionnées et lignes vides au milieu des données : elles cassent les tris, les filtres et les tableaux croisés dynamiques.",
     "Des nombres saisis en dur dans les formules au lieu d’une référence de cellule ou de tableau.",
-    "Oublier d’actualiser un tableau croisé dynamique après avoir modifié les données."
+    "Oublier d’actualiser un tableau croisé dynamique après avoir modifié les données.",
+    "Taper des formules avec des virgules dans Excel en français (ou des points-virgules dans Excel en anglais) : corrigez les séparateurs, la logique est la même.",
+    "Tout fusionner dans une seule feuille large à coups de recherches au lieu de charger les tables liées dans le modèle de données.",
+    "Protéger une feuille sans avoir d’abord déverrouillé les cellules de saisie, ou considérer la protection de feuille comme une sécurité pour des données confidentielles."
   ],
   "exercises": [
     {
@@ -197,6 +375,25 @@
       "hint": "FILTER à l’intérieur de SORT ; Amount est la troisième colonne.",
       "code": "excel",
       "answer": "=SORT(FILTER(Sales, Sales[Amount]>5000), 3, -1)"
+    },
+    {
+      "q": "La table Sales a les colonnes Client, Month et Amount. Renvoyez le montant pour le client en A2 et le mois en B1, ou 0 s’il n’y en a pas.",
+      "code": "excel",
+      "answer": "=XLOOKUP(1, (Sales[Client]=$A2)*(Sales[Month]=B$1), Sales[Amount], 0)"
+    },
+    {
+      "q": "La table Bands a les colonnes Min (0, 30000, 45000, 60000, triées par ordre croissant) et Band (Junior, Confirmé, Senior, Lead). Renvoyez la tranche du salaire en C2.",
+      "hint": "match_mode -1 : exacte ou inférieure suivante.",
+      "code": "excel",
+      "answer": "=XLOOKUP(C2, Bands[Min], Bands[Band], \"below range\", -1)"
+    },
+    {
+      "q": "Chaque mois, vous recevez un export CSV au même format et devez lister les codes produits absents de la table de référence Products. Comment faire dans Power Query ?",
+      "answer": "Créez une requête À partir d’un dossier qui combine tous les CSV et fixe les types, chargez Products comme seconde requête, puis fusionnez la requête des ventes avec Products sur le code produit avec le type de jointure anti gauche. Le résultat ne contient que les codes inconnus ; supprimez les doublons et chargez-le comme table de contrôle. Le mois suivant, déposez le nouveau fichier dans le dossier et cliquez sur Actualiser."
+    },
+    {
+      "q": "Votre tableau de bord a une cellule de saisie C2 pour le mois. Comment garantir que les utilisateurs ne peuvent modifier que C2, et seulement avec un mois valide ?",
+      "answer": "Placez une validation des données de type Liste sur C2 pointant vers la liste des mois (par exemple une formule propagée =SORT(UNIQUE(Sales[Month])) référencée par H2#), ajoutez une alerte d’erreur, déverrouillez C2 dans Format de cellule > Protection, puis Révision > Protéger la feuille. En option, protégez le classeur pour empêcher de renommer ou supprimer des feuilles."
     }
   ],
   "interview": [
@@ -215,6 +412,22 @@
     {
       "q": "Vous recevez chaque mois le même rapport dans un nouveau fichier Excel et passez des heures à le nettoyer. Que faites-vous ?",
       "a": "J’automatise le nettoyage dans Power Query : connexion au dossier où arrivent les fichiers, enregistrement des étapes une fois (supprimer des colonnes, corriger les types, découper et fusionner), chargement du résultat dans une table ou le modèle de données, et tableaux croisés ou graphiques construits dessus. Chaque mois, je dépose le fichier dans le dossier et j’actualise. Je documente aussi les étapes et je vérifie le nombre de lignes après actualisation."
+    },
+    {
+      "q": "Comment rechercher une valeur à partir de deux critères ?",
+      "a": "Avec XLOOKUP (RECHERCHEX) sur 1 et le produit de deux conditions : XLOOKUP(1, (Client=A2)*(Mois=B1), Montant). Chaque condition renvoie VRAI ou FAUX, et la multiplication donne 1 seulement là où les deux sont vraies. Sur une ancienne version, j’utiliserais INDEX/EQUIV avec le même tableau, ou une colonne clé intermédiaire qui concatène les deux critères."
+    },
+    {
+      "q": "Quelle différence entre un champ calculé de tableau croisé et une mesure DAX ?",
+      "a": "Un champ calculé applique une formule aux champs sommés d’un seul cache de tableau croisé, avec peu de fonctions. Une mesure vit dans le modèle de données, est réutilisée par tous les tableaux croisés, accepte des fonctions comme DISTINCTCOUNT, DIVIDE et CALCULATE, et peut modifier le contexte de filtre, par exemple pour comparer avec la même période l’an dernier."
+    },
+    {
+      "q": "Comment concevez-vous un tableau de bord Excel que quelqu’un d’autre mettra à jour chaque mois ?",
+      "a": "Je sépare données, calculs et présentation. Les données arrivent par Power Query ou dans des tableaux, l’actualisation se fait donc en un clic. Les KPI sont des formules ou des mesures pilotées par une cellule de saisie avec liste de validation. Je documente les définitions et la source sur la feuille, j’ajoute une date de dernière actualisation et je protège la feuille en ne laissant déverrouillées que les cellules de saisie."
+    },
+    {
+      "q": "Un collègue sous Excel en français dit que votre formule ne fonctionne pas. Pourquoi ?",
+      "a": "Si c’est le fichier qui a été partagé, Excel traduit les fonctions automatiquement : le problème est ailleurs, souvent les dates ou les décimales régionales des données sources. S’il a tapé ou collé ma formule, il lui faut les noms français, comme RECHERCHEX pour XLOOKUP, et des points-virgules comme séparateurs, car la virgule est le séparateur décimal."
     }
   ]
 }

@@ -72,6 +72,87 @@
         "code": "df[\"date\"] = pd.to_datetime(df[\"date\"])\ndaily = df.set_index(\"date\").resample(\"D\")[\"sales\"].sum()\n\nweekly = daily.resample(\"W\").sum()\nrolling_7d = daily.rolling(7).mean()\ngrowth = daily.pct_change(7)          # vs same day last week\n\ndf[\"month\"] = df[\"date\"].dt.to_period(\"M\")\ndf[\"weekday\"] = df[\"date\"].dt.day_name()",
         "note": "pct_change(7) sur des données quotidiennes compare chaque jour au même jour de la semaine précédente."
       }
+    },
+    {
+      "title": "Des jointures fiables : types de jointure, validate et indicator",
+      "text": [
+        "Un merge est la ligne la plus dangereuse d’un notebook pandas. Si la clé est dupliquée du côté que vous pensiez unique, chaque ligne correspondante est multipliée et vos totaux gonflent sans la moindre erreur. Si les clés sont écrites différemment de chaque côté (« C-012 » contre « c012 », un entier contre une chaîne), des lignes ne trouvent pas de correspondance sans bruit. Dans les deux cas, le DataFrame obtenu a l’air correct.",
+        "Choisissez le type de jointure volontairement. how=\"left\" conserve toutes les lignes de la table de gauche (le choix habituel quand on enrichit des faits avec une table de référence), \"inner\" ne garde que les correspondances, \"outer\" garde tout des deux côtés et \"cross\" construit toutes les combinaisons. pd.concat est différent : il empile des tables qui ont les mêmes colonnes (les fichiers de janvier et de février) au lieu de rapprocher des clés.",
+        "Deux arguments transforment un merge en opération contrôlée. validate=\"many_to_one\" (ou \"m:1\", \"1:1\", \"1:m\") lève une MergeError si la clé n’est pas unique là où elle devrait l’être. indicator=True ajoute une colonne _merge qui indique pour chaque ligne si elle a été trouvée dans les deux tables (\"both\"), seulement à gauche (\"left_only\") ou seulement à droite (\"right_only\") : vous pouvez compter et examiner les lignes sans correspondance au lieu de les découvrir dans un graphique faux.",
+        "Bonne habitude : notez le nombre de lignes attendu avant le merge et vérifiez-le ensuite avec un assert. Pour une jointure gauche sur une clé de référence unique, le résultat doit avoir exactement autant de lignes que la table de gauche."
+      ],
+      "points": [
+        "Nettoyez les clés avant le merge : même dtype, .str.strip(), même casse.",
+        "validate=\"m:1\" quand vous enrichissez des faits avec une dimension (commandes et clients).",
+        "indicator=True puis value_counts() sur _merge pour mesurer les lignes sans correspondance.",
+        "Supprimez la colonne _merge une fois le contrôle fait, sinon elle entre en conflit avec le prochain merge utilisant indicator=True.",
+        "pd.concat([jan, feb], ignore_index=True) empile des fichiers ; vérifiez d’abord que les colonnes sont identiques."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "offers = pd.read_csv(\"offers.csv\")\ncompanies = pd.read_csv(\"companies.csv\")\n\nmerged = offers.merge(\n    companies,\n    on=\"company_id\",\n    how=\"left\",\n    validate=\"many_to_one\",  # MergeError if company_id is duplicated in companies\n    indicator=True,\n)\nprint(merged[\"_merge\"].value_counts())\n\nmissing = merged.loc[merged[\"_merge\"] == \"left_only\", \"company_id\"].unique()\nprint(f\"{len(missing)} company ids not found in companies\")\n\nassert len(merged) == len(offers), \"row count changed after merge\"\nmerged = merged.drop(columns=\"_merge\")",
+        "note": "Si validate échoue, regardez companies[companies.duplicated(\"company_id\", keep=False)] avant de dédoublonner."
+      }
+    },
+    {
+      "title": "Restructurer : melt, pivot, pivot_table, stack et unstack",
+      "text": [
+        "Les données arrivent sous deux formes. Le format large a une colonne par période ou par catégorie (« 2025-01 », « 2025-02 »…) : c’est ainsi qu’on aime lire un rapport et c’est souvent la forme des exports Excel. Le format long (ou « tidy ») a une ligne par observation et une colonne par variable : ville, mois, offres. C’est ce qu’attendent groupby, merge, les bibliothèques de graphiques et les bases de données ; passer du large au long est donc souvent la première étape de nettoyage.",
+        "melt passe du large au long : id_vars sont les colonnes à garder comme identifiants, les autres colonnes deviennent deux colonnes, l’une contenant l’ancien en-tête (var_name), l’autre la valeur (value_name). pivot fait l’inverse quand chaque couple index/colonne n’apparaît qu’une fois ; en cas de doublons, il lève une ValueError plutôt que de deviner. pivot_table passe aussi du long au large mais agrège les doublons avec aggfunc, peut combler les trous avec fill_value et ajouter des totaux avec margins=True.",
+        "stack et unstack déplacent un niveau entre les colonnes et l’index des lignes. unstack transforme le niveau interne de l’index en colonnes (pratique juste après un groupby sur deux clés), stack fait l’inverse. Ce sont les cousins de pivot et melt, basés sur l’index.",
+        "Choisissez la forme selon la tâche : long pour calculer, large pour présenter. Restructurez le plus tard possible, juste avant le tableau ou le graphique final."
+      ],
+      "points": [
+        "wide.melt(id_vars=\"city\", var_name=\"month\", value_name=\"offers\") passe du large au long.",
+        "pivot échoue volontairement sur les doublons ; pivot_table les agrège.",
+        "pivot_table(..., fill_value=0, margins=True) ajoute une ligne et une colonne « All » avec les totaux.",
+        "df.groupby([\"city\", \"month\"])[\"offers\"].sum().unstack() donne la même vue large.",
+        "Après un melt, convertissez la nouvelle colonne dans le bon type (pd.to_datetime sur une colonne de mois)."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "wide = pd.DataFrame({\n    \"city\": [\"Paris\", \"Lyon\"],\n    \"2025-01\": [120, 40],\n    \"2025-02\": [135, 52],\n})\n\nlong = wide.melt(id_vars=\"city\", var_name=\"month\", value_name=\"offers\")\n# one row per city and month: city | month | offers\n\nback = long.pivot(index=\"city\", columns=\"month\", values=\"offers\")\n\nreport = long.pivot_table(index=\"city\", columns=\"month\", values=\"offers\",\n                          aggfunc=\"sum\", fill_value=0, margins=True)\n\nstacked = back.stack()        # Series indexed by (city, month)\nprint(stacked.unstack())      # back to one column per month\n\nlong[\"month\"] = pd.to_datetime(long[\"month\"])   # real dates for time-based work"
+      }
+    },
+    {
+      "title": "groupby en profondeur : agg, transform, filter et ordre dans les groupes",
+      "text": [
+        "groupby découpe les lignes en groupes, applique un calcul à chaque groupe et combine les résultats. Ce que vous appliquez décide de la forme du résultat. agg réduit chaque groupe à une ligne : c’est votre tableau de synthèse. transform renvoie un résultat de même longueur que le DataFrame d’origine : vous pouvez ajouter une statistique de groupe comme nouvelle colonne sur chaque ligne. filter conserve ou supprime des groupes entiers selon une condition.",
+        "transform répond à des questions comme « comment ce salaire se situe-t-il par rapport à la médiane de sa ville ? » ou « quelle part des offres de l’entreprise représente celle-ci ? ». Sans lui, on construit souvent une synthèse puis on la refusionne, avec le risque d’un mauvais merge. Avec transform, c’est une ligne et les lignes restent alignées sur l’index.",
+        "Beaucoup de questions dépendent de l’ordre à l’intérieur d’un groupe : la première commande de chaque client, le nombre de jours depuis la candidature précédente, un cumul par mois. Triez d’abord, puis utilisez cumcount, cumsum, shift, diff ou rank sur l’objet groupé. Ils travaillent groupe par groupe et repartent de zéro à chaque nouveau groupe.",
+        "Deux comportements par défaut à connaître. groupby supprime les lignes dont la clé vaut NaN, sauf avec dropna=False, ce qui peut masquer tout un bloc de données non affectées. Et count compte les valeurs non manquantes par colonne, alors que size compte les lignes, valeurs manquantes comprises."
+      ],
+      "points": [
+        "Les agrégations nommées gardent des noms de colonnes lisibles : agg(median_salary=(\"salary\", \"median\")).",
+        "as_index=False renvoie un DataFrame à plat au lieu de mettre les clés dans l’index.",
+        "transform(\"median\") recopie la valeur du groupe sur chaque ligne.",
+        "filter(lambda g: len(g) >= 50) ne garde que les groupes avec assez de données.",
+        "Évitez groupby().apply avec une fonction Python quand un agg ou un transform intégré existe : c’est beaucoup plus lent."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "df[\"company_offers\"] = df.groupby(\"company\")[\"id\"].transform(\"count\")\ndf[\"vs_city_median\"] = df[\"salary\"] - df.groupby(\"city\")[\"salary\"].transform(\"median\")\ndf[\"salary_pct_rank\"] = df.groupby(\"city\")[\"salary\"].rank(pct=True)\n\nbig_cities = df.groupby(\"city\").filter(lambda g: len(g) >= 50)\n\napps = apps.sort_values([\"user_id\", \"applied_at\"])\napps[\"application_no\"] = apps.groupby(\"user_id\").cumcount() + 1\napps[\"days_since_prev\"] = apps.groupby(\"user_id\")[\"applied_at\"].diff().dt.days\n\nsummary = df.groupby([\"city\", \"contract\"], as_index=False, dropna=False).agg(\n    offers=(\"id\", \"count\"),\n    median_salary=(\"salary\", \"median\"),\n    remote_share=(\"is_remote\", \"mean\"),\n)"
+      }
+    },
+    {
+      "title": "Performance, mémoire et contrôles qualité",
+      "text": [
+        "pandas est rapide quand le travail se fait dans son code compilé, sur des colonnes entières, et lent quand vous appelez une fonction Python une fois par ligne. df.apply(func, axis=1) et les boucles avec iterrows sont les coupables habituels : sur quelques millions de lignes, ils prennent des minutes là où une expression vectorisée prend une fraction de seconde. La plupart des logiques ligne à ligne se réécrivent avec de l’arithmétique sur colonnes, les accesseurs .str et .dt, np.where pour une condition ou np.select pour plusieurs.",
+        "La mémoire compte dès qu’un fichier approche la taille de votre RAM. Les colonnes texte stockées en object prennent beaucoup de place ; une colonne avec peu de valeurs distinctes (ville, statut, contrat) en utilise beaucoup moins en dtype category. Ne chargez que le nécessaire avec usecols, fixez les dtypes à la lecture et mesurez avec df.memory_usage(deep=True). Pour un travail répété, enregistrer en Parquet conserve les types et se recharge bien plus vite qu’un CSV.",
+        "La vitesse ne sert à rien si les données sont fausses. Avant toute analyse, lancez une courte série de contrôles qui échouent bruyamment : la clé est unique, les colonnes obligatoires sont remplies, les nombres sont dans une plage plausible, les dates couvrent la période attendue et le nombre de lignes est proche de la source. Les écrire sous forme d’assert (ou d’une petite fonction) arrête le notebook quand le fichier de demain est cassé, au lieu de produire un graphique sûr de lui mais faux."
+      ],
+      "points": [
+        "Vectorisez : np.where(cond, a, b) au lieu d’un apply avec une lambda if/else.",
+        "astype(\"category\") pour les textes répétés ; vérifiez le gain avec memory_usage(deep=True).",
+        "read_csv(usecols=[...], dtype={...}) lit moins et devine moins.",
+        "Contrôles typiques : is_unique sur la clé, isna().mean() par colonne, between() sur les plages, min/max des dates.",
+        "Gardez les contrôles dans le notebook ou le script pour qu’ils tournent à chaque fois, pas une seule."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import numpy as np\nimport pandas as pd\n\ndf = pd.read_csv(\n    \"offers.csv\",\n    usecols=[\"id\", \"city\", \"contract\", \"salary\", \"posted_at\"],\n    dtype={\"city\": \"category\", \"contract\": \"category\"},\n    parse_dates=[\"posted_at\"],\n)\nprint(round(df.memory_usage(deep=True).sum() / 1e6, 1), \"MB\")\n\n# Slow: a Python function called once per row\n# df[\"band\"] = df.apply(lambda r: \"high\" if r[\"salary\"] > 50000 else \"low\", axis=1)\ndf[\"band\"] = np.where(df[\"salary\"] > 50000, \"high\", \"low\")\n\n# Quality checks before any analysis\nassert df[\"id\"].is_unique, \"duplicate ids\"\nassert df[\"salary\"].dropna().between(15000, 300000).all(), \"salary out of range\"\nassert df[\"posted_at\"].min() >= pd.Timestamp(\"2025-01-01\"), \"unexpected old dates\"\nprint(df.isna().mean().round(3))   # share of missing values per column",
+        "note": "np.where renvoie un tableau NumPy ; np.select gère plusieurs conditions avec une valeur par défaut."
+      }
     }
   ],
   "cheatsheet": [
@@ -162,13 +243,78 @@
           "Trier"
         ]
       ]
+    },
+    {
+      "group": "Jointures et restructuration",
+      "items": [
+        [
+          "a.merge(b, on=\"k\", validate=\"m:1\")",
+          "Échoue si k n’est pas unique dans b"
+        ],
+        [
+          "a.merge(b, on=\"k\", how=\"left\", indicator=True)",
+          "Ajoute _merge : both / left_only / right_only"
+        ],
+        [
+          "pd.concat([a, b], ignore_index=True)",
+          "Empiler des tables aux mêmes colonnes"
+        ],
+        [
+          "df.melt(id_vars=\"id\", var_name=\"v\", value_name=\"x\")",
+          "Du large au long"
+        ],
+        [
+          "df.pivot(index=\"i\", columns=\"c\", values=\"v\")",
+          "Du long au large, erreur si doublons"
+        ],
+        [
+          "s.unstack() / df.stack()",
+          "Niveau interne de l’index en colonnes / et retour"
+        ]
+      ]
+    },
+    {
+      "group": "Groupes et performance",
+      "items": [
+        [
+          "df.groupby(\"g\")[\"v\"].transform(\"mean\")",
+          "Valeur du groupe sur chaque ligne"
+        ],
+        [
+          "df.groupby(\"g\").filter(lambda g: len(g) >= 5)",
+          "Ne garder que les grands groupes"
+        ],
+        [
+          "df.groupby(\"g\").cumcount() + 1",
+          "Numéro de ligne dans chaque groupe"
+        ],
+        [
+          "df.groupby(\"g\", dropna=False)",
+          "Garder les clés NaN comme un groupe"
+        ],
+        [
+          "s.astype(\"category\")",
+          "Économiser la mémoire sur du texte répété"
+        ],
+        [
+          "np.where(cond, a, b)",
+          "Si/sinon vectorisé"
+        ],
+        [
+          "df.memory_usage(deep=True)",
+          "Mémoire réelle par colonne"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Modifier une sélection filtrée et obtenir un SettingWithCopyWarning : utilisez .loc ou .assign sur une copie.",
     "Oublier les parenthèses autour de chaque condition quand on les combine avec & et |.",
     "Calculer la moyenne d’une colonne qui contient encore du texte ou des types incorrects.",
-    "Perdre des lignes sans s’en rendre compte avec un merge inner."
+    "Perdre des lignes sans s’en rendre compte avec un merge inner.",
+    "Faire un merge sur une clé non unique côté table de référence : les lignes sont dupliquées et les totaux gonflent sans erreur. Utilisez validate=.",
+    "Utiliser groupby().apply ou apply(axis=1) pour une logique qu’une expression vectorisée ou un transform fait en une passe.",
+    "Oublier que groupby supprime par défaut les clés NaN : tout un bloc de lignes sans catégorie disparaît de la synthèse."
   ],
   "exercises": [
     {
@@ -191,6 +337,29 @@
       "hint": "to_datetime, set_index, resample(\"MS\"), pct_change.",
       "code": "python",
       "answer": "df[\"date\"] = pd.to_datetime(df[\"date\"])\nmonthly = (df.set_index(\"date\")\n             .resample(\"MS\")[\"revenue\"].sum()\n             .to_frame())\nmonthly[\"mom_growth_%\"] = monthly[\"revenue\"].pct_change() * 100"
+    },
+    {
+      "q": "Joignez orders à customers sur customer_id en gardant toutes les commandes, en échouant si un customer_id apparaît deux fois dans customers, puis affichez le nombre de commandes sans client.",
+      "hint": "validate et indicator.",
+      "code": "python",
+      "answer": "m = orders.merge(customers, on=\"customer_id\", how=\"left\",\n                 validate=\"many_to_one\", indicator=True)\nprint((m[\"_merge\"] == \"left_only\").sum())"
+    },
+    {
+      "q": "Un DataFrame a les colonnes product, Q1, Q2, Q3, Q4 (ventes). Transformez-le en une ligne par produit et par trimestre avec les colonnes product, quarter, sales.",
+      "code": "python",
+      "answer": "long = df.melt(id_vars=\"product\", var_name=\"quarter\", value_name=\"sales\")"
+    },
+    {
+      "q": "Ajoutez une colonne share_of_customer donnant le montant de chaque commande en part du montant total de ce client.",
+      "hint": "transform conserve la longueur d’origine.",
+      "code": "python",
+      "answer": "df[\"share_of_customer\"] = df[\"amount\"] / df.groupby(\"customer_id\")[\"amount\"].transform(\"sum\")"
+    },
+    {
+      "q": "Remplacez cette ligne lente par une version vectorisée : df[\"level\"] = df.apply(lambda r: \"senior\" if r[\"years\"] >= 5 else (\"mid\" if r[\"years\"] >= 2 else \"junior\"), axis=1)",
+      "hint": "np.select avec une liste de conditions et une valeur par défaut.",
+      "code": "python",
+      "answer": "df[\"level\"] = np.select(\n    [df[\"years\"] >= 5, df[\"years\"] >= 2],\n    [\"senior\", \"mid\"],\n    default=\"junior\",\n)"
     }
   ],
   "interview": [
@@ -209,6 +378,22 @@
     {
       "q": "Comment détecteriez-vous une baisse inhabituelle des ventes quotidiennes avec pandas ?",
       "a": "Convertir les dates, regrouper en totaux quotidiens pour faire apparaître les jours manquants, puis comparer chaque jour à une référence : le même jour des semaines précédentes ou une moyenne et un écart-type glissants. Signaler les jours très en dessous de la référence, et vérifier les problèmes de données (chargement en retard, source manquante) avant de conclure à un problème métier."
+    },
+    {
+      "q": "Après un merge, votre chiffre d’affaires total a augmenté de 15 %. Que s’est-il passé et comment l’éviter ?",
+      "a": "La clé était probablement dupliquée dans la table jointe : chaque ligne correspondante a été répétée et sommée plusieurs fois. Je vérifie avec duplicated() sur la clé, je corrige la table de référence ou je l’agrège d’abord, et je fais échouer le merge la prochaine fois avec validate=\"many_to_one\" et un assert sur le nombre de lignes."
+    },
+    {
+      "q": "Quelle différence entre agg et transform dans un groupby ?",
+      "a": "agg réduit chaque groupe à une ligne, ce qui donne un tableau de synthèse. transform renvoie une valeur pour chaque ligne d’origine, alignée sur l’index : je peux ajouter une statistique de groupe, comme la médiane de la ville, en colonne et comparer chaque ligne à cette valeur."
+    },
+    {
+      "q": "Votre notebook est lent sur un fichier de 5 millions de lignes. Que regardez-vous en premier ?",
+      "a": "Les apply ligne à ligne et les boucles, que je remplace par des opérations vectorisées, np.where ou np.select. Puis la mémoire : ne lire que les colonnes utiles, fixer les dtypes, passer les textes répétés en category et stocker les données intermédiaires en Parquet. Je mesure avant et après avec %timeit et memory_usage(deep=True)."
+    },
+    {
+      "q": "Quels contrôles faites-vous sur un jeu de données avant de l’analyser ?",
+      "a": "Le nombre de lignes par rapport à la source, l’unicité de la clé, la part de valeurs manquantes par colonne, les types, des plages plausibles pour les nombres, la période couverte par les dates et les valeurs distinctes des catégories pour repérer les fautes de frappe. Je les écris sous forme d’assert pour que le notebook s’arrête quand un nouveau fichier en casse un."
     }
   ]
 }

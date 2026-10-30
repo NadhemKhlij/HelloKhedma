@@ -1,6 +1,6 @@
 // Training page (#/training): learning tracks and steps (Supabase training_tracks / training_steps), step progress
 // (guests: "hk.progress.v2"; signed in: step_progress, guest progress imported on sign-in by app.js), the weekly
-// study plan ("hk.hours" h/week), tools, tips and the course list (courses.js).
+// study plan ("hk.hours" h/week), tools, tips, the course list (courses.js) and the portfolio projects (projects.js).
 // Tracks are drawn as a roadmap (done / current / upcoming nodes); "My learning" shows the streak, XP and the course to
 // resume (activity.js). Ticking a step adds XP.
 import { $, h, safeUrl, ls } from "./lib.js";
@@ -11,6 +11,7 @@ import { state, byKind, fail } from "./state.js";
 import { extractSkills } from "./ats.js";
 import { renderCourseList, courseForSkill, courseMeta } from "./courses.js";
 import { renderHome } from "./home.js";
+import { renderProjectList } from "./projects.js";
 
 export const PROG_KEY = "hk.progress.v2";
 const LEVEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
@@ -144,7 +145,7 @@ export function renderStudyPlan() {
       const id = courseForSkill(skill), c = id && courseMeta(id);
       if (!c || seen.has(id) || c.done >= 1) continue;
       seen.add(id);
-      items.push({ title: c.name, hours: Math.max(1, Math.round(c.hours * (1 - c.done))), href: `#/course/${id}`, why: t("missing in your CV: {skill}", { skill }), gap: true });
+      items.push({ title: c.name, hours: Math.max(0.5, Math.round((c.minutes / 60) * (1 - c.done) * 2) / 2), href: `#/course/${id}`, why: t("missing in your CV: {skill}", { skill }), gap: true });
     }
   }
   for (const tr of state.tracks) for (const s of stepsOf(tr)) {
@@ -189,6 +190,7 @@ export function renderStudyPlan() {
 export function refreshLearning() {
   renderHub();
   renderCourseList($("#courseList"), state.pathId);
+  renderProjectList($("#projectList"), state.pathId);
   renderStudyPlan();
 }
 
@@ -198,6 +200,7 @@ export function renderLearn() {
   $("#tools").replaceChildren(...byKind("tool").map((x) => h("li", {}, h("b", {}, x.title), h("small", { class: "mute block" }, x.description))));
   $("#tips").replaceChildren(...byKind("tip").map((x) => h("li", { class: "rounded-lg p-3 text-sm", style: "background:var(--bg);border:1px solid var(--line)" }, x.title)));
   renderCourseList($("#courseList"), state.pathId);
+  renderProjectList($("#projectList"), state.pathId);
   renderHome();
 }
 

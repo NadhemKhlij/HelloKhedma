@@ -4,7 +4,6 @@
   "lessons": [
     {
       "title": "Lire des données : SELECT, WHERE, ORDER BY",
-      "minutes": 40,
       "text": [
         "Une table est un ensemble de lignes avec des colonnes nommées. SELECT choisit les colonnes, FROM choisit la table, WHERE ne garde que les lignes qui respectent une condition, ORDER BY trie, LIMIT garde les premières lignes.",
         "SQL s’écrit dans cet ordre mais s’exécute dans un autre : FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY, LIMIT. C’est pour cela que vous ne pouvez pas utiliser un alias de colonne dans WHERE."
@@ -23,7 +22,6 @@
     },
     {
       "title": "Résumer : GROUP BY, agrégats, HAVING",
-      "minutes": 45,
       "text": [
         "Les fonctions d’agrégation transforment plusieurs lignes en une seule valeur : COUNT, SUM, AVG, MIN, MAX. Avec GROUP BY, vous obtenez une ligne de résultat par groupe.",
         "WHERE filtre les lignes avant le regroupement ; HAVING filtre les groupes une fois l’agrégat calculé."
@@ -41,7 +39,6 @@
     },
     {
       "title": "Combiner des tables : les JOIN",
-      "minutes": 50,
       "text": [
         "Un JOIN associe les lignes de deux tables selon une condition, en général une clé étrangère égale à une clé primaire (orders.customer_id = customers.id).",
         "INNER JOIN ne garde que les lignes qui correspondent. LEFT JOIN garde toutes les lignes de la table de gauche et remplit le côté droit avec NULL quand rien ne correspond : c’est ainsi que l’on trouve ce qui manque."
@@ -59,7 +56,6 @@
     },
     {
       "title": "Aller plus loin : CTE et fonctions de fenêtrage",
-      "minutes": 60,
       "text": [
         "Une CTE (WITH name AS (...)) nomme un résultat intermédiaire pour qu’une longue requête se lise de haut en bas.",
         "Les fonctions de fenêtrage (window functions) calculent une valeur pour chaque ligne en regardant les autres lignes, sans les regrouper : classements, cumuls, valeur précédente. C’est la question classique des entretiens de niveau intermédiaire."
@@ -78,7 +74,6 @@
     },
     {
       "title": "Performance : index et plans d’exécution",
-      "minutes": 45,
       "text": [
         "Une requête qui prend plusieurs secondes sur une grosse table lit généralement toutes les lignes. Un index est une copie triée d’une ou plusieurs colonnes avec des pointeurs vers les lignes, comme l’index d’un livre : la base saute directement aux bonnes lignes au lieu de tout parcourir.",
         "EXPLAIN montre le plan choisi par la base ; EXPLAIN ANALYZE exécute la requête et affiche les vrais temps. Cherchez les parcours complets (Seq Scan) sur de grandes tables, les estimations de lignes très éloignées de la réalité et les tris ou jointures qui débordent sur le disque."
@@ -93,6 +88,105 @@
         "lang": "sql",
         "code": "-- Before: the query scans the whole orders table\nEXPLAIN ANALYZE\nSELECT * FROM orders WHERE customer_id = 42 AND created_at >= '2026-01-01';\n\nCREATE INDEX idx_orders_customer_date ON orders (customer_id, created_at);\n\n-- After: Index Scan using idx_orders_customer_date ... (a few ms instead of seconds)",
         "note": "Mesurez avant et après : c’est le plan, pas l’intuition, qui dit ce qui a changé."
+      }
+    },
+    {
+      "title": "Sous-requêtes, CTE et CTE récursives",
+      "text": [
+        "Une sous-requête est une requête à l’intérieur d’une autre. Elle peut renvoyer une seule valeur (sous-requête scalaire dans SELECT ou WHERE), une liste (WHERE id IN (SELECT ...)) ou une table entière (FROM (SELECT ...) AS t). Une sous-requête corrélée fait référence à la ligne externe, par exemple le salaire moyen du département de l’employé courant : elle est en principe évaluée une fois par ligne externe, ce qui peut être lent sur de grosses tables si l’optimiseur ne parvient pas à la réécrire en jointure.",
+        "Une CTE fait le même travail mais donne un nom au résultat intermédiaire : une logique en plusieurs étapes se lit de haut en bas et la même étape peut être réutilisée deux fois. Depuis PostgreSQL 12, une CTE utilisée une seule fois est en général intégrée comme une sous-requête : elle n’est donc pas plus lente ; WITH x AS MATERIALIZED (...) force son calcul unique. Choisissez selon la lisibilité : un filtre court tient dans une sous-requête, trois étapes ou plus méritent des CTE.",
+        "EXISTS et NOT EXISTS vérifient qu’au moins une ligne correspondante existe et s’arrêtent à la première trouvée. Préférez NOT EXISTS à NOT IN : si la sous-requête renvoie un seul NULL, x NOT IN (...) n’est jamais vrai et la requête ne renvoie silencieusement rien.",
+        "Une CTE récursive (WITH RECURSIVE) parcourt des hiérarchies : organigrammes, arbres de catégories, nomenclatures. Une requête d’ancrage renvoie les lignes de départ, puis une partie récursive se joint à la CTE et ajoute des lignes jusqu’à ce qu’une étape ne renvoie plus rien de nouveau. SQL Server écrit la même requête sans le mot-clé RECURSIVE ; Oracle propose aussi CONNECT BY."
+      ],
+      "points": [
+        "Une sous-requête scalaire doit renvoyer au plus une ligne, sinon la requête échoue.",
+        "Donnez un alias à chaque table dérivée : FROM (SELECT ...) AS t (obligatoire dans la plupart des bases).",
+        "Utilisez NOT EXISTS plutôt que NOT IN quand la colonne de la sous-requête peut être NULL.",
+        "Utilisez UNION ALL dans une CTE récursive et ajoutez une profondeur maximale pour vous arrêter sur des données cycliques.",
+        "Une CTE récursive peut aussi générer des lignes (une liste de dates), mais generate_series de PostgreSQL est plus simple pour cela."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "WITH RECURSIVE chain AS (\n  SELECT id, first_name, manager_id, 1 AS depth\n  FROM employees\n  WHERE manager_id IS NULL              -- anchor: the top of the org chart\n  UNION ALL\n  SELECT e.id, e.first_name, e.manager_id, c.depth + 1\n  FROM employees e\n  JOIN chain c ON e.manager_id = c.id   -- recursive step: direct reports\n  WHERE c.depth < 10                    -- safety stop\n)\nSELECT depth, first_name\nFROM chain\nORDER BY depth, first_name;",
+        "note": "Chaque niveau de l’organigramme est ajouté jusqu’à ce qu’aucun nouvel employé ne soit trouvé."
+      }
+    },
+    {
+      "title": "Fonctions de fenêtrage avancées : cadres, cumuls et ex æquo",
+      "text": [
+        "OVER comporte trois parties : PARTITION BY (quelles lignes vont ensemble), ORDER BY (dans quel ordre) et le cadre (frame : quelles lignes autour de la ligne courante sont utilisées). Les fonctions de classement et LAG / LEAD n’utilisent que les deux premières ; les agrégats comme SUM ou AVG sur une fenêtre utilisent aussi le cadre.",
+        "Le cadre par défaut est un piège classique. Avec ORDER BY et sans cadre explicite, la base utilise RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW. RANGE traite les lignes de même valeur d’ORDER BY comme des pairs : deux commandes du même jour obtiennent le même cumul. Écrivez ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW pour un cumul strictement ligne par ligne, et ROWS BETWEEN 6 PRECEDING AND CURRENT ROW pour une moyenne mobile sur 7 lignes.",
+        "Décidez explicitement du traitement des ex æquo. ROW_NUMBER choisit un ordre arbitraire entre ex æquo, sauf si ORDER BY se termine par une colonne unique (ORDER BY amount DESC, id). Pour un top 3 par groupe qui conserve les ex æquo, filtrez sur DENSE_RANK() <= 3. NTILE(4) répartit les lignes en quartiles. FIRST_VALUE et LAST_VALUE renvoient les bornes du cadre : c’est pourquoi LAST_VALUE avec le cadre par défaut renvoie la ligne courante.",
+        "Les fonctions de fenêtrage sont calculées après WHERE : vous ne pouvez donc pas filtrer directement dessus. Calculez-les dans une CTE et filtrez à l’extérieur. Snowflake, BigQuery et Databricks ajoutent QUALIFY pour cela ; PostgreSQL non."
+      ],
+      "points": [
+        "LAG(x, 1, 0) prend un décalage et une valeur par défaut pour la première ligne.",
+        "SUM(x) OVER (PARTITION BY g) sans ORDER BY donne le total du groupe : x / ce total est une part.",
+        "WINDOW w AS (...) nomme une définition de fenêtre réutilisable (PostgreSQL, MySQL 8).",
+        "Une moyenne sur 7 lignes n’est une moyenne sur 7 jours que si chaque jour a une ligne : comblez d’abord les trous."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "SELECT store_id, order_day, revenue,\n       SUM(revenue) OVER w_running AS running_total,\n       ROUND(AVG(revenue) OVER (PARTITION BY store_id ORDER BY order_day\n             ROWS BETWEEN 6 PRECEDING AND CURRENT ROW), 2) AS avg_7_rows,\n       revenue - LAG(revenue) OVER (PARTITION BY store_id ORDER BY order_day) AS change_vs_prev\nFROM daily_sales\nWINDOW w_running AS (PARTITION BY store_id ORDER BY order_day\n                     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)\nORDER BY store_id, order_day;",
+        "note": "daily_sales contient une ligne par magasin et par jour ; revenue est de type numeric."
+      }
+    },
+    {
+      "title": "NULL, logique à trois valeurs et nettoyage des données",
+      "text": [
+        "En SQL, une condition vaut TRUE, FALSE ou UNKNOWN. Toute comparaison avec NULL (NULL = NULL, status <> 'cancelled' quand status est NULL) vaut UNKNOWN, et WHERE ne garde que les lignes TRUE. Ainsi, WHERE status <> 'cancelled' écarte silencieusement les lignes où status est NULL, et NOT (UNKNOWN) reste UNKNOWN. Les agrégats ignorent les NULL, sauf COUNT(*) : AVG(bonus) ne fait la moyenne que sur les personnes qui ont une prime.",
+        "Quelques fonctions rendent les NULL explicites. COALESCE(a, b, c) renvoie la première valeur non NULL. NULLIF(a, b) renvoie NULL quand a vaut b : c’est la façon standard d’éviter une division par zéro, revenue / NULLIF(visits, 0). a IS DISTINCT FROM b compare des valeurs en considérant deux NULL comme égaux. Dans PostgreSQL, les NULL sont triés en dernier en ordre croissant et en premier en ordre décroissant ; NULLS FIRST / NULLS LAST le rend explicite (MySQL et SQL Server ne connaissent pas cette syntaxe).",
+        "Le nettoyage de données en SQL repose sur la même petite boîte à outils : CASE WHEN pour ramener des valeurs désordonnées à des catégories propres, TRIM, LOWER, REPLACE et SPLIT_PART pour normaliser le texte, CAST(x AS DATE) ou x::date pour convertir les types, DATE_TRUNC, EXTRACT et les intervalles (created_at + INTERVAL '7 days') pour les dates. Une seule valeur impossible à convertir fait échouer toute la requête : filtrez ou corrigez d’abord les mauvaises valeurs (SQL Server propose TRY_CAST, pas PostgreSQL).",
+        "Ne modifiez pas la table brute et placez les règles de nettoyage dans une vue ou une nouvelle table : vous pouvez les relancer, expliquer chaque règle et comparer avant et après."
+      ],
+      "points": [
+        "WHERE status <> 'x' OR status IS NULL garde volontairement les lignes NULL.",
+        "Un NULL dans un calcul ou une concaténation avec || rend le résultat NULL ; CONCAT() ignore les NULL.",
+        "COUNT(*) - COUNT(col) donne le nombre de NULL dans col.",
+        "COUNT(*) FILTER (WHERE col IS NULL) est un raccourci PostgreSQL pour SUM(CASE WHEN ... THEN 1 ELSE 0 END)."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "CREATE VIEW customers_clean AS\nSELECT\n  id,\n  INITCAP(TRIM(city)) AS city,\n  LOWER(TRIM(email)) AS email,\n  CASE\n    WHEN LOWER(TRIM(status)) IN ('active', 'actif') THEN 'active'\n    WHEN status IS NULL OR TRIM(status) = '' THEN 'unknown'\n    ELSE 'inactive'\n  END AS status,\n  COALESCE(phone, 'n/a') AS phone,\n  ROUND(revenue::numeric / NULLIF(orders, 0), 2) AS avg_basket,\n  signup_at::date AS signup_day\nFROM raw_customers;",
+        "note": "INITCAP et la conversion :: sont propres à PostgreSQL ; ailleurs, utilisez CAST(x AS DATE) et les fonctions texte de votre base."
+      }
+    },
+    {
+      "title": "Transactions et niveaux d’isolation : les bases",
+      "text": [
+        "Une transaction regroupe des instructions qui doivent réussir ou échouer ensemble : BEGIN, les instructions, puis COMMIT pour conserver les changements ou ROLLBACK pour les annuler. C’est le A d’ACID (atomicité) : un virement ne doit jamais débiter un compte sans créditer l’autre. Dans PostgreSQL, une instruction hors BEGIN s’exécute dans sa propre transaction et est validée immédiatement (autocommit). Vérifiez le réglage de votre client SQL : certains outils ouvrent une transaction pour vous et gardent les verrous jusqu’au COMMIT.",
+        "L’isolation définit ce qu’une transaction voit des autres transactions qui s’exécutent en même temps. Les niveaux standard sont READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ et SERIALIZABLE ; chacun empêche davantage d’anomalies (lectures sales, lectures non répétables, lignes fantômes). READ COMMITTED est le niveau par défaut de PostgreSQL, SQL Server et Oracle, REPEATABLE READ celui de MySQL InnoDB. PostgreSQL ne montre jamais de données non validées, même en READ UNCOMMITTED. En SERIALIZABLE, PostgreSQL peut annuler une transaction avec une erreur de sérialisation que l’application doit relancer.",
+        "Les écritures verrouillent les lignes modifiées jusqu’à la fin de la transaction. Une transaction longue bloque les autres écritures et, dans PostgreSQL, empêche le nettoyage des anciennes versions de lignes. Gardez les transactions courtes et n’attendez jamais une saisie utilisateur à l’intérieur. Pour éviter une mise à jour perdue (deux sessions lisent la même valeur, puis écrivent toutes les deux), faites la mise à jour en une seule instruction (SET stock = stock - 1) ou verrouillez d’abord les lignes avec SELECT ... FOR UPDATE."
+      ],
+      "points": [
+        "Dans PostgreSQL, une erreur dans une transaction l’interrompt : chaque instruction suivante échoue jusqu’au ROLLBACK.",
+        "SAVEPOINT s et ROLLBACK TO SAVEPOINT s annulent une partie d’une transaction.",
+        "Le DDL est transactionnel dans PostgreSQL (un CREATE TABLE peut être annulé), pas dans MySQL ni Oracle.",
+        "Vérifiez combien de lignes chaque UPDATE a modifiées avant le COMMIT."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "BEGIN;\n\nUPDATE accounts SET balance = balance - 100\nWHERE id = 1 AND balance >= 100;\n-- check that exactly 1 row was updated before going on\n\nUPDATE accounts SET balance = balance + 100\nWHERE id = 2;\n\nINSERT INTO transfers (from_id, to_id, amount) VALUES (1, 2, 100);\n\nCOMMIT;  -- or ROLLBACK; if anything went wrong",
+        "note": "Les autres sessions voient soit les trois changements, soit aucun."
+      }
+    },
+    {
+      "title": "Modifier les données sans risque : INSERT ... SELECT, UPDATE avec jointure, upsert",
+      "text": [
+        "C’est en écrivant des données que les erreurs SQL coûtent cher. Avant tout UPDATE ou DELETE, exécutez la même clause WHERE dans un SELECT COUNT(*) et vérifiez le nombre. Travaillez dans une transaction pour pouvoir annuler et, dans PostgreSQL, ajoutez RETURNING pour voir les lignes modifiées (SQL Server utilise OUTPUT). Un UPDATE sans WHERE modifie toutes les lignes de la table.",
+        "INSERT INTO target (cols) SELECT ... copie le résultat d’une requête ; listez toujours les colonnes pour qu’une nouvelle colonne ou un autre ordre ne décale pas les valeurs. Pour mettre à jour depuis une autre table, PostgreSQL écrit UPDATE t SET ... FROM s WHERE t.id = s.id, SQL Server UPDATE t SET ... FROM t JOIN s ON ..., MySQL UPDATE t JOIN s ON ... SET .... Si la source contient plusieurs lignes par ligne cible, le résultat est imprévisible : dédoublonnez d’abord la source. PostgreSQL supprime avec une jointure via DELETE FROM t USING s WHERE ....",
+        "Un upsert insère les nouvelles lignes et met à jour celles qui existent. PostgreSQL utilise INSERT ... ON CONFLICT (key) DO UPDATE SET col = EXCLUDED.col, qui exige une contrainte ou un index unique sur la clé ; MySQL propose INSERT ... ON DUPLICATE KEY UPDATE. Le MERGE INTO target USING source ON ... WHEN MATCHED THEN UPDATE WHEN NOT MATCHED THEN INSERT standard existe dans PostgreSQL 15+, SQL Server, Oracle, Snowflake et BigQuery. Les upserts rendent les chargements idempotents : relancer le même chargement ne crée pas de doublons."
+      ],
+      "points": [
+        "Exécutez d’abord le WHERE dans un SELECT, puis l’UPDATE ou le DELETE dans un BEGIN.",
+        "Supprimez ou modifiez des millions de lignes par lots pour limiter les verrous et les journaux.",
+        "TRUNCATE vide instantanément toute une table : il ne remplace jamais un DELETE ... WHERE.",
+        "Un chargement qui peut tourner deux fois sans risque vaut mieux qu’un chargement rapide qui ne le peut pas."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Load staging rows into customers; safe to run again\nBEGIN;\n\nINSERT INTO customers (id, email, city, updated_at)\nSELECT DISTINCT ON (id) id, LOWER(TRIM(email)), city, loaded_at\nFROM staging_customers\nORDER BY id, loaded_at DESC\nON CONFLICT (id) DO UPDATE\nSET email = EXCLUDED.email,\n    city = EXCLUDED.city,\n    updated_at = EXCLUDED.updated_at\nWHERE customers.updated_at < EXCLUDED.updated_at\nRETURNING id;\n\nCOMMIT;",
+        "note": "DISTINCT ON (PostgreSQL) garde la ligne de staging la plus récente par id : sans lui, deux lignes avec le même id font échouer ON CONFLICT DO UPDATE."
       }
     }
   ],
@@ -213,13 +307,104 @@
           "Cumul"
         ]
       ]
+    },
+    {
+      "group": "Sous-requêtes et récursivité",
+      "items": [
+        [
+          "WHERE x IN (SELECT ...)",
+          "Filtrer sur une liste issue d’une autre requête"
+        ],
+        [
+          "WHERE NOT EXISTS (SELECT 1 FROM b WHERE ...)",
+          "Lignes sans correspondance, sans risque avec les NULL"
+        ],
+        [
+          "WITH RECURSIVE t AS (anchor UNION ALL step)",
+          "Parcourir une hiérarchie niveau par niveau"
+        ]
+      ]
+    },
+    {
+      "group": "Cadres de fenêtre",
+      "items": [
+        [
+          "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW",
+          "Cumul strictement ligne par ligne"
+        ],
+        [
+          "AVG(x) OVER (ORDER BY d ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)",
+          "Moyenne mobile sur 7 lignes"
+        ],
+        [
+          "x / SUM(x) OVER (PARTITION BY g)",
+          "Part dans le total du groupe"
+        ],
+        [
+          "NTILE(4) OVER (ORDER BY x)",
+          "Répartir les lignes en quartiles"
+        ]
+      ]
+    },
+    {
+      "group": "NULL et nettoyage",
+      "items": [
+        [
+          "NULLIF(a, 0)",
+          "NULL quand a = 0 : évite la division par zéro"
+        ],
+        [
+          "a IS DISTINCT FROM b",
+          "Comparaison qui considère deux NULL comme égaux"
+        ],
+        [
+          "ORDER BY x NULLS LAST",
+          "Choisir où se placent les NULL (PostgreSQL, Oracle)"
+        ],
+        [
+          "TRIM(s) / LOWER(s) / SPLIT_PART(s, ',', 1)",
+          "Normaliser du texte"
+        ]
+      ]
+    },
+    {
+      "group": "Transactions et DML",
+      "items": [
+        [
+          "BEGIN; ... COMMIT; / ROLLBACK;",
+          "Tous les changements ou aucun"
+        ],
+        [
+          "SELECT ... FOR UPDATE",
+          "Verrouiller les lignes que vous allez modifier"
+        ],
+        [
+          "UPDATE t SET c = s.c FROM s WHERE t.id = s.id",
+          "Mettre à jour depuis une autre table (PostgreSQL)"
+        ],
+        [
+          "INSERT ... ON CONFLICT (id) DO UPDATE SET c = EXCLUDED.c",
+          "Upsert (PostgreSQL)"
+        ],
+        [
+          "MERGE INTO t USING s ON ... WHEN MATCHED THEN ...",
+          "Upsert standard (PostgreSQL 15+, SQL Server, Oracle)"
+        ],
+        [
+          "UPDATE ... RETURNING id",
+          "Afficher les lignes modifiées (SQL Server : OUTPUT)"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Écrire = NULL au lieu de IS NULL : la condition n’est jamais vraie.",
     "Mettre une condition sur la table de droite d’un LEFT JOIN dans le WHERE, ce qui le transforme discrètement en INNER JOIN. Placez-la plutôt dans la clause ON.",
     "Faire une jointure sur une clé non unique et obtenir des totaux en double.",
-    "Utiliser SELECT * dans des requêtes de production : c’est plus lent et cela casse quand les colonnes changent."
+    "Utiliser SELECT * dans des requêtes de production : c’est plus lent et cela casse quand les colonnes changent.",
+    "Utiliser NOT IN avec une sous-requête qui peut renvoyer NULL : la requête ne renvoie aucune ligne. Utilisez NOT EXISTS.",
+    "Compter sur le cadre de fenêtre par défaut pour un cumul : avec RANGE, les lignes qui partagent la même valeur d’ORDER BY obtiennent le même total. Écrivez ROWS BETWEEN ... et ajoutez un critère de départage unique.",
+    "Lancer un UPDATE ou un DELETE hors transaction sans avoir vérifié son WHERE avec un SELECT : une seule faute de frappe peut modifier toute la table."
   ],
   "exercises": [
     {
@@ -245,6 +430,30 @@
       "hint": "Comparez la colonne elle-même à un intervalle de dates.",
       "code": "sql",
       "answer": "SELECT id, total\nFROM orders\nWHERE created_at >= '2026-01-01'\n  AND created_at <  '2026-02-01';"
+    },
+    {
+      "q": "Listez les employés qui gagnent plus que le salaire moyen de leur propre département.",
+      "hint": "Une sous-requête corrélée qui compare avec le département de la ligne externe.",
+      "code": "sql",
+      "answer": "SELECT e.first_name, e.department, e.salary\nFROM employees e\nWHERE e.salary > (\n  SELECT AVG(e2.salary)\n  FROM employees e2\n  WHERE e2.department = e.department\n);"
+    },
+    {
+      "q": "Affichez chaque commande avec un cumul du montant par client, strictement ligne par ligne même quand deux commandes ont la même date.",
+      "hint": "Un cadre ROWS explicite et un critère de départage unique dans ORDER BY.",
+      "code": "sql",
+      "answer": "SELECT customer_id, ordered_at, amount,\n       SUM(amount) OVER (PARTITION BY customer_id ORDER BY ordered_at, id\n                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total\nFROM orders\nORDER BY customer_id, ordered_at, id;"
+    },
+    {
+      "q": "Calculez le taux de conversion (conversions / clics, en %) par campagne sans erreur quand une campagne a 0 clic.",
+      "hint": "NULLIF sur le diviseur, et multipliez par 100.0 pour éviter la division entière.",
+      "code": "sql",
+      "answer": "SELECT campaign,\n       SUM(clicks) AS clicks,\n       SUM(conversions) AS conversions,\n       ROUND(100.0 * SUM(conversions) / NULLIF(SUM(clicks), 0), 1) AS conversion_pct\nFROM campaign_stats\nGROUP BY campaign;"
+    },
+    {
+      "q": "Chargez les prix de staging_prices (une ligne par sku) dans products : insérez les nouveaux sku et mettez à jour le prix des sku existants.",
+      "hint": "INSERT ... SELECT avec ON CONFLICT ; products doit avoir une contrainte unique sur sku.",
+      "code": "sql",
+      "answer": "INSERT INTO products (sku, price, updated_at)\nSELECT sku, price, NOW()\nFROM staging_prices\nON CONFLICT (sku) DO UPDATE\nSET price = EXCLUDED.price,\n    updated_at = EXCLUDED.updated_at;"
     }
   ],
   "interview": [
@@ -263,6 +472,22 @@
     {
       "q": "Une requête est devenue lente en production. Comment enquêtez-vous ?",
       "a": "Je la reproduis avec EXPLAIN ANALYZE pour voir le plan et où part le temps, je vérifie si le volume de données ou le plan a changé, et je cherche les parcours complets, les mauvaises estimations ou les index manquants. Puis je corrige la cause : ajouter ou ajuster un index, réécrire un filtre qui empêche l’usage de l’index, mettre à jour les statistiques ou réduire les colonnes et lignes lues, et je compare le plan avant et après."
+    },
+    {
+      "q": "Sous-requête ou CTE : laquelle utilisez-vous et pourquoi ?",
+      "a": "Elles peuvent exprimer la même logique, et les optimiseurs modernes comme PostgreSQL 12+ intègrent en général une CTE utilisée une seule fois : le choix relève surtout de la lisibilité. J’utilise une sous-requête pour un filtre court et ponctuel, et des CTE dès que la logique a plusieurs étapes ou réutilise un résultat intermédiaire. Pour une hiérarchie, il me faut une CTE récursive, ce qu’une sous-requête ne permet pas."
+    },
+    {
+      "q": "Que se passe-t-il quand une condition WHERE rencontre un NULL ?",
+      "a": "SQL utilise une logique à trois valeurs : une comparaison avec NULL vaut UNKNOWN, ni TRUE ni FALSE, et WHERE ne garde que les lignes TRUE. Ainsi, status <> 'cancelled' écarte les lignes où status est NULL, et NOT IN avec un NULL dans la liste ne renvoie rien. Je teste les NULL explicitement avec IS NULL, j’utilise COALESCE ou IS DISTINCT FROM, et je compte les NULL quand je profile une table."
+    },
+    {
+      "q": "Que sont les niveaux d’isolation des transactions ?",
+      "a": "Ils définissent ce qu’une transaction voit des modifications concurrentes. READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ et SERIALIZABLE empêchent progressivement plus d’anomalies : lectures sales, lectures non répétables, lignes fantômes. Les niveaux élevés sont plus sûrs mais provoquent plus d’attentes ou de relances. READ COMMITTED est le niveau par défaut de PostgreSQL, SQL Server et Oracle ; en SERIALIZABLE, l’application doit être prête à relancer les transactions en échec."
+    },
+    {
+      "q": "Comment rendez-vous un chargement de données sûr s’il est exécuté deux fois ?",
+      "a": "Je le rends idempotent : je charge dans une table de staging, je la dédoublonne, puis je fais un upsert dans la cible sur sa clé métier avec INSERT ... ON CONFLICT ou MERGE, ou je remplace une partition entière (supprimer le jour, insérer le jour) dans une seule transaction. Relancer le même chargement donne alors le même résultat au lieu de doublons, ce qui sécurise les relances et les rattrapages."
     }
   ]
 }

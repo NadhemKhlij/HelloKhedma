@@ -1,0 +1,272 @@
+{
+  "why": "Spark est le moteur de référence pour traiter des données qui ne tiennent plus sur une seule machine, et PySpark apparaît dans la plupart des offres de data engineering, souvent avec Databricks. Comprendre comment il planifie et distribue le travail fait la différence entre un job qui tourne en quelques minutes et un job qui tourne toute la nuit.",
+  "outcome": "lire et écrire du Parquet avec PySpark, transformer des données avec les DataFrames et Spark SQL, expliquer l’évaluation paresseuse et les shuffles, et corriger les problèmes de performance courants (grosses jointures, skew, trop de petits fichiers).",
+  "lessons": [
+    {
+      "title": "Pourquoi le traitement distribué, et comment fonctionne Spark",
+      "text": [
+        "pandas charge toute une table dans la mémoire d’un seul ordinateur. C’est parfait jusqu’à quelques gigaoctets, puis cela devient lent ou plante. Quand une entreprise produit des centaines de gigaoctets d’événements par jour, le travail doit être réparti sur plusieurs machines. Spark fait ce découpage pour vous : vous écrivez du code qui semble travailler sur une seule table, et Spark coupe les données en partitions qu’il traite en parallèle sur un cluster.",
+        "Une application Spark a un driver et plusieurs executors. Le driver exécute votre script Python, construit un plan et envoie des tâches aux executors. Les executors sont des processus (sur une ou plusieurs machines) qui détiennent des partitions de données et exécutent les tâches. Une tâche traite une partition : le nombre de partitions détermine donc le parallélisme obtenu. Un gestionnaire de cluster (YARN, Kubernetes, Databricks, ou simplement votre poste en mode local) démarre les executors.",
+        "Spark n’est pas toujours le bon outil. Pour un fichier CSV de 200 Mo, pandas ou DuckDB est plus simple et plus rapide, car Spark a un coût de démarrage et de coordination. Spark devient rentable quand les données sont volumineuses, quand le job doit tenir la charge à mesure que les données grossissent, ou quand l’entreprise l’utilise déjà (Databricks, EMR, Dataproc, Synapse, Fabric). En entretien, savoir dire quand vous n’utiliseriez PAS Spark est un signe de maturité."
+      ],
+      "points": [
+        "Driver : exécute votre code et planifie le travail. Executors : détiennent les données et exécutent les tâches.",
+        "Partition : un morceau des données ; une tâche traite une partition sur un cœur.",
+        "Le mode local (master local[*]) fait tourner driver et executors dans un seul processus sur votre machine, un thread par cœur.",
+        "PySpark est l’API Python ; le moteur tourne sur la JVM, il faut donc Java installé en local.",
+        "La Spark UI (port 4040 pendant qu’un job local tourne) montre les jobs, stages, tâches et leurs durées."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# pip install pyspark   (a Java runtime is also required, e.g. JDK 17)\nfrom pyspark.sql import SparkSession\n\nspark = (SparkSession.builder\n         .appName(\"first-job\")\n         .master(\"local[*]\")        # use all cores of this machine\n         .getOrCreate())\n\ndf = spark.range(1_000_000)          # a DataFrame with one column: id\nprint(df.rdd.getNumPartitions())     # how many partitions Spark created\nprint(df.count())\nspark.stop()",
+        "note": "Sur Databricks, la session spark existe déjà : ne la créez et ne l’arrêtez jamais vous-même."
+      }
+    },
+    {
+      "title": "DataFrames, transformations et évaluation paresseuse",
+      "text": [
+        "Un DataFrame Spark est une table distribuée avec des colonnes nommées et typées. On le manipule avec des méthodes comme select, filter, withColumn et groupBy, et avec les fonctions de pyspark.sql.functions (importées en général sous le nom F). Les colonnes sont des expressions, pas des valeurs Python : F.col(\"amount\") * 1.2 décrit un calcul que Spark exécutera plus tard sur chaque ligne, sur les executors.",
+        "Les opérations se répartissent en deux familles. Les transformations (select, filter, withColumn, join, groupBy().agg) renvoient un nouveau DataFrame et ne font encore rien : Spark les enregistre seulement dans un plan. Les actions (show, count, collect, take, write) demandent un résultat, et c’est seulement à ce moment que Spark optimise tout le plan et l’exécute. C’est l’évaluation paresseuse (lazy evaluation). Elle permet à l’optimiseur Catalyst de réordonner les filtres, de ne lire que les colonnes utiles et de fusionner des étapes avant toute exécution.",
+        "Cette paresse a des conséquences. Une erreur dans une transformation peut n’apparaître qu’à l’exécution d’une action, plusieurs lignes plus loin. Chaque action recalcule le plan depuis la source, sauf si vous mettez en cache. Et collect() rapatrie toutes les lignes sur le driver : sur une grosse table, le driver plante ; utilisez plutôt show(), take(n) ou écrivez le résultat. Préférez les fonctions intégrées aux UDF Python : une UDF envoie chaque ligne à un processus Python et bloque la plupart des optimisations."
+      ],
+      "points": [
+        "Les transformations construisent un plan ; les actions déclenchent l’exécution.",
+        "df.explain() affiche le plan physique : lisez-le pour voir les filtres poussés vers la source et les shuffles (Exchange).",
+        "Les DataFrames sont immuables : withColumn renvoie un nouveau DataFrame, affectez-le à une variable.",
+        "F.when(cond, a).otherwise(b) remplace la plupart des UDF à base de if/else.",
+        "Ne faites jamais collect() sur un gros DataFrame ; utilisez show(), limit() ou write."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from pyspark.sql import functions as F\n\norders = spark.read.parquet(\"data/orders\")\n\nbig = (orders\n       .filter(F.col(\"status\") == \"PAID\")\n       .withColumn(\"amount_eur\", F.round(F.col(\"amount\") * F.col(\"fx_rate\"), 2))\n       .withColumn(\"size\", F.when(F.col(\"amount_eur\") >= 500, \"large\").otherwise(\"small\"))\n       .select(\"order_id\", \"customer_id\", \"amount_eur\", \"size\"))\n# nothing has run yet: big is only a plan\n\nbig.explain()       # look at the plan\nbig.show(5)         # action: Spark reads the files and computes 5 rows"
+      }
+    },
+    {
+      "title": "Lire et écrire des données : CSV, JSON et Parquet",
+      "text": [
+        "Spark lit de nombreux formats via spark.read : csv, json, parquet, orc, tables jdbc, et tables Delta sur Databricks. Les formats texte comme le CSV sont lents et fragiles : chaque valeur est une chaîne, et inferSchema oblige Spark à lire les fichiers deux fois pour deviner les types. En production, passez un schéma explicite pour qu’un fichier mal formé échoue clairement au lieu de changer silencieusement le type d’une colonne.",
+        "Parquet est le format par défaut du data lake. Il est colonnaire (les valeurs d’une même colonne sont stockées ensemble), compressé, et il stocke le schéma. Cela apporte deux gros gains : le column pruning (Spark ne lit que les colonnes sélectionnées) et le predicate pushdown (les row groups dont les statistiques min/max ne peuvent pas correspondre au filtre sont ignorés). Une requête sur 3 colonnes d’une table Parquet de 50 colonnes ne lit qu’une petite fraction des octets.",
+        "À l’écriture, choisissez un mode (overwrite, append, errorifexists, ignore) et réfléchissez à l’organisation des fichiers. partitionBy(\"day\") écrit un dossier par valeur (day=2026-10-01/), si bien qu’un filtre ultérieur sur day ne lit que les dossiers concernés. Partitionnez par une colonne au nombre de valeurs modéré sur laquelle on filtre, comme une date ; jamais par un identifiant. Spark écrit un fichier par tâche : un job à 200 partitions écrit 200 fichiers par dossier de sortie. Utilisez coalesce ou repartition avant l’écriture pour éviter des milliers de petits fichiers."
+      ],
+      "points": [
+        "Donnez un schéma explicite pour le CSV et le JSON dans les pipelines ; inferSchema sert à l’exploration.",
+        "Parquet = colonnaire + compressé + typé : lectures plus rapides et fichiers plus petits que le CSV.",
+        "mode(\"overwrite\") remplace la cible ; mode(\"append\") ajoute des fichiers (attention aux relances).",
+        "partitionBy sur une colonne de filtre à faible cardinalité (date, pays), jamais sur un identifiant.",
+        "De nombreux petits fichiers ralentissent toutes les lectures suivantes : visez des fichiers d’environ 100 Mo à 1 Go."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "schema = \"order_id STRING, customer_id STRING, amount DOUBLE, status STRING, order_ts TIMESTAMP\"\n\nraw = (spark.read\n       .option(\"header\", True)\n       .schema(schema)\n       .csv(\"landing/orders/*.csv\"))\n\n(raw.withColumn(\"day\", F.to_date(\"order_ts\"))\n    .repartition(\"day\")               # one group of rows per day before writing\n    .write\n    .mode(\"overwrite\")\n    .partitionBy(\"day\")\n    .parquet(\"lake/orders\"))\n\n# later: only the day=2026-10-01 folder is read\nspark.read.parquet(\"lake/orders\").filter(F.col(\"day\") == \"2026-10-01\").count()"
+      }
+    },
+    {
+      "title": "Jointures, agrégations et fonctions de fenêtrage",
+      "text": [
+        "En PySpark, les jointures s’écrivent df.join(other, on, how). Joignez sur des noms de colonnes (on=\"customer_id\") quand les deux côtés utilisent le même nom : Spark ne garde qu’une copie de la clé. Avec une expression (orders.customer_id == customers.id), les deux colonnes restent, et il faut en supprimer ou renommer une pour éviter les erreurs de colonne ambiguë. L’argument how accepte inner, left, right, full, left_semi (garde les lignes qui ont une correspondance, comme EXISTS) et left_anti (garde les lignes sans correspondance, idéal pour trouver les orphelins).",
+        "Les agrégations suivent la logique SQL : groupBy(colonnes).agg(F.sum(...), F.count(...), F.countDistinct(...)). Donnez un alias à chaque agrégat, sinon vous obtenez des noms comme sum(amount). Les jointures comme les groupBy nécessitent en général un shuffle : les lignes de même clé doivent se retrouver sur le même executor, donc les données circulent sur le réseau. C’est pourquoi ce sont les étapes coûteuses de la plupart des jobs.",
+        "Les fonctions de fenêtrage calculent une valeur par ligne à partir d’un groupe de lignes liées, sans les regrouper : rang au sein d’un client, cumul, valeur précédente. On définit une Window avec partitionBy et orderBy, puis on applique F.row_number(), F.rank(), F.lag() ou F.sum() dessus. Un cas classique est la déduplication : garder la dernière version de chaque enregistrement avec row_number sur la clé, trié par date de mise à jour décroissante, puis filtrer rn == 1."
+      ],
+      "points": [
+        "Joignez sur un nom de colonne quand c’est possible ; avec une expression, supprimez ensuite la clé en double.",
+        "left_anti trouve les lignes sans correspondance ; left_semi filtre sur l’existence sans ajouter de colonnes.",
+        "Comparez le nombre de lignes avant et après une jointure : des clés en double multiplient les lignes.",
+        "Donnez toujours un alias aux agrégats : F.sum(\"amount\").alias(\"revenue\").",
+        "row_number sur une fenêtre est la méthode standard pour dédupliquer."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from pyspark.sql.window import Window\n\ncustomers = spark.read.parquet(\"lake/customers\")   # several versions per customer\n\n# keep the latest version of each customer\nw = Window.partitionBy(\"customer_id\").orderBy(F.col(\"updated_at\").desc())\nlatest = (customers.withColumn(\"rn\", F.row_number().over(w))\n                   .filter(\"rn = 1\").drop(\"rn\"))\n\nrevenue = (orders.join(latest, on=\"customer_id\", how=\"inner\")\n                 .groupBy(\"country\")\n                 .agg(F.sum(\"amount\").alias(\"revenue\"),\n                      F.countDistinct(\"customer_id\").alias(\"buyers\")))\n\norphans = orders.join(latest, on=\"customer_id\", how=\"left_anti\")   # orders with unknown customer"
+      }
+    },
+    {
+      "title": "Partitions, shuffles et bases de la performance",
+      "text": [
+        "La plupart des problèmes de performance Spark viennent du déplacement des données. Les transformations étroites (filter, select, withColumn) travaillent partition par partition, sans échange de données. Les transformations larges (groupBy, join, distinct, orderBy, repartition) nécessitent un shuffle : chaque executor écrit ses lignes par clé et les autres les lisent via le réseau. Dans le plan, un shuffle apparaît sous le nom Exchange, et dans la Spark UI il sépare les stages. Moins de shuffles, et des shuffles plus petits, donnent des jobs plus rapides.",
+        "Quand un côté de la jointure est petit (une table de dimension de quelques Mo), Spark peut en envoyer une copie complète à chaque executor et joindre localement, sans redistribuer la grosse table. C’est un broadcast join. Spark le fait automatiquement sous spark.sql.autoBroadcastJoinThreshold (10 Mo par défaut) et vous pouvez le forcer avec F.broadcast(small_df). Le cache aide quand le même DataFrame sert à plusieurs actions : df.cache() le garde en mémoire après la première action. Ne mettez pas tout en cache : la mémoire est limitée, et un DataFrame utilisé une seule fois n’y gagne rien.",
+        "Le skew (déséquilibre), c’est quand quelques clés concentrent la plupart des lignes (un très gros client, des clés nulles). La tâche qui reçoit cette clé tourne une heure pendant que les autres finissent en une minute. Cherchez dans la Spark UI une tâche bien plus longue que la médiane. Solutions : traiter à part les clés nulles, broadcaster le petit côté, laisser l’Adaptive Query Execution découper les partitions déséquilibrées (activée par défaut depuis Spark 3.2), ou saler la clé avec un suffixe aléatoire. Le nombre de partitions après shuffle est fixé par spark.sql.shuffle.partitions (200 par défaut) ; l’AQE peut fusionner les petites."
+      ],
+      "points": [
+        "Shuffle = données déplacées sur le réseau par clé ; c’est le principal coût à réduire.",
+        "Filtrez et sélectionnez les colonnes le plus tôt possible pour shuffler moins de données.",
+        "Broadcastez le petit côté d’une jointure avec F.broadcast(dim).",
+        "repartition(n) fait un shuffle complet ; coalesce(n) fusionne seulement des partitions (pour réduire le nombre de fichiers).",
+        "cache() uniquement ce qui est réutilisé, et unpersist() une fois terminé."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "spark.conf.set(\"spark.sql.shuffle.partitions\", \"64\")   # smaller job, fewer partitions\n\ncountries = spark.read.parquet(\"lake/countries\")       # ~250 rows\nenriched = orders.join(F.broadcast(countries), on=\"country_code\", how=\"left\")\n\nenriched.cache()                   # reused by the two actions below\nenriched.groupBy(\"region\").agg(F.sum(\"amount\").alias(\"revenue\")).show()\nprint(enriched.filter(F.col(\"region\").isNull()).count())\nenriched.unpersist()\n\n(enriched.coalesce(8)              # fewer, bigger output files\n         .write.mode(\"overwrite\").parquet(\"lake/orders_enriched\"))"
+      }
+    },
+    {
+      "title": "Spark SQL",
+      "text": [
+        "Tout ce que permet l’API DataFrame peut aussi s’écrire en SQL. Enregistrez un DataFrame comme vue temporaire avec createOrReplaceTempView(\"orders\"), puis lancez spark.sql(\"SELECT ...\"), qui renvoie un DataFrame. Les deux chemins passent par le même optimiseur et produisent le même plan : choisissez celui qui est le plus lisible pour l’équipe. Beaucoup de data engineers mélangent les deux : SQL pour une grosse transformation lisible, Python pour les boucles, les paramètres et la gestion des fichiers.",
+        "Spark SQL prend en charge ce que vous connaissez des autres bases : jointures, GROUP BY, HAVING, CTE avec WITH, fonctions de fenêtrage, CASE WHEN, et de nombreuses fonctions de date et de chaîne. Il ajoute des fonctions pour les données imbriquées, comme explode qui transforme un tableau en lignes. Sur Databricks ou avec un metastore, vous disposez aussi de tables persistantes : CREATE TABLE, saveAsTable, et des noms en trois parties comme catalog.schema.table. Lancez EXPLAIN devant une requête, ou df.explain() sur le résultat, pour vérifier le plan exactement comme avec l’API Python.",
+        "Ne construisez pas de SQL en concaténant des valeurs utilisateur dans des chaînes. Pour les valeurs, les versions récentes de Spark (3.5 et suivantes) acceptent des paramètres nommés : spark.sql(\"... WHERE day = :day\", args={\"day\": \"2026-10-01\"}). Les noms de tables et de colonnes ne peuvent pas être des paramètres : gardez-les dans du code que vous maîtrisez. Une vue temporaire ne vit que dans la SparkSession courante ; il faut une table globale ou persistante pour partager des données entre jobs."
+      ],
+      "points": [
+        "createOrReplaceTempView enregistre un DataFrame pour le SQL dans la session courante.",
+        "spark.sql renvoie un DataFrame : vous pouvez continuer avec l’API Python.",
+        "Le code SQL et le code DataFrame compilent vers le même plan : mêmes performances.",
+        "Utilisez des paramètres nommés args= plutôt que des f-strings pour les valeurs.",
+        "explode transforme une colonne tableau en une ligne par élément."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "orders.createOrReplaceTempView(\"orders\")\n\ndaily = spark.sql(\"\"\"\n    WITH paid AS (\n        SELECT customer_id, CAST(order_ts AS DATE) AS day, amount\n        FROM orders\n        WHERE status = 'PAID' AND CAST(order_ts AS DATE) >= :start\n    )\n    SELECT day,\n           COUNT(DISTINCT customer_id) AS buyers,\n           ROUND(SUM(amount), 2)       AS revenue\n    FROM paid\n    GROUP BY day\n    ORDER BY day\n\"\"\", args={\"start\": \"2026-10-01\"})\n\ndaily.show()"
+      }
+    },
+    {
+      "title": "Faire tourner Spark : votre poste ou Databricks",
+      "text": [
+        "Pour apprendre, pip install pyspark suffit. Le paquet contient Spark lui-même, et vous travaillez en mode local : driver et executors dans un seul processus qui utilise vos cœurs. Il faut un environnement Java installé (vérifiez avec java -version) car le moteur tourne sur la JVM. Le mode local est idéal pour les tests unitaires et les petits échantillons ; il ne montre pas les vrais problèmes de cluster, comme les shuffles réseau ou les erreurs mémoire des executors, mais le code est le même que celui qui tourne sur un cluster.",
+        "Sur un cluster, les jobs se lancent avec spark-submit (sur YARN, Kubernetes ou un service cloud comme EMR ou Dataproc) ou via une plateforme. Databricks est la plateforme la plus citée dans les offres : clusters managés ou calcul serverless, notebooks où spark est déjà défini, display(df) pour les tableaux et graphiques, Jobs pour planifier des notebooks ou des fichiers Python, et Unity Catalog pour gérer les tables et les droits. Une édition gratuite existe pour apprendre.",
+        "Databricks stocke les tables au format Delta Lake par défaut. Delta, ce sont des fichiers Parquet plus un journal de transactions, ce qui ajoute des écritures ACID, le MERGE (upserts), le contrôle du schéma et le time travel (lire une ancienne version d’une table). Une bonne habitude est d’écrire vos transformations sous forme de fonctions qui prennent et renvoient des DataFrames : vous pouvez les tester en local avec pytest sur de tout petits DataFrames, puis exécuter le même code sur Databricks."
+      ],
+      "points": [
+        "En local : pip install pyspark + Java ; master local[*] ; parfait pour les tests.",
+        "Sur cluster : spark-submit app.py, ou une plateforme managée (Databricks, EMR, Dataproc).",
+        "Notebooks Databricks : spark et display() sont prêts, ne créez pas de session.",
+        "Delta Lake = Parquet + journal de transactions : ACID, MERGE, time travel.",
+        "Gardez la logique métier dans des fonctions testables, pas dans les cellules du notebook."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# transforms.py: pure function, runs the same locally and on Databricks\nfrom pyspark.sql import DataFrame, functions as F\n\ndef paid_revenue_by_day(orders: DataFrame) -> DataFrame:\n    return (orders.filter(F.col(\"status\") == \"PAID\")\n                  .groupBy(F.to_date(\"order_ts\").alias(\"day\"))\n                  .agg(F.sum(\"amount\").alias(\"revenue\")))\n\n# test_transforms.py (pytest, local mode)\ndef test_paid_revenue_by_day(spark):\n    df = spark.createDataFrame(\n        [(\"PAID\", \"2026-10-01 10:00:00\", 10.0), (\"CANCELLED\", \"2026-10-01 11:00:00\", 99.0)],\n        \"status STRING, order_ts STRING, amount DOUBLE\")\n    rows = paid_revenue_by_day(df).collect()\n    assert rows[0][\"revenue\"] == 10.0",
+        "note": "La fixture spark est définie une seule fois dans conftest.py avec SparkSession.builder.master(\"local[1]\")."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Session et lecture",
+      "items": [
+        ["SparkSession.builder.master(\"local[*]\").getOrCreate()", "Démarrer Spark en local sur tous les cœurs"],
+        ["spark.read.parquet(path)", "Lire des fichiers Parquet (schéma inclus)"],
+        ["spark.read.option(\"header\", True).schema(ddl).csv(path)", "Lire un CSV avec un schéma explicite"],
+        ["df.printSchema()", "Afficher les noms et types des colonnes"]
+      ]
+    },
+    {
+      "group": "Transformations",
+      "items": [
+        ["df.select(\"a\", F.col(\"b\"))", "Garder ou calculer des colonnes"],
+        ["df.filter(F.col(\"x\") > 0)", "Garder les lignes qui correspondent (équivaut à where)"],
+        ["df.withColumn(\"y\", expr)", "Ajouter ou remplacer une colonne"],
+        ["F.when(cond, a).otherwise(b)", "Si/sinon sous forme d’expression de colonne"],
+        ["df.dropDuplicates([\"id\"])", "Supprimer les doublons sur une clé"]
+      ]
+    },
+    {
+      "group": "Actions",
+      "items": [
+        ["df.show(n)", "Afficher les n premières lignes"],
+        ["df.count()", "Compter les lignes (exécute tout le plan)"],
+        ["df.take(n) / df.collect()", "Rapatrier des lignes sur le driver (collect : toutes, risqué)"],
+        ["df.write.mode(\"overwrite\").parquet(path)", "Écrire le résultat en Parquet"]
+      ]
+    },
+    {
+      "group": "Jointures et agrégations",
+      "items": [
+        ["a.join(b, on=\"id\", how=\"left\")", "Jointure gauche sur une colonne commune"],
+        ["how=\"left_anti\"", "Lignes de a sans correspondance dans b"],
+        ["df.groupBy(\"k\").agg(F.sum(\"x\").alias(\"total\"))", "Agréger par groupe"],
+        ["F.row_number().over(Window.partitionBy(\"k\").orderBy(...))", "Numéroter les lignes dans chaque groupe"]
+      ]
+    },
+    {
+      "group": "Performance",
+      "items": [
+        ["F.broadcast(small_df)", "Envoyer le petit côté à chaque executor, sans shuffle"],
+        ["df.cache() / df.unpersist()", "Garder en mémoire un DataFrame réutilisé / le libérer"],
+        ["df.repartition(n, \"col\")", "Shuffle complet en n partitions"],
+        ["df.coalesce(n)", "Fusionner en moins de partitions sans shuffle complet"],
+        ["spark.sql.shuffle.partitions", "Nombre de partitions après un shuffle (200 par défaut)"],
+        ["df.explain()", "Afficher le plan physique (cherchez Exchange)"]
+      ]
+    },
+    {
+      "group": "Spark SQL et organisation des fichiers",
+      "items": [
+        ["df.createOrReplaceTempView(\"t\")", "Rendre un DataFrame interrogeable en SQL"],
+        ["spark.sql(query, args={...})", "Exécuter du SQL avec paramètres nommés, obtenir un DataFrame"],
+        ["write.partitionBy(\"day\")", "Un dossier par valeur, pour l’élagage des partitions"],
+        ["F.explode(\"items\")", "Une ligne par élément d’une colonne tableau"]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "Lisez les fichiers Parquet de lake/orders, gardez uniquement les lignes au statut PAID, et calculez le chiffre d’affaires (somme de amount) par pays, nommé revenue, trié du plus élevé au plus faible.",
+      "code": "python",
+      "answer": "from pyspark.sql import functions as F\n\nresult = (spark.read.parquet(\"lake/orders\")\n          .filter(F.col(\"status\") == \"PAID\")\n          .groupBy(\"country\")\n          .agg(F.sum(\"amount\").alias(\"revenue\"))\n          .orderBy(F.col(\"revenue\").desc()))\nresult.show()"
+    },
+    {
+      "q": "Le script d’un collègue enchaîne 15 transformations et se termine par print(df.count()). Quelle ligne lit réellement les données, et pourquoi une erreur apparaît-elle sur la dernière ligne alors que le bug est à la ligne 3 ?",
+      "answer": "Seul count() est une action : il déclenche la lecture et les 15 transformations. Avant, Spark ne fait que construire un plan (évaluation paresseuse) : une erreur qui survient à l’exécution (cast invalide, contenu de fichier inattendu, UDF qui échoue) n’apparaît donc qu’au moment où l’action s’exécute. Utilisez show() sur les DataFrames intermédiaires pour la localiser."
+    },
+    {
+      "q": "La table customers contient plusieurs lignes par customer_id (une par mise à jour, avec un horodatage updated_at). Ne gardez que la ligne la plus récente par client.",
+      "hint": "Window + row_number, trié par updated_at décroissant.",
+      "code": "python",
+      "answer": "from pyspark.sql import functions as F\nfrom pyspark.sql.window import Window\n\nw = Window.partitionBy(\"customer_id\").orderBy(F.col(\"updated_at\").desc())\nlatest = (customers\n          .withColumn(\"rn\", F.row_number().over(w))\n          .filter(F.col(\"rn\") == 1)\n          .drop(\"rn\"))"
+    },
+    {
+      "q": "Une jointure entre une table d’événements de 500 Go et une table produits de 2 Mo prend 40 minutes, et le plan montre un SortMergeJoin avec deux étapes Exchange. Que changez-vous ?",
+      "answer": "Broadcastez la petite table : events.join(F.broadcast(products), on=\"product_id\"). Spark copie products sur chaque executor et joint localement : la grosse table n’est pas redistribuée. Vérifiez aussi que les statistiques ou le seuil d’auto-broadcast n’ont pas été désactivés, et que les filtres s’appliquent avant la jointure."
+    },
+    {
+      "q": "Un job quotidien écrit sa sortie avec partitionBy(\"day\") et produit 200 fichiers de 300 Ko dans chaque dossier. Pourquoi, et comment corriger ?",
+      "answer": "Spark écrit un fichier par tâche, et après un shuffle il y a spark.sql.shuffle.partitions (200) tâches. Réduisez les partitions avant l’écriture : repartition(\"day\") pour obtenir un groupe par jour, ou coalesce(n) pour un petit nombre de fichiers, ou baissez spark.sql.shuffle.partitions pour ce job. Visez des fichiers d’environ 100 Mo ou plus."
+    },
+    {
+      "q": "Écrivez la même agrégation en Spark SQL : nombre de clients distincts et montant total par jour pour les commandes PAID, avec une vue temporaire nommée orders.",
+      "code": "python",
+      "answer": "orders.createOrReplaceTempView(\"orders\")\ndaily = spark.sql(\"\"\"\n    SELECT CAST(order_ts AS DATE) AS day,\n           COUNT(DISTINCT customer_id) AS buyers,\n           SUM(amount) AS revenue\n    FROM orders\n    WHERE status = 'PAID'\n    GROUP BY CAST(order_ts AS DATE)\n\"\"\")"
+    }
+  ],
+  "pitfalls": [
+    "Appeler collect() ou toPandas() sur un gros DataFrame : tout part sur le driver, qui manque de mémoire.",
+    "Écrire des UDF Python pour une logique que les fonctions intégrées couvrent déjà (when, regexp_replace, to_date) : les UDF sont beaucoup plus lentes et bloquent les optimisations.",
+    "Utiliser inferSchema en production : les types changent silencieusement quand un fichier est différent, et les fichiers sont lus deux fois.",
+    "Partitionner la sortie par une colonne à forte cardinalité (user_id) ou ne jamais compacter : des millions de petits fichiers ralentissent chaque lecture.",
+    "Joindre sur des clés qui ne sont pas uniques du côté « un » : les lignes se multiplient sans aucune erreur. Comparez toujours les volumes.",
+    "Mettre en cache chaque DataFrame « pour aller plus vite » : cela remplit la mémoire des executors et peut ralentir le job."
+  ],
+  "interview": [
+    {
+      "q": "Quelle est la différence entre une transformation et une action dans Spark ?",
+      "a": "Une transformation (filter, select, join, groupBy) renvoie un nouveau DataFrame et ajoute seulement une étape au plan. Une action (count, show, collect, write) demande un résultat : Spark optimise alors tout le plan et l’exécute sur les executors. Cette évaluation paresseuse permet à Spark de pousser les filtres vers la source, d’élaguer les colonnes et de fusionner des étapes."
+    },
+    {
+      "q": "Qu’est-ce qu’un shuffle et pourquoi coûte-t-il cher ?",
+      "a": "Un shuffle redistribue les lignes entre executors selon une clé, pour des opérations comme groupBy, join, distinct ou repartition. Chaque executor écrit des données sur disque et les autres les lisent via le réseau, ce qui coûte en I/O, en réseau et en sérialisation, et crée une frontière de stage. Réduire les données avant un shuffle et éviter les shuffles inutiles est le principal levier d’optimisation."
+    },
+    {
+      "q": "Quand utiliseriez-vous un broadcast join ?",
+      "a": "Quand un côté de la jointure est assez petit pour tenir dans la mémoire de chaque executor, typiquement une table de dimension de quelques Mo. Spark en envoie une copie à chaque executor et la grosse table est jointe localement sans être redistribuée. Spark le fait automatiquement sous spark.sql.autoBroadcastJoinThreshold (10 Mo par défaut) et F.broadcast permet de le forcer."
+    },
+    {
+      "q": "Qu’est-ce que le data skew et comment le traiter ?",
+      "a": "Le skew, c’est quand certaines clés ont beaucoup plus de lignes que les autres : quelques tâches durent bien plus longtemps que le reste, et la Spark UI montre une tâche très au-dessus de la médiane. Solutions : traiter à part les clés nulles ou dominantes, broadcaster le petit côté, s’appuyer sur la gestion du skew de l’Adaptive Query Execution, ou saler la clé avec un suffixe aléatoire et agréger en deux étapes."
+    },
+    {
+      "q": "repartition ou coalesce ?",
+      "a": "repartition(n) fait un shuffle complet et peut augmenter ou diminuer le nombre de partitions, éventuellement par colonne, avec des partitions de taille homogène. coalesce(n) fusionne seulement des partitions existantes sans shuffle complet : c’est moins cher, mais cela ne peut que réduire le nombre de partitions et peut donner des partitions inégales. coalesce s’utilise typiquement juste avant l’écriture pour obtenir moins de fichiers."
+    },
+    {
+      "q": "Pourquoi préfère-t-on Parquet au CSV dans un data lake ?",
+      "a": "Parquet est colonnaire, compressé et stocke le schéma avec les types. Spark ne lit que les colonnes nécessaires et saute les row groups dont les statistiques ne correspondent pas au filtre : les requêtes lisent beaucoup moins d’octets. Le CSV n’a pas de types, doit être entièrement analysé et prend plus de place sur disque."
+    },
+    {
+      "q": "Quand faut-il mettre un DataFrame en cache ?",
+      "a": "Quand le même DataFrame sert à plusieurs actions, par exemple une jointure coûteuse réutilisée pour plusieurs agrégations, ou dans un traitement itératif. Sans cache, chaque action recalcule le plan depuis la source. Ne mettez pas en cache des données utilisées une seule fois, et appelez unpersist à la fin, car les données en cache occupent la mémoire des executors."
+    },
+    {
+      "q": "Qu’apporte Databricks par rapport à Apache Spark ?",
+      "a": "Des clusters managés et du calcul serverless, des notebooks collaboratifs, la planification de jobs, Delta Lake comme format de table par défaut (transactions ACID, MERGE, time travel), Unity Catalog pour la gouvernance et les droits, et les optimisations de son runtime. Le code PySpark lui-même reste du Spark standard."
+    }
+  ]
+}

@@ -7,12 +7,12 @@
 // Bump VERSION to drop old caches after a big change.
 // New JS files: add them to SHELL. New top-level files (like this one): add them to the "Assemble site" step of
 // .github/workflows/deploy.yml, or they are not published.
-const VERSION = "hk-v15";
+const VERSION = "hk-v16";
 const SHELL = [
   "./", "index.html", "css/app.css", "manifest.json", "icons/icon-192.png",
   "js/app.js", "js/lib.js", "js/supabase.js", "js/config.js", "js/store.js", "js/jobs.js", "js/tracker.js", "js/ats.js",
   "js/auth.js", "js/courses.js", "js/interview.js", "js/companies.js", "js/remote.js", "js/i18n.js", "js/i18n-fr.js", "js/cvs.js",
-  "js/state.js", "js/router.js", "js/home.js", "js/training.js", "js/offers.js", "js/cvpage.js", "js/applications.js", "js/account.js", "js/salary.js", "js/tailor.js", "js/letters.js", "js/offercheck.js", "js/pulse.js", "js/icons.js", "js/activity.js", "js/practice.js",
+  "js/state.js", "js/router.js", "js/home.js", "js/training.js", "js/offers.js", "js/cvpage.js", "js/applications.js", "js/account.js", "js/salary.js", "js/tailor.js", "js/letters.js", "js/offercheck.js", "js/pulse.js", "js/projects.js", "js/coursetime.js", "js/icons.js", "js/activity.js", "js/practice.js",
   "content/courses/index.json", "content/interview/common.json", "content/courses/fr/index.json", "content/interview/fr/common.json",
 ];
 const PUBLIC_CONTENT = /\/rest\/v1\/(career_paths|path_resources|training_tracks)\b/;

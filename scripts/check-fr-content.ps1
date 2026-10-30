@@ -17,7 +17,6 @@ Get-ChildItem "$Root\content\courses\*.json" | Where-Object { $_.Name -ne "index
   Check $_ ((Len $en.lessons) -eq (Len $fr.lessons)) "lessons $(Len $en.lessons) vs $(Len $fr.lessons)"
   for ($i = 0; $i -lt (Len $en.lessons); $i++) {
     $a = $en.lessons[$i]; $b = $fr.lessons[$i]
-    Check $_ ($a.minutes -eq $b.minutes) "lesson $i minutes"
     Check $_ ((Len $a.text) -eq (Len $b.text)) "lesson $i text count"
     Check $_ ((Len $a.points) -eq (Len $b.points)) "lesson $i points count"
     if ($a.example) { Check $_ ($a.example.code -ceq $b.example.code -and $a.example.lang -ceq $b.example.lang) "lesson $i example code" }

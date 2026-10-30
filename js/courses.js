@@ -1,8 +1,8 @@
 // HelloKhedma's own skill courses and cheat sheets.
 // Content lives in content/courses/*.json (published with the site, edited like code):
-//   index.json  -> [{ id, name, category, paths: [path ids], skills: [skill names from js/ats.js], level, hours,
-//                     lessonCount, summary }]
-//   <id>.json   -> { why, outcome, lessons: [{ title, minutes, text: [..], points: [..], example?: { lang, code, note? } }],
+//   index.json  -> [{ id, name, category, paths: [path ids], skills: [skill names from js/ats.js], level, minutes,
+//                     lessonCount, summary }]   (minutes = courseTime() of the course file, checked by a smoke test)
+//   <id>.json   -> { why, outcome, lessons: [{ title, text: [..], points: [..], example?: { lang, code, note? } }],
 //                    cheatsheet: [{ group, items: [[syntax, meaning]] }],
 //                    exercises: [{ q, hint?, answer, code?: "sql" | "python" | ... (answer shown as code) }],
 //                    pitfalls: [..], interview: [{ q, a }] }
@@ -15,6 +15,7 @@ import { $, h, ls, toast } from "./lib.js";
 import { t, lang, fetchContent } from "./i18n.js";
 import { logActivity, setLastCourse, lastCourse } from "./activity.js";
 import { quiz, flashcards, exercises, interviewCards, quizBest, exercisesSolved } from "./practice.js";
+import { lessonTime, courseTime, formatMinutes } from "./coursetime.js";
 
 const BASE = "content/courses/";
 const LESSONS_KEY = "hk.lessons";
@@ -29,7 +30,7 @@ export async function loadCourseIndex() {
     const res = await fetch(`${BASE}index.json`);
     if (res.ok) index = await res.json();
   } catch { index = []; }
-  if (lang === "fr") { // French names and summaries; ids, skills, paths and hours stay in index.json
+  if (lang === "fr") { // French names and summaries; ids, skills, paths and minutes stay in index.json
     const fr = await fetch(`${BASE}fr/index.json`).then((r) => (r.ok ? r.json() : [])).catch(() => []);
     const byId = new Map(fr.map((x) => [x.id, x]));
     index = index.map((c) => ({ ...c, ...(byId.get(c.id) ? { name: byId.get(c.id).name, summary: byId.get(c.id).summary } : {}) }));
@@ -59,7 +60,7 @@ function courseCard(c, done) {
   return h("a", { href: `#/course/${c.id}`, class: "panel flex flex-col gap-2 !p-4" },
     h("div", { class: "flex items-center gap-2" },
       h("span", { class: "chip !py-0 text-xs" }, t(c.level)),
-      h("span", { class: "mute text-xs ml-auto" }, `${c.hours} h`)),
+      h("span", { class: "mute text-xs ml-auto", title: t("Reading and practice") }, `≈ ${formatMinutes(c.minutes)}`)),
     h("b", { class: "block" }, c.name),
     h("p", { class: "mute text-sm flex-1" }, c.summary),
     n ? h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
@@ -176,7 +177,7 @@ export async function renderCourse(id) {
           style: isDone(i) ? "background:#18a999;color:#fff" : i === cur ? "background:var(--accent);color:#fff" : "background:var(--panel);border:1px solid var(--line)" },
           isDone(i) ? "✓" : String(i + 1)),
         h("span", { class: "min-w-0" }, h("span", { class: "block text-sm font-medium leading-snug" }, x.title),
-          h("span", { class: "mute text-xs" }, `${x.minutes} min`))))));
+          h("span", { class: "mute text-xs" }, `≈ ${formatMinutes(lessonTime(x).total)}`))))));
     const isLast = cur === n - 1;
     const nextBtn = done
       ? (isLast ? h("button", { type: "button", class: "btn", onClick: () => show("quiz") }, t("Test yourself: take the quiz →"))
@@ -189,7 +190,7 @@ export async function renderCourse(id) {
     body.replaceChildren(h("div", { class: "grid gap-4 grid-cols-[minmax(0,1fr)] lg:grid-cols-[260px_minmax(0,1fr)] items-start" },
       h("nav", { class: "panel !p-2 order-last lg:order-none lg:sticky lg:top-20", "aria-label": t("Lessons") }, list),
       h("article", { class: "panel grid grid-cols-[minmax(0,1fr)] gap-3 min-w-0" },
-        h("p", { class: "eyebrow" }, t("Lesson {n} of {all} · {m} min", { n: cur + 1, all: n, m: l.minutes }),
+        h("p", { class: "eyebrow" }, t("Lesson {n} of {all} · {time}", { n: cur + 1, all: n, time: `≈ ${formatMinutes(lessonTime(l).total)}` }),
           done ? h("span", { class: "badge", style: "background:color-mix(in srgb,#18a999 18%,var(--panel));color:#18a999" }, t("Done")) : null),
         h("h2", { class: "serif !text-2xl !font-medium !mb-0" }, l.title),
         ...(l.text || []).map((p) => h("p", { class: "leading-relaxed" }, p)),
@@ -238,7 +239,8 @@ export async function renderCourse(id) {
     h("header", { class: "panel", "data-print-hide": "" },
       h("div", { class: "flex flex-wrap items-center gap-2 mb-2" },
         h("span", { class: "chip !py-0 text-xs" }, c.level ? t(c.level) : ""),
-        h("span", { class: "mute text-sm" }, t("{category} · about {hours} h", { category: c.category ? t(c.category) : "", hours: c.hours }))),
+        h("span", { class: "mute text-sm" }, t("{category} · about {total} ({reading} reading, {practice} practice)", {
+          category: c.category ? t(c.category) : "", ...Object.fromEntries(Object.entries(courseTime(c)).map(([k, v]) => [k, formatMinutes(v)])) }))),
       h("h1", { id: "h-course", tabindex: "-1", class: "page-title !mb-1" }, c.name),
       h("p", { class: "mute" }, c.summary),
       c.why || c.outcome ? h("details", { class: "mt-3 text-sm" },

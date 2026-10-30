@@ -4,7 +4,6 @@
   "lessons": [
     {
       "title": "Récupérer et nettoyer les données avec Power Query",
-      "minutes": 40,
       "text": [
         "Power Query (Transformer les données) est l’endroit où vous vous connectez aux sources (Excel, CSV, SQL, SharePoint) et les nettoyez avant qu’elles n’arrivent dans le modèle. Chaque étape est enregistrée et rejouée à chaque actualisation.",
         "Faites le nettoyage ici, pas dans les visuels : définir les types, supprimer des colonnes, fractionner, dépivoter, fusionner des requêtes."
@@ -18,7 +17,6 @@
     },
     {
       "title": "Modèle : relations et table de dates",
-      "minutes": 40,
       "text": [
         "Dans la vue Modèle, reliez les tables de faits aux tables de dimensions par des relations un-à-plusieurs, avec un filtrage de la dimension vers les faits. C’est un schéma en étoile.",
         "Ajoutez une table de dates dédiée, marquée comme table de dates, pour que les fonctions de time intelligence (cumul annuel, année précédente) fonctionnent."
@@ -36,7 +34,6 @@
     },
     {
       "title": "Mesures DAX et CALCULATE",
-      "minutes": 50,
       "text": [
         "Une mesure est calculée au moment de la requête, dans le contexte de filtre courant (tout ce que sélectionnent le visuel, les segments et les filtres). C’est pourquoi la même mesure affiche une valeur différente dans chaque cellule.",
         "CALCULATE modifie le contexte de filtre : c’est la fonction DAX la plus importante."
@@ -55,7 +52,6 @@
     },
     {
       "title": "Concevoir des rapports vraiment utilisés",
-      "minutes": 35,
       "text": [
         "Partez des questions que se pose votre public et placez la réponse en haut : 3 à 5 cartes KPI, puis les ventilations, puis le détail.",
         "La cohérence l’emporte sur la décoration : mêmes couleurs pour le même sens, visuels alignés, titres clairs qui énoncent l’enseignement clé."
@@ -69,7 +65,6 @@
     },
     {
       "title": "Publier, actualiser et sécuriser les rapports",
-      "minutes": 40,
       "text": [
         "Un rapport n’aide que lorsque les gens peuvent l’ouvrir avec des données à jour. Publiez depuis Power BI Desktop vers un espace de travail du service Power BI, programmez une actualisation (avec une passerelle si les données sont sur site), et partagez-le via une application pour que les lecteurs aient une version propre et stable.",
         "La sécurité au niveau des lignes (RLS) filtre les données que chacun peut voir : un responsable régional ne voit que sa région dans le même rapport. Définissez des rôles avec des filtres DAX dans Desktop, affectez des personnes ou des groupes à ces rôles dans le service, et testez avec « Afficher en tant que »."
@@ -84,6 +79,87 @@
         "lang": "dax",
         "code": "-- Row-level security role \"Region managers\" on table dim_store:\n[region] = LOOKUPVALUE(\n    dim_manager[region],\n    dim_manager[email], USERPRINCIPALNAME()\n)",
         "note": "RLS dynamique : un seul rôle, la région vient d’une table de correspondance des responsables."
+      }
+    },
+    {
+      "title": "Modélisation approfondie : schéma en étoile, cardinalité et direction du filtre",
+      "text": [
+        "Power BI est conçu pour les schémas en étoile. Les tables de faits contiennent des événements et des chiffres à un grain clair (une ligne par ligne de commande, par jour et par magasin) ; les tables de dimensions les décrivent (produit, client, magasin, date) avec une ligne par clé. Les relations vont de la clé d’une dimension vers la colonne correspondante du fait, et les filtres circulent de la dimension (côté un) vers le fait (côté plusieurs). Cette forme garde le DAX simple, donne des totaux justes et se compresse bien. Un flocon (Produit vers Sous-catégorie vers Catégorie) fonctionne, mais l’aplatir en une seule dimension Produit dans Power Query est généralement plus simple et plus rapide.",
+        "La cardinalité décrit la correspondance des clés. Plusieurs-à-un (*:1) est le cas normal et exige des valeurs uniques côté un ; les lignes de faits dont la clé manque dans la dimension sont regroupées sous un membre vide, signe d’un problème de qualité de données. Un-à-un signifie souvent que deux tables devraient être fusionnées. Les relations plusieurs-à-plusieurs existent, par exemple pour un budget stocké par mois et par catégorie alors que les ventes sont par jour et par produit, mais elles sont faciles à mal interpréter : préférez relier les deux faits à des dimensions communes au bon grain.",
+        "La direction du filtre croisé est unique par défaut : la dimension filtre le fait, pas l’inverse. La passer en bidirectionnelle permet à un fait de filtrer une dimension, ce qui est tentant (n’afficher que les produits vendus), mais crée des chemins ambigus dès qu’il y a plusieurs faits et ralentit le modèle. Gardez la direction unique et répondez au besoin en DAX ou avec une mesure utilisée comme filtre de visuel.",
+        "Une table ne peut avoir qu’une seule relation active avec une autre table. Quand le fait comporte plusieurs dates (date de commande, date d’expédition), gardez la relation sur la date de commande active, créez les autres inactives, et activez-les dans une mesure avec USERELATIONSHIP."
+      ],
+      "points": [
+        "Fixez le grain de chaque table de faits avant de construire quoi que ce soit.",
+        "Utilisez des clés de substitution entières quand c’est possible : elles se compressent mieux que de longues clés texte.",
+        "Une ligne vide dans un segment signale des clés de faits sans correspondance dans la dimension.",
+        "Les relations inactives apparaissent en pointillés dans la vue Modèle."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "-- Star schema:\n--   Dim_Date[Date] 1 --> * Fact_Sales[OrderDate]   (active)\n--   Dim_Date[Date] 1 --> * Fact_Sales[ShipDate]    (inactive)\n--   Dim_Product[ProductKey] 1 --> * Fact_Sales[ProductKey]\n--   Dim_Store[StoreKey]     1 --> * Fact_Sales[StoreKey]\n\nSales by Ship Date =\nCALCULATE (\n    [Total Sales],\n    USERELATIONSHIP ( Fact_Sales[ShipDate], Dim_Date[Date] )\n)",
+        "note": "Une seule table de dates sert les deux dates : la mesure bascule sur la relation de la date d’expédition uniquement pendant son évaluation."
+      }
+    },
+    {
+      "title": "DAX intermédiaire : contexte de filtre, CALCULATE et time intelligence",
+      "text": [
+        "Chaque mesure est évaluée dans un contexte de filtre : les filtres venant des lignes et colonnes du visuel, des segments, des filtres de page et de rapport, et des relations. CALCULATE évalue une expression dans une version modifiée de ce contexte. Un argument de filtre sur une colonne remplace tout filtre existant sur cette colonne : CALCULATE([Total Sales], Dim_Product[Category] = \"Bikes\") affiche les ventes de vélos même quand le segment sélectionne Accessories. Encadrez-le avec KEEPFILTERS pour faire l’intersection avec le segment, et utilisez REMOVEFILTERS ou ALL pour retirer des filtres, par exemple pour un pourcentage du total.",
+        "Mesures et colonnes calculées ne sont pas évaluées de la même façon. Une colonne calculée est calculée ligne par ligne à l’actualisation, dans un contexte de ligne, puis stockée : utilisez-la pour des attributs servant à découper, comme une tranche de prix. Une mesure est calculée au moment de la requête dans le contexte de filtre : utilisez-la pour tout ce qui s’agrège. Quand CALCULATE s’exécute dans un contexte de ligne (dans une colonne calculée ou un itérateur comme SUMX), il transforme la ligne courante en filtre : c’est la transition de contexte, et c’est pourquoi référencer une mesure dans SUMX fonctionne ligne par ligne.",
+        "Les variables (VAR ... RETURN) rendent les mesures lisibles et plus rapides, car chaque variable n’est calculée qu’une fois. Attention : une variable est évaluée là où elle est définie. Une VAR calculée avant CALCULATE n’est pas affectée par les filtres que CALCULATE ajoute ensuite.",
+        "Les fonctions de time intelligence comme DATESYTD, DATEADD et DATESINPERIOD renvoient une table de dates que CALCULATE utilise comme filtre. Elles exigent une vraie table de dates : une ligne par jour, sans trou, couvrant des années complètes, marquée comme table de dates et reliée aux faits. Désactivez l’option de date/heure automatique pour que Power BI ne crée pas de tables de dates cachées pour chaque colonne de date."
+      ],
+      "points": [
+        "Les itérateurs (SUMX, AVERAGEX) calculent une expression par ligne, puis agrègent.",
+        "ALLEXCEPT(Dim_Product, Dim_Product[Category]) retire tous les filtres produit sauf la catégorie.",
+        "DATEADD(Dim_Date[Date], -1, MONTH) décale la période courante d’un mois en arrière.",
+        "Vérifiez une mesure dans un visuel tableau avec la dimension en lignes avant de l’utiliser dans des graphiques."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Revenue = SUMX ( Fact_Sales, Fact_Sales[Quantity] * Fact_Sales[UnitPrice] )\n\nBike Sales (respects slicer) =\nCALCULATE ( [Revenue], KEEPFILTERS ( Dim_Product[Category] = \"Bikes\" ) )\n\nRevenue YTD = CALCULATE ( [Revenue], DATESYTD ( Dim_Date[Date] ) )\n\nRevenue Prev Month = CALCULATE ( [Revenue], DATEADD ( Dim_Date[Date], -1, MONTH ) )\n\nRevenue Rolling 12M =\nVAR LastVisibleDate = MAX ( Dim_Date[Date] )\nRETURN\n    CALCULATE (\n        [Revenue],\n        DATESINPERIOD ( Dim_Date[Date], LastVisibleDate, -12, MONTH )\n    )",
+        "note": "LastVisibleDate est calculée dans le contexte de filtre courant, avant que CALCULATE ne remplace le filtre de dates."
+      }
+    },
+    {
+      "title": "Power Query intermédiaire : fusions, ajouts, paramètres et query folding",
+      "text": [
+        "Fusionner des requêtes, c’est faire une jointure. Choisissez les colonnes clés dans les deux tables et un type de jointure : Externe gauche garde toutes les lignes de la première table, Interne ne garde que les correspondances, Anti gauche garde les lignes sans correspondance, idéal pour trouver les commandes dont le client est absent. Après la fusion, développez uniquement les colonnes utiles. Ajouter des requêtes empile des tables ayant les mêmes colonnes, par exemple un fichier par mois ; le connecteur Dossier avec Combiner les fichiers ajoute automatiquement tous les fichiers d’un dossier, si bien que le fichier du mois suivant est pris en compte à l’actualisation.",
+        "Les paramètres suppriment les valeurs codées en dur. Créez-les dans Gérer les paramètres (nom du serveur, base de données, date de début) et utilisez-les dans l’étape source. Passer du serveur de test au serveur de production devient une modification à un seul endroit, et dans le service Power BI les paramètres se modifient dans les paramètres du modèle sémantique. L’actualisation incrémentielle repose sur deux paramètres DateTime spéciaux, RangeStart et RangeEnd.",
+        "Le query folding signifie que Power Query traduit vos étapes en une seule requête exécutée par la source, par exemple une instruction SQL avec WHERE et GROUP BY. La base fait le travail et seul le résultat transite vers Power BI, ce qui compte beaucoup pour les grandes tables. Faites un clic droit sur une étape : si Afficher la requête native est disponible, l’étape est repliée. Filtrer des lignes, supprimer des colonnes, fusionner simplement des tables d’une même base et regrouper se replient généralement ; ajouter une colonne d’index, beaucoup de fonctions M personnalisées ou une fusion avec un fichier Excel cassent le folding, et toutes les étapes suivantes s’exécutent localement. Placez les étapes repliables en premier."
+      ],
+      "points": [
+        "Fusion Anti gauche = lignes sans correspondance, un contrôle qualité rapide.",
+        "L’ajout exige les mêmes noms de colonnes ; des noms différents créent des colonnes supplémentaires pleines de null.",
+        "Référencez une requête plutôt que de la dupliquer, pour n’écrire les étapes de nettoyage qu’une fois.",
+        "Désactivez le chargement des requêtes intermédiaires utilisées seulement pour les fusions.",
+        "L’actualisation incrémentielle nécessite un filtre sur RangeStart et RangeEnd qui se replie vers la source."
+      ],
+      "example": {
+        "lang": "m",
+        "code": "let\n    Source = Sql.Database(ServerName, \"SalesDB\"),\n    Sales = Source{[Schema = \"dbo\", Item = \"FactSales\"]}[Data],\n    Recent = Table.SelectRows(Sales, each [OrderDate] >= #date(2025, 1, 1)),\n    KeptColumns = Table.SelectColumns(Recent, {\"OrderID\", \"OrderDate\", \"ProductID\", \"Amount\"}),\n    Merged = Table.NestedJoin(KeptColumns, {\"ProductID\"}, Dim_Product, {\"ProductID\"}, \"Product\", JoinKind.LeftOuter),\n    Expanded = Table.ExpandTableColumn(Merged, \"Product\", {\"Category\"})\nin\n    Expanded",
+        "note": "ServerName est un paramètre. Le filtre et la sélection de colonnes se replient en SQL ; la fusion ne se replie que si Dim_Product vient de la même base."
+      }
+    },
+    {
+      "title": "Performance et publication en profondeur",
+      "text": [
+        "En mode Import, Power BI stocke les données dans son moteur en mémoire compressé (VertiPaq), qui compresse chaque colonne séparément. La taille du modèle dépend surtout du nombre de valeurs distinctes par colonne, pas du nombre de lignes. Une colonne date-heure avec les secondes, un identifiant de transaction ou un commentaire libre peut peser plus que le reste du modèle : supprimez les colonnes inutiles, séparez date et heure, et arrondissez les valeurs quand la précision n’est pas nécessaire. DirectQuery laisse les données dans la source et envoie des requêtes à chaque interaction : données plus fraîches, mais visuels plus lents et charge accrue sur la source ; utilisez-le quand les données doivent être quasi temps réel ou sont trop volumineuses pour être importées.",
+        "Pour trouver un visuel lent, ouvrez l’Analyseur de performances, démarrez l’enregistrement et actualisez les visuels. Chaque visuel affiche son temps de requête DAX, son temps d’affichage et un temps « autre ». Une requête DAX lente désigne la mesure ou le modèle ; un affichage lent désigne trop de points ou de visuels. Vous pouvez copier la requête et l’analyser plus finement dans DAX Studio, un outil externe gratuit.",
+        "Dans le service, un espace de travail a quatre rôles : Administrateur, Membre, Contributeur et Lecteur. Les concepteurs reçoivent Contributeur ou Membre ; les consommateurs doivent être Lecteurs ou passer par l’application. La sécurité au niveau des lignes ne s’applique qu’aux personnes qui consultent le contenu : les Administrateurs, Membres et Contributeurs de l’espace voient toutes les données. Testez donc la RLS avec Afficher en tant que rôle et donnez le rôle Lecteur aux lecteurs des rapports.",
+        "Les données sur site (un SQL Server au bureau, des fichiers sur un partage réseau) nécessitent une passerelle de données locale en mode standard, installée sur un serveur toujours allumé et partagée par l’équipe ; le mode personnel est réservé à un seul utilisateur. Les sources cloud comme SharePoint Online ou Azure SQL n’ont pas besoin de passerelle. La capacité partagée autorise jusqu’à 8 actualisations planifiées par jour, les capacités Premium davantage ; pour les grandes tables, l’actualisation incrémentielle ne recharge que les partitions récentes."
+      ],
+      "points": [
+        "Moins de valeurs distinctes = modèle plus petit et plus rapide.",
+        "Analyseur de performances : le temps de requête DAX face au temps d’affichage indique où chercher.",
+        "La RLS ne restreint pas les Administrateurs, Membres ou Contributeurs de l’espace de travail.",
+        "Passerelle en mode standard sur un serveur, pas sur un portable qui se met en veille.",
+        "Après publication, vérifiez l’historique d’actualisation et activez les notifications d’échec."
+      ],
+      "example": {
+        "lang": "m",
+        "code": "// Incremental refresh filter on the fact query (RangeStart and RangeEnd are DateTime parameters)\nFiltered = Table.SelectRows(\n    Sales,\n    each [OrderDateTime] >= RangeStart and [OrderDateTime] < RangeEnd\n)",
+        "note": "Utilisez >= d’un côté et < de l’autre pour qu’aucune ligne ne soit chargée deux fois ; la stratégie elle-même se définit sur la table dans Desktop."
       }
     }
   ],
@@ -166,13 +242,104 @@
           "Mesures lisibles"
         ]
       ]
+    },
+    {
+      "group": "Modélisation approfondie",
+      "items": [
+        [
+          "Grain",
+          "Ce que représente une ligne d’une table de faits"
+        ],
+        [
+          "Plusieurs-à-un (*:1)",
+          "Relation normale entre fait et dimension"
+        ],
+        [
+          "Direction du filtre croisé : unique",
+          "La dimension filtre le fait (par défaut, à privilégier)"
+        ],
+        [
+          "USERELATIONSHIP(Fact[ShipDate], Dim_Date[Date])",
+          "Activer une relation inactive dans une mesure"
+        ]
+      ]
+    },
+    {
+      "group": "DAX intermédiaire",
+      "items": [
+        [
+          "KEEPFILTERS(filter)",
+          "Faire l’intersection avec les filtres existants au lieu de les remplacer"
+        ],
+        [
+          "REMOVEFILTERS(table or column)",
+          "Supprimer des filtres"
+        ],
+        [
+          "SUMX(table, expression)",
+          "Calcul ligne par ligne, puis somme"
+        ],
+        [
+          "DATEADD(Dim_Date[Date], -1, MONTH)",
+          "Mois précédent"
+        ],
+        [
+          "DATESINPERIOD(Dim_Date[Date], d, -12, MONTH)",
+          "12 mois glissants se terminant à d"
+        ]
+      ]
+    },
+    {
+      "group": "Power Query intermédiaire",
+      "items": [
+        [
+          "Jointure Anti gauche",
+          "Lignes sans correspondance dans l’autre table"
+        ],
+        [
+          "Dossier + Combiner les fichiers",
+          "Ajouter tous les fichiers d’un dossier"
+        ],
+        [
+          "Gérer les paramètres",
+          "Serveur, base ou dates à un seul endroit"
+        ],
+        [
+          "Afficher la requête native",
+          "Disponible = l’étape se replie vers la source"
+        ]
+      ]
+    },
+    {
+      "group": "Performance et service",
+      "items": [
+        [
+          "Analyseur de performances",
+          "Temps par visuel : requête DAX, affichage, autre"
+        ],
+        [
+          "Import / DirectQuery",
+          "Copie en cache rapide / requêtes directes à la source"
+        ],
+        [
+          "Administrateur, Membre, Contributeur, Lecteur",
+          "Rôles d’un espace de travail"
+        ],
+        [
+          "Passerelle de données locale (mode standard)",
+          "Actualiser des sources sur site depuis le service"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Une grande table plate au lieu d’un schéma en étoile : lenteur et totaux faux.",
     "Des colonnes calculées là où il faut une mesure (elles ne réagissent pas aux filtres).",
     "Utiliser la hiérarchie de dates automatique au lieu d’une vraie table de dates.",
-    "Des relations bidirectionnelles partout, qui produisent des résultats ambigus."
+    "Des relations bidirectionnelles partout, qui produisent des résultats ambigus.",
+    "Passer des relations en bidirectionnel pour faire fonctionner un visuel, puis obtenir des résultats ambigus ou lents.",
+    "Ajouter tôt une étape qui casse le query folding, si bien que des millions de lignes sont rapatriées avant le filtrage.",
+    "Tester la RLS en étant Administrateur de l’espace de travail et croire qu’elle fonctionne pour tout le monde."
   ],
   "exercises": [
     {
@@ -194,6 +361,25 @@
       "hint": "Un filtre de rôle est une expression DAX qui renvoie vrai pour les lignes autorisées.",
       "code": "dax",
       "answer": "[country] = \"France\""
+    },
+    {
+      "q": "Fact_Sales contient OrderDate et DeliveryDate. Seule OrderDate est reliée à Dim_Date (active). Écrivez une mesure des ventes par date de livraison.",
+      "hint": "Créez d’abord la seconde relation comme inactive.",
+      "code": "dax",
+      "answer": "Sales by Delivery Date =\nCALCULATE (\n    [Total Sales],\n    USERELATIONSHIP ( Fact_Sales[DeliveryDate], Dim_Date[Date] )\n)"
+    },
+    {
+      "q": "Écrivez une mesure des ventes de la même période le mois précédent, et une mesure de l’évolution d’un mois sur l’autre en pourcentage.",
+      "code": "dax",
+      "answer": "Sales PM = CALCULATE ( [Total Sales], DATEADD ( Dim_Date[Date], -1, MONTH ) )\n\nSales MoM % =\nVAR cur = [Total Sales]\nVAR prev = [Sales PM]\nRETURN DIVIDE ( cur - prev, prev )"
+    },
+    {
+      "q": "Vous avez besoin de la liste des commandes dont le CustomerID n’existe pas dans la table clients. Comment l’obtenez-vous dans Power Query ?",
+      "answer": "Fusionner Orders avec Customers sur CustomerID avec le type de jointure Anti gauche. Le résultat ne contient que les commandes sans client correspondant ; les compter, les montrer au propriétaire des données, et décider s’il faut corriger la source ou les rattacher à un client Inconnu."
+    },
+    {
+      "q": "Votre modèle pèse 1,5 Go et l’actualisation est lente. Citez quatre points à vérifier.",
+      "answer": "1) Les colonnes avec beaucoup de valeurs distinctes (identifiants, date-heure avec secondes, commentaires), avec un outil comme VertiPaq Analyzer dans DAX Studio, puis les supprimer ou les découper. 2) Les colonnes et tables inutilisées. 3) Les colonnes calculées qui pourraient être faites dans Power Query ou remplacées par des mesures. 4) Si le query folding fonctionne, et si l’actualisation incrémentielle peut ne recharger que les données récentes."
     }
   ],
   "interview": [
@@ -212,6 +398,22 @@
     {
       "q": "Comment garantir que chaque responsable ne voit que sa région dans un rapport partagé ?",
       "a": "Avec la sécurité au niveau des lignes : un rôle dont le filtre DAX sur la table des régions utilise USERPRINCIPALNAME() et une table de correspondance responsables-régions, pour qu’un seul rôle serve tout le monde. Je publie le modèle sémantique, j’affecte le rôle à un groupe dans le service, je teste avec « Afficher en tant que » pour quelques utilisateurs, et je vérifie que les relations propagent le filtre jusqu’aux tables de faits."
+    },
+    {
+      "q": "Pourquoi évitez-vous les relations bidirectionnelles ?",
+      "a": "Avec plusieurs tables de faits, elles créent plus d’un chemin de filtre entre les tables, ce qui donne des résultats ambigus, et elles ralentissent les requêtes. Je garde une direction unique de la dimension vers le fait et je traite les besoins particuliers en DAX, par exemple avec CROSSFILTER dans une mesure ou une mesure utilisée comme filtre de visuel."
+    },
+    {
+      "q": "Qu’est-ce que la transition de contexte ?",
+      "a": "Quand CALCULATE est évalué dans un contexte de ligne, comme une colonne calculée ou un itérateur tel que SUMX, il transforme la ligne courante en un contexte de filtre équivalent. C’est pourquoi une mesure référencée dans un SUMX sur les clients renvoie la valeur de chaque client. C’est puissant, mais cela peut être lent sur de grandes tables."
+    },
+    {
+      "q": "Qu’est-ce que le query folding et pourquoi est-ce important ?",
+      "a": "Le query folding, c’est Power Query qui traduit les étapes appliquées en une requête native exécutée par la source, par exemple en SQL. La base filtre et agrège : moins de données transférées et une actualisation plus rapide. L’actualisation incrémentielle en dépend. Je le vérifie avec Afficher la requête native et je place les étapes repliables avant celles qui cassent le folding."
+    },
+    {
+      "q": "Quand choisiriez-vous DirectQuery plutôt qu’Import ?",
+      "a": "Quand les données doivent être proches du temps réel ou sont trop volumineuses pour être importées, ou quand elles doivent rester dans la source pour des raisons de gouvernance. Le prix à payer : des visuels plus lents, de la charge sur la base source et certaines limites en DAX et Power Query. Import reste donc le choix par défaut, et les modèles composites permettent de combiner les deux."
     }
   ]
 }

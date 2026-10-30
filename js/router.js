@@ -6,14 +6,16 @@ import { t } from "./i18n.js";
 import { state, path } from "./state.js";
 import { loadCourseIndex, renderCourse } from "./courses.js";
 import { renderInterview } from "./interview.js";
+import { renderProject } from "./projects.js";
 import { refreshLearning } from "./training.js";
 import { renderHome } from "./home.js";
 
 const ROUTES = {
   home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course",
   account: "Your account & data", legal: "Legal notice", privacy: "Privacy policy", interview: "Interview prep",
+  project: "Portfolio project",
 };
-const NAV_OF = { course: "training" }; // which nav tab is highlighted for sub-pages
+const NAV_OF = { course: "training", project: "training" }; // which nav tab is highlighted for sub-pages
 export const coursesReady = loadCourseIndex();
 
 const routeOf = () => {
@@ -32,6 +34,8 @@ export function showRoute(moveFocus) {
   if (moveFocus) window.scrollTo(0, 0);
   if (r === "course") {
     coursesReady.then(() => renderCourse(param)).then(() => { if (moveFocus) $("#h-course")?.focus({ preventScroll: true }); });
+  } else if (r === "project") {
+    renderProject(param).then(() => { if (moveFocus) $("#h-project")?.focus({ preventScroll: true }); });
   } else if (moveFocus) $(`#h-${r}`)?.focus({ preventScroll: true });
   if (r === "interview") refreshInterview();
   if (r === "training" && path()) refreshLearning(); // lessons, quiz scores and XP may have changed on a course page

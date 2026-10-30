@@ -1,0 +1,267 @@
+{
+  "why": "Analysts and business analysts are judged on what decision-makers see: a clear chart, a dashboard people actually use, a five-minute story that leads to a decision. Tableau and Looker Studio are among the tools most named in job offers, and storytelling questions come up in almost every BI interview.",
+  "outcome": "pick the right chart for a question, build views, calculated fields and dashboards in Tableau and Looker Studio, design dashboards that are clear and accessible, and present data as a story that leads a business audience to a decision.",
+  "lessons": [
+    {
+      "title": "Choose the chart for the question",
+      "text": [
+        "Start from the question, not from the chart gallery. Most business questions fall into a few families: comparing categories (which region sells most?), showing change over time (how did sign-ups evolve?), showing a part of a whole (what share comes from mobile?), showing a distribution (how are order values spread?) and showing a relationship (does discount drive volume?). Each family has one or two charts that answer it well.",
+        "Bars are the safest choice for comparisons: lengths from a common baseline are what the eye compares most accurately. Sort them, use horizontal bars when labels are long, and always start the axis at zero. Lines show change over time on a continuous axis; with more than four or five lines, highlight the one that matters and grey the rest. Part-to-whole works with a stacked bar or a simple table of percentages; a pie chart is only readable with two or three slices. Distributions call for a histogram or a box plot, and relationships for a scatter plot.",
+        "Sometimes the best answer is not a chart. A single important number (revenue this month, with its change vs last month) is clearer as a large figure. When people need to look up exact values, a well-formatted table with conditional highlights works better than any chart.",
+        "Avoid decoration that distorts reading: 3D effects, dual axes with unrelated scales, and area or bubble charts where people must compare sizes precisely. Every chart should pass a simple test: can someone state its message in one sentence after five seconds?"
+      ],
+      "points": [
+        "Comparison: sorted bar chart. Trend: line chart. Distribution: histogram or box plot. Relationship: scatter plot.",
+        "Part of a whole: stacked bar or percentages; pie chart only with 2-3 slices.",
+        "Bar axes start at zero; line axes may zoom in, but say so.",
+        "One key number: a big-number KPI with comparison, not a chart.",
+        "No 3D, no decoration that changes how values are read."
+      ]
+    },
+    {
+      "title": "Tableau basics: dimensions, measures and calculated fields",
+      "text": [
+        "Tableau connects to a source (Excel, CSV, a database, a warehouse), either live or through an extract (a .hyper snapshot that is fast and can refresh on a schedule). In the Data pane, fields are split into dimensions, which describe and group (Region, Category, Order Date), and measures, which are numbers to aggregate (Sales, Quantity). When you drop a measure into a view, Tableau aggregates it, SUM by default, at the level of the dimensions in the view.",
+        "Colour on a field pill means something different: blue is discrete (separate values, creates headers) and green is continuous (a range, creates an axis). A date can be either: blue YEAR(Order Date) gives one column per year, green gives a timeline. Building a view means placing pills on Rows, Columns and the Marks card (colour, size, label, detail, tooltip); Show Me suggests charts for the fields you selected.",
+        "Calculated fields add logic. Row-level calculations compute a value per row, such as IF [Region] = \"West\" THEN \"Focus\" ELSE \"Other\" END. Aggregate calculations combine aggregates; a ratio must be SUM([Profit]) / SUM([Sales]), not SUM([Profit] / [Sales]), otherwise you add up per-row ratios. Table calculations, such as RUNNING_SUM(SUM([Sales])) or percent of total, are computed on the results shown in the view and depend on how the table is laid out.",
+        "Useful functions to know: DATETRUNC('month', [Order Date]) to group dates, ZN() to turn NULL into zero, IIF() for short conditions, COUNTD() for distinct counts and CONTAINS() for text tests."
+      ],
+      "points": [
+        "Dimensions group and describe; measures are aggregated (SUM by default).",
+        "Blue = discrete (headers), green = continuous (axis): this is not the same as dimension/measure.",
+        "Ratios are aggregate calculations: SUM(a) / SUM(b).",
+        "Extracts are faster and schedulable; live connections show current data but depend on the source.",
+        "Table calculations work on the view's results, so moving pills can change their result."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "// Tableau calculated fields\n\n// Profit Ratio (aggregate calculation)\nSUM([Profit]) / SUM([Sales])\n\n// Order Size (row-level calculation)\nIF [Sales] >= 500 THEN \"Large\"\nELSEIF [Sales] >= 100 THEN \"Medium\"\nELSE \"Small\"\nEND\n\n// Sales month (for grouping)\nDATETRUNC('month', [Order Date])",
+        "note": "Format Profit Ratio as a percentage in the field's default number format so every sheet shows it the same way."
+      }
+    },
+    {
+      "title": "Tableau: LOD expressions, filters, parameters and dashboards",
+      "text": [
+        "Level of detail (LOD) expressions compute an aggregate at a level you choose, independently of the view. {FIXED [Customer ID] : MIN([Order Date])} gives each customer's first order date on every row, which lets you build cohorts. INCLUDE adds a dimension to the view's level (average sales per customer while showing regions), and EXCLUDE removes one (each region compared with the overall total). Start with FIXED: it is the easiest to reason about.",
+        "Filters are applied in a fixed order: extract and data source filters, then context filters, then FIXED LOD expressions, then dimension filters, then measure filters, then table calculations. So a normal dimension filter does not change a FIXED result. If you want a filter to apply before a FIXED expression, add it to context (right-click, Add to Context). This order of operations explains most \"why didn't my filter work?\" questions.",
+        "Parameters are user inputs: a number, date or list of values that a calculation, filter or reference line reads. Typical uses are a Top N selector or a switch between measures (Sales or Profit). Show the parameter control on the dashboard so users can change it. Parameter actions let a click on a chart set the parameter value.",
+        "A dashboard combines sheets. Set a fixed size that matches where it will be viewed, use containers to align, and add actions (Dashboard > Actions): a filter action makes a click on one chart filter the others, a highlight action emphasises related marks. Publish to Tableau Cloud or Tableau Server for your organisation; Tableau Public is free but anything published there is visible to everyone."
+      ],
+      "points": [
+        "{FIXED dim : AGG(x)} computes at the dim level whatever the view shows.",
+        "Order: extract/data source, context, FIXED, dimension filters, INCLUDE/EXCLUDE, measure filters, table calcs.",
+        "Add a filter to context when it must apply before FIXED or a Top N filter.",
+        "Parameters + calculated fields = Top N selectors and measure switches.",
+        "Never publish confidential data to Tableau Public."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "// Tableau LOD expressions\n\n// First order date per customer (cohort)\n{FIXED [Customer ID] : MIN([Order Date])}\n\n// Cohort year, for colour or rows\nYEAR({FIXED [Customer ID] : MIN([Order Date])})\n\n// Average sales per customer, at the level of the view\nAVG({INCLUDE [Customer ID] : SUM([Sales])})\n\n// Measure switch driven by a string parameter [Choose measure]\nCASE [Choose measure]\nWHEN \"Sales\" THEN SUM([Sales])\nWHEN \"Profit\" THEN SUM([Profit])\nEND",
+        "note": "Put Region on Rows with the third calculation: INCLUDE sums sales per customer inside each region, then AVG averages those customer totals."
+      }
+    },
+    {
+      "title": "Looker Studio: data sources, blending, calculated fields and sharing",
+      "text": [
+        "Looker Studio (formerly Google Data Studio) is Google's free reporting tool, used a lot for marketing and small-company reporting. Do not confuse it with Looker, Google's enterprise BI platform where metrics are defined in the LookML modelling language. A report connects to data sources through connectors: Google Sheets, BigQuery, Google Analytics, databases such as MySQL and PostgreSQL, CSV uploads and many partner connectors.",
+        "A data source lists the fields: dimensions in green, metrics in blue (the opposite meaning of Tableau's colours). Its credentials matter: with owner's credentials, viewers see data through your access; with viewer's credentials, each viewer must have access to the underlying data, which is safer for sensitive data. The data freshness setting controls how long results are cached, which affects both speed and, on BigQuery, cost.",
+        "Calculated fields can be added in the data source (reusable by every chart) or in a single chart. The formula language has functions such as CASE, IF, SUM, COUNT_DISTINCT, CONCAT, REGEXP_MATCH and date functions. Blending joins up to five data sources in one chart on common join keys, for example ad spend from one source and revenue from another by date and campaign. You choose the join type (left outer, inner, right outer, full outer or cross). Blends are convenient but slow on large data: when you can, join the data upstream in SQL.",
+        "Sharing works like Google Docs: add viewers or editors, or share a link. Add filter controls and a date range control so readers can explore, and schedule email delivery for people who want a regular PDF."
+      ],
+      "points": [
+        "Looker Studio = free reports; Looker = enterprise BI with LookML.",
+        "Green = dimension, blue = metric in Looker Studio.",
+        "Viewer's credentials for sensitive data; owner's credentials only when everyone may see it.",
+        "Blending joins up to 5 sources on keys; heavy joins belong in SQL upstream.",
+        "Data source calculated fields are reusable; chart-level ones stay in one chart."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "// Looker Studio calculated fields (data source level)\n\n// Market group\nCASE\n  WHEN Country IN (\"France\", \"Belgium\", \"Switzerland\") THEN \"Francophone Europe\"\n  WHEN Country = \"Tunisia\" THEN \"North Africa\"\n  ELSE \"Other\"\nEND\n\n// Average order value (metric)\nSUM(Revenue) / COUNT_DISTINCT(Order_ID)\n\n// Campaign is a brand campaign\nREGEXP_MATCH(Campaign, \".*brand.*\")",
+        "note": "Field names must match the data source exactly; rename messy names in the data source first."
+      }
+    },
+    {
+      "title": "Dashboard design: hierarchy, KPIs first, colour with purpose",
+      "text": [
+        "A dashboard has one audience and one job. Before building, write down who opens it, how often, and which decision it supports: a sales director checking weekly performance needs something different from an analyst investigating churn. If you cannot say what it is for, it will become a wall of charts nobody reads.",
+        "Readers scan from the top left. Put the few headline KPIs there, each with a comparison (vs target, vs last period) because a number alone means nothing. Below come the charts that explain the KPIs, then the detail tables for people who want to dig. This top-down hierarchy lets a manager get the answer in ten seconds and an analyst find the detail in two minutes. Keep it to about five to seven views; move the rest to a second page.",
+        "Use colour with purpose. Start with grey and add one accent colour for what matters: the current period, the selected region, the metric below target. Use the same colour for the same thing on every chart. Red and green should be reserved for bad and good, and never be the only signal: about 1 man in 12 has some colour vision deficiency, often red-green. Add icons, labels or arrows, and choose colour-blind-safe palettes.",
+        "Accessibility is part of quality. Keep text contrast at least 4.5:1 against the background, write titles and axis labels in plain words, use readable font sizes, avoid tiny legends by labelling lines directly, and add alt text or a short description where the tool allows it. Consistent formats (same date format, same number rounding, units in titles) remove a lot of friction."
+      ],
+      "points": [
+        "One audience, one decision, written down before you build.",
+        "KPIs top left with a comparison; explanations below; detail last.",
+        "Grey by default, one accent colour for what matters.",
+        "Never rely on red/green alone; use colour-blind-safe palettes and labels.",
+        "Text contrast 4.5:1, plain titles, direct labels, consistent formats."
+      ]
+    },
+    {
+      "title": "Data storytelling: context, one message, annotations",
+      "text": [
+        "A dashboard lets people explore; a story tells them what matters. Data storytelling combines three things: the data, a visual that makes it clear, and a narrative that explains why it matters and what to do. A correct analysis that nobody understands or acts on has no business value.",
+        "Start with context: who is the audience, what do they already know, and what decision are they facing? Then find the one message, written as a full sentence with a point of view: \"Returns in the North region doubled since the carrier change, costing about 40,000 euros per month\", not \"Returns analysis\". If you cannot write it in one or two sentences, the analysis is not finished.",
+        "Make each chart carry that message. Use an action title that states the takeaway instead of a label (\"Returns doubled after the carrier change in March\" rather than \"Returns by month\"). Add annotations directly on the chart: mark the date of the change, label the key point, add the target line. Remove everything that does not support the message: gridlines, extra series, legends you can replace with direct labels. Highlight the important series and grey out the rest.",
+        "Structure the story for a business audience. A simple pattern is situation, complication, resolution: where we are, what changed or what the problem is, and what we recommend. Busy executives often prefer the answer first (the pyramid principle): recommendation, then the two or three supporting facts, then the detail in the appendix. Always end with a clear ask: a decision, a budget, an owner, a date."
+      ],
+      "points": [
+        "Data + visual + narrative: all three are needed.",
+        "Write the one message as a sentence before making slides.",
+        "Action titles state the takeaway; annotations point at the evidence.",
+        "Situation, complication, resolution; or answer first for executives.",
+        "End with a concrete ask: decision, owner, date."
+      ]
+    },
+    {
+      "title": "Presenting to stakeholders",
+      "text": [
+        "Presenting is where analysis turns into decisions. Prepare for the people in the room: what does each stakeholder care about (cost, risk, customers, their team's targets), and what objections will they raise? Talk to the most sceptical person beforehand if the message is sensitive; nobody likes to be surprised by bad news in a meeting.",
+        "Lead with the answer and keep the method short. Business audiences want to know what you found, how confident you are and what to do. Say how the data was obtained and its limits in one or two sentences (\"based on 18 months of orders, excluding the marketplace channel\"), and keep the technical detail in the appendix for questions.",
+        "Be honest about uncertainty. Separate what the data shows from what you infer: correlation is not causation, a small sample may be noise, a definition change can create a fake trend. Saying \"I do not know yet, I will check and come back by Thursday\" builds more trust than guessing. Use numbers people can picture (\"1 order in 5\") and round them sensibly.",
+        "Close the loop. End with the decision you need, then send a short written summary after the meeting: the message, the decision taken, the owners and the next steps. When you share a dashboard, include a few lines explaining how to read it and where the data comes from. Finally, follow up: check whether the decision was applied and whether the metric moved. That is the story you will tell in your next interview."
+      ],
+      "points": [
+        "Know each stakeholder's interest and likely objections before the meeting.",
+        "Answer first, method in one or two sentences, detail in the appendix.",
+        "State limits and confidence; separate facts from interpretation.",
+        "Finish with the decision you need, then a written summary with owners and dates.",
+        "Follow up on the impact: it closes the loop and gives you results to show."
+      ]
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Chart choice",
+      "items": [
+        ["Compare categories", "Sorted bar chart, axis from zero"],
+        ["Change over time", "Line chart on a continuous date axis"],
+        ["Distribution", "Histogram or box plot"],
+        ["Relationship between two measures", "Scatter plot"],
+        ["One headline number", "KPI card with comparison to target or last period"]
+      ]
+    },
+    {
+      "group": "Tableau basics",
+      "items": [
+        ["Dimension vs measure", "Groups and describes vs aggregated number"],
+        ["Blue pill vs green pill", "Discrete (headers) vs continuous (axis)"],
+        ["SUM([Profit]) / SUM([Sales])", "Correct ratio as an aggregate calculation"],
+        ["Extract (.hyper)", "Fast snapshot of the data, refreshed on a schedule"]
+      ]
+    },
+    {
+      "group": "Tableau advanced",
+      "items": [
+        ["{FIXED [Customer ID] : MIN([Order Date])}", "First order date per customer, independent of the view"],
+        ["Add to Context", "Make a filter apply before FIXED LODs and Top N"],
+        ["Parameter", "User input used by calculations, filters or reference lines"],
+        ["Dashboard filter action", "Click on one chart filters the others"]
+      ]
+    },
+    {
+      "group": "Looker Studio",
+      "items": [
+        ["Green field / blue field", "Dimension / metric"],
+        ["Viewer's credentials", "Each viewer needs their own access to the data"],
+        ["Blend", "Join up to 5 data sources in a chart on keys"],
+        ["Data freshness", "How long query results are cached"]
+      ]
+    },
+    {
+      "group": "Dashboard design",
+      "items": [
+        ["KPIs top left", "Headline numbers first, each with a comparison"],
+        ["Grey + one accent", "Colour only what the reader must notice"],
+        ["Contrast 4.5:1", "Minimum for normal text (WCAG AA)"],
+        ["Direct labels", "Label lines and bars instead of a distant legend"]
+      ]
+    },
+    {
+      "group": "Storytelling",
+      "items": [
+        ["Action title", "Title states the takeaway, not the chart content"],
+        ["Situation, complication, resolution", "Classic narrative for a business audience"],
+        ["Pyramid principle", "Answer first, then supporting facts, then detail"],
+        ["Clear ask", "End with a decision, owner and date"]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "For each question, name the chart: (a) revenue for 15 sales reps this quarter; (b) daily active users over 6 months; (c) spread of delivery times; (d) does marketing spend relate to sign-ups across 40 cities?",
+      "hint": "Comparison, trend, distribution, relationship.",
+      "answer": "(a) Horizontal bar chart sorted by revenue, axis from zero. (b) Line chart on a continuous date axis, possibly with a 7-day average to smooth weekly patterns. (c) Histogram, or box plots if you compare carriers or regions. (d) Scatter plot with one dot per city, spend on x and sign-ups on y; a trend line can help but does not prove causation."
+    },
+    {
+      "q": "Tableau: a colleague computes the margin with SUM([Profit] / [Sales]) and gets 2,350%. What is wrong, and what is the correct calculated field?",
+      "hint": "Row-level ratio versus ratio of aggregates.",
+      "code": "text",
+      "answer": "// Wrong: SUM([Profit] / [Sales]) adds up one ratio per row\n// Right: divide the totals (aggregate calculation)\nSUM([Profit]) / SUM([Sales])"
+    },
+    {
+      "q": "Tableau: write a calculated field that gives each customer's total number of distinct orders, so you can then count customers with 1, 2, 3... orders.",
+      "hint": "FIXED on the customer, COUNTD on the order id.",
+      "code": "text",
+      "answer": "{FIXED [Customer ID] : COUNTD([Order ID])}"
+    },
+    {
+      "q": "Tableau: you filter the view on Region = West, but your FIXED expression still returns the totals for all regions. Why, and how do you fix it?",
+      "hint": "Order of operations.",
+      "answer": "Normal dimension filters are applied after FIXED LOD expressions, so FIXED ignores them. Right-click the Region filter and choose Add to Context: context filters are applied before FIXED, so the expression is computed on West only. Alternatively, use INCLUDE or EXCLUDE expressions, which respect dimension filters."
+    },
+    {
+      "q": "Looker Studio: create a calculated field that groups the Device dimension into \"Mobile\" (values mobile and tablet) and \"Desktop\" (everything else).",
+      "hint": "CASE WHEN ... IN (...) THEN ... ELSE ... END",
+      "code": "text",
+      "answer": "CASE\n  WHEN Device IN (\"mobile\", \"tablet\") THEN \"Mobile\"\n  ELSE \"Desktop\"\nEND"
+    },
+    {
+      "q": "Rewrite these chart titles as action titles: (1) \"Monthly churn rate 2026\"; (2) \"Revenue by channel\". Invent plausible findings.",
+      "hint": "A full sentence that states what the reader should conclude.",
+      "answer": "(1) \"Churn fell from 6% to 3.5% after the onboarding emails launched in May.\" (2) \"Partner sales now bring 38% of revenue and are the only channel growing this year.\" Each title states the finding, includes the key number and points to a cause or implication, so the reader knows what to look at in the chart."
+    }
+  ],
+  "pitfalls": [
+    "Building the dashboard before agreeing on its audience and decision, then adding charts until nobody reads it.",
+    "Computing ratios at row level (SUM of ratios) instead of as a ratio of sums.",
+    "Using colour everywhere, or red/green as the only signal, so nothing stands out and colour-blind readers miss the point.",
+    "Truncating the axis of a bar chart, which exaggerates small differences.",
+    "Publishing confidential data to Tableau Public or sharing a Looker Studio report with owner's credentials to people who should not see the data.",
+    "Presenting the method for ten minutes and the conclusion in the last thirty seconds."
+  ],
+  "interview": [
+    {
+      "q": "How do you choose the right chart?",
+      "a": "I start from the question. Comparison of categories: a sorted bar chart. Change over time: a line chart. Distribution: a histogram or box plot. Relationship between two measures: a scatter plot. Part of a whole: a stacked bar or simple percentages, a pie only with two or three slices. If the answer is a single number, a KPI card with a comparison is better than any chart."
+    },
+    {
+      "q": "What is the difference between a dimension and a measure in Tableau, and between blue and green pills?",
+      "a": "Dimensions are fields that describe and group, like Region or Category; measures are numbers that Tableau aggregates, SUM by default, at the level of the dimensions in the view. Blue and green are a separate concept: blue means discrete and creates headers, green means continuous and creates an axis. A date or a measure can be either."
+    },
+    {
+      "q": "Explain LOD expressions with an example.",
+      "a": "An LOD expression computes an aggregate at a level I choose instead of the view's level. For example {FIXED [Customer ID] : MIN([Order Date])} returns each customer's first order date, which I use to build acquisition cohorts. INCLUDE adds a dimension to the view's level, for example average sales per customer by region, and EXCLUDE removes one to compare against a higher-level total. FIXED is computed before dimension filters, so I add filters to context when they must apply."
+    },
+    {
+      "q": "When would you use Looker Studio rather than Tableau?",
+      "a": "Looker Studio is free, web-based and integrates natively with Google sources such as Google Analytics, Google Ads, Sheets and BigQuery, so it fits marketing reporting and small teams on Google tools. Tableau offers richer analysis (LOD expressions, table calculations, complex dashboards and governance on Tableau Cloud or Server) and suits larger BI programmes. The choice also depends on what the company already licenses and where its data lives."
+    },
+    {
+      "q": "How do you design a dashboard?",
+      "a": "I start with the audience and the decision it supports, then sketch a wireframe. Headline KPIs go top left with a comparison to target or last period, explanatory charts below, detail tables last, with about five to seven views. I use grey with one accent colour, consistent formats, direct labels and enough contrast, and I check it with a real user before publishing."
+    },
+    {
+      "q": "What makes a good data story?",
+      "a": "A clear message for a specific audience, written as one sentence with a point of view; visuals with action titles and annotations that show the evidence; and a structure such as situation, complication, resolution, or answer first for executives. It ends with a concrete ask: a decision, an owner and a date."
+    },
+    {
+      "q": "A stakeholder disagrees with your numbers in a meeting. What do you do?",
+      "a": "I stay calm and ask what they are comparing with, because the difference often comes from a definition, a filter or a date range. If I can explain it on the spot I do, briefly. Otherwise I note the question, commit to checking by a specific time and come back with the reconciliation. Afterwards I document the definition so the same question does not come back."
+    },
+    {
+      "q": "How do you make dashboards accessible?",
+      "a": "I never use colour as the only signal and pick colour-blind-safe palettes, keep text contrast at least 4.5:1, use readable font sizes and plain-language titles, label data directly instead of relying on legends, and keep formats consistent. Where the tool allows it, I add alt text or a short description of each chart's message."
+    }
+  ]
+}

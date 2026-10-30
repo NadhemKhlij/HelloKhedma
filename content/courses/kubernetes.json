@@ -4,7 +4,6 @@
   "lessons": [
     {
       "title": "Why Kubernetes: cluster, nodes and pods",
-      "minutes": 35,
       "text": [
         "Docker runs containers on one machine. Kubernetes runs them on a cluster of machines (nodes) and keeps them in the state you declared: if a container crashes or a node dies, Kubernetes starts a replacement somewhere else.",
         "The smallest unit is a pod: one or a few containers that share a network address and storage. You rarely create pods directly; you declare a Deployment that says 'I want 3 copies of this pod' and Kubernetes makes it so."
@@ -23,7 +22,6 @@
     },
     {
       "title": "Deployments and Services",
-      "minutes": 45,
       "text": [
         "A Deployment manages a set of identical pods (replicas) and rolls out new versions gradually: change the image tag, apply, and Kubernetes replaces pods a few at a time. kubectl rollout undo goes back to the previous version.",
         "Pods come and go and change IP addresses. A Service gives them one stable name and address and load-balances between them. ClusterIP is reachable inside the cluster; an Ingress (or a LoadBalancer Service) exposes HTTP traffic to the outside world."
@@ -41,7 +39,6 @@
     },
     {
       "title": "Configuration, secrets, resources and health checks",
-      "minutes": 45,
       "text": [
         "Keep configuration out of the image. A ConfigMap holds settings, a Secret holds sensitive values; both are injected as environment variables or files. Secrets are only base64-encoded by default, so restrict access and use an external secret manager in production.",
         "Tell Kubernetes what each container needs and how to check it. Requests reserve CPU and memory for scheduling; limits cap them. A readiness probe says when a pod can receive traffic; a liveness probe restarts a pod that is stuck."
@@ -59,7 +56,6 @@
     },
     {
       "title": "Debug a failing pod",
-      "minutes": 40,
       "text": [
         "Most problems show up in the pod status. Pending means it cannot be scheduled (not enough resources, a missing volume). ImagePullBackOff means the image name, tag or registry access is wrong. CrashLoopBackOff means the container starts and exits again and again.",
         "Follow the same order every time: get the status, describe the pod and read its events, read the logs (including the previous crashed container), then check the configuration it receives. Helm packages all these manifests as one versioned release when an app grows."
@@ -74,6 +70,86 @@
         "lang": "bash",
         "code": "kubectl get pods -n demo\n# api-7d9f...   0/1   CrashLoopBackOff   5   3m\nkubectl describe pod api-7d9f... -n demo | tail -20\nkubectl logs api-7d9f... -n demo --previous\n# KeyError: 'DATABASE_URL'  -> the Secret is missing a key\nkubectl get secret api-secrets -n demo -o yaml",
         "note": "A classic: the app crashes at start because a variable it needs is not set."
+      }
+    },
+    {
+      "title": "ConfigMaps and Secrets in practice",
+      "text": [
+        "The same image should run in development, staging and production; only its configuration changes. A ConfigMap holds non-sensitive settings (log level, feature flags, a whole config file). A Secret holds sensitive values (passwords, tokens, TLS keys). You can create both from the command line with kubectl create, or write them in YAML; in a Secret's YAML, stringData lets you write plain values and Kubernetes stores them base64-encoded.",
+        "A pod consumes them in two ways. As environment variables (env with valueFrom, or envFrom for all keys at once), which is simple but read only when the container starts: if you change the ConfigMap, running pods keep the old value until they restart, for example with kubectl rollout restart. As files in a mounted volume, which suits whole config files; Kubernetes updates mounted files after a short delay (except with subPath), but your app must reread them to notice.",
+        "Base64 is encoding, not encryption: anyone who can read Secrets in the namespace can decode them. Protect them with RBAC (few people and service accounts may get or list secrets), ask the cluster admins whether encryption at rest is enabled, and keep real values out of Git. In production teams usually sync secrets from a vault with the External Secrets Operator, or commit only encrypted Sealed Secrets."
+      ],
+      "points": [
+        "kubectl create configmap api-config --from-literal=LOG_LEVEL=info --from-file=app.yaml",
+        "kubectl create secret generic api-secrets --from-literal=DB_PASSWORD=... (never in shell history on shared machines).",
+        "Env vars do not update in running pods: kubectl rollout restart deployment/api after a change.",
+        "immutable: true protects a ConfigMap or Secret from accidental edits; create a new one to change it.",
+        "kubectl get secret api-secrets -o jsonpath='{.data.DB_PASSWORD}' | base64 -d decodes one value."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: api-config\ndata:\n  LOG_LEVEL: info\n  settings.yaml: |\n    page_size: 50\n    cache_ttl_seconds: 300\n---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: api-secrets\ntype: Opaque\nstringData:\n  DB_PASSWORD: change-me   # placeholder, real value comes from a vault\n---\n# in the Deployment's pod template\n      containers:\n        - name: api\n          image: ghcr.io/acme/api:2.1.0\n          env:\n            - name: LOG_LEVEL\n              valueFrom:\n                configMapKeyRef: { name: api-config, key: LOG_LEVEL }\n            - name: DB_PASSWORD\n              valueFrom:\n                secretKeyRef: { name: api-secrets, key: DB_PASSWORD }\n          volumeMounts:\n            - name: config\n              mountPath: /etc/api\n      volumes:\n        - name: config\n          configMap:\n            name: api-config\n            items:\n              - { key: settings.yaml, path: settings.yaml }",
+        "note": "The app reads /etc/api/settings.yaml as a file and LOG_LEVEL and DB_PASSWORD as environment variables."
+      }
+    },
+    {
+      "title": "Resources, probes and autoscaling",
+      "text": [
+        "Requests and limits do different jobs. The scheduler places a pod on a node only if the node has enough unreserved capacity for its requests. Limits are enforced at run time: a container above its CPU limit is throttled (slowed down), while a container above its memory limit is killed and shows OOMKilled. CPU is counted in millicores (500m is half a core). Pods with requests equal to limits get the Guaranteed QoS class and are the last to be evicted when a node runs short of memory; pods without any are BestEffort and go first.",
+        "Probes tell Kubernetes about the health of your app. The readiness probe decides whether the pod receives traffic from its Service. The liveness probe restarts a container that no longer responds. The startup probe protects slow-starting apps: until it succeeds, liveness and readiness checks are not run, so a JVM that needs 60 seconds to start is not killed in a loop. Keep liveness checks cheap and independent of the database, otherwise a database outage restarts every pod and makes things worse.",
+        "A HorizontalPodAutoscaler (autoscaling/v2) changes the number of replicas of a Deployment to keep a metric near a target, for example average CPU at 70 percent of the request. It needs the metrics-server add-on and sensible CPU requests, because utilisation is measured relative to the request. Set minReplicas to at least 2 for availability and maxReplicas to protect your budget and your database."
+      ],
+      "points": [
+        "kubectl top pods shows actual CPU and memory use: base requests on it.",
+        "A memory limit lower than real usage causes OOMKilled and restarts.",
+        "startupProbe: failureThreshold × periodSeconds = maximum start-up time allowed.",
+        "kubectl get hpa shows current and target metric values and the replica count.",
+        "kubectl describe pod shows probe failures in the events (Readiness probe failed...)."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "      containers:\n        - name: api\n          image: ghcr.io/acme/api:2.1.0\n          resources:\n            requests: { cpu: 250m, memory: 256Mi }\n            limits: { memory: 512Mi }\n          startupProbe:\n            httpGet: { path: /health, port: 8000 }\n            periodSeconds: 5\n            failureThreshold: 24        # up to 2 minutes to start\n          readinessProbe:\n            httpGet: { path: /ready, port: 8000 }\n            periodSeconds: 5\n          livenessProbe:\n            httpGet: { path: /health, port: 8000 }\n            periodSeconds: 10\n            failureThreshold: 3",
+        "note": "/ready can check dependencies (take the pod out of traffic); /health only checks that the process answers."
+      }
+    },
+    {
+      "title": "Ingress and TLS basics",
+      "text": [
+        "A ClusterIP Service is only reachable inside the cluster. To expose HTTP applications to users you could create one LoadBalancer Service per app, but each one costs a cloud load balancer and handles only one service. An Ingress describes HTTP routing rules instead: this host name and path go to that Service. One entry point serves many applications.",
+        "An Ingress object does nothing on its own. An ingress controller (for example one based on NGINX or Traefik, or your cloud provider's) must run in the cluster, watch Ingress objects and configure the actual proxy. ingressClassName says which controller handles the rule. The newer Gateway API is the successor to Ingress with richer routing and is being adopted by more and more clusters, but Ingress is still the most common thing you will meet.",
+        "TLS is configured in the Ingress with a list of hosts and the name of a Secret of type kubernetes.io/tls that contains the certificate (tls.crt) and the private key (tls.key). The controller terminates HTTPS and forwards plain HTTP to the pods. Certificates expire, so most teams install cert-manager, which requests certificates (for example from Let's Encrypt), stores them in that Secret and renews them automatically; an annotation on the Ingress tells it which issuer to use."
+      ],
+      "points": [
+        "Current API version: networking.k8s.io/v1, with pathType Prefix or Exact.",
+        "kubectl get ingress shows hosts and the external address given by the controller.",
+        "kubectl create secret tls api-tls --cert=tls.crt --key=tls.key for a certificate you already have.",
+        "A 404 from the controller usually means no rule matches the host or path; a 503 means the Service has no ready pods.",
+        "The DNS record of the host must point to the controller's external address."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: api\n  annotations:\n    cert-manager.io/cluster-issuer: letsencrypt-prod\nspec:\n  ingressClassName: nginx\n  tls:\n    - hosts: [api.example.com]\n      secretName: api-tls\n  rules:\n    - host: api.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: api\n                port:\n                  number: 80",
+        "note": "cert-manager reads the annotation, gets a certificate for api.example.com and stores it in the Secret api-tls."
+      }
+    },
+    {
+      "title": "Releases: rolling updates, rollbacks and Helm",
+      "text": [
+        "When you change the pod template of a Deployment (usually the image tag), Kubernetes performs a rolling update: it creates pods with the new version and removes old ones step by step. maxSurge says how many extra pods may exist during the update, maxUnavailable how many may be missing. With maxUnavailable: 0, capacity never drops, and thanks to the readiness probe old pods are removed only when new ones are ready. Each change creates a revision; kubectl rollout undo returns to the previous one in seconds.",
+        "Real applications need many manifests: Deployment, Service, Ingress, ConfigMap, HPA, often one set per environment. Helm packages them as a chart: templates with placeholders plus a values.yaml file of defaults. You install a chart as a release with your own values (a values-prod.yaml file or --set), upgrade it when the image tag changes, and roll the whole release back if something goes wrong.",
+        "Use helm template or helm upgrade --dry-run to see the rendered YAML before applying it, and helm lint to catch mistakes. Many tools you will install yourself (cert-manager, an ingress controller, Prometheus) are distributed as public charts, so even if your team uses another deployment tool such as Argo CD, reading a chart and its values is a daily skill."
+      ],
+      "points": [
+        "kubectl set image deployment/api api=ghcr.io/acme/api:2.2.0 starts a rollout.",
+        "kubectl rollout history deployment/api, then rollout undo --to-revision=N.",
+        "helm upgrade --install api ./chart -f values-prod.yaml -n shop: install or upgrade in one command.",
+        "helm history api and helm rollback api 3 restore a previous release.",
+        "Chart layout: Chart.yaml (name, version), values.yaml (defaults), templates/ (manifests)."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# templates/deployment.yaml (excerpt)\nspec:\n  replicas: {{ .Values.replicaCount }}\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxSurge: 1\n      maxUnavailable: 0\n  template:\n    spec:\n      containers:\n        - name: api\n          image: \"{{ .Values.image.repository }}:{{ .Values.image.tag }}\"\n\n# values-prod.yaml\nreplicaCount: 3\nimage:\n  repository: ghcr.io/acme/api\n  tag: \"2.2.0\"\n\n# shell\n# helm upgrade --install api ./chart -f values-prod.yaml -n shop\n# helm rollback api 4 -n shop",
+        "note": "The chart stays the same for every environment; only the values file changes."
       }
     }
   ],
@@ -105,6 +181,31 @@
       ["livenessProbe", "Stuck? Restart it"],
       ["resources.requests / limits", "Reserved / maximum CPU and memory"],
       ["HorizontalPodAutoscaler", "Add replicas when load goes up"]
+    ]},
+    { "group": "Configuration", "items": [
+      ["kubectl create configmap name --from-file=app.yaml", "ConfigMap from a file"],
+      ["kubectl create secret generic name --from-literal=K=V", "Secret from a value"],
+      ["envFrom: - secretRef: { name: x }", "All keys as environment variables"],
+      ["kubectl rollout restart deployment/api", "Restart pods to pick up new env values"]
+    ]},
+    { "group": "Probes and scaling", "items": [
+      ["startupProbe", "Give a slow app time to start"],
+      ["CPU over limit / memory over limit", "Throttled / OOMKilled"],
+      ["autoscaling/v2 HorizontalPodAutoscaler", "Scale replicas on a metric"],
+      ["kubectl top pods", "Actual CPU and memory use"]
+    ]},
+    { "group": "Ingress", "items": [
+      ["networking.k8s.io/v1 Ingress", "HTTP routing by host and path"],
+      ["ingressClassName", "Which controller handles the rule"],
+      ["tls: secretName", "Secret with tls.crt and tls.key"],
+      ["cert-manager", "Requests and renews certificates"]
+    ]},
+    { "group": "Releases and Helm", "items": [
+      ["maxSurge / maxUnavailable", "Speed and safety of a rolling update"],
+      ["kubectl rollout history deploy/api", "List revisions"],
+      ["helm upgrade --install rel ./chart -f values.yaml", "Install or upgrade a release"],
+      ["helm template rel ./chart", "Render manifests without applying"],
+      ["helm rollback rel N", "Back to release revision N"]
     ]}
   ],
   "pitfalls": [
@@ -112,7 +213,10 @@
     "No resource requests and limits: one pod can starve the whole node.",
     "Missing readiness probe: users hit pods that are still starting during a rollout.",
     "Treating Secrets as encrypted: base64 is not encryption, restrict access.",
-    "Editing live objects with kubectl edit and forgetting to update the YAML in Git."
+    "Editing live objects with kubectl edit and forgetting to update the YAML in Git.",
+    "Changing a ConfigMap and expecting running pods to see new environment variables without a restart.",
+    "A liveness probe that checks the database: one database incident restarts every pod.",
+    "Creating an Ingress in a cluster with no ingress controller and wondering why nothing answers."
   ],
   "exercises": [
     { "q": "Write the kubectl commands to scale the deployment api to 5 replicas in namespace shop, then watch the rollout.", "hint": "kubectl scale and kubectl rollout status.", "code": "bash",
@@ -120,11 +224,23 @@
     { "q": "A pod is in ImagePullBackOff. List three likely causes and how you check each.", "hint": "Name, tag, credentials.",
       "answer": "1) Wrong image name or tag: kubectl describe pod shows the exact image; compare with the registry. 2) Private registry without credentials: check imagePullSecrets on the pod or service account. 3) Registry unreachable or rate-limited: the events show the pull error message; try pulling the same image from a node or locally." },
     { "q": "Your app needs 200 MiB of memory normally and can spike to 400 MiB. Write its resources block.", "hint": "Request the normal need, limit the peak.", "code": "yaml",
-      "answer": "resources:\n  requests:\n    cpu: 100m\n    memory: 256Mi\n  limits:\n    memory: 512Mi" }
+      "answer": "resources:\n  requests:\n    cpu: 100m\n    memory: 256Mi\n  limits:\n    memory: 512Mi" },
+    { "q": "Write an autoscaling/v2 HorizontalPodAutoscaler that keeps the Deployment api between 2 and 10 replicas at 70% average CPU.", "hint": "scaleTargetRef, minReplicas, maxReplicas, metrics of type Resource.", "code": "yaml",
+      "answer": "apiVersion: autoscaling/v2\nkind: HorizontalPodAutoscaler\nmetadata:\n  name: api\nspec:\n  scaleTargetRef:\n    apiVersion: apps/v1\n    kind: Deployment\n    name: api\n  minReplicas: 2\n  maxReplicas: 10\n  metrics:\n    - type: Resource\n      resource:\n        name: cpu\n        target:\n          type: Utilization\n          averageUtilization: 70" },
+    { "q": "A new release is live and errors jump. Give the commands to see the revisions and go back to the previous version, with kubectl and with Helm.", "code": "bash",
+      "answer": "kubectl rollout history deployment/api -n shop\nkubectl rollout undo deployment/api -n shop\nkubectl rollout status deployment/api -n shop\n\n# with Helm\nhelm history api -n shop\nhelm rollback api -n shop   # previous revision; or: helm rollback api 4 -n shop" },
+    { "q": "A Java app takes 90 seconds to start and gets restarted in a loop by its liveness probe. What do you change?", "hint": "Which probe exists for slow starts?",
+      "answer": "Add a startupProbe on the same endpoint with periodSeconds: 10 and failureThreshold: 12 (up to 120 s). Liveness and readiness only start after it succeeds, so the container is no longer killed while starting. Check the events with kubectl describe pod to confirm the earlier failures were liveness failures." },
+    { "q": "Your Ingress for shop.example.com returns 503. Where do you look?",
+      "answer": "503 from the controller usually means the backend has no ready endpoints. Check that the Service name and port in the Ingress are right, that the Service selector matches the pod labels (kubectl get endpoints or endpointslices for the Service), and that the pods are Ready (readiness probe failing?). Then read the ingress controller logs." }
   ],
   "interview": [
     { "q": "What is the difference between a Deployment and a Service?", "a": "A Deployment manages the pods: how many replicas, which image, and how to roll out a new version. A Service gives those changing pods one stable name and IP and load-balances traffic to them by label. You usually need both: the Deployment runs the app, the Service makes it reachable." },
     { "q": "How do you troubleshoot a CrashLoopBackOff?", "a": "kubectl describe pod to read the events and exit code, kubectl logs --previous to see why the last container died, then check the configuration it receives: environment variables, ConfigMaps, Secrets, mounted files, and the command. Common causes are a missing variable, a wrong command, a failing dependency or an OOMKill." },
-    { "q": "What are readiness and liveness probes for?", "a": "Readiness tells Kubernetes when a pod can receive traffic, so a starting or overloaded pod is taken out of the Service without being killed. Liveness detects a stuck process and restarts the container. A wrong liveness probe can cause restart loops, so it should be simple and have a sensible initial delay." }
+    { "q": "What are readiness and liveness probes for?", "a": "Readiness tells Kubernetes when a pod can receive traffic, so a starting or overloaded pod is taken out of the Service without being killed. Liveness detects a stuck process and restarts the container. A wrong liveness probe can cause restart loops, so it should be simple and have a sensible initial delay." },
+    { "q": "How do you give configuration and secrets to a pod, and what happens when they change?", "a": "With ConfigMaps for settings and Secrets for sensitive values, injected as environment variables or mounted files. Environment variables are read at start, so pods need a restart (kubectl rollout restart) to see changes; mounted files are updated after a delay but the app must reread them. Secrets are only base64-encoded, so I restrict them with RBAC and sync real values from a vault." },
+    { "q": "What is the difference between liveness, readiness and startup probes?", "a": "Readiness controls whether the pod receives traffic. Liveness restarts a container that is stuck. The startup probe runs first and disables the other two until the app has started, which protects slow-starting applications from being killed in a loop." },
+    { "q": "What is an Ingress and what do you need for it to work?", "a": "An Ingress is a set of HTTP routing rules (host and path to Service), with optional TLS from a kubernetes.io/tls Secret. It needs an ingress controller running in the cluster to implement the rules, and DNS pointing to the controller. cert-manager is commonly used to obtain and renew the certificates." },
+    { "q": "What is Helm and why use it?", "a": "Helm is a package manager for Kubernetes: a chart bundles templated manifests with default values. Installing a chart creates a versioned release that you can upgrade with different values per environment and roll back as a whole. It avoids copying nearly identical YAML for every environment." }
   ]
 }

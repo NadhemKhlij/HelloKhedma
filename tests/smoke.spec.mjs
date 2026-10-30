@@ -120,6 +120,42 @@ test("market pulse: offers seen on the Offers page feed the Home card", async ({
   await expect(card.locator("li").first()).toContainText("100%");
 });
 
+test("course index matches the course files (time, lesson count, French copy)", async ({ page }) => {
+  await page.goto("/index.html");
+  const problems = await page.evaluate(async () => {
+    const { courseTime } = await import("/js/coursetime.js");
+    const get = (u) => fetch(u).then((r) => (r.ok ? r.json() : null));
+    const index = await get("/content/courses/index.json"), out = [];
+    for (const c of index) {
+      const [en, fr] = await Promise.all([get(`/content/courses/${c.id}.json`), get(`/content/courses/fr/${c.id}.json`)]);
+      if (!en) { out.push(`${c.id}: file missing`); continue; }
+      const m = courseTime(en).total;
+      if (c.minutes !== m) out.push(`${c.id}: index minutes ${c.minutes}, content gives ${m}`);
+      if (c.lessonCount !== en.lessons.length) out.push(`${c.id}: lessonCount ${c.lessonCount}, lessons ${en.lessons.length}`);
+      if (!fr || fr.lessons.length !== en.lessons.length) out.push(`${c.id}: French copy missing or with another lesson count`);
+    }
+    return out;
+  });
+  expect(problems).toEqual([]);
+});
+
+test("portfolio projects: every path has projects and a project page works", async ({ page }) => {
+  await open(page, "#/training");
+  const cards = page.locator("#projectList a");
+  await expect(cards.first()).toBeVisible();
+  expect(await cards.count()).toBeGreaterThanOrEqual(3);
+  await cards.first().click();
+  const project = page.locator('section[data-page="project"]');
+  await expect(project.locator("h1")).not.toBeEmpty();
+  const box = project.locator("ol input[type=checkbox]").first();
+  await box.check();
+  await expect(project).toContainText("1/");
+  for (const p of ["de", "da", "ba", "as", "do"]) {
+    const n = await page.evaluate(async (id) => (await (await fetch(`/content/projects/${id}.json`)).json()).projects.length, p);
+    expect(n, `projects for ${p}`).toBeGreaterThanOrEqual(3);
+  }
+});
+
 test("a course opens with its tabs and the quiz", async ({ page }) => {
   await open(page, "#/course/sql");
   const tabs = page.locator('section[data-page="course"] [role=tablist] [role=tab]');

@@ -4,7 +4,6 @@
   "lessons": [
     {
       "title": "Logs: read and search them",
-      "minutes": 40,
       "text": [
         "A log line records an event: timestamp, level, component, message, and ideally a request or correlation id. Structured logs (JSON) are much easier to search than free text.",
         "To investigate, narrow the time window, filter by level and service, then follow one request id across components."
@@ -22,7 +21,6 @@
     },
     {
       "title": "Metrics and dashboards",
-      "minutes": 40,
       "text": [
         "Metrics are numbers over time: request rate, error rate, latency, CPU, queue length. They show trends and are cheap to keep, while logs explain individual events.",
         "Two simple frameworks: RED for services (Rate, Errors, Duration) and USE for resources (Utilisation, Saturation, Errors)."
@@ -40,7 +38,6 @@
     },
     {
       "title": "Alerts that people trust",
-      "minutes": 35,
       "text": [
         "An alert should mean: a human must act now. Too many alerts and people ignore them (alert fatigue).",
         "Alert on symptoms users feel (errors, latency, availability) more than on causes (CPU at 80%), and link each alert to a runbook."
@@ -54,7 +51,6 @@
     },
     {
       "title": "Traces, SLOs and error budgets",
-      "minutes": 40,
       "text": [
         "Logs tell you what happened, metrics tell you how much, and traces tell you where the time went: a trace follows one request through every service it calls, so you see that the 3 seconds were spent waiting for the payment API, not in your code. OpenTelemetry is the open standard to produce all three.",
         "A Service Level Objective (SLO) states what 'good enough' means for users, for example 99.5% of checkouts succeed in under a second. The remaining 0.5% is the error budget: while there is budget left, the team ships features; when it is spent, reliability work comes first. Alert on budget burn rate rather than on every spike."
@@ -69,6 +65,68 @@
         "lang": "text",
         "code": "SLO: 99.5% of checkout requests succeed in under 1 s, over 30 days\nError budget: 0.5% of ~2,000,000 requests = 10,000 bad requests per month\n\n# Prometheus: share of good requests over 30 days\nsum(rate(http_requests_total{route=\"/checkout\",code!~\"5..\"}[30d]))\n  /\nsum(rate(http_requests_total{route=\"/checkout\"}[30d]))",
         "note": "The error budget turns reliability into a number the product team can plan with."
+      }
+    },
+    {
+      "title": "Prometheus: how metrics are collected",
+      "text": [
+        "Prometheus is the most common open-source metrics system, especially around Kubernetes. It uses a pull model: every scrape interval (often 15 or 30 seconds) it calls an HTTP endpoint, usually /metrics, on each target and stores the numbers it reads in its time-series database. Pull makes it easy to see whether a target is alive: the built-in metric up is 1 when the last scrape worked and 0 when it failed.",
+        "Your own services expose metrics through a client library (Python, Java, Go and others). Software you do not control is covered by exporters, small programs that translate its state into the Prometheus format: node_exporter for Linux hosts, postgres_exporter for PostgreSQL, blackbox_exporter to probe URLs from the outside. Short batch jobs that finish before a scrape can push their results to a Pushgateway.",
+        "There are four metric types. A counter only goes up (and resets to zero on restart): requests served, errors, bytes sent. A gauge goes up and down: memory in use, queue length, temperature. A histogram counts observations into buckets (requests faster than 0.1 s, 0.5 s, 1 s...) so you can compute percentiles later. A summary computes quantiles in the application, but they cannot be aggregated across instances, so histograms are usually preferred.",
+        "Each metric has labels, such as method, route or status code. Every unique combination of label values is a separate time series. Labels with unbounded values (user id, email, full URL with ids, request id) create millions of series, which is called high cardinality and can overload Prometheus. Keep labels to small, known sets of values."
+      ],
+      "points": [
+        "Naming convention: snake_case with a unit suffix, _total for counters (http_requests_total, request_duration_seconds).",
+        "up == 0 is the first query to run when a dashboard is empty.",
+        "Counters are for things that happen, gauges for current states, histograms for durations and sizes.",
+        "Use the route template (/offers/{id}) as a label, never the raw path."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# prometheus.yml\nglobal:\n  scrape_interval: 15s\nscrape_configs:\n  - job_name: search-api\n    static_configs:\n      - targets: [\"search-api:8000\"]\n  - job_name: node\n    static_configs:\n      - targets: [\"node-exporter:9100\"]\n\n# What Prometheus reads from search-api:8000/metrics\n# TYPE http_requests_total counter\nhttp_requests_total{method=\"GET\",route=\"/offers\",code=\"200\"} 18342\nhttp_requests_total{method=\"GET\",route=\"/offers\",code=\"500\"} 27\n# TYPE http_request_duration_seconds histogram\nhttp_request_duration_seconds_bucket{route=\"/offers\",le=\"0.5\"} 17950\nhttp_request_duration_seconds_bucket{route=\"/offers\",le=\"+Inf\"} 18369",
+        "note": "In Kubernetes, targets are usually discovered automatically instead of listed by hand."
+      }
+    },
+    {
+      "title": "PromQL basics: rate, sum by and percentiles",
+      "text": [
+        "PromQL is the query language of Prometheus, also used in Grafana. A selector like http_requests_total{route=\"/offers\"} returns the latest value of every matching series. Label matchers are = (equal), != (not equal), =~ (regex match) and !~ (regex not match), for example code=~\"5..\" for all 5xx codes. Adding a range such as [5m] returns the samples of the last five minutes, which functions like rate() need.",
+        "A counter's raw value is rarely useful: 18,342 requests since the last restart says little. rate(counter[5m]) gives the per-second increase averaged over five minutes and handles counter resets; increase() gives the total increase over the window. Always apply rate first, then aggregate: sum(rate(x[5m])), never rate(sum(x)). Use rate only on counters; for gauges use avg_over_time or max_over_time.",
+        "Aggregation operators combine series: sum, avg, max, min, count, topk. The by clause keeps the labels you name and drops the others, so sum by (route) (rate(http_requests_total[5m])) gives the request rate per route; without removes the named labels instead. Dividing two such expressions gives ratios, such as the share of errors.",
+        "For percentiles from a histogram, take the rate of its _bucket series, sum by the le label (the bucket boundary) and any label you want to keep, then call histogram_quantile. The result is an estimate whose precision depends on the bucket boundaries, so choose buckets around your latency targets."
+      ],
+      "points": [
+        "The range in rate() should cover at least four scrape intervals (with 15 s scrapes, use [1m] or more).",
+        "sum by (route) keeps route; sum without (instance) drops only instance.",
+        "Error ratio: sum(rate(errors[5m])) / sum(rate(requests[5m])).",
+        "histogram_quantile needs le in the by clause, or it returns nothing useful.",
+        "Recording rules precompute expensive queries that dashboards and alerts reuse."
+      ],
+      "example": {
+        "lang": "promql",
+        "code": "# requests per second, per route\nsum by (route) (rate(http_requests_total[5m]))\n\n# share of 5xx responses for search-api\nsum(rate(http_requests_total{job=\"search-api\",code=~\"5..\"}[5m]))\n  / sum(rate(http_requests_total{job=\"search-api\"}[5m]))\n\n# 99th percentile latency per route\nhistogram_quantile(0.99,\n  sum by (le, route) (rate(http_request_duration_seconds_bucket[5m])))\n\n# the 3 hosts with the least free disk space (bytes)\nbottomk(3, node_filesystem_avail_bytes{mountpoint=\"/\"})",
+        "note": "Read each query from the inside out: select, rate, aggregate, then divide or compute the quantile."
+      }
+    },
+    {
+      "title": "Grafana dashboards and alerts that work",
+      "text": [
+        "Grafana turns queries into dashboards. You add Prometheus as a data source, then build panels: time series for trends, stat panels for one current number, tables for top lists. Set the unit on every panel (seconds, percent, requests per second) and thresholds for colours, so readers do not have to guess. Organise a service dashboard around the four golden signals: latency, traffic, errors and saturation, which match RED for services plus USE for the resources underneath.",
+        "Variables make one dashboard serve many services. A variable of type Query with label_values(up, job) lists every job; panels then use job=\"$job\" in their queries, and a drop-down appears at the top. With multi-value or All selected, use job=~\"$job\". Keep dashboards in Git as JSON or provision them, so a broken edit can be rolled back.",
+        "Alerts can be defined as Prometheus alerting rules (sent to Alertmanager) or as Grafana alert rules: a query, a condition (for example the result is above a threshold), a pending period during which the condition must stay true, labels such as severity, and notification policies that route alerts to contact points like email, Slack or an on-call tool.",
+        "The best alerts are tied to an SLO. Instead of 'error rate above 1%', alert when the error budget burns too fast. For a 99.9% SLO over 30 days, a burn rate of 14.4 consumes 2% of the monthly budget in one hour: that deserves a page. Requiring both a long window (1 h) and a short window (5 min) to be above the threshold avoids alerts for spikes that already ended. Slower burns create tickets, not pages."
+      ],
+      "points": [
+        "Golden signals: latency, traffic, errors, saturation; RED for services, USE for resources.",
+        "Grafana variables: label_values(metric, label), used as $name in queries.",
+        "Pending period (for:) ignores short spikes before an alert fires.",
+        "Burn rate = observed error ratio / error ratio allowed by the SLO.",
+        "Every alert gets a severity, an owner and a description of what to check first."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# Prometheus alerting rule: checkout SLO 99.9% (allowed error ratio 0.001)\ngroups:\n  - name: checkout-slo\n    rules:\n      - alert: CheckoutErrorBudgetFastBurn\n        expr: |\n          (\n            sum(rate(http_requests_total{route=\"/checkout\",code=~\"5..\"}[1h]))\n              / sum(rate(http_requests_total{route=\"/checkout\"}[1h]))\n          ) > (14.4 * 0.001)\n          and\n          (\n            sum(rate(http_requests_total{route=\"/checkout\",code=~\"5..\"}[5m]))\n              / sum(rate(http_requests_total{route=\"/checkout\"}[5m]))\n          ) > (14.4 * 0.001)\n        for: 2m\n        labels:\n          severity: page\n        annotations:\n          summary: \"Checkout is burning its monthly error budget 14x too fast\"\n          description: \"Check recent deploys and the payment provider latency dashboard.\"",
+        "note": "The same logic can be built as a Grafana alert rule with two queries and a math expression."
       }
     }
   ],
@@ -156,13 +214,87 @@
           "Urgent vs can wait"
         ]
       ]
+    },
+    {
+      "group": "Prometheus",
+      "items": [
+        [
+          "Pull model",
+          "Prometheus scrapes /metrics on each target"
+        ],
+        [
+          "Exporter",
+          "Translates a system's state into metrics (node_exporter)"
+        ],
+        [
+          "Counter / gauge / histogram",
+          "Only up / up and down / buckets of observations"
+        ],
+        [
+          "up == 0",
+          "Targets that failed their last scrape"
+        ],
+        [
+          "High cardinality",
+          "Too many label values, too many series"
+        ]
+      ]
+    },
+    {
+      "group": "PromQL",
+      "items": [
+        [
+          "rate(x_total[5m])",
+          "Per-second rate of a counter"
+        ],
+        [
+          "increase(x_total[1h])",
+          "Total increase over the window"
+        ],
+        [
+          "sum by (route) (...)",
+          "Aggregate, keeping only route"
+        ],
+        [
+          "code=~\"5..\"",
+          "Regex label match"
+        ],
+        [
+          "histogram_quantile(0.95, sum by (le) (rate(x_bucket[5m])))",
+          "95th percentile from a histogram"
+        ]
+      ]
+    },
+    {
+      "group": "Grafana",
+      "items": [
+        [
+          "label_values(up, job)",
+          "Variable listing all jobs"
+        ],
+        [
+          "job=~\"$job\"",
+          "Use a multi-value variable in a query"
+        ],
+        [
+          "Pending period",
+          "How long a condition must hold before firing"
+        ],
+        [
+          "Contact point / notification policy",
+          "Where alerts go / routing rules"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Reading the last error in the log instead of the first one.",
     "Comparing timestamps from systems in different timezones.",
     "Alerting on every warning, so real alerts get ignored.",
-    "Average latency dashboards that hide slow requests."
+    "Average latency dashboards that hide slow requests.",
+    "Putting user ids or raw URLs in labels and exploding the number of time series.",
+    "Using rate() on a gauge, or summing counters before applying rate().",
+    "Averaging percentiles across instances instead of aggregating histogram buckets."
   ],
   "exercises": [
     {
@@ -182,6 +314,25 @@
       "q": "Your service has a 99.9% monthly availability SLO. How much downtime does that allow in a 30-day month, and what should the team do if 80% of the budget is used in the first week?",
       "hint": "30 days = 43,200 minutes.",
       "answer": "0.1% of 43,200 minutes = about 43 minutes of downtime per month. If 80% (about 35 minutes) is gone in the first week, the budget is burning far too fast: freeze risky releases, focus the team on the causes of the outages (post-mortems, fixes, better rollback), and keep only changes that improve reliability until the burn rate is back to normal."
+    },
+    {
+      "q": "Write a PromQL query giving the number of requests per second for each status code of the job search-api.",
+      "code": "promql",
+      "answer": "sum by (code) (rate(http_requests_total{job=\"search-api\"}[5m]))"
+    },
+    {
+      "q": "Write the PromQL for the 95th percentile of http_request_duration_seconds for the route /offers over 5 minutes.",
+      "hint": "Rate of the _bucket series, sum by le, then histogram_quantile.",
+      "code": "promql",
+      "answer": "histogram_quantile(0.95,\n  sum by (le) (rate(http_request_duration_seconds_bucket{route=\"/offers\"}[5m])))"
+    },
+    {
+      "q": "Which metric type would you use for: a) jobs processed, b) jobs waiting in the queue, c) job duration?",
+      "answer": "a) A counter (jobs_processed_total), queried with rate or increase. b) A gauge (queue_length), since it goes up and down. c) A histogram (job_duration_seconds), to compute percentiles and averages across instances."
+    },
+    {
+      "q": "A developer wants to add a user_id label to http_requests_total. What do you answer?",
+      "answer": "No: every user would create new time series, with thousands or millions of series, high memory use and slow queries in Prometheus. Keep labels with small fixed sets of values (route, method, code). Per-user details belong in logs or traces, which are made for high-cardinality data."
     }
   ],
   "interview": [
@@ -200,6 +351,22 @@
     {
       "q": "What is an error budget and why is it useful?",
       "a": "It is the amount of unreliability an SLO allows: with 99.9% availability, 0.1% of requests or time may fail. It aligns product and operations: while budget remains, the team can take risks and ship; when it burns too fast, they slow releases and invest in reliability. Alerting on burn rate also cuts noise compared with alerting on every error spike."
+    },
+    {
+      "q": "How does Prometheus collect metrics, and what are the metric types?",
+      "a": "It pulls them: at each scrape interval it reads the /metrics endpoint of every target, exposed by client libraries in our code or by exporters for third-party software. Counters only increase, gauges go up and down, histograms count observations in buckets for percentiles, and summaries compute quantiles in the client but cannot be aggregated."
+    },
+    {
+      "q": "Why do we use rate() on counters?",
+      "a": "A counter's raw value is a cumulative total that resets when the process restarts. rate() gives the per-second increase over a window and handles resets, which is what you graph and alert on. You apply rate first and aggregate after, for example sum by (route) (rate(http_requests_total[5m]))."
+    },
+    {
+      "q": "What is label cardinality and why does it matter?",
+      "a": "Each unique combination of label values is a separate time series. Labels with unbounded values like user ids or raw URLs multiply the number of series, which increases memory and slows down queries until Prometheus struggles. Labels should have small, known sets of values."
+    },
+    {
+      "q": "How would you alert on an SLO instead of a raw threshold?",
+      "a": "I compute the error ratio and compare it with the ratio the SLO allows, which gives a burn rate. A fast burn, for example 14.4 times the allowed rate measured over both 1 hour and 5 minutes, pages someone; a slow burn over several hours opens a ticket. This alerts only when users are really affected and the budget is at risk."
     }
   ]
 }

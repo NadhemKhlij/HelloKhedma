@@ -1,0 +1,155 @@
+{
+  "projects": [
+    {
+      "id": "as-incident-lab",
+      "title": "Incident lab: break, fix and write the post-mortem",
+      "level": "Junior",
+      "hours": 12,
+      "skills": ["Docker", "Linux", "Log analysis", "Incident management", "Root cause analysis", "ITIL", "SQL"],
+      "summary": "Run a small web app and its database in Docker, break it on purpose in realistic ways, troubleshoot from the logs and document each incident with tickets and a blameless post-mortem.",
+      "why": "Application Support interviews test how you react when something is down: what you check first, how you communicate and how you prevent a repeat. A lab with real incident tickets and a post-mortem shows that method on paper, which most junior candidates cannot do.",
+      "data": [
+        { "name": "Docker awesome-compose", "url": "https://github.com/docker/awesome-compose", "note": "Official sample apps with Docker Compose, e.g. a Python or Node app with PostgreSQL or MySQL." },
+        { "name": "Docker Compose documentation", "url": "https://docs.docker.com/compose/", "note": "Commands you will use: up, ps, logs, exec, restart, down." },
+        { "name": "Google SRE book: Postmortem culture", "url": "https://sre.google/sre-book/postmortem-culture/", "note": "Reference for blameless post-mortems, with an example structure." }
+      ],
+      "steps": [
+        { "title": "Run the app and learn its normal state", "text": "Install Docker Desktop (or Docker Engine on Linux) and start one awesome-compose sample with a web app and a database. Use it, then note what normal looks like: docker compose ps output, a healthy log line, response time of the main page, number of rows in the main table. You cannot spot abnormal behaviour if you never wrote down normal." },
+        { "title": "Prepare a ticket template", "text": "Create a ticket template in Markdown, GitHub Issues or a free Jira Service Management site: ID, reported time, reporter, symptom, impact, urgency, priority, affected service, timeline, actions taken, resolution, root cause, related problem. Define a simple priority matrix (impact x urgency gives P1 to P4) and a target response and resolution time per priority, like a small SLA." },
+        { "title": "Break it on purpose", "text": "Ask a friend to break the stack while you are not looking, or write the scenarios in advance and run them a few days later. Good scenarios: stop the database container, change the database password in the app's environment, fill a table so a query becomes slow, change a port mapping, remove a required environment variable, make the app crash on start. Only one change per incident, so the investigation stays readable." },
+        { "title": "Troubleshoot with a method", "text": "For each incident, start from the symptom a user would report, then check in order: is the container running (docker compose ps), what do its logs say (docker compose logs --since 10m app), can the app reach the database (docker compose exec), what changed recently. Use grep, tail and less on exported logs. Write down every command you ran and what it told you, even the dead ends." },
+        { "title": "Restore service, then find the root cause", "text": "Separate the two clearly: first restore service with the fastest safe action (restart, roll back the config), then look for the real cause. Use the 5 whys to go from \"the app returned 500\" to the underlying cause, such as a configuration change made without review. Note the time of each step to compute time to detect and time to restore." },
+        { "title": "Write the incident tickets", "text": "Fill one ticket per incident with a clear timeline in UTC, the impact in user terms (\"login impossible for all users for 12 minutes\"), the priority you chose and why, the actions and the resolution. Add the short status update you would send to users during the incident. Keep the language factual and calm." },
+        { "title": "Write one blameless post-mortem", "text": "Pick the most interesting incident and write a full post-mortem: summary, impact, timeline, root cause, contributing factors, what went well, what went badly, where we got lucky, and action items with an owner and a due date. Blameless means describing what the system allowed, not who made the mistake. Link each action item to a preventive change, such as a health check or a config validation." },
+        { "title": "Publish the lab", "text": "Put the compose file, the scenario list (in a separate folder so readers can try first), the tickets, the post-mortem and a README in a GitHub repo. In the README explain how to run the lab and what each incident teaches. Remove any secret from the files and use a .env.example." }
+      ],
+      "deliverables": [
+        "GitHub repo with the Docker Compose stack and a README to run the lab",
+        "Ticket template and priority matrix (impact x urgency, target times)",
+        "4-6 incident tickets with timelines, impact, actions and resolution",
+        "One blameless post-mortem with root cause and owned action items",
+        "Troubleshooting notes with the commands used"
+      ],
+      "checklist": [
+        "Did you write down the normal state of the app before breaking it?",
+        "Does each ticket state impact in user terms and justify its priority?",
+        "Are timelines precise, in one time zone, with detection and restore times?",
+        "Is restoring service clearly separated from finding the root cause?",
+        "Does the root cause go beyond the first symptom (5 whys or similar)?",
+        "Is the post-mortem free of blame and names of individuals?",
+        "Does every action item have an owner, a due date and a link to the cause?",
+        "Can someone else run the lab from your README in under 15 minutes?",
+        "Are there no passwords or secrets committed in the repo?"
+      ],
+      "cv": {
+        "bullet": "Built an incident lab (personal project) on a Docker web app + [PostgreSQL / MySQL] stack: diagnosed [N] simulated incidents from logs, documented them as ITIL-style tickets and wrote a blameless post-mortem with [N] preventive actions.",
+        "talk": "Describe one incident from the user's symptom to the root cause, including a dead end you hit. Then explain the action item that would stop it from happening again and how you would communicate during the outage."
+      },
+      "stretch": [
+        "Add a reverse proxy (nginx) and create incidents around it: wrong upstream, timeout, certificate.",
+        "Record a short screen video of you troubleshooting one incident live.",
+        "Handle the tickets in a free ServiceNow personal developer instance to practise the tool."
+      ]
+    },
+    {
+      "id": "as-monitoring-runbooks",
+      "title": "Monitoring, alerting and runbooks",
+      "level": "Junior",
+      "hours": 14,
+      "skills": ["Monitoring", "Prometheus", "Grafana", "On-call", "SLA", "Docker", "Incident management"],
+      "summary": "Add uptime checks, metrics, dashboards and alerts to a small Docker app, then write the runbooks and on-call checklist that tell a support engineer what to do when an alert fires.",
+      "why": "Support teams live on dashboards and alerts. Showing that you can choose what to monitor, set alert thresholds that are not noisy and write a runbook someone else can follow proves you think like an on-call engineer, not just a ticket handler.",
+      "data": [
+        { "name": "Uptime Kuma", "url": "https://github.com/louislam/uptime-kuma", "note": "Free self-hosted uptime monitor, runs as one Docker container; HTTP, TCP and keyword checks with notifications." },
+        { "name": "Prometheus documentation", "url": "https://prometheus.io/docs/introduction/overview/", "note": "Metrics collection, PromQL and alerting rules; add node_exporter for host metrics." },
+        { "name": "Grafana documentation", "url": "https://grafana.com/docs/grafana/latest/", "note": "Open-source dashboards and alerting, runs locally in Docker." }
+      ],
+      "steps": [
+        { "title": "Start from a working app", "text": "Reuse the Docker Compose app from the incident lab, or any small web app with a database. Add Uptime Kuma, Prometheus, node_exporter and Grafana as extra services in the same compose file. Pin image versions instead of using latest so the lab stays reproducible." },
+        { "title": "Decide what to monitor", "text": "Before configuring anything, write a short monitoring plan: what users care about (is the site up, is it fast, do errors happen), what explains problems (CPU, memory, disk, database connections) and what you can actually collect. Define one or two service level objectives, for example 99% of checks succeed over 7 days and the main page answers in under 1 second." },
+        { "title": "Set up uptime checks", "text": "In Uptime Kuma, add an HTTP check on the main page, a keyword check that looks for text only a working page contains, and a TCP check on the database port. Configure one notification channel you actually read (email, Discord, Telegram). Verify that stopping the app turns the check red and sends one notification." },
+        { "title": "Collect metrics and build a dashboard", "text": "Configure Prometheus to scrape node_exporter and, if the app exposes them, application metrics. In Grafana add Prometheus as a data source and build one dashboard with: availability, response time, error rate if available, CPU, memory and disk usage. Keep it to one screen that answers \"is it healthy, and if not, where to look\"." },
+        { "title": "Write alert rules that matter", "text": "Write 3-5 Prometheus or Grafana alert rules, for example instance down for 2 minutes, disk over 85%, memory high for 10 minutes. Use a for: duration to avoid alerts on short spikes, and give each alert a severity and a summary that says what is wrong. Test each alert by causing the condition on purpose and note how long it took to fire." },
+        { "title": "Write one runbook per alert", "text": "For each alert write a runbook: what the alert means, user impact, first checks with exact commands, how to restore service, when and to whom to escalate, and how to confirm it is fixed. Link the runbook from the alert annotation. Test each runbook by following it literally during a simulated incident and fix the steps that were unclear." },
+        { "title": "Write the on-call checklist", "text": "Write a one-page on-call checklist: start of shift (dashboards green, open incidents, recent changes), during an alert (acknowledge, assess impact, communicate, follow runbook), handover at end of shift. Add a short communication template for a status update and the escalation contacts as roles, not real names." },
+        { "title": "Publish the setup", "text": "Commit the compose file, Prometheus config and alert rules, the exported Grafana dashboard JSON, the runbooks and the checklist to a GitHub repo. Add screenshots of the dashboard healthy and during an incident, and a README explaining your monitoring choices and SLOs." }
+      ],
+      "deliverables": [
+        "Docker Compose stack with app, Uptime Kuma, Prometheus, node_exporter and Grafana",
+        "Prometheus configuration and 3-5 alert rules",
+        "Exported Grafana dashboard JSON and screenshots",
+        "One runbook per alert and a one-page on-call checklist",
+        "README with the monitoring plan and SLOs"
+      ],
+      "checklist": [
+        "Is there a written monitoring plan linking each check to a user-facing question?",
+        "Are SLOs defined with a number and a time window?",
+        "Did you test every alert by causing its condition, and note the time to fire?",
+        "Do alert rules use a duration so short spikes do not page anyone?",
+        "Does every alert link to a runbook with exact commands?",
+        "Could a colleague who never saw the app follow each runbook to restore service?",
+        "Does the dashboard fit on one screen and show where to look first?",
+        "Are image versions pinned and no credentials committed?"
+      ],
+      "cv": {
+        "bullet": "Set up monitoring for a Docker web app (personal project) with Uptime Kuma, Prometheus and Grafana: [N] alert rules, [N] runbooks and an on-call checklist, with alerts firing within [X] minutes in tests.",
+        "talk": "Explain how you chose what to monitor from the user's point of view and how you avoided noisy alerts. Then walk through one runbook as if the alert just fired at 3 a.m."
+      },
+      "stretch": [
+        "Add log collection with Grafana Loki and link logs to the dashboard.",
+        "Build an SLO error-budget panel and explain what you would do when the budget runs out.",
+        "Add a public status page in Uptime Kuma."
+      ]
+    },
+    {
+      "id": "as-support-automation",
+      "title": "Support automation and knowledge base",
+      "level": "Junior+",
+      "hours": 16,
+      "skills": ["Bash", "Python", "SQL", "Linux", "Log analysis", "ITIL", "Problem management"],
+      "summary": "Automate three everyday support tasks with Bash, Python and SQL (log report, health check, safe data fix with rollback) and document them in an ITIL-style knowledge base.",
+      "why": "Good support engineers remove repetitive work and make fixes safe and repeatable. Scripts with clear output, a data correction that can be undone and knowledge articles others can reuse show you are ready for level-2 support, not only first-line ticket handling.",
+      "data": [
+        { "name": "PostgreSQL tutorial: transactions", "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html", "note": "BEGIN, COMMIT and ROLLBACK: the basis of a safe data fix." },
+        { "name": "Python argparse", "url": "https://docs.python.org/3/library/argparse.html", "note": "Standard library module to give your scripts clear options and help text." },
+        { "name": "ShellCheck", "url": "https://www.shellcheck.net/", "note": "Free linter that finds bugs in Bash scripts; run it on every script." }
+      ],
+      "steps": [
+        { "title": "Set up the playground", "text": "Run PostgreSQL in Docker with a small schema: customers, orders and an order_status_history table, plus a few thousand generated rows. Run a web server such as nginx in a container to produce access logs, and generate traffic with a loop of curl calls including some 404 and 500 responses. Put everything in one repo with a README." },
+        { "title": "Write a log parsing report", "text": "Write a Python script that reads an nginx access log and prints, for a given time window: requests per status code, top 10 URLs returning errors, top client IPs and the slowest requests if the log has response times. Use argparse for the file path and window, handle malformed lines without crashing and count them. Output a readable text report and an optional CSV." },
+        { "title": "Write a health-check script", "text": "Write a Bash script that checks disk usage, that the web page answers 200 within a timeout, that PostgreSQL accepts connections (pg_isready) and that a key query returns rows. Print one clear line per check (OK / WARN / CRIT) and exit with a non-zero code when something fails, so a scheduler or monitoring tool can use it. Run ShellCheck and fix every warning." },
+        { "title": "Prepare a data incident", "text": "Simulate a realistic data problem: for example, a bad deployment set the status of 37 paid orders to cancelled. Write the SQL that finds exactly the affected rows using the history table, and check the count before changing anything. Write down how you know the selection is complete and does not catch correct rows." },
+        { "title": "Fix the data safely with a rollback", "text": "Write the fix as a script that first copies the affected rows into a backup table, then updates them inside a transaction, checks the expected row count and commits only if it matches. Write a separate rollback script that restores the rows from the backup table. Test both on a copy of the database and keep the outputs as evidence." },
+        { "title": "Schedule and log", "text": "Run the health check every few minutes with cron (or a systemd timer) on Linux or WSL and write its output to a log file with timestamps. Run the log report daily the same way. Make sure scripts work when run from any directory and fail clearly if a dependency is missing." },
+        { "title": "Write the knowledge base", "text": "Write 4-5 knowledge articles in an ITIL style: one known-error article for the data incident (symptom, cause, workaround, permanent fix), and how-to articles for running each script and reading its output. Use the same template for all: title phrased as the user's symptom, applies to, steps, expected result, escalation. Add a short problem record that links the data incident to its root cause." },
+        { "title": "Publish and review", "text": "Commit scripts, SQL, sample outputs and the knowledge base to GitHub, with a README listing what each tool does and how to run it. Ask someone to follow one article without help and fix what confused them." }
+      ],
+      "deliverables": [
+        "Python log report script with argparse and sample output",
+        "Bash health-check script with exit codes, passing ShellCheck",
+        "SQL scripts: detection query, transactional fix with backup table and rollback script",
+        "Cron or systemd timer configuration and sample log",
+        "4-5 ITIL-style knowledge articles and one problem record"
+      ],
+      "checklist": [
+        "Does the log report survive malformed lines and say how many it skipped?",
+        "Does the health check return a non-zero exit code when a check fails?",
+        "Does ShellCheck pass on every Bash script?",
+        "Did you count the affected rows before running the data fix?",
+        "Is the fix inside a transaction that refuses to commit if the count is wrong?",
+        "Has the rollback script been tested and does it restore the exact original values?",
+        "Does each knowledge article start from the user's symptom and end with an escalation path?",
+        "Could another support engineer run every script from the README alone?"
+      ],
+      "cv": {
+        "bullet": "Automated support tasks in a personal lab with Python, Bash and SQL: a log report, a health check scheduled with cron, and a transactional data fix with tested rollback for [N] rows, documented in [N] ITIL-style knowledge articles.",
+        "talk": "Walk through the data incident: how you proved which rows were affected, why the fix runs in a transaction with a backup, and how you tested the rollback. Then explain how the knowledge article lets the next person handle it faster."
+      },
+      "stretch": [
+        "Send the health-check result to Uptime Kuma as a push monitor.",
+        "Add unit tests for the log parser with pytest.",
+        "Turn the data fix into a parameterised, reusable script with a dry-run mode."
+      ]
+    }
+  ]
+}

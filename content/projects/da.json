@@ -1,0 +1,147 @@
+{
+  "projects": [
+    {
+      "id": "da-kpi-dashboard",
+      "title": "Road safety KPI dashboard with SQL, Excel and Power BI",
+      "level": "Junior",
+      "hours": 14,
+      "skills": ["SQL", "Excel", "Power BI", "DAX", "KPI", "Data cleaning", "Data visualization"],
+      "summary": "Turn the official French road accident files into a clean model, a set of well-defined KPIs and a one-page Power BI dashboard a local decision maker could use.",
+      "why": "Every data analyst job asks for SQL, Excel and a BI tool, and most interviews include ‘walk me through a dashboard you built’. This project shows you can join messy official files, define KPIs precisely and design one page that answers real questions.",
+      "data": [
+        { "name": "Road accident databases (BAAC), data.gouv.fr", "url": "https://www.data.gouv.fr/fr/datasets/bases-de-donnees-annuelles-des-accidents-corporels-de-la-circulation-routiere-annees-de-2005-a-2023/", "note": "Official yearly files from the French road safety observatory: accident characteristics, locations, vehicles and people involved, linked by the accident number. Read the PDF description on the page before decoding any column." },
+        { "name": "Power BI Desktop", "url": "https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop", "note": "Free, Windows only. Publishing to the web needs a work account; for a portfolio, share the .pbix file and screenshots, or rebuild the page in Looker Studio on a Mac." }
+      ],
+      "steps": [
+        { "title": "Frame the questions", "text": "Pick a scope, for example the last three available years for one region or the whole country. Write three to five questions a road safety officer would ask, such as ‘where and when do serious accidents happen?’ and ‘which users are most at risk?’. Each question will become a KPI or a visual; anything that answers none of them stays off the page." },
+        { "title": "Load the files into a database", "text": "Download the four files per year (characteristics, locations, vehicles, users) and load them into PostgreSQL or SQLite. Check the separator, the encoding and whether column names changed between years before stacking them. Record the row counts per file and per year in a small table: you will cite them in the README." },
+        { "title": "Clean and join with SQL", "text": "Write SQL views that join the tables on the accident number, decode the coded columns (severity, lighting, road category) using the official description, and fix types such as dates and times. Decide what one row means in each view: one accident, one vehicle or one person. Mixing levels is the most common mistake with this dataset, so name your views after their grain." },
+        { "title": "Define the KPIs", "text": "Define four to six KPIs in a short table with a name, an exact formula and a unit, for example number of injury accidents, number of people killed, share of killed or hospitalised among people involved, and year-on-year change. Note what each KPI cannot tell you: counts alone do not account for traffic volume. A recruiter will ask you how a KPI is calculated, so be precise." },
+        { "title": "Check the numbers in Excel", "text": "Export one aggregated view to Excel and rebuild two KPIs with a pivot table and formulas such as SUMIFS or XLOOKUP. Compare them with your SQL results and with the totals published by the observatory for the same year. Any gap must be explained before you build the dashboard." },
+        { "title": "Model the data in Power BI", "text": "Import the views, build a star schema with a fact table and dimensions for date, location and user category, and mark the date table. Write the KPIs as DAX measures, not calculated columns, and add a year-on-year measure. Hide technical columns so the field list stays readable." },
+        { "title": "Design the one-page dashboard", "text": "Put the KPIs as cards at the top, then a trend over time, a breakdown by hour and weekday, a map or ranking by département, and a breakdown by user type. Add slicers for year and area, a clear title, and a note on data source and definitions. Keep to one page: if it does not fit, it is not a priority." },
+        { "title": "Write the summary", "text": "Write a half-page note with three findings, each backed by a number from the dashboard, and one recommendation such as where a prevention campaign would have the most impact. State the limits honestly, for example that the data covers injury accidents only. Put the note, screenshots and SQL in a GitHub repository." }
+      ],
+      "deliverables": [
+        "GitHub repository with the SQL scripts, the KPI definition table and the README",
+        "The Power BI file (.pbix) and screenshots of the dashboard page",
+        "The Excel workbook used to check two KPIs",
+        "A half-page summary with three findings and one recommendation"
+      ],
+      "checklist": [
+        "Does every KPI have a written formula and unit?",
+        "Is the grain of each SQL view stated and respected (accident, vehicle or person)?",
+        "Do your totals match the official published figures, or is the gap explained?",
+        "Are KPIs written as DAX measures rather than calculated columns?",
+        "Does the dashboard fit on one page and answer the questions you framed?",
+        "Does each visual have a clear title and the source mentioned on the page?",
+        "Are the limits of the data stated in the summary?",
+        "Could someone rebuild your numbers from the SQL in the repository?"
+      ],
+      "cv": {
+        "bullet": "Built a one-page Power BI road safety dashboard from [number] official accident records (SQL, Excel, DAX), with [number] documented KPIs checked against published national figures (personal project).",
+        "talk": "Open with the user and the questions, then show the page from top to bottom. Explain one KPI in detail, including its formula and its limits, and one data problem you solved, such as the different grains of the four files."
+      },
+      "stretch": [
+        "Add a rate per inhabitant by joining INSEE population data per département.",
+        "Add drill-through from a département to a detail page with its own trends.",
+        "Rebuild the same page in Looker Studio or Tableau Public and compare the two tools."
+      ]
+    },
+    {
+      "id": "da-eda-housing",
+      "title": "Exploratory analysis of French property prices in Python, with a written recommendation",
+      "level": "Junior",
+      "hours": 15,
+      "skills": ["Python", "Pandas", "Data cleaning", "Statistics", "Data visualization", "Data storytelling"],
+      "summary": "Explore official property sale records in a pandas notebook to answer one concrete buyer question, then turn the results into a one-page memo with a clear recommendation.",
+      "why": "Analysts are paid for decisions, not for charts. This project shows you can clean a large, messy public dataset, explore it with method, handle outliers honestly and finish with a recommendation a non-technical reader understands.",
+      "data": [
+        { "name": "Demandes de valeurs foncières (DVF), data.gouv.fr", "url": "https://www.data.gouv.fr/fr/datasets/demandes-de-valeurs-foncieres/", "note": "Official record of property sales in France over the last five years, published by the tax administration. Alsace-Moselle and Mayotte are not covered. Files are large: start with one year and one département." },
+        { "name": "Jupyter installation", "url": "https://jupyter.org/install", "note": "Free. JupyterLab or VS Code notebooks both work; use a virtual environment with pandas and matplotlib." }
+      ],
+      "steps": [
+        { "title": "Choose one decision question", "text": "Pick a question someone would act on, for example ‘with a budget of [amount], in which towns of [département] can a first-time buyer afford a two-room flat, and how fast are prices moving?’. Write it at the top of the notebook with the audience and the decision it supports. A focused question keeps the analysis short and the memo useful." },
+        { "title": "Load and inspect the data", "text": "Read one year for one département with pandas, specifying the separator, the decimal comma and dtypes for codes such as postal and commune codes so leading zeros are kept. Look at shape, column types, missing values and value counts of the sale type and property type. Note every surprise in a markdown cell as you go." },
+        { "title": "Clean with explicit rules", "text": "Keep sales of flats or houses, drop rows without a price or a built surface, and handle sales that cover several lots: one sale can appear on several rows with the same total price. Compute a price per square metre only where it makes sense. Write each rule as a separate, commented step and print how many rows it removes." },
+        { "title": "Deal with outliers", "text": "Plot the distribution of price per square metre and look at the extreme values: symbolic prices, data entry errors, very small surfaces. Choose a rule, for example excluding values outside a percentile range per town, and show the result with and without it. Prefer medians to means for prices and explain why in one sentence." },
+        { "title": "Explore with method", "text": "Answer your question step by step: median price per square metre by town, by number of rooms and by quarter, with the number of sales behind each figure. Hide or flag groups with too few sales to be reliable. Each chart needs a title that states the finding, not just the variables." },
+        { "title": "Check the trend and its uncertainty", "text": "Compare two periods, such as this year against last year, with medians and a bootstrap or interquartile range to show how much the figures move. Avoid concluding on a few sales. Write in plain words what is solid and what is only a signal." },
+        { "title": "Write the one-page memo", "text": "Write a memo with the question, the answer in two sentences, three supporting findings with one chart each, the recommendation and the limits (data delay, missing areas, no information on property condition). Write for a reader who will not open the notebook. Export it to PDF and link it from the README." },
+        { "title": "Make the notebook reproducible", "text": "Restart the kernel and run all cells to check the notebook works from top to bottom. Add a requirements.txt, a README with the data download step and a short description of each section. Remove dead code and keep only the charts used in the memo plus a few key checks." }
+      ],
+      "deliverables": [
+        "GitHub repository with the notebook, requirements.txt and README",
+        "One-page memo in PDF with the recommendation and three charts",
+        "A cleaning log: each rule and the number of rows it removed"
+      ],
+      "checklist": [
+        "Is the decision question written at the top, with its audience?",
+        "Are code columns read as text so leading zeros are kept?",
+        "Are sales spanning several rows handled so prices are not counted twice?",
+        "Is every cleaning rule justified and its effect counted?",
+        "Are medians used for prices, and is the number of sales shown for each group?",
+        "Do chart titles state the finding?",
+        "Does the memo give a recommendation and its limits in plain language?",
+        "Does the notebook run from top to bottom after a kernel restart?"
+      ],
+      "cv": {
+        "bullet": "Analysed [number] French property sales (DVF open data) in Python/pandas to recommend where a first-time buyer could afford a flat in [area]; wrote a one-page memo with [number] key findings for a non-technical reader (personal project).",
+        "talk": "State the question and the recommendation first, then justify it with two charts. Show one cleaning problem you found, such as sales spread over several rows, and how fixing it changed the numbers."
+      },
+      "stretch": [
+        "Use the geolocated version of DVF to map prices per square metre with Folium or Plotly.",
+        "Add INSEE income data per town and compare price per square metre with local incomes.",
+        "Turn the notebook into a small Streamlit app that answers the question for any budget."
+      ]
+    },
+    {
+      "id": "da-ab-test-story",
+      "title": "A/B test and retention analysis told as a data story",
+      "level": "Junior+",
+      "hours": 18,
+      "skills": ["A/B testing", "Statistics", "Python", "Pandas", "SQL", "KPI", "Tableau", "Looker", "Data storytelling"],
+      "summary": "Analyse a real A/B test from a mobile game on player retention, test the result properly, and present a decision to a business audience as a short interactive data story.",
+      "why": "Reading an experiment correctly is one of the most valued and most tested analyst skills. This project shows you can check that a test is valid, measure uncertainty, avoid common traps and explain the decision without jargon.",
+      "data": [
+        { "name": "Mobile Games A/B Testing: Cookie Cats (Kaggle)", "url": "https://www.kaggle.com/datasets/yufengsui/mobile-games-ab-testing", "note": "About 90,000 players randomly assigned to a gate at level 30 or level 40, with game rounds played and day-1 and day-7 retention. Free Kaggle account needed to download." },
+        { "name": "Tableau Public", "url": "https://public.tableau.com/app/discover", "note": "Free; everything you publish is public, so use open data only." },
+        { "name": "Looker Studio", "url": "https://lookerstudio.google.com/", "note": "Free with a Google account; an alternative to Tableau Public for the story." }
+      ],
+      "steps": [
+        { "title": "Understand the experiment", "text": "Write down the hypothesis, the two variants, the unit of randomisation (the player) and the metrics: day-1 retention, day-7 retention and game rounds played. Choose day-7 retention as the primary metric before looking at the results, and explain why. Deciding in advance protects you from picking the metric that happens to look good." },
+        { "title": "Validate the data", "text": "Load the CSV with pandas or into a SQL database and check for duplicate player ids, missing values and extreme values of game rounds. Run a sample ratio check: compare the number of players per group with the expected split using a chi-square test. If something looks wrong, say so before analysing the results." },
+        { "title": "Describe the groups", "text": "Compute retention rates and the distribution of game rounds per group with SQL or pandas. Look at the distribution of game rounds on a log scale: it is very skewed, so compare medians as well as means. Put the numbers in a small summary table you will reuse in the story." },
+        { "title": "Test the primary metric", "text": "Compute the difference in day-7 retention, a two-proportion z-test and a 95% confidence interval for the difference. Add a bootstrap of the difference as a second method and check both agree. Report the effect size in percentage points, not only the p-value." },
+        { "title": "Check secondary metrics with care", "text": "Run the same test on day-1 retention and compare game rounds with a non-parametric test such as Mann-Whitney U. Explain that testing several metrics increases the chance of a false positive, and treat secondary results as supporting evidence only. Note what the data cannot tell you, such as revenue." },
+        { "title": "Translate it for the business", "text": "Turn the result into a decision: keep the gate at level 30 or move it to level 40. Express the impact in concrete terms, for example ‘out of 10,000 new players, about [number] more or fewer would still play after a week’. Add the risk of being wrong in one plain sentence." },
+        { "title": "Build the data story", "text": "Build a short story in Tableau Public or Looker Studio with four to six views: the question, the setup, the main result with its confidence interval, the supporting metrics, the recommendation and the limits. Each view gets a headline sentence and a single chart. Test it on someone outside data: they should explain the decision back to you." },
+        { "title": "Publish and document", "text": "Publish the story, and put the notebook or SQL, the test results and a README in a GitHub repository. In the README, list the checks you ran (duplicates, sample ratio, assumptions) and the decision you recommend. Link the story from your CV and LinkedIn." }
+      ],
+      "deliverables": [
+        "Published Tableau Public or Looker Studio data story",
+        "GitHub repository with the analysis notebook or SQL, test results and README",
+        "A one-paragraph decision summary written for a product manager"
+      ],
+      "checklist": [
+        "Was the primary metric chosen and justified before looking at the results?",
+        "Did you check for duplicates and run a sample ratio check?",
+        "Is the effect reported with a confidence interval, in percentage points?",
+        "Do two methods (z-test and bootstrap) give consistent conclusions?",
+        "Are secondary metrics treated as supporting evidence, with the multiple testing risk explained?",
+        "Is the skew of game rounds handled with medians or a non-parametric test?",
+        "Can a non-technical reader explain the decision after the story?",
+        "Are the limits of the experiment stated?"
+      ],
+      "cv": {
+        "bullet": "Analysed an A/B test on [number] players (Python, SQL, statistics): validated randomisation, estimated the day-7 retention effect at [x] percentage points with a 95% confidence interval, and presented the decision as a Tableau Public data story (personal project).",
+        "talk": "Start with the decision and the result in one sentence, then explain how you made sure the test was trustworthy: the primary metric chosen upfront, the sample ratio check and the confidence interval. Finish with the limits and what you would test next."
+      },
+      "stretch": [
+        "Add a cohort retention analysis on the UCI Online Retail II dataset: monthly cohorts and a retention heatmap.",
+        "Compute the sample size needed to detect a 1-point change in retention and discuss whether this test was large enough.",
+        "Redo the main test with a Bayesian approach and compare how you would explain both results."
+      ]
+    }
+  ]
+}

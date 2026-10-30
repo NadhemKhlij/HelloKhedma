@@ -1,0 +1,152 @@
+{
+  "projects": [
+    {
+      "id": "de-batch-pipeline",
+      "title": "Pipeline ELT batch : les trajets de taxi new-yorkais dans PostgreSQL avec dbt",
+      "level": "Junior",
+      "hours": 16,
+      "skills": ["Python", "SQL", "PostgreSQL", "Docker", "dbt", "ELT", "Data modeling", "Data quality", "Git"],
+      "summary": "Chargez un mois de trajets de taxi publics de New York dans PostgreSQL sous Docker, puis transformez la table brute en modèles analytiques testés et documentés avec dbt.",
+      "why": "Ce projet prouve que vous savez faire le cœur du métier de data engineer de bout en bout : ingérer des données brutes, les modéliser en tables faciles à interroger et garantir leur qualité par des tests. Un recruteur peut cloner le dépôt, lancer deux commandes et le voir fonctionner, ce qui vaut plus qu’un certificat de formation.",
+      "data": [
+        { "name": "Trajets des Yellow Taxis NYC TLC, janvier 2024 (Parquet, environ 50 Mo)", "url": "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet", "note": "Fichier mensuel officiel publié par la NYC Taxi & Limousine Commission. Les autres mois suivent le même nom de fichier ; le dictionnaire de données est accessible depuis la page TLC Trip Record Data." },
+        { "name": "Image Docker officielle de PostgreSQL", "url": "https://hub.docker.com/_/postgres", "note": "Gratuit. Lancez-la avec Docker Desktop ou Docker Engine et un volume nommé pour conserver les données entre deux redémarrages." },
+        { "name": "Guide d’installation de dbt Core", "url": "https://docs.getdbt.com/docs/core/installation-overview", "note": "Gratuit et open source. Installez dbt-postgres avec pip dans un environnement virtuel." }
+      ],
+      "steps": [
+        { "title": "Préparer le dépôt", "text": "Créez un dépôt GitHub avec les dossiers ingest/, dbt/ et un fichier docker-compose.yml. Ajoutez un .gitignore qui exclut les fichiers de données, le .env et le dossier target/ de dbt. Rédigez une première section du README qui pose la question à laquelle vos modèles répondront, par exemple « comment le volume de courses, le prix et le pourboire varient-ils selon l’heure et la zone de prise en charge ? »." },
+        { "title": "Lancer PostgreSQL dans Docker", "text": "Déclarez un service postgres dans docker-compose.yml avec un volume nommé, un port publié et des identifiants lus dans un fichier .env non versionné (versionnez plutôt un .env.example). Démarrez-le avec docker compose up -d et connectez-vous avec psql ou un client graphique pour vérifier qu’il répond. Créez un schéma raw pour les données chargées et un schéma analytics pour les sorties dbt." },
+        { "title": "Écrire le chargeur Python", "text": "Écrivez ingest/load.py, qui télécharge un fichier Parquet mensuel, le lit avec pandas (pyarrow installé) et le charge dans raw.yellow_trips par paquets avec SQLAlchemy. Passez le mois en argument de ligne de commande et lisez les paramètres de connexion dans des variables d’environnement. Le bon résultat : le script affiche le nombre de lignes chargées et échoue avec un message clair si le téléchargement ou la connexion échoue." },
+        { "title": "Rendre le chargement rejouable", "text": "Lancer deux fois le chargeur pour le même mois ne doit pas dupliquer de lignes. L’approche la plus simple : supprimer les lignes de ce mois (ou recréer une table par mois) dans la même transaction que l’insertion. Ajoutez une petite table raw.load_log qui enregistre le mois, le nombre de lignes et l’heure de chargement, et vérifiez que le comptage en base correspond au fichier." },
+        { "title": "Créer le projet dbt et les sources", "text": "Lancez dbt init, configurez profiles.yml pour votre PostgreSQL local (gardez les secrets dans des variables d’environnement avec env_var()) et déclarez raw.yellow_trips comme source. Chargez aussi le CSV de correspondance des zones de taxi, disponible sur la page TLC, avec dbt seed pour nommer les zones de départ et d’arrivée. Lancez dbt debug jusqu’à ce que le test de connexion réussisse." },
+        { "title": "Construire les modèles de staging", "text": "Créez stg_yellow_trips : renommez les colonnes en snake_case, typez-les et filtrez les lignes manifestement invalides, comme les tarifs négatifs, une distance nulle avec un tarif non nul ou des dates de prise en charge hors du mois chargé. Expliquez en commentaire la raison de chaque filtre et comptez le nombre de lignes que chacun supprime. Les modèles de staging restent en correspondance un pour un avec la source : nettoyés, mais pas agrégés." },
+        { "title": "Construire les marts avec un schéma en étoile simple", "text": "Créez fct_trips (une ligne par course, avec des clés vers les zones et les dates) et dim_zones à partir du seed, puis un mart agrégé comme mart_trips_by_hour_zone. Matérialisez la table de faits et les marts en tables, le staging en vues, et justifiez ce choix dans le README. Écrivez deux ou trois requêtes SQL sur les marts qui répondent à votre question." },
+        { "title": "Ajouter tests et documentation", "text": "Ajoutez des tests génériques dans schema.yml : not_null et unique sur les clés, relationships entre fct_trips et dim_zones, accepted_values sur le type de paiement. Ajoutez au moins un test singulier, par exemple « aucune course ne se termine avant d’avoir commencé ». Lancez dbt build, puis dbt docs generate, et faites une capture du graphe de lignage pour le README." },
+        { "title": "Rédiger le README", "text": "Expliquez l’architecture avec un petit schéma, comment tout lancer depuis un clone vierge (docker compose up, chargement Python, dbt build), les règles de qualité des données et ce que vous feriez ensuite. Indiquez les chiffres observés : lignes chargées, lignes filtrées et pourquoi, durée d’exécution. Quelqu’un qui découvre le projet doit pouvoir le lancer en moins de 15 minutes." }
+      ],
+      "deliverables": [
+        "Dépôt GitHub public avec docker-compose.yml, le chargeur Python et le projet dbt",
+        "README avec schéma d’architecture, instructions de lancement et règles de qualité des données",
+        "Capture du graphe de lignage dbt et sortie de dbt build avec tous les tests au vert",
+        "Trois requêtes analytiques d’exemple et leurs résultats"
+      ],
+      "checklist": [
+        "Le projet se lance-t-il depuis un clone vierge en suivant uniquement le README ?",
+        "Les identifiants sont-ils hors de Git, avec un .env.example versionné à la place ?",
+        "Lancer deux fois le chargeur pour le même mois laisse-t-il le nombre de lignes inchangé ?",
+        "Les modèles de staging sont-ils séparés des marts, avec une convention de nommage claire ?",
+        "Chaque clé primaire a-t-elle des tests not_null et unique ?",
+        "Chaque filtre de nettoyage est-il expliqué, avec le nombre de lignes qu’il supprime ?",
+        "dbt build se termine-t-il avec tous les modèles et tous les tests au vert ?",
+        "Savez-vous expliquer pourquoi la table de faits est une table et les modèles de staging des vues ?"
+      ],
+      "cv": {
+        "bullet": "Conception d’un pipeline ELT batch (Python, PostgreSQL sous Docker, dbt) chargeant [nombre] millions de trajets de taxi NYC par mois dans un schéma en étoile couvert par [nombre] tests dbt ; chargements rejouables et documentation complète (projet personnel).",
+        "talk": "Commencez par la question à laquelle répondent les données, puis parcourez les trois couches : chargement brut, staging, marts. Passez l’essentiel du temps sur une décision, par exemple comment vous avez rendu le chargement idempotent ou quelles lignes invalides vous avez filtrées et pourquoi, et montrez le graphe de lignage."
+      },
+      "stretch": [
+        "Chargez plusieurs mois et passez la table de faits en modèle dbt incrémental.",
+        "Remplacez pandas par DuckDB ou Polars pour le chargement et comparez durée et mémoire.",
+        "Ajoutez un contrôle de fraîcheur des sources et un snapshot dbt sur la table des zones."
+      ]
+    },
+    {
+      "id": "de-airflow-orchestration",
+      "title": "Orchestrer un pipeline quotidien avec Airflow : les prix des carburants en France",
+      "level": "Junior",
+      "hours": 18,
+      "skills": ["Airflow", "Python", "SQL", "PostgreSQL", "Docker", "ETL", "Data quality", "Batch scheduling", "dbt"],
+      "summary": "Planifiez un DAG Airflow quotidien qui capture les prix des carburants publiés en open data par l’État, les charge de façon idempotente dans PostgreSQL, contrôle leur qualité et reconstruit des modèles dbt.",
+      "why": "La plupart des entretiens de data engineer portent sur la planification, les reprises sur erreur, la supervision des pipelines et la façon d’éviter les doublons quand une exécution est rejouée. Ce projet vous permet de répondre avec votre propre DAG, vos propres scénarios de panne et vos propres logs plutôt qu’avec de la théorie.",
+      "data": [
+        { "name": "Prix des carburants en France, flux instantané (data.gouv.fr)", "url": "https://www.data.gouv.fr/fr/datasets/prix-des-carburants-en-france-flux-instantane-v2-amelioree/", "note": "Données ouvertes officielles des prix par station, mises à jour au fil de la journée. Utilisez le lien d’export CSV ou JSON indiqué sur la page ; une capture par jour vous constitue un historique." },
+        { "name": "Lancer Airflow avec Docker (guide officiel)", "url": "https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html", "note": "Gratuit. Le docker-compose officiel est prévu pour apprendre en local, pas pour la production ; allouez au moins 4 Go de mémoire à Docker." },
+        { "name": "Tests de données dbt", "url": "https://docs.getdbt.com/docs/build/data-tests", "note": "Référence des tests génériques et singuliers à lancer après chaque chargement." }
+      ],
+      "steps": [
+        { "title": "Démarrer Airflow en local", "text": "Suivez le guide Docker officiel pour démarrer Airflow avec docker compose, puis connectez-vous à l’interface web. Ajoutez un service (ou une base) PostgreSQL séparé pour vos propres données afin de ne jamais les mélanger avec la base de métadonnées d’Airflow. Versionnez le fichier compose et une section du README qui explique comment tout démarrer et arrêter." },
+        { "title": "Concevoir les tables", "text": "Créez raw.fuel_prices_snapshot avec une colonne snapshot_date, ainsi que des colonnes station, type de carburant, prix et date de mise à jour. Fixez la granularité (une ligne par station, type de carburant et date de capture) et ajoutez une contrainte d’unicité dessus. Notez cette décision : c’est la clé unique qui permet de rejouer le pipeline sans risque." },
+        { "title": "Écrire la tâche d’extraction", "text": "Écrivez une tâche Python qui télécharge l’export et l’enregistre dans un fichier nommé avec la date logique de l’exécution ({{ ds }} ou data_interval_start du contexte), et non l’heure courante. Fixez un timeout sur l’appel HTTP et levez une erreur si la réponse est vide. Enregistrer d’abord le fichier brut permet de recharger sans retélécharger." },
+        { "title": "Écrire un chargement idempotent", "text": "Chargez le fichier dans PostgreSQL soit par suppression puis insertion pour ce snapshot_date dans une seule transaction, soit avec INSERT ... ON CONFLICT sur la clé unique. Testez en déclenchant trois fois la même date : le nombre de lignes de cette date doit rester identique. Expliquez dans le README l’approche choisie et pourquoi." },
+        { "title": "Ajouter des contrôles de qualité", "text": "Ajoutez une tâche qui fait échouer l’exécution quand une règle n’est pas respectée : nombre de lignes sous un seuil que vous justifiez, prix hors d’une plage plausible, identifiants de station manquants ou clés en double. Utilisez des requêtes SQL depuis Python ou des tests dbt lancés par un BashOperator. Un contrôle en échec doit bloquer les tâches suivantes pour que des données fausses n’atteignent jamais les marts." },
+        { "title": "Transformer avec dbt", "text": "Ajoutez un projet dbt avec du staging et un mart, par exemple le prix moyen quotidien par carburant et par département, ainsi qu’un mart de variation d’un jour sur l’autre. Lancez dbt build en dernière tâche du DAG. Gardez les transformations SQL dans dbt et un DAG léger : le DAG orchestre, dbt transforme." },
+        { "title": "Configurer planification et reprises", "text": "Planifiez le DAG chaque jour avec catchup désactivé au départ, définissez des retries avec un délai entre tentatives, et un execution_timeout sur les tâches longues. Cassez ensuite volontairement l’URL et observez les nouvelles tentatives dans les logs des tâches. Documentez ce qui se passe et comment vous seriez alerté (e-mail ou callback vers un webhook Slack en bonus)." },
+        { "title": "Lancer un backfill et observer", "text": "Comme la source ne donne que l’état courant, collectez au moins une semaine d’exécutions quotidiennes réelles, puis montrez un backfill de l’étape dbt sur des dates passées. Faites des captures de la vue grille avec des exécutions vertes et une exécution en échec puis relancée. Ajoutez au README une courte section « exploitation » : comment rejouer une journée, comment consulter les résultats des contrôles de qualité." }
+      ],
+      "deliverables": [
+        "Dépôt GitHub avec le DAG, docker-compose.yml, le DDL SQL et le projet dbt",
+        "README avec capture du graphe du DAG, stratégie d’idempotence et runbook d’exploitation",
+        "Captures de la vue grille montrant au moins sept exécutions quotidiennes et une reprise",
+        "Une courte note d’incident décrivant une panne provoquée et la réaction du pipeline"
+      ],
+      "checklist": [
+        "Rejouer une même date laisse-t-il exactement les mêmes lignes dans la table ?",
+        "Les tâches utilisent-elles la date logique de l’exécution plutôt que l’heure courante ?",
+        "Les retries, le délai entre tentatives et les timeouts sont-ils configurés sur les tâches ?",
+        "Un contrôle de qualité en échec bloque-t-il les tâches suivantes ?",
+        "Vos données et les métadonnées d’Airflow sont-elles dans des bases séparées ?",
+        "La logique métier est-elle en SQL ou dans dbt plutôt que dans le fichier du DAG ?",
+        "Les secrets de connexion sont-ils dans les connexions Airflow ou des variables d’environnement, et non dans le code ?",
+        "Savez-vous expliquer la différence entre catchup, backfill et déclenchement manuel ?"
+      ],
+      "cv": {
+        "bullet": "Orchestration d’un pipeline ETL quotidien sous Apache Airflow (Docker) collectant les prix des carburants de [nombre] stations françaises, avec chargements PostgreSQL idempotents, [nombre] contrôles qualité automatisés et transformations dbt ; [nombre] exécutions quotidiennes consécutives (projet personnel).",
+        "talk": "Décrivez le DAG tâche par tâche, puis racontez une panne : ce que vous avez cassé, ce qu’ont fait les retries et les contrôles, et comment vous avez rétabli la situation. Les recruteurs s’intéressent surtout à l’idempotence et à l’observabilité : expliquez la clé unique et comment vous repéreriez un problème silencieux, comme un fichier à moitié vide."
+      },
+      "stretch": [
+        "Utilisez l’API TaskFlow et le dynamic task mapping pour traiter chaque type de carburant en parallèle.",
+        "Ajoutez un callback d’échec qui publie sur un webhook Slack ou Teams.",
+        "Stockez les fichiers bruts dans un bucket MinIO local pour imiter un stockage objet dans le cloud."
+      ]
+    },
+    {
+      "id": "de-streaming-pipeline",
+      "title": "Pipeline de streaming avec Kafka et Spark Structured Streaming, testé en CI",
+      "level": "Junior+",
+      "hours": 25,
+      "skills": ["Kafka", "Spark", "Python", "Docker", "SQL", "PostgreSQL", "CI/CD", "Git", "Data quality"],
+      "summary": "Envoyez en continu les modifications de Wikipédia dans Kafka, agrégez-les en quasi temps réel avec Spark Structured Streaming, stockez les résultats dans PostgreSQL et lancez les tests sur GitHub Actions.",
+      "why": "Le streaming et la CI distinguent un junior qui a suivi des tutoriels d’un junior capable de rejoindre une vraie équipe plateforme. Vous pourrez parler de topics, partitions, offsets, watermarks et checkpoints par expérience, et afficher un badge CI vert sur votre dépôt.",
+      "data": [
+        { "name": "Wikimedia EventStreams (modifications récentes en direct)", "url": "https://wikitech.wikimedia.org/wiki/Event_Platform/EventStreams_HTTP_Service", "note": "Flux public et gratuit des modifications de Wikipédia en server-sent events, sans compte. Envoyez un en-tête User-Agent descriptif, comme le demande Wikimedia." },
+        { "name": "Démarrage rapide d’Apache Kafka", "url": "https://kafka.apache.org/quickstart", "note": "Gratuit. Lancez un seul broker en mode KRaft avec l’image Docker officielle pour le développement local." },
+        { "name": "Guide de programmation Spark Structured Streaming", "url": "https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html", "note": "Gratuit. La lecture depuis Kafka nécessite le connecteur spark-sql-kafka correspondant à vos versions de Spark et de Scala." }
+      ],
+      "steps": [
+        { "title": "Lancer Kafka et PostgreSQL dans Docker", "text": "Écrivez un docker-compose.yml avec un broker Kafka, PostgreSQL et, en option, Kafka UI pour parcourir les topics. Créez un topic wiki.recentchange avec trois partitions et expliquez dans le README ce que change le nombre de partitions. Vérifiez que vous pouvez produire et consommer un message de test avec les outils en ligne de commande." },
+        { "title": "Écrire le producteur", "text": "Écrivez un producteur Python qui lit le flux recentchange en HTTP (server-sent events) et publie chaque événement en JSON dans Kafka, avec le nom du wiki comme clé pour que les événements d’un même wiki restent ordonnés dans une partition. Gérez les reconnexions et journalisez le nombre de messages envoyés par minute. Ne gardez que les champs utiles et validez-les avant l’envoi." },
+        { "title": "Lire le flux avec Spark", "text": "Démarrez un job PySpark qui lit le topic avec format(\"kafka\"), parse la valeur JSON avec un schéma explicite et convertit l’horodatage de l’événement en colonne timestamp. Écrivez d’abord le flux parsé vers le sink console pour vérifier les champs. Notez ce qu’il advient des messages qui ne respectent pas le schéma, et envoyez-les vers une sortie séparée au lieu de les perdre en silence." },
+        { "title": "Agréger avec fenêtres et watermarks", "text": "Calculez le nombre de modifications par wiki et par minute avec une fenêtre fixe sur le temps de l’événement, ainsi que la part de modifications faites par des bots. Ajoutez un watermark (par exemple 2 minutes) et expliquez dans le README ce qu’il implique pour les événements en retard et pour la mémoire. Comparez la sortie en modes update et append et notez la différence." },
+        { "title": "Écrire les résultats dans PostgreSQL", "text": "Utilisez foreachBatch pour écrire chaque micro-batch dans PostgreSQL via JDBC, avec un upsert sur (wiki, window_start) pour qu’un batch rejoué ne crée pas de doublons. Définissez un checkpointLocation et vérifiez qu’arrêter puis relancer le job reprend aux offsets enregistrés sans perdre ni doubler les comptages. C’est votre argumentaire « exactly-once » pour l’entretien." },
+        { "title": "Tester les transformations", "text": "Déplacez la logique de parsing et d’agrégation dans des fonctions qui prennent un DataFrame et renvoient un DataFrame. Écrivez des tests pytest qui les exécutent sur un petit DataFrame statique avec une SparkSession locale, dont un événement mal formé et un événement en retard. Les tests doivent tourner sans Kafka pour fonctionner en CI." },
+        { "title": "Ajouter la CI avec GitHub Actions", "text": "Créez un workflow déclenché à chaque push et pull request : installation de Python et de Java, des dépendances, puis lancement d’un linter (ruff ou flake8) et de la suite pytest. Mettez en cache les dépendances pip pour qu’il reste rapide. Ajoutez le badge de statut au README et protégez la branche main pour que les changements doivent passer la CI." },
+        { "title": "Observer et documenter", "text": "Faites tourner le pipeline complet au moins une heure et relevez le débit, la durée des micro-batchs dans l’interface Spark et le retard du consommateur (consumer lag). Ajoutez une requête ou un petit graphique des wikis les plus modifiés par minute. Dans le README, incluez un schéma d’architecture, les instructions de lancement et une section « limites » : un seul broker, pas de schema registry, local uniquement." }
+      ],
+      "deliverables": [
+        "Dépôt GitHub avec docker-compose.yml, le producteur, le job Spark, les tests et le workflow de CI",
+        "README avec schéma d’architecture, instructions de lancement, choix de conception et limites",
+        "Badge CI vert et capture de l’onglet streaming de l’interface Spark",
+        "Requête SQL ou graphique des modifications par wiki et par minute, calculé depuis votre table PostgreSQL"
+      ],
+      "checklist": [
+        "Les messages Kafka ont-ils une clé, et savez-vous expliquer ce qu’elle change ?",
+        "Le job Spark parse-t-il avec un schéma explicite et gère-t-il les événements mal formés ?",
+        "Un watermark est-il défini, et savez-vous expliquer son effet sur les données en retard et la taille de l’état ?",
+        "Relancer le job depuis son checkpoint évite-t-il les résultats perdus ou en double ?",
+        "Les écritures dans PostgreSQL sont-elles des upserts idempotents ?",
+        "Les tests unitaires tournent-ils sans Kafka et passent-ils dans GitHub Actions ?",
+        "La branche main est-elle protégée par le contrôle de CI ?",
+        "Le README indique-t-il le débit mesuré et les limites connues ?"
+      ],
+      "cv": {
+        "bullet": "Conception d’un pipeline de streaming (Kafka, Spark Structured Streaming, PostgreSQL, Docker) traitant environ [nombre] événements de modification Wikipédia par minute, avec fenêtres sur le temps de l’événement, reprise par checkpoint et upserts idempotents ; [nombre] tests unitaires exécutés en CI sur GitHub Actions (projet personnel).",
+        "talk": "Dessinez le flux de la source d’événements jusqu’à PostgreSQL, puis expliquez un concept difficile avec vos propres preuves : ce que le watermark a fait d’un événement en retard, ou comment la reprise depuis le checkpoint a gardé des comptages justes. Terminez par ce que vous changeriez pour la production, comme plusieurs brokers, un schema registry et la supervision du consumer lag."
+      },
+      "stretch": [
+        "Refaites la partie batch dans le bac à sable BigQuery (gratuit, sans carte bancaire, tables supprimées après 60 jours) et chargez-y les agrégats.",
+        "Ajoutez un schema registry et des messages Avro ou Protobuf au lieu de JSON brut.",
+        "Exportez les métriques de Kafka et Spark vers Prometheus et construisez un tableau de bord Grafana du consumer lag."
+      ]
+    }
+  ]
+}

@@ -32,6 +32,7 @@ export const SKILLS = [
   ["Databricks", "Data & BI", ["databricks"]],
   ["Snowflake", "Data & BI", ["snowflake"]],
   ["BigQuery", "Data & BI", ["bigquery", "big query"]],
+  ["Redshift", "Data & BI", ["redshift", "amazon redshift"]],
   ["Hadoop", "Data & BI", ["hadoop", "hive", "hdfs"]],
   ["Talend", "Data & BI", ["talend"]],
   ["Informatica", "Data & BI", ["informatica"]],
@@ -64,7 +65,7 @@ export const SKILLS = [
   ["NoSQL", "Databases", ["nosql"]],
   ["Elasticsearch", "Databases", ["elasticsearch", "elastic search", "elk"]],
   // Cloud & DevOps
-  ["AWS", "Cloud & DevOps", ["aws", "amazon web services", "s3", "redshift", "glue", "lambda"]],
+  ["AWS", "Cloud & DevOps", ["aws", "amazon web services", "s3", "glue", "lambda"]],
   ["Azure", "Cloud & DevOps", ["azure", "azure data factory", "adf", "synapse"]],
   ["GCP", "Cloud & DevOps", ["gcp", "google cloud", "google cloud platform"]],
   ["Docker", "Cloud & DevOps", ["docker", "conteneurs", "containers"]],

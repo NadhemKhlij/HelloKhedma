@@ -1,0 +1,267 @@
+{
+  "why": "Les data analysts et business analysts sont jugés sur ce que voient les décideurs : un graphique clair, un tableau de bord réellement utilisé, une histoire de cinq minutes qui mène à une décision. Tableau et Looker Studio font partie des outils les plus cités dans les offres, et les questions de data storytelling reviennent dans presque tous les entretiens BI.",
+  "outcome": "choisir le bon graphique pour une question, construire des vues, des champs calculés et des tableaux de bord dans Tableau et Looker Studio, concevoir des tableaux de bord clairs et accessibles, et présenter les données sous forme d’histoire qui mène un public métier à une décision.",
+  "lessons": [
+    {
+      "title": "Choisir le graphique selon la question",
+      "text": [
+        "Partez de la question, pas de la galerie de graphiques. La plupart des questions métier relèvent de quelques familles : comparer des catégories (quelle région vend le plus ?), montrer une évolution dans le temps (comment ont évolué les inscriptions ?), montrer une partie d’un tout (quelle part vient du mobile ?), montrer une distribution (comment se répartissent les montants de commande ?) et montrer une relation (la remise fait-elle augmenter les volumes ?). Chaque famille a un ou deux graphiques qui y répondent bien.",
+        "Les barres sont le choix le plus sûr pour comparer : des longueurs partant d’une même base sont ce que l’œil compare le plus précisément. Triez-les, passez en barres horizontales quand les libellés sont longs, et faites toujours partir l’axe de zéro. Les courbes montrent une évolution sur un axe de temps continu ; au-delà de quatre ou cinq courbes, mettez en avant celle qui compte et grisez les autres. Pour une partie d’un tout, une barre empilée ou un simple tableau de pourcentages fonctionne ; un camembert n’est lisible qu’avec deux ou trois parts. Les distributions demandent un histogramme ou une boîte à moustaches, et les relations un nuage de points.",
+        "Parfois, la meilleure réponse n’est pas un graphique. Un chiffre important unique (le chiffre d’affaires du mois, avec son évolution par rapport au mois précédent) est plus clair en grand format. Quand les lecteurs doivent retrouver des valeurs exactes, un tableau bien formaté avec une mise en forme conditionnelle vaut mieux que n’importe quel graphique.",
+        "Évitez les décorations qui faussent la lecture : effets 3D, doubles axes aux échelles sans rapport, graphiques en aires ou en bulles quand il faut comparer des tailles précisément. Chaque graphique doit passer un test simple : quelqu’un peut-il en énoncer le message en une phrase après cinq secondes ?"
+      ],
+      "points": [
+        "Comparaison : barres triées. Tendance : courbe. Distribution : histogramme ou boîte à moustaches. Relation : nuage de points.",
+        "Partie d’un tout : barre empilée ou pourcentages ; camembert seulement avec 2 ou 3 parts.",
+        "Les axes des barres partent de zéro ; ceux des courbes peuvent zoomer, mais dites-le.",
+        "Un chiffre clé : une carte KPI avec comparaison, pas un graphique.",
+        "Pas de 3D, pas de décoration qui change la lecture des valeurs."
+      ]
+    },
+    {
+      "title": "Bases de Tableau : dimensions, mesures et champs calculés",
+      "text": [
+        "Tableau se connecte à une source (Excel, CSV, base de données, entrepôt), en direct ou via un extrait (un instantané .hyper rapide et actualisable selon un planning). Dans le volet Données, les champs sont répartis entre dimensions, qui décrivent et regroupent (Région, Catégorie, Date de commande), et mesures, des nombres à agréger (Ventes, Quantité). Quand vous déposez une mesure dans une vue, Tableau l’agrège, par défaut avec SUM, au niveau des dimensions présentes dans la vue.",
+        "La couleur d’une pastille a un autre sens : bleu signifie discret (valeurs séparées, crée des en-têtes) et vert signifie continu (une plage, crée un axe). Une date peut être l’un ou l’autre : YEAR(Order Date) en bleu donne une colonne par année, en vert une ligne de temps. Construire une vue, c’est placer des pastilles sur Lignes, Colonnes et la carte Repères (couleur, taille, étiquette, détail, info-bulle) ; Montre-moi propose des graphiques pour les champs sélectionnés.",
+        "Les champs calculés ajoutent de la logique. Les calculs au niveau ligne produisent une valeur par ligne, par exemple IF [Region] = \"West\" THEN \"Focus\" ELSE \"Other\" END. Les calculs agrégés combinent des agrégats ; un ratio doit s’écrire SUM([Profit]) / SUM([Sales]), et non SUM([Profit] / [Sales]), sinon vous additionnez des ratios ligne par ligne. Les calculs de table, comme RUNNING_SUM(SUM([Sales])) ou le pourcentage du total, s’appliquent aux résultats affichés dans la vue et dépendent de la disposition du tableau.",
+        "Fonctions utiles à connaître : DATETRUNC('month', [Order Date]) pour regrouper les dates, ZN() pour transformer NULL en zéro, IIF() pour les conditions courtes, COUNTD() pour les comptages distincts et CONTAINS() pour tester du texte."
+      ],
+      "points": [
+        "Les dimensions regroupent et décrivent ; les mesures sont agrégées (SUM par défaut).",
+        "Bleu = discret (en-têtes), vert = continu (axe) : ce n’est pas la même chose que dimension/mesure.",
+        "Les ratios sont des calculs agrégés : SUM(a) / SUM(b).",
+        "Les extraits sont plus rapides et planifiables ; les connexions en direct montrent les données actuelles mais dépendent de la source.",
+        "Les calculs de table portent sur les résultats de la vue : déplacer des pastilles peut changer leur résultat."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "// Tableau calculated fields\n\n// Profit Ratio (aggregate calculation)\nSUM([Profit]) / SUM([Sales])\n\n// Order Size (row-level calculation)\nIF [Sales] >= 500 THEN \"Large\"\nELSEIF [Sales] >= 100 THEN \"Medium\"\nELSE \"Small\"\nEND\n\n// Sales month (for grouping)\nDATETRUNC('month', [Order Date])",
+        "note": "Formatez Profit Ratio en pourcentage dans le format numérique par défaut du champ pour que toutes les feuilles l’affichent de la même façon."
+      }
+    },
+    {
+      "title": "Tableau : expressions LOD, filtres, paramètres et tableaux de bord",
+      "text": [
+        "Les expressions de niveau de détail (LOD) calculent un agrégat au niveau que vous choisissez, indépendamment de la vue. {FIXED [Customer ID] : MIN([Order Date])} donne sur chaque ligne la date de première commande du client, ce qui permet de construire des cohortes. INCLUDE ajoute une dimension au niveau de la vue (ventes moyennes par client tout en affichant les régions), et EXCLUDE en retire une (chaque région comparée au total global). Commencez par FIXED : c’est la plus simple à raisonner.",
+        "Les filtres s’appliquent dans un ordre fixe : filtres d’extrait et de source de données, puis filtres de contexte, puis expressions FIXED, puis filtres de dimension, puis filtres de mesure, puis calculs de table. Un filtre de dimension classique ne modifie donc pas un résultat FIXED. Pour qu’un filtre s’applique avant une expression FIXED, ajoutez-le au contexte (clic droit, Ajouter au contexte). Cet ordre des opérations explique la plupart des questions du type « pourquoi mon filtre ne marche pas ? ».",
+        "Les paramètres sont des saisies de l’utilisateur : un nombre, une date ou une liste de valeurs lue par un calcul, un filtre ou une ligne de référence. Usages typiques : un sélecteur Top N ou une bascule entre mesures (Ventes ou Profit). Affichez la commande du paramètre sur le tableau de bord pour que les utilisateurs puissent le modifier. Les actions de paramètre permettent qu’un clic sur un graphique fixe la valeur du paramètre.",
+        "Un tableau de bord combine des feuilles. Fixez une taille adaptée à l’écran où il sera consulté, utilisez des conteneurs pour aligner, et ajoutez des actions (Tableau de bord > Actions) : une action de filtre fait qu’un clic sur un graphique filtre les autres, une action de surbrillance met en avant les repères liés. Publiez sur Tableau Cloud ou Tableau Server pour votre organisation ; Tableau Public est gratuit mais tout ce qui y est publié est visible par tous."
+      ],
+      "points": [
+        "{FIXED dim : AGG(x)} calcule au niveau de dim, quoi que montre la vue.",
+        "Ordre : extrait/source, contexte, FIXED, filtres de dimension, INCLUDE/EXCLUDE, filtres de mesure, calculs de table.",
+        "Ajoutez un filtre au contexte quand il doit s’appliquer avant FIXED ou un filtre Top N.",
+        "Paramètres + champs calculés = sélecteurs Top N et bascules de mesures.",
+        "Ne publiez jamais de données confidentielles sur Tableau Public."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "// Tableau LOD expressions\n\n// First order date per customer (cohort)\n{FIXED [Customer ID] : MIN([Order Date])}\n\n// Cohort year, for colour or rows\nYEAR({FIXED [Customer ID] : MIN([Order Date])})\n\n// Average sales per customer, at the level of the view\nAVG({INCLUDE [Customer ID] : SUM([Sales])})\n\n// Measure switch driven by a string parameter [Choose measure]\nCASE [Choose measure]\nWHEN \"Sales\" THEN SUM([Sales])\nWHEN \"Profit\" THEN SUM([Profit])\nEND",
+        "note": "Placez Region sur Lignes avec le troisième calcul : INCLUDE additionne les ventes par client dans chaque région, puis AVG fait la moyenne de ces totaux par client."
+      }
+    },
+    {
+      "title": "Looker Studio : sources de données, fusion, champs calculés et partage",
+      "text": [
+        "Looker Studio (anciennement Google Data Studio) est l’outil de reporting gratuit de Google, très utilisé pour le reporting marketing et dans les petites entreprises. Ne le confondez pas avec Looker, la plateforme BI d’entreprise de Google où les indicateurs sont définis dans le langage de modélisation LookML. Un rapport se connecte à des sources de données via des connecteurs : Google Sheets, BigQuery, Google Analytics, bases comme MySQL et PostgreSQL, imports CSV et de nombreux connecteurs partenaires.",
+        "Une source de données liste les champs : dimensions en vert, métriques en bleu (l’inverse du sens des couleurs dans Tableau). Ses identifiants comptent : avec les identifiants du propriétaire, les lecteurs voient les données grâce à votre accès ; avec les identifiants du lecteur, chacun doit avoir accès aux données sous-jacentes, ce qui est plus sûr pour les données sensibles. Le paramètre de fraîcheur des données définit la durée de mise en cache des résultats, ce qui influe sur la vitesse et, avec BigQuery, sur le coût.",
+        "Les champs calculés peuvent être ajoutés dans la source de données (réutilisables par tous les graphiques) ou dans un seul graphique. Le langage de formules propose des fonctions comme CASE, IF, SUM, COUNT_DISTINCT, CONCAT, REGEXP_MATCH et des fonctions de date. La fusion de données (blending) joint jusqu’à cinq sources dans un graphique sur des clés communes, par exemple les dépenses publicitaires d’une source et le chiffre d’affaires d’une autre par date et campagne. Vous choisissez le type de jointure (externe gauche, interne, externe droite, externe complète ou croisée). Les fusions sont pratiques mais lentes sur de gros volumes : quand c’est possible, faites la jointure en amont en SQL.",
+        "Le partage fonctionne comme Google Docs : ajoutez des lecteurs ou des éditeurs, ou partagez un lien. Ajoutez des commandes de filtre et une commande de période pour que les lecteurs puissent explorer, et planifiez un envoi par e-mail pour ceux qui veulent un PDF régulier."
+      ],
+      "points": [
+        "Looker Studio = rapports gratuits ; Looker = BI d’entreprise avec LookML.",
+        "Vert = dimension, bleu = métrique dans Looker Studio.",
+        "Identifiants du lecteur pour les données sensibles ; identifiants du propriétaire seulement si tout le monde peut les voir.",
+        "La fusion joint jusqu’à 5 sources sur des clés ; les jointures lourdes se font en SQL en amont.",
+        "Les champs calculés de la source sont réutilisables ; ceux d’un graphique restent dans ce graphique."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "// Looker Studio calculated fields (data source level)\n\n// Market group\nCASE\n  WHEN Country IN (\"France\", \"Belgium\", \"Switzerland\") THEN \"Francophone Europe\"\n  WHEN Country = \"Tunisia\" THEN \"North Africa\"\n  ELSE \"Other\"\nEND\n\n// Average order value (metric)\nSUM(Revenue) / COUNT_DISTINCT(Order_ID)\n\n// Campaign is a brand campaign\nREGEXP_MATCH(Campaign, \".*brand.*\")",
+        "note": "Les noms de champs doivent correspondre exactement à la source de données ; renommez d’abord les noms peu clairs dans la source."
+      }
+    },
+    {
+      "title": "Conception de tableau de bord : hiérarchie, KPI d’abord, couleur utile",
+      "text": [
+        "Un tableau de bord a un public et une mission. Avant de le construire, notez qui l’ouvre, à quelle fréquence et quelle décision il soutient : un directeur commercial qui suit la performance hebdomadaire n’a pas les mêmes besoins qu’un analyste qui étudie l’attrition. Si vous ne savez pas dire à quoi il sert, il deviendra un mur de graphiques que personne ne lit.",
+        "Le regard parcourt la page depuis le coin supérieur gauche. Placez-y les quelques KPI principaux, chacun avec une comparaison (par rapport à l’objectif, à la période précédente), car un chiffre seul ne veut rien dire. En dessous viennent les graphiques qui expliquent les KPI, puis les tableaux de détail pour ceux qui veulent creuser. Cette hiérarchie descendante permet à un manager d’avoir la réponse en dix secondes et à un analyste de trouver le détail en deux minutes. Limitez-vous à cinq à sept vues ; déplacez le reste sur une deuxième page.",
+        "Utilisez la couleur avec intention. Partez du gris et ajoutez une couleur d’accent pour ce qui compte : la période en cours, la région sélectionnée, l’indicateur sous l’objectif. Gardez la même couleur pour la même chose sur tous les graphiques. Réservez le rouge et le vert au mauvais et au bon, et n’en faites jamais le seul signal : environ un homme sur douze a un trouble de la vision des couleurs, souvent rouge-vert. Ajoutez des icônes, des libellés ou des flèches, et choisissez des palettes adaptées au daltonisme.",
+        "L’accessibilité fait partie de la qualité. Gardez un contraste du texte d’au moins 4,5:1 avec le fond, rédigez titres et libellés d’axes en mots simples, utilisez des tailles de police lisibles, évitez les petites légendes en étiquetant directement les courbes, et ajoutez un texte alternatif ou une courte description quand l’outil le permet. Des formats cohérents (même format de date, même arrondi, unités dans les titres) suppriment beaucoup de friction."
+      ],
+      "points": [
+        "Un public, une décision, écrits avant de construire.",
+        "KPI en haut à gauche avec une comparaison ; explications en dessous ; détail à la fin.",
+        "Gris par défaut, une couleur d’accent pour ce qui compte.",
+        "Ne comptez jamais sur le rouge/vert seul ; palettes adaptées au daltonisme et libellés.",
+        "Contraste du texte 4,5:1, titres simples, étiquettes directes, formats cohérents."
+      ]
+    },
+    {
+      "title": "Data storytelling : contexte, un message, annotations",
+      "text": [
+        "Un tableau de bord permet d’explorer ; une histoire dit ce qui compte. Le data storytelling combine trois éléments : les données, un visuel qui les rend claires et un récit qui explique pourquoi c’est important et quoi faire. Une analyse juste que personne ne comprend ni n’utilise n’a aucune valeur pour l’entreprise.",
+        "Commencez par le contexte : qui est le public, que sait-il déjà, et quelle décision doit-il prendre ? Trouvez ensuite le message unique, rédigé comme une phrase complète avec un point de vue : « Les retours de la région Nord ont doublé depuis le changement de transporteur, pour un coût d’environ 40 000 euros par mois », et non « Analyse des retours ». Si vous ne pouvez pas l’écrire en une ou deux phrases, l’analyse n’est pas terminée.",
+        "Faites porter ce message à chaque graphique. Utilisez un titre d’action qui énonce la conclusion plutôt qu’un libellé (« Les retours ont doublé après le changement de transporteur en mars » plutôt que « Retours par mois »). Ajoutez des annotations directement sur le graphique : marquez la date du changement, étiquetez le point clé, ajoutez la ligne d’objectif. Supprimez tout ce qui ne sert pas le message : quadrillage, séries en trop, légendes remplaçables par des étiquettes directes. Mettez en avant la série importante et grisez les autres.",
+        "Structurez l’histoire pour un public métier. Un schéma simple est situation, complication, résolution : où nous en sommes, ce qui a changé ou pose problème, et ce que nous recommandons. Les dirigeants pressés préfèrent souvent la réponse d’abord (le principe de la pyramide) : la recommandation, puis les deux ou trois faits qui la soutiennent, puis le détail en annexe. Terminez toujours par une demande claire : une décision, un budget, un responsable, une date."
+      ],
+      "points": [
+        "Données + visuel + récit : les trois sont nécessaires.",
+        "Écrivez le message unique en une phrase avant de faire les slides.",
+        "Les titres d’action énoncent la conclusion ; les annotations montrent la preuve.",
+        "Situation, complication, résolution ; ou la réponse d’abord pour les dirigeants.",
+        "Terminez par une demande concrète : décision, responsable, date."
+      ]
+    },
+    {
+      "title": "Présenter aux parties prenantes",
+      "text": [
+        "La présentation est le moment où l’analyse devient décision. Préparez-vous pour les personnes présentes : qu’est-ce qui compte pour chaque partie prenante (coût, risque, clients, objectifs de son équipe), et quelles objections soulèvera-t-elle ? Parlez en amont à la personne la plus sceptique si le message est sensible ; personne n’aime découvrir une mauvaise nouvelle en réunion.",
+        "Commencez par la réponse et restez bref sur la méthode. Un public métier veut savoir ce que vous avez trouvé, avec quel niveau de confiance et ce qu’il faut faire. Indiquez en une ou deux phrases d’où viennent les données et leurs limites (« sur 18 mois de commandes, hors canal marketplace »), et gardez le détail technique en annexe pour les questions.",
+        "Soyez honnête sur l’incertitude. Séparez ce que montrent les données de ce que vous en déduisez : corrélation n’est pas causalité, un petit échantillon peut n’être que du bruit, un changement de définition peut créer une fausse tendance. Dire « je ne sais pas encore, je vérifie et je reviens vers vous jeudi » inspire plus confiance qu’une supposition. Utilisez des chiffres que l’on se représente (« 1 commande sur 5 ») et arrondissez raisonnablement.",
+        "Bouclez la boucle. Terminez par la décision dont vous avez besoin, puis envoyez un court compte rendu écrit après la réunion : le message, la décision prise, les responsables et les prochaines étapes. Quand vous partagez un tableau de bord, ajoutez quelques lignes sur la façon de le lire et l’origine des données. Enfin, faites un suivi : vérifiez que la décision a été appliquée et que l’indicateur a bougé. C’est l’histoire que vous raconterez lors de votre prochain entretien."
+      ],
+      "points": [
+        "Connaissez l’intérêt et les objections probables de chaque partie prenante avant la réunion.",
+        "La réponse d’abord, la méthode en une ou deux phrases, le détail en annexe.",
+        "Exposez les limites et le niveau de confiance ; séparez les faits de l’interprétation.",
+        "Terminez par la décision attendue, puis un compte rendu écrit avec responsables et dates.",
+        "Suivez l’impact : cela boucle la boucle et vous donne des résultats à montrer."
+      ]
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Choix du graphique",
+      "items": [
+        ["Comparer des catégories", "Barres triées, axe partant de zéro"],
+        ["Évolution dans le temps", "Courbe sur un axe de dates continu"],
+        ["Distribution", "Histogramme ou boîte à moustaches"],
+        ["Relation entre deux mesures", "Nuage de points"],
+        ["Un chiffre clé", "Carte KPI avec comparaison à l’objectif ou à la période précédente"]
+      ]
+    },
+    {
+      "group": "Bases de Tableau",
+      "items": [
+        ["Dimension vs mesure", "Regroupe et décrit vs nombre agrégé"],
+        ["Pastille bleue vs verte", "Discret (en-têtes) vs continu (axe)"],
+        ["SUM([Profit]) / SUM([Sales])", "Ratio correct, en calcul agrégé"],
+        ["Extrait (.hyper)", "Instantané rapide des données, actualisé selon un planning"]
+      ]
+    },
+    {
+      "group": "Tableau avancé",
+      "items": [
+        ["{FIXED [Customer ID] : MIN([Order Date])}", "Date de première commande par client, indépendante de la vue"],
+        ["Ajouter au contexte", "Appliquer un filtre avant les LOD FIXED et le Top N"],
+        ["Paramètre", "Saisie utilisateur utilisée par des calculs, filtres ou lignes de référence"],
+        ["Action de filtre de tableau de bord", "Un clic sur un graphique filtre les autres"]
+      ]
+    },
+    {
+      "group": "Looker Studio",
+      "items": [
+        ["Champ vert / champ bleu", "Dimension / métrique"],
+        ["Identifiants du lecteur", "Chaque lecteur doit avoir son propre accès aux données"],
+        ["Fusion (blend)", "Joindre jusqu’à 5 sources dans un graphique sur des clés"],
+        ["Fraîcheur des données", "Durée de mise en cache des résultats de requête"]
+      ]
+    },
+    {
+      "group": "Conception de tableau de bord",
+      "items": [
+        ["KPI en haut à gauche", "Les chiffres clés d’abord, chacun avec une comparaison"],
+        ["Gris + un accent", "Colorer seulement ce que le lecteur doit remarquer"],
+        ["Contraste 4,5:1", "Minimum pour le texte courant (WCAG AA)"],
+        ["Étiquettes directes", "Étiqueter courbes et barres plutôt qu’une légende éloignée"]
+      ]
+    },
+    {
+      "group": "Storytelling",
+      "items": [
+        ["Titre d’action", "Le titre énonce la conclusion, pas le contenu du graphique"],
+        ["Situation, complication, résolution", "Récit classique pour un public métier"],
+        ["Principe de la pyramide", "La réponse d’abord, puis les faits, puis le détail"],
+        ["Demande claire", "Terminer par une décision, un responsable et une date"]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "Pour chaque question, nommez le graphique : (a) chiffre d’affaires de 15 commerciaux ce trimestre ; (b) utilisateurs actifs quotidiens sur 6 mois ; (c) dispersion des délais de livraison ; (d) les dépenses marketing sont-elles liées aux inscriptions dans 40 villes ?",
+      "hint": "Comparaison, tendance, distribution, relation.",
+      "answer": "(a) Barres horizontales triées par chiffre d’affaires, axe partant de zéro. (b) Courbe sur un axe de dates continu, éventuellement avec une moyenne sur 7 jours pour lisser les effets hebdomadaires. (c) Histogramme, ou boîtes à moustaches pour comparer transporteurs ou régions. (d) Nuage de points avec un point par ville, dépenses en x et inscriptions en y ; une droite de tendance peut aider mais ne prouve pas la causalité."
+    },
+    {
+      "q": "Tableau : un collègue calcule la marge avec SUM([Profit] / [Sales]) et obtient 2 350 %. Qu’est-ce qui ne va pas, et quel est le bon champ calculé ?",
+      "hint": "Ratio ligne par ligne contre ratio d’agrégats.",
+      "code": "text",
+      "answer": "// Wrong: SUM([Profit] / [Sales]) adds up one ratio per row\n// Right: divide the totals (aggregate calculation)\nSUM([Profit]) / SUM([Sales])"
+    },
+    {
+      "q": "Tableau : écrivez un champ calculé qui donne pour chaque client son nombre de commandes distinctes, afin de compter ensuite les clients ayant 1, 2, 3… commandes.",
+      "hint": "FIXED sur le client, COUNTD sur l’identifiant de commande.",
+      "code": "text",
+      "answer": "{FIXED [Customer ID] : COUNTD([Order ID])}"
+    },
+    {
+      "q": "Tableau : vous filtrez la vue sur Region = West, mais votre expression FIXED renvoie toujours les totaux de toutes les régions. Pourquoi, et comment corriger ?",
+      "hint": "Ordre des opérations.",
+      "answer": "Les filtres de dimension classiques s’appliquent après les expressions LOD FIXED, qui les ignorent donc. Faites un clic droit sur le filtre Region et choisissez Ajouter au contexte : les filtres de contexte s’appliquent avant FIXED, l’expression est alors calculée sur West uniquement. Autre solution : utiliser des expressions INCLUDE ou EXCLUDE, qui respectent les filtres de dimension."
+    },
+    {
+      "q": "Looker Studio : créez un champ calculé qui regroupe la dimension Device en \"Mobile\" (valeurs mobile et tablet) et \"Desktop\" (tout le reste).",
+      "hint": "CASE WHEN ... IN (...) THEN ... ELSE ... END",
+      "code": "text",
+      "answer": "CASE\n  WHEN Device IN (\"mobile\", \"tablet\") THEN \"Mobile\"\n  ELSE \"Desktop\"\nEND"
+    },
+    {
+      "q": "Réécrivez ces titres de graphiques en titres d’action : (1) « Taux d’attrition mensuel 2026 » ; (2) « Chiffre d’affaires par canal ». Inventez des résultats plausibles.",
+      "hint": "Une phrase complète qui dit ce que le lecteur doit conclure.",
+      "answer": "(1) « L’attrition est passée de 6 % à 3,5 % après le lancement des e-mails d’onboarding en mai. » (2) « Les ventes partenaires représentent désormais 38 % du chiffre d’affaires et sont le seul canal en croissance cette année. » Chaque titre énonce le résultat, contient le chiffre clé et indique une cause ou une conséquence, pour que le lecteur sache quoi regarder dans le graphique."
+    }
+  ],
+  "pitfalls": [
+    "Construire le tableau de bord avant de s’accorder sur son public et sa décision, puis ajouter des graphiques jusqu’à ce que personne ne le lise.",
+    "Calculer les ratios ligne par ligne (somme de ratios) au lieu d’un ratio de sommes.",
+    "Mettre de la couleur partout, ou utiliser le rouge/vert comme seul signal : rien ne ressort et les lecteurs daltoniens passent à côté du message.",
+    "Tronquer l’axe d’un graphique en barres, ce qui exagère de petites différences.",
+    "Publier des données confidentielles sur Tableau Public, ou partager un rapport Looker Studio avec les identifiants du propriétaire à des personnes qui ne devraient pas voir ces données.",
+    "Présenter la méthode pendant dix minutes et la conclusion dans les trente dernières secondes."
+  ],
+  "interview": [
+    {
+      "q": "Comment choisissez-vous le bon graphique ?",
+      "a": "Je pars de la question. Comparaison de catégories : barres triées. Évolution dans le temps : courbe. Distribution : histogramme ou boîte à moustaches. Relation entre deux mesures : nuage de points. Partie d’un tout : barre empilée ou simples pourcentages, un camembert seulement avec deux ou trois parts. Si la réponse est un seul chiffre, une carte KPI avec comparaison vaut mieux que n’importe quel graphique."
+    },
+    {
+      "q": "Quelle est la différence entre dimension et mesure dans Tableau, et entre pastilles bleues et vertes ?",
+      "a": "Les dimensions décrivent et regroupent, comme Région ou Catégorie ; les mesures sont des nombres que Tableau agrège, par défaut avec SUM, au niveau des dimensions de la vue. Bleu et vert sont une autre notion : bleu signifie discret et crée des en-têtes, vert signifie continu et crée un axe. Une date ou une mesure peut être l’un ou l’autre."
+    },
+    {
+      "q": "Expliquez les expressions LOD avec un exemple.",
+      "a": "Une expression LOD calcule un agrégat au niveau que je choisis plutôt qu’au niveau de la vue. Par exemple {FIXED [Customer ID] : MIN([Order Date])} renvoie la date de première commande de chaque client, que j’utilise pour construire des cohortes d’acquisition. INCLUDE ajoute une dimension au niveau de la vue, par exemple les ventes moyennes par client par région, et EXCLUDE en retire une pour comparer à un total de niveau supérieur. FIXED est calculé avant les filtres de dimension, donc j’ajoute au contexte les filtres qui doivent s’appliquer."
+    },
+    {
+      "q": "Quand utiliseriez-vous Looker Studio plutôt que Tableau ?",
+      "a": "Looker Studio est gratuit, dans le navigateur, et s’intègre nativement aux sources Google comme Google Analytics, Google Ads, Sheets et BigQuery : il convient au reporting marketing et aux petites équipes sur les outils Google. Tableau offre une analyse plus riche (expressions LOD, calculs de table, tableaux de bord complexes et gouvernance sur Tableau Cloud ou Server) et convient aux programmes BI plus larges. Le choix dépend aussi des licences déjà en place et de l’endroit où se trouvent les données."
+    },
+    {
+      "q": "Comment concevez-vous un tableau de bord ?",
+      "a": "Je pars du public et de la décision qu’il soutient, puis je dessine une maquette. Les KPI principaux vont en haut à gauche avec une comparaison à l’objectif ou à la période précédente, les graphiques explicatifs en dessous, les tableaux de détail à la fin, avec environ cinq à sept vues. J’utilise du gris et une couleur d’accent, des formats cohérents, des étiquettes directes et un contraste suffisant, et je le teste avec un vrai utilisateur avant de le publier."
+    },
+    {
+      "q": "Qu’est-ce qui fait une bonne histoire de données ?",
+      "a": "Un message clair pour un public précis, rédigé en une phrase avec un point de vue ; des visuels avec des titres d’action et des annotations qui montrent la preuve ; et une structure comme situation, complication, résolution, ou la réponse d’abord pour les dirigeants. Elle se termine par une demande concrète : une décision, un responsable et une date."
+    },
+    {
+      "q": "Une partie prenante conteste vos chiffres en réunion. Que faites-vous ?",
+      "a": "Je reste calme et je demande à quoi elle compare, car l’écart vient souvent d’une définition, d’un filtre ou d’une période. Si je peux l’expliquer sur le moment, je le fais brièvement. Sinon je note la question, je m’engage à vérifier pour une heure précise et je reviens avec le rapprochement. Ensuite je documente la définition pour que la même question ne revienne pas."
+    },
+    {
+      "q": "Comment rendez-vous un tableau de bord accessible ?",
+      "a": "Je n’utilise jamais la couleur comme seul signal et je choisis des palettes adaptées au daltonisme, je garde un contraste du texte d’au moins 4,5:1, des tailles de police lisibles et des titres en langage simple, j’étiquette directement les données au lieu de dépendre des légendes, et je garde des formats cohérents. Quand l’outil le permet, j’ajoute un texte alternatif ou une courte description du message de chaque graphique."
+    }
+  ]
+}

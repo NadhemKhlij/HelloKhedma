@@ -1,0 +1,154 @@
+{
+  "projects": [
+    {
+      "id": "do-cicd-pipeline",
+      "title": "Containerised app with a CI/CD pipeline",
+      "level": "Junior",
+      "hours": 14,
+      "skills": ["Docker", "CI/CD", "Git", "Linux", "Python"],
+      "summary": "Containerise a small web app and build a GitHub Actions pipeline that tests it, builds an image, pushes it to GitHub Container Registry and deploys it.",
+      "why": "Almost every DevOps job description asks for Docker and CI/CD. A public repo where each push runs tests, builds a versioned image and deploys it shows recruiters you can automate delivery end to end, and they can read every line of it.",
+      "data": [
+        { "name": "GitHub Actions documentation", "url": "https://docs.github.com/en/actions", "note": "Workflows, jobs, triggers, secrets, environments. Free minutes for public repositories." },
+        { "name": "Working with the GitHub Container registry", "url": "https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry", "note": "How to push images to ghcr.io with GITHUB_TOKEN and the packages: write permission." },
+        { "name": "docker/build-push-action", "url": "https://github.com/docker/build-push-action", "note": "Official action to build and push images with Buildx and layer caching." }
+      ],
+      "steps": [
+        { "title": "Write or pick a small app", "text": "Use a small Python (Flask or FastAPI) or Node API with two or three endpoints, including a /health endpoint that returns 200. Add 3-5 unit tests that run with one command (pytest or npm test). Keep the app simple: the project is about delivery, not features." },
+        { "title": "Write a good Dockerfile", "text": "Write a Dockerfile with a slim official base image, a pinned version, dependencies installed before the code is copied (for layer caching), a non-root user and a HEALTHCHECK or a documented health endpoint. Add a .dockerignore. Build and run it locally, then check the image size and that the container stops cleanly." },
+        { "title": "Add a CI workflow", "text": "Create .github/workflows/ci.yml that runs on pull requests and pushes to main: check out the code, set up the language, install dependencies with caching, run a linter and the tests. Protect the main branch so a pull request can only be merged when CI is green. Open a pull request with a failing test to see the protection work." },
+        { "title": "Build and push the image", "text": "Add a job that runs only on main after the tests pass, logs in to ghcr.io with GITHUB_TOKEN, and builds and pushes the image with docker/build-push-action. Tag images with the commit SHA and latest, and set permissions: packages: write on that job only. Check that the image appears in your GitHub packages and can be pulled." },
+        { "title": "Deploy automatically", "text": "Add a deploy job that uses a GitHub environment (for example staging) so you can require approval. The simplest free target is your own machine: register a self-hosted runner on a Linux VM or WSL, and have the job pull the new image and restart the container with docker compose. Finish with a smoke test that calls /health and fails the job if it does not answer 200." },
+        { "title": "Plan the way back", "text": "Because images are tagged by commit SHA, write down and test the rollback: redeploy the previous tag with one command or by re-running the workflow with an input. Break a deployment on purpose (an app that crashes on start) and confirm the smoke test fails and the rollback works." },
+        { "title": "Add basic security", "text": "Keep secrets in GitHub secrets, never in the repo, and give the workflow the minimum permissions. Add an image vulnerability scan such as Trivy in the pipeline and decide what severity fails the build. Pin third-party actions to a version." },
+        { "title": "Document the pipeline", "text": "Write a README with a diagram of the pipeline (push, test, build, push image, deploy, smoke test), how to run the app locally, how to deploy and how to roll back. Add the CI status badge. Keep the commit history clean with meaningful messages." }
+      ],
+      "deliverables": [
+        "Public GitHub repo with the app, tests, Dockerfile and .dockerignore",
+        "GitHub Actions workflows for CI, image build and deploy",
+        "Versioned images in GitHub Container Registry",
+        "README with pipeline diagram, run, deploy and rollback instructions, and CI badge"
+      ],
+      "checklist": [
+        "Does the image run as a non-root user and use a pinned base image?",
+        "Is the main branch protected so failing tests block a merge?",
+        "Are images tagged with the commit SHA, not only latest?",
+        "Does the workflow request only the permissions it needs?",
+        "Does the deploy job end with a smoke test that can fail the run?",
+        "Have you tested a rollback to the previous version?",
+        "Are there no secrets in the repository or in the workflow logs?",
+        "Could someone reproduce the setup from the README alone?"
+      ],
+      "cv": {
+        "bullet": "Built a CI/CD pipeline on GitHub Actions for a containerised [Python / Node] app (personal project): tests on every pull request, images pushed to GHCR tagged by commit, automated deploy with smoke test and tested rollback in [N] minutes.",
+        "talk": "Walk through what happens from git push to the running container, and why each step is there. Then describe the failed deployment you caused on purpose and how the pipeline caught it and how you rolled back."
+      },
+      "stretch": [
+        "Build multi-architecture images (amd64 and arm64) with Buildx.",
+        "Add preview environments for pull requests.",
+        "Add release automation that creates a GitHub release and changelog from tags."
+      ]
+    },
+    {
+      "id": "do-kubernetes-helm",
+      "title": "Kubernetes deployment with Helm and monitoring",
+      "level": "Junior+",
+      "hours": 20,
+      "skills": ["Kubernetes", "Helm", "Docker", "Prometheus", "Grafana", "Monitoring"],
+      "summary": "Deploy your containerised app to a local Kubernetes cluster with your own Helm chart, health probes and configuration, then monitor it with Prometheus and Grafana.",
+      "why": "Kubernetes is the most requested platform skill in DevOps offers, and juniors rarely have hands-on proof. A local cluster with a clean Helm chart, working probes and a dashboard shows you understand how apps are run, configured and observed in production.",
+      "data": [
+        { "name": "kind (Kubernetes in Docker)", "url": "https://kind.sigs.k8s.io/", "note": "Free local Kubernetes cluster running in Docker containers; minikube is a good alternative." },
+        { "name": "Helm documentation", "url": "https://helm.sh/docs/", "note": "Charts, templates, values, install, upgrade and rollback." },
+        { "name": "kube-prometheus-stack chart", "url": "https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack", "note": "Community Helm chart that installs Prometheus, Alertmanager and Grafana in one go." }
+      ],
+      "steps": [
+        { "title": "Create the cluster", "text": "Install kubectl, kind and Helm, then create a cluster with a config file (one control-plane and two worker nodes is enough). Check it with kubectl get nodes and kubectl get pods -A. Load your app image into kind or pull it from GHCR; make the image public or create an image pull secret." },
+        { "title": "Deploy with plain manifests first", "text": "Write a Deployment with 2 replicas and a Service, apply them and reach the app with kubectl port-forward. Delete a pod and watch the Deployment recreate it. Doing this once by hand makes the Helm templates much easier to understand." },
+        { "title": "Add probes and resources", "text": "Add a readiness probe and a liveness probe on the /health endpoint with sensible delays, and set CPU and memory requests and limits. Test them: make /health fail and watch the pod leave the Service endpoints, then get restarted. Note in your README why readiness and liveness are different." },
+        { "title": "Externalise configuration", "text": "Move settings into a ConfigMap and anything sensitive into a Secret, and inject them as environment variables. Show that changing the ConfigMap and restarting the rollout changes the app's behaviour without rebuilding the image. Never commit real secret values; use a values file that is ignored or placeholders." },
+        { "title": "Package it as a Helm chart", "text": "Create a chart with helm create, keep only what you need and template the image tag, replica count, resources, probes and config in values.yaml. Run helm lint and helm template to check the output, then helm install. Do an upgrade with a new image tag and a helm rollback to the previous revision." },
+        { "title": "Install monitoring", "text": "Install kube-prometheus-stack with Helm in a monitoring namespace. Open Grafana with port-forward and explore the built-in cluster dashboards. If your app exposes /metrics, add a ServiceMonitor through your chart so Prometheus scrapes it, and check the target is up in Prometheus." },
+        { "title": "Build a dashboard and an alert", "text": "In Grafana build an app dashboard: pod restarts, CPU and memory against requests and limits, available replicas, and request rate if you have app metrics. Add a PrometheusRule that alerts when the app has fewer ready replicas than desired for 5 minutes. Trigger it by scaling a broken version and confirm it fires." },
+        { "title": "Practise debugging", "text": "Break things on purpose and fix them with kubectl describe, kubectl logs and kubectl get events: a wrong image tag (ImagePullBackOff), a crashing container (CrashLoopBackOff), a too-low memory limit (OOMKilled), a Service selector that matches nothing. Write a short troubleshooting guide from what you saw." },
+        { "title": "Document and publish", "text": "Commit the kind config, manifests, Helm chart and monitoring values to GitHub with a README: architecture diagram, setup commands, how to deploy, upgrade and roll back, and screenshots of the dashboards. Add the troubleshooting guide. Make sure everything can be recreated from scratch with a few commands." }
+      ],
+      "deliverables": [
+        "Repo with kind config, raw manifests and a Helm chart for the app",
+        "values.yaml with image, replicas, resources, probes and config",
+        "kube-prometheus-stack values, ServiceMonitor and a PrometheusRule",
+        "Grafana dashboard JSON and screenshots",
+        "README with setup, deploy, upgrade, rollback and a troubleshooting guide"
+      ],
+      "checklist": [
+        "Can the whole environment be recreated from the README with a few commands?",
+        "Do readiness and liveness probes both exist, and can you explain the difference?",
+        "Are CPU and memory requests and limits set for the app?",
+        "Is configuration in a ConfigMap and sensitive values in a Secret, never committed?",
+        "Does helm lint pass, and have you done an upgrade and a rollback?",
+        "Is Prometheus scraping the app (or at least its pods' metrics) and is the target up?",
+        "Did your alert fire when you caused the condition?",
+        "Can you diagnose ImagePullBackOff, CrashLoopBackOff and OOMKilled from kubectl output?"
+      ],
+      "cv": {
+        "bullet": "Deployed a containerised app on a local Kubernetes cluster (kind) with a custom Helm chart (personal project): probes, resource limits, ConfigMap / Secret config, Prometheus and Grafana monitoring with [N] alert rules; rollback tested in [X] seconds.",
+        "talk": "Explain how a request reaches your pod and what Kubernetes does when the readiness probe fails. Then describe one failure you caused, how you found it with kubectl and what the dashboard showed."
+      },
+      "stretch": [
+        "Add an Ingress controller and expose the app on a local hostname.",
+        "Add a HorizontalPodAutoscaler and load-test it.",
+        "Deploy the chart from Git with Argo CD (GitOps)."
+      ]
+    },
+    {
+      "id": "do-terraform-iac",
+      "title": "Infrastructure as code with Terraform",
+      "level": "Junior+",
+      "hours": 18,
+      "skills": ["Terraform", "AWS", "CI/CD", "Git", "Linux"],
+      "summary": "Describe a small environment in Terraform, store the state remotely, run plan automatically in CI on every pull request and keep costs under control with a cleanup checklist.",
+      "why": "Teams no longer click infrastructure together in a console. A Terraform repo with modules, remote state and a reviewed plan in CI shows you can change infrastructure safely and repeatably, which is exactly what DevOps interviews probe.",
+      "data": [
+        { "name": "Terraform AWS get-started tutorials", "url": "https://developer.hashicorp.com/terraform/tutorials/aws-get-started", "note": "Official step-by-step tutorials: install, build, change, destroy, variables, outputs, remote state." },
+        { "name": "AWS Free Tier", "url": "https://aws.amazon.com/free/", "note": "A credit card is required to open an AWS account. Read the current free-tier terms and set a budget alert before creating anything." },
+        { "name": "Terraform Docker provider", "url": "https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs", "note": "No-card option: manage local Docker containers, networks and images with the same Terraform workflow." }
+      ],
+      "steps": [
+        { "title": "Choose your target and protect your wallet", "text": "Option A is AWS: a card is required, so first enable MFA on the root account, create an IAM user or role for Terraform and set an AWS Budgets alert at a few euros. Option B is fully free: use the Docker provider locally to create a network, a database container and your app container. The Terraform skills are the same; say clearly in your README which option you used." },
+        { "title": "Write the first configuration", "text": "Install Terraform, pin the Terraform and provider versions in a terraform block, and describe a small environment: for AWS a VPC with one public subnet, a security group and one small instance or an S3 bucket; for Docker a network and two containers. Run terraform init, fmt, validate, plan and apply, then read the state with terraform state list." },
+        { "title": "Use variables, outputs and a module", "text": "Move hard-coded values into variables with types, descriptions and validation, and expose useful values as outputs. Extract one reusable piece (for example the network or the app container) into a local module. Create two environments, dev and staging, that call the same module with different variable files." },
+        { "title": "Store the state remotely", "text": "Configure a remote backend so the state is not only on your laptop: on AWS an S3 bucket with versioning and encryption and state locking enabled, or the HCP Terraform free plan for either option. Migrate the existing state with terraform init and confirm the local file is no longer used. Add *.tfstate and .terraform/ to .gitignore." },
+        { "title": "Run plan in CI", "text": "Create a GitHub Actions workflow that runs on pull requests: terraform fmt -check, validate and plan, and posts the plan summary to the pull request. For AWS, use OpenID Connect to assume a role instead of storing long-lived access keys. Keep apply manual, or run it only on main with an approval environment." },
+        { "title": "Make a change the safe way", "text": "Open a pull request that changes something (an extra tag, an instance size, a new port), read the plan carefully and note what will be changed, replaced or destroyed. Merge, apply and confirm the state matches. Then change something by hand in the console or with docker and use terraform plan to detect the drift." },
+        { "title": "Control cost and clean up", "text": "Tag every resource with project and owner. Write a cost and cleanup checklist: what each resource could cost if left running, how to run terraform destroy for each environment, how to check in the console that nothing remains (instances, volumes, IPs, snapshots, buckets) and when to delete the state bucket last. Run it and keep a screenshot of the empty account or the destroyed resources." },
+        { "title": "Document and publish", "text": "Publish the repo with a README: architecture diagram, prerequisites, the commands to plan, apply and destroy, how the CI works, and the cost checklist. Add a short decisions section explaining your choices (backend, module boundaries, what you did not automate)." }
+      ],
+      "deliverables": [
+        "Terraform repo with pinned versions, variables, outputs and one local module",
+        "dev and staging environments using the same module",
+        "Remote state configuration with locking",
+        "GitHub Actions workflow running fmt, validate and plan on pull requests",
+        "README with diagram, commands, cost and cleanup checklist, and decisions"
+      ],
+      "checklist": [
+        "Are Terraform and provider versions pinned?",
+        "Is the state stored remotely with locking, and is no state file committed?",
+        "Do variables have types and descriptions, and are secrets kept out of the code?",
+        "Does CI run fmt -check, validate and plan on every pull request?",
+        "Does CI authenticate without long-lived keys (OIDC) when using a cloud?",
+        "Did you read a plan that replaces a resource and understand why?",
+        "Have you detected drift with terraform plan after a manual change?",
+        "Was a budget alert set before creating cloud resources, and did terraform destroy leave nothing running?"
+      ],
+      "cv": {
+        "bullet": "Wrote Terraform for a [AWS / local Docker] environment (personal project): reusable module for [N] environments, remote state with locking, plan on every pull request in GitHub Actions, and a cost and cleanup checklist.",
+        "talk": "Explain how a change goes from a pull request to applied infrastructure and what you look for in a plan before approving it. Then talk about how you kept the cost at zero or near zero and how you checked nothing was left running."
+      },
+      "stretch": [
+        "Add static checks such as tflint and a security scanner to the pipeline.",
+        "Configure the created server with Ansible after Terraform provisions it.",
+        "Rebuild the same environment on Azure or GCP and compare the providers."
+      ]
+    }
+  ]
+}

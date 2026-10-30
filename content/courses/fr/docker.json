@@ -4,7 +4,6 @@
   "lessons": [
     {
       "title": "Images et conteneurs",
-      "minutes": 35,
       "text": [
         "Une image est un package en lecture seule : un système de base, votre code, ses dépendances et la commande de démarrage. Un conteneur est une instance d’une image en cours d’exécution.",
         "Les images proviennent d’un registry (Docker Hub, GitHub Container Registry) ou vous les construisez à partir d’un Dockerfile."
@@ -23,7 +22,6 @@
     },
     {
       "title": "Écrire un Dockerfile",
-      "minutes": 45,
       "text": [
         "Un Dockerfile liste les étapes de construction de votre image. Chaque instruction crée une couche mise en cache : placez ce qui change le moins (les dépendances) avant ce qui change le plus (votre code).",
         "Gardez des images légères et sûres : images de base slim, aucun secret intégré, un utilisateur non root."
@@ -41,7 +39,6 @@
     },
     {
       "title": "Plusieurs services avec Docker Compose",
-      "minutes": 40,
       "text": [
         "Les vrais projets ont besoin de plusieurs conteneurs : une application, une base de données, parfois un ordonnanceur. docker compose les décrit dans un seul fichier YAML et les démarre ensemble sur un réseau partagé.",
         "Les services se joignent par leur nom de service (l’application se connecte à l’hôte « db », pas à localhost)."
@@ -59,7 +56,6 @@
     },
     {
       "title": "Volumes, réseaux et images prêtes pour la production",
-      "minutes": 40,
       "text": [
         "Les conteneurs sont jetables : tout ce qui est écrit à l’intérieur disparaît quand le conteneur est supprimé. Les données qui doivent survivre vont dans un volume (géré par Docker) ou un bind mount (un dossier de l’hôte, pratique en développement). Les conteneurs d’un même réseau défini par l’utilisateur se joignent par leur nom.",
         "Les images de production doivent être petites, sûres et observables. Les builds multi-étapes gardent compilateurs et outils de build hors de l’image finale, un utilisateur non root limite les dégâts, un HEALTHCHECK indique à l’orchestrateur quand l’application est vraiment prête, et l’analyse de l’image repère les vulnérabilités connues."
@@ -74,6 +70,87 @@
         "lang": "dockerfile",
         "code": "# Multi-stage build: tools in the first stage, only the result in the final image\nFROM python:3.12 AS build\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip wheel --wheel-dir /wheels -r requirements.txt\n\nFROM python:3.12-slim\nWORKDIR /app\nCOPY --from=build /wheels /wheels\nRUN pip install --no-cache-dir /wheels/* && rm -rf /wheels\nCOPY . .\nUSER 1000\nHEALTHCHECK CMD python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\"\nCMD [\"python\", \"app.py\"]",
         "note": "L’image finale contient Python, les paquets installés et votre code, rien d’autre."
+      }
+    },
+    {
+      "title": "Builds multi-étapes et images légères",
+      "text": [
+        "Tous les outils nécessaires pour construire une application (compilateurs, gestionnaires de paquets, bibliothèques de test, fichiers source) sont inutiles à l’exécution. S’ils restent dans l’image, celle-ci est plus lourde à pousser et à tirer, plus lente à démarrer sur un nouveau serveur, et contient davantage de logiciels susceptibles d’avoir des vulnérabilités. Le build multi-étapes règle ce problème : un même Dockerfile contient plusieurs lignes FROM, chacune démarre une étape, et l’étape finale ne copie que le résultat dont elle a besoin grâce à COPY --from.",
+        "Exemple typique : un frontend web. L’étape de build a besoin de Node.js et de centaines de mégaoctets de node_modules, mais le résultat est un dossier de fichiers statiques qu’une petite image nginx peut servir. Le même principe s’applique à Java (build avec Maven, exécution sur une image JRE), à Go (compiler un binaire, l’exécuter sur une base minuscule) ou à Python (construire des wheels, les installer dans une image slim).",
+        "La taille dépend aussi des couches. Chaque RUN, COPY et ADD crée une couche, et un fichier supprimé dans une couche suivante existe toujours dans la précédente. Nettoyez donc dans le même RUN que celui qui a créé les fichiers temporaires (caches apt, fichiers intermédiaires), ordonnez les instructions de la moins souvent modifiée à la plus souvent modifiée pour réutiliser le cache, et gardez un .dockerignore pour limiter le contexte de build. docker image history affiche la taille de chaque couche et aide à trouver le coupable."
+      ],
+      "points": [
+        "Nommez les étapes avec AS build et copiez depuis elles avec COPY --from=build.",
+        "docker build --target build . s’arrête à une étape, pratique pour lancer les tests en CI.",
+        "Choisissez une base slim ou alpine pour l’étape finale ; vérifiez que votre application fonctionne avec (alpine utilise musl, pas glibc).",
+        "apt-get install --no-install-recommends et rm -rf /var/lib/apt/lists/* dans le même RUN.",
+        "Comparez les tailles avec docker images et docker image history myapp:1.0."
+      ],
+      "example": {
+        "lang": "dockerfile",
+        "code": "# Stage 1: build the frontend with Node.js\nFROM node:20-alpine AS build\nWORKDIR /app\nCOPY package.json package-lock.json ./\nRUN npm ci\nCOPY . .\nRUN npm run build\n\n# Stage 2: serve only the static files with nginx\nFROM nginx:1.27-alpine\nCOPY --from=build /app/dist /usr/share/nginx/html\nEXPOSE 80",
+        "note": "L’image finale contient nginx et vos fichiers construits : ni Node.js, ni node_modules, ni code source."
+      }
+    },
+    {
+      "title": "Docker Compose pour une application multi-services",
+      "text": [
+        "Une stack locale réaliste comprend une API, une base de données et souvent un cache ou un worker. Compose la décrit dans un seul fichier compose.yaml : chaque service a une image ou un contexte de build, sa configuration, ses ports et ses volumes. Compose crée un réseau pour le projet, si bien que chaque service joint les autres par leur nom de service.",
+        "depends_on seul attend uniquement que l’autre conteneur démarre, pas que le programme à l’intérieur soit prêt. Un conteneur de base de données peut tourner alors que PostgreSQL est encore en cours d’initialisation, et votre API plante à sa première connexion. Ajoutez un healthcheck à la base et utilisez depends_on avec condition: service_healthy : Compose ne démarre alors l’API que lorsque le contrôle réussit. Votre application doit tout de même réessayer ses connexions, car une dépendance peut aussi redémarrer plus tard.",
+        "Gardez la configuration hors du fichier. env_file charge des variables dans un conteneur. Indépendamment, Compose lit un fichier .env dans le dossier du projet pour remplacer les ${VARIABLES} à l’intérieur de compose.yaml. Versionnez un .env.example avec de fausses valeurs et gardez le vrai .env hors de Git. docker compose config affiche la configuration finale avec toutes les variables remplacées : c’est le moyen le plus rapide de vérifier ce que Compose va réellement lancer."
+      ],
+      "points": [
+        "healthcheck : test, interval, timeout, retries et start_period pilotent le contrôle.",
+        "depends_on: db: condition: service_healthy attend que le healthcheck réussisse.",
+        "restart: unless-stopped relance automatiquement un service qui a planté.",
+        "docker compose up -d --build reconstruit les images modifiées avant de démarrer.",
+        "docker compose exec db psql -U postgres ouvre un client dans un service en cours d’exécution.",
+        "profiles: [debug] marque un service optionnel (un outil d’administration, par exemple) qui ne démarre qu’avec docker compose --profile debug up."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "services:\n  db:\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}\n    volumes:\n      - db-data:/var/lib/postgresql/data\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U postgres\"]\n      interval: 5s\n      timeout: 3s\n      retries: 10\n  api:\n    build: .\n    env_file: .env\n    ports:\n      - \"8000:8000\"\n    depends_on:\n      db:\n        condition: service_healthy\n    restart: unless-stopped\nvolumes:\n  db-data:",
+        "note": "POSTGRES_PASSWORD vient du fichier .env placé à côté de compose.yaml ; l’API ne démarre qu’une fois pg_isready réussi."
+      }
+    },
+    {
+      "title": "Volumes, réseaux et dépannage des conteneurs",
+      "text": [
+        "Il existe trois types de stockage. Un volume nommé est géré par Docker : c’est le bon choix pour les fichiers d’une base de données. Un bind mount monte un dossier de l’hôte dans le conteneur, idéal en développement pour voir les modifications de code en direct, mais il dépend des chemins et des permissions de l’hôte. Un montage tmpfs vit en mémoire et disparaît avec le conteneur. Pour sauvegarder un volume nommé, montez-le dans un conteneur jetable avec un dossier de l’hôte et archivez-le.",
+        "Sur le réseau bridge par défaut, les conteneurs ne se joignent que par adresse IP. Sur un réseau défini par l’utilisateur (celui que crée Compose, ou docker network create), Docker fournit un DNS : les conteneurs se trouvent par leur nom. Retenez la différence entre les ports : les conteneurs d’un même réseau communiquent directement sur le port du conteneur ; publier avec -p ne sert qu’à l’accès depuis l’hôte. Publiez sur 127.0.0.1 quand seule votre machine doit atteindre une base.",
+        "Quand un conteneur se comporte mal, suivez une routine. docker ps -a affiche le statut et le code de sortie : 0 est un arrêt normal, 1 une erreur applicative, 137 un arrêt forcé (souvent un manque de mémoire). docker logs --tail 100 montre les dernières lignes. docker inspect donne la configuration complète : environnement, montages, réseaux, State.OOMKilled. docker exec -it ouvre un shell pour vérifier fichiers, variables ou connectivité, et docker stats affiche la consommation CPU et mémoire en direct."
+      ],
+      "points": [
+        "docker volume ls / inspect ; docker compose down -v supprime aussi les volumes.",
+        "docker network inspect app-net liste les conteneurs rattachés à un réseau.",
+        "docker inspect --format '{{.State.ExitCode}} {{.State.OOMKilled}}' nom pour une vérification rapide.",
+        "docker logs --since 10m nom limite la sortie aux lignes récentes.",
+        "docker cp nom:/app/output.csv . copie un fichier hors d’un conteneur."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "docker ps -a --filter name=api            # status and exit code\ndocker logs --tail 50 api\ndocker inspect --format '{{json .State}}' api\ndocker exec -it api sh -c 'env | sort; nslookup db'\ndocker stats --no-stream\n\n# back up the named volume db-data into the current folder\ndocker run --rm -v db-data:/data -v \"$PWD\":/backup alpine \\\n  tar czf /backup/db-data.tgz -C /data .",
+        "note": "nslookup est disponible dans les images basées sur alpine et busybox ; les images Debian slim ne l’incluent pas toujours."
+      }
+    },
+    {
+      "title": "Sécurité des images, registries et tags",
+      "text": [
+        "Une image s’exécute avec les droits que vous lui donnez. Par défaut, le processus tourne en root dans le conteneur : une vulnérabilité dans votre application donne alors davantage de pouvoir à un attaquant. Créez un utilisateur et basculez dessus avec USER, figez les versions de l’image de base et des paquets pour des builds reproductibles, et scannez les images à la recherche de vulnérabilités connues avec docker scout cves ou trivy image, idéalement en CI pour qu’une faille critique bloque la mise en production.",
+        "Les secrets n’ont rien à faire dans une image. Tout ce qui est écrit dans une couche peut être lu par quiconque tire l’image, même si une instruction suivante supprime le fichier, et les valeurs ENV sont visibles avec docker inspect. Transmettez les secrets d’exécution comme variables d’environnement ou fichiers fournis par la plateforme (Compose, Secrets Kubernetes, un coffre-fort). Quand le build lui-même a besoin d’un secret, par exemple un jeton pour un dépôt de paquets privé, utilisez un montage de secret BuildKit : il n’est disponible que pendant ce RUN et n’est stocké dans aucune couche.",
+        "Une registry stocke et distribue les images : Docker Hub, GitHub Container Registry ou la registry de votre cloud. Le nom complet est registry/namespace/nom:tag. Un tag est une étiquette déplaçable : le même tag peut désigner une autre image demain, alors que le digest (sha256:...) identifie une image précise pour toujours. Taguez chaque build avec une version immuable, comme le numéro de release et le commit Git, et déployez ce tag plutôt que latest."
+      ],
+      "points": [
+        "USER 1000 ou un utilisateur nommé créé avec useradd ; ne lancez jamais l’application en root.",
+        "Figez les images de base (python:3.12-slim) et, pour une reproductibilité maximale, leur digest.",
+        "RUN --mount=type=secret,id=... avec docker build --secret garde les secrets de build hors des couches.",
+        "docker tag + docker push publient une image ; docker login s’authentifie auprès de la registry.",
+        "Scannez régulièrement : une image saine aujourd’hui peut avoir une vulnérabilité publiée le mois prochain."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# build with a secret that is not stored in the image\ndocker build --secret id=pip_conf,src=$HOME/.config/pip/pip.conf \\\n  -t myapp:1.4.0 .\n# Dockerfile line using it:\n# RUN --mount=type=secret,id=pip_conf,target=/etc/pip.conf pip install -r requirements.txt\n\ndocker scout cves myapp:1.4.0          # or: trivy image myapp:1.4.0\n\nGIT_SHA=$(git rev-parse --short HEAD)\ndocker tag myapp:1.4.0 ghcr.io/acme/myapp:1.4.0\ndocker tag myapp:1.4.0 ghcr.io/acme/myapp:sha-$GIT_SHA\ndocker login ghcr.io\ndocker push ghcr.io/acme/myapp:1.4.0\ndocker push ghcr.io/acme/myapp:sha-$GIT_SHA",
+        "note": "Deux tags pour une même image : une version lisible et le commit à partir duquel elle a été construite."
       }
     }
   ],
@@ -169,13 +246,104 @@
           "Reconstruire les images"
         ]
       ]
+    },
+    {
+      "group": "Images légères",
+      "items": [
+        [
+          "FROM node:20-alpine AS build",
+          "Nommer une étape de build"
+        ],
+        [
+          "COPY --from=build /app/dist ./",
+          "Copier uniquement le résultat d’une étape"
+        ],
+        [
+          "docker build --target build .",
+          "S’arrêter à une étape donnée"
+        ],
+        [
+          "docker image history myapp:1.0",
+          "Taille de chaque couche"
+        ]
+      ]
+    },
+    {
+      "group": "Compose en détail",
+      "items": [
+        [
+          "healthcheck: test: [\"CMD-SHELL\", \"pg_isready\"]",
+          "Indiquer à Compose quand un service est prêt"
+        ],
+        [
+          "depends_on: db: condition: service_healthy",
+          "Démarrer après que la dépendance est saine"
+        ],
+        [
+          "docker compose config",
+          "Afficher la configuration finale avec les variables remplacées"
+        ],
+        [
+          "docker compose exec db sh",
+          "Shell dans un service en cours d’exécution"
+        ]
+      ]
+    },
+    {
+      "group": "Dépannage",
+      "items": [
+        [
+          "docker inspect nom",
+          "Configuration et état complets"
+        ],
+        [
+          "Code de sortie 137",
+          "Arrêt forcé, souvent manque de mémoire"
+        ],
+        [
+          "docker stats",
+          "CPU et mémoire en direct par conteneur"
+        ],
+        [
+          "docker network inspect net",
+          "Conteneurs rattachés à un réseau"
+        ]
+      ]
+    },
+    {
+      "group": "Sécurité et registries",
+      "items": [
+        [
+          "USER appuser",
+          "Exécuter sans être root"
+        ],
+        [
+          "docker scout cves img / trivy image img",
+          "Rechercher les vulnérabilités connues"
+        ],
+        [
+          "RUN --mount=type=secret,id=x",
+          "Secret de build non stocké dans une couche"
+        ],
+        [
+          "docker tag img registry/ns/img:1.4.0",
+          "Nommer une image pour une registry"
+        ],
+        [
+          "image@sha256:...",
+          "Digest : une image précise et immuable"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Se connecter à localhost d’un conteneur à un autre : utilisez le nom du service.",
     "Perdre les données de la base parce qu’aucun volume n’était monté.",
     "Copier tout le projet avant d’installer les dépendances, ce qui reconstruit tout à chaque modification du code.",
-    "Intégrer des mots de passe dans l’image avec COPY .env ou ENV."
+    "Intégrer des mots de passe dans l’image avec COPY .env ou ENV.",
+    "Compter sur depends_on sans healthcheck : l’application démarre avant que la base accepte les connexions.",
+    "Supprimer un fichier secret dans un RUN suivant en croyant qu’il a disparu : il reste dans la couche précédente.",
+    "Lancer docker compose down -v par habitude et perdre la base de développement."
   ],
   "exercises": [
     {
@@ -197,6 +365,26 @@
       "hint": "Lancez un petit conteneur jetable qui monte le même volume.",
       "code": "bash",
       "answer": "docker run --rm -v reports:/data alpine ls -l /data\ndocker volume inspect reports"
+    },
+    {
+      "q": "Votre image Python pèse 1,1 Go. Citez trois changements pour l’alléger.",
+      "hint": "Image de base, outils de build, couches.",
+      "answer": "1) Utiliser python:3.12-slim au lieu de l’image python complète pour l’étape finale. 2) Faire un build multi-étapes pour que compilateurs et dépendances de build restent dans l’étape de build. 3) Installer avec pip --no-cache-dir et nettoyer les listes apt dans le même RUN, et ajouter un .dockerignore pour ne pas copier data, .git et .venv. Vérifier le résultat avec docker image history."
+    },
+    {
+      "q": "Écrivez le service Compose de Redis avec un healthcheck, et faites attendre au service worker qu’il soit sain.",
+      "hint": "redis-cli ping répond PONG quand Redis est prêt.",
+      "code": "yaml",
+      "answer": "services:\n  cache:\n    image: redis:7\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      retries: 5\n  worker:\n    build: .\n    depends_on:\n      cache:\n        condition: service_healthy"
+    },
+    {
+      "q": "Un conteneur s’arrête avec le code de sortie 137 après quelques minutes. Comment confirmez-vous la cause ?",
+      "answer": "137 signifie que le processus a été tué (signal 9). Lancez docker inspect --format '{{.State.OOMKilled}}' nom : true indique qu’il a dépassé la mémoire autorisée. Surveillez la mémoire avec docker stats pendant l’exécution, vérifiez une éventuelle limite --memory, puis réduisez la consommation (lots plus petits, traitement en flux) ou augmentez la limite."
+    },
+    {
+      "q": "Taguez l’image locale report:2.0.0 pour la registry ghcr.io/acme avec la version et le commit Git court, puis poussez les deux tags.",
+      "code": "bash",
+      "answer": "SHA=$(git rev-parse --short HEAD)\ndocker tag report:2.0.0 ghcr.io/acme/report:2.0.0\ndocker tag report:2.0.0 ghcr.io/acme/report:sha-$SHA\ndocker push ghcr.io/acme/report:2.0.0\ndocker push ghcr.io/acme/report:sha-$SHA"
     }
   ],
   "interview": [
@@ -215,6 +403,22 @@
     {
       "q": "Comment rendez-vous une image Docker plus petite et plus sûre ?",
       "a": "Partir d’une base slim ou distroless, utiliser un build multi-étapes pour laisser les outils de build hors de l’image finale, n’installer que le nécessaire et nettoyer les caches dans la même couche, ajouter un .dockerignore, tourner avec un utilisateur non root, figer les versions, ne jamais intégrer de secrets dans les couches, et analyser l’image dans la CI."
+    },
+    {
+      "q": "Qu’est-ce qu’un build multi-étapes et pourquoi l’utiliser ?",
+      "a": "Un Dockerfile avec plusieurs étapes FROM, où l’étape finale ne copie que le résultat du build des étapes précédentes. Outils de build, code source et caches restent hors de l’image finale : elle est plus légère, plus rapide à déployer et contient moins de paquets susceptibles d’avoir des vulnérabilités."
+    },
+    {
+      "q": "Pourquoi depends_on ne suffit-il pas pour qu’une API attende sa base de données ?",
+      "a": "depends_on ne fait qu’ordonner le démarrage des conteneurs : le conteneur de la base peut tourner alors que la base s’initialise encore. Ajouter un healthcheck (pg_isready pour PostgreSQL) et condition: service_healthy fait attendre Compose jusqu’à ce qu’elle accepte réellement les connexions. L’application doit aussi réessayer ses connexions, car les dépendances peuvent redémarrer plus tard."
+    },
+    {
+      "q": "Comment gérez-vous les secrets avec Docker ?",
+      "a": "Jamais dans l’image : pas de COPY du .env, pas d’ENV avec des mots de passe, car les couches et les métadonnées de l’image sont lisibles par quiconque la tire. Je les injecte à l’exécution depuis la plateforme (variables d’environnement ou fichiers montés par Compose, Secrets Kubernetes ou un coffre-fort), et j’utilise les montages de secrets BuildKit quand une étape de build a besoin d’un jeton."
+    },
+    {
+      "q": "Quelle est la différence entre un tag et un digest d’image ?",
+      "a": "Un tag est une étiquette lisible qui peut être déplacée vers une nouvelle image à tout moment. Un digest est le hash sha256 du contenu de l’image et désigne toujours la même image. Les équipes déploient des tags de version immuables (numéro de release, commit) et peuvent figer le digest quand elles ont besoin d’une reproductibilité exacte."
     }
   ]
 }

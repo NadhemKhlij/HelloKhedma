@@ -4,7 +4,6 @@
   "lessons": [
     {
       "title": "Read data: SELECT, WHERE, ORDER BY",
-      "minutes": 40,
       "text": [
         "A table is a set of rows with named columns. SELECT chooses columns, FROM chooses the table, WHERE keeps only the rows that match a condition, ORDER BY sorts, LIMIT keeps the first rows.",
         "SQL is written in that order but executed in another one: FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY, LIMIT. This explains why you cannot use a column alias in WHERE."
@@ -23,7 +22,6 @@
     },
     {
       "title": "Summarise: GROUP BY, aggregates, HAVING",
-      "minutes": 45,
       "text": [
         "Aggregate functions turn many rows into one value: COUNT, SUM, AVG, MIN, MAX. With GROUP BY you get one result row per group.",
         "WHERE filters rows before grouping; HAVING filters groups after the aggregate is computed."
@@ -41,7 +39,6 @@
     },
     {
       "title": "Combine tables: JOINs",
-      "minutes": 50,
       "text": [
         "A JOIN matches rows of two tables on a condition, usually a foreign key equal to a primary key (orders.customer_id = customers.id).",
         "INNER JOIN keeps only matching rows. LEFT JOIN keeps every row of the left table and fills the right side with NULL when nothing matches; that is how you find what is missing."
@@ -59,7 +56,6 @@
     },
     {
       "title": "Go further: CTEs and window functions",
-      "minutes": 60,
       "text": [
         "A CTE (WITH name AS (...)) names an intermediate result so a long query reads top to bottom.",
         "Window functions compute a value per row while looking at other rows, without collapsing them: rankings, running totals, the previous value. They are the classic intermediate interview question."
@@ -78,7 +74,6 @@
     },
     {
       "title": "Performance: indexes and query plans",
-      "minutes": 45,
       "text": [
         "A query that takes seconds on a big table usually reads every row. An index is a sorted copy of one or more columns with pointers to the rows, like the index of a book: the database jumps to the right rows instead of scanning everything.",
         "EXPLAIN shows the plan the database chose; EXPLAIN ANALYZE runs the query and shows real timings. Look for full scans (Seq Scan) on large tables, row estimates far from reality and sorts or joins that spill to disk."
@@ -93,6 +88,105 @@
         "lang": "sql",
         "code": "-- Before: the query scans the whole orders table\nEXPLAIN ANALYZE\nSELECT * FROM orders WHERE customer_id = 42 AND created_at >= '2026-01-01';\n\nCREATE INDEX idx_orders_customer_date ON orders (customer_id, created_at);\n\n-- After: Index Scan using idx_orders_customer_date ... (a few ms instead of seconds)",
         "note": "Measure before and after: the plan, not intuition, tells you what changed."
+      }
+    },
+    {
+      "title": "Subqueries, CTEs and recursive CTEs",
+      "text": [
+        "A subquery is a query inside another one. It can return a single value (a scalar subquery in SELECT or WHERE), a list (WHERE id IN (SELECT ...)) or a whole table (FROM (SELECT ...) AS t). A correlated subquery refers to the outer row, for example the average salary of the current employee's department: conceptually it is evaluated once per outer row, which can be slow on large tables if the optimizer cannot rewrite it as a join.",
+        "A CTE does the same job but gives the intermediate result a name, so multi-step logic reads from top to bottom and the same step can be referenced twice. Since PostgreSQL 12, a CTE used once is usually inlined like a subquery, so it is not slower; WITH x AS MATERIALIZED (...) forces it to be computed once. Choose by readability: a short filter fits in a subquery, three or more steps belong in CTEs.",
+        "EXISTS and NOT EXISTS check whether at least one matching row exists and stop at the first match. Prefer NOT EXISTS to NOT IN: if the subquery returns a single NULL, x NOT IN (...) is never true and the query silently returns nothing.",
+        "A recursive CTE (WITH RECURSIVE) walks hierarchies such as org charts, category trees or bills of materials. An anchor query returns the starting rows, then a recursive part joins back to the CTE and adds rows until a step returns nothing new. SQL Server writes the same query without the RECURSIVE keyword; Oracle also offers CONNECT BY."
+      ],
+      "points": [
+        "A scalar subquery must return at most one row, otherwise the query fails.",
+        "Give every derived table an alias: FROM (SELECT ...) AS t (required by most databases).",
+        "Use NOT EXISTS instead of NOT IN when the subquery column can be NULL.",
+        "Use UNION ALL in a recursive CTE and add a depth limit to stop on cyclic data.",
+        "Recursive CTEs can also generate rows (a list of dates), but PostgreSQL's generate_series is simpler for that."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "WITH RECURSIVE chain AS (\n  SELECT id, first_name, manager_id, 1 AS depth\n  FROM employees\n  WHERE manager_id IS NULL              -- anchor: the top of the org chart\n  UNION ALL\n  SELECT e.id, e.first_name, e.manager_id, c.depth + 1\n  FROM employees e\n  JOIN chain c ON e.manager_id = c.id   -- recursive step: direct reports\n  WHERE c.depth < 10                    -- safety stop\n)\nSELECT depth, first_name\nFROM chain\nORDER BY depth, first_name;",
+        "note": "Each level of the org chart is added until no new employee is found."
+      }
+    },
+    {
+      "title": "Window functions in depth: frames, running totals and ties",
+      "text": [
+        "OVER has three parts: PARTITION BY (which rows belong together), ORDER BY (in which order) and the frame (which rows around the current one are used). Ranking functions and LAG / LEAD only use the first two; aggregates such as SUM or AVG over a window also use the frame.",
+        "The default frame is a classic trap. With ORDER BY and no explicit frame, the database uses RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW. RANGE treats rows with the same ORDER BY value as peers, so two orders on the same day get the same running total. Write ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW for a strict row-by-row total, and ROWS BETWEEN 6 PRECEDING AND CURRENT ROW for a 7-row moving average.",
+        "Decide explicitly how to handle ties. ROW_NUMBER picks an arbitrary order among ties unless ORDER BY ends with a unique column (ORDER BY amount DESC, id). For a top 3 per group that keeps ties, filter on DENSE_RANK() <= 3. NTILE(4) splits rows into quartiles. FIRST_VALUE and LAST_VALUE return the edges of the frame, which is why LAST_VALUE with the default frame returns the current row.",
+        "Window functions are computed after WHERE, so you cannot filter on them directly: compute them in a CTE and filter outside. Snowflake, BigQuery and Databricks add QUALIFY for this; PostgreSQL does not."
+      ],
+      "points": [
+        "LAG(x, 1, 0) takes an offset and a default for the first row.",
+        "SUM(x) OVER (PARTITION BY g) without ORDER BY gives the group total: x / that total is a share.",
+        "WINDOW w AS (...) names a window definition you can reuse (PostgreSQL, MySQL 8).",
+        "A 7-row average is a 7-day average only if every day has a row: fill gaps first."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "SELECT store_id, order_day, revenue,\n       SUM(revenue) OVER w_running AS running_total,\n       ROUND(AVG(revenue) OVER (PARTITION BY store_id ORDER BY order_day\n             ROWS BETWEEN 6 PRECEDING AND CURRENT ROW), 2) AS avg_7_rows,\n       revenue - LAG(revenue) OVER (PARTITION BY store_id ORDER BY order_day) AS change_vs_prev\nFROM daily_sales\nWINDOW w_running AS (PARTITION BY store_id ORDER BY order_day\n                     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)\nORDER BY store_id, order_day;",
+        "note": "daily_sales has one row per store and day; revenue is numeric."
+      }
+    },
+    {
+      "title": "NULLs, three-valued logic and data cleaning",
+      "text": [
+        "In SQL a condition is TRUE, FALSE or UNKNOWN. Any comparison with NULL (NULL = NULL, status <> 'cancelled' when status is NULL) is UNKNOWN, and WHERE keeps only TRUE rows. So WHERE status <> 'cancelled' silently drops the rows where status is NULL, and NOT (UNKNOWN) is still UNKNOWN. Aggregates skip NULLs, except COUNT(*): AVG(bonus) averages only the people who have a bonus.",
+        "A few functions make NULLs explicit. COALESCE(a, b, c) returns the first non-NULL value. NULLIF(a, b) returns NULL when a equals b, the standard way to avoid a division by zero: revenue / NULLIF(visits, 0). a IS DISTINCT FROM b compares values while treating two NULLs as equal. In PostgreSQL, NULLs sort last in ascending order and first in descending order; NULLS FIRST / NULLS LAST makes it explicit (MySQL and SQL Server do not support this syntax).",
+        "Data cleaning in SQL relies on the same small toolbox: CASE WHEN to map messy values to clean categories, TRIM, LOWER, REPLACE and SPLIT_PART to normalise text, CAST(x AS DATE) or x::date to convert types, DATE_TRUNC, EXTRACT and intervals (created_at + INTERVAL '7 days') for dates. One value that cannot be cast makes the whole query fail, so filter or fix bad values first (SQL Server has TRY_CAST, PostgreSQL does not).",
+        "Keep the raw table untouched and put cleaning rules in a view or a new table: you can rerun them, explain every rule and compare before and after."
+      ],
+      "points": [
+        "WHERE status <> 'x' OR status IS NULL keeps NULL rows on purpose.",
+        "NULL in arithmetic or || concatenation makes the result NULL; CONCAT() skips NULLs.",
+        "COUNT(*) - COUNT(col) is the number of NULLs in col.",
+        "COUNT(*) FILTER (WHERE col IS NULL) is a PostgreSQL shortcut for SUM(CASE WHEN ... THEN 1 ELSE 0 END)."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "CREATE VIEW customers_clean AS\nSELECT\n  id,\n  INITCAP(TRIM(city)) AS city,\n  LOWER(TRIM(email)) AS email,\n  CASE\n    WHEN LOWER(TRIM(status)) IN ('active', 'actif') THEN 'active'\n    WHEN status IS NULL OR TRIM(status) = '' THEN 'unknown'\n    ELSE 'inactive'\n  END AS status,\n  COALESCE(phone, 'n/a') AS phone,\n  ROUND(revenue::numeric / NULLIF(orders, 0), 2) AS avg_basket,\n  signup_at::date AS signup_day\nFROM raw_customers;",
+        "note": "INITCAP and the :: cast are PostgreSQL; elsewhere use CAST(x AS DATE) and your database's text functions."
+      }
+    },
+    {
+      "title": "Transactions and isolation basics",
+      "text": [
+        "A transaction groups statements that must succeed or fail together: BEGIN, the statements, then COMMIT to keep the changes or ROLLBACK to cancel them. This is the A of ACID (atomicity): a money transfer must never debit one account without crediting the other. In PostgreSQL a statement outside BEGIN runs in its own transaction and is committed immediately (autocommit). Check your SQL client's setting: some tools open a transaction for you and keep locks until you commit.",
+        "Isolation controls what a transaction sees of the others running at the same time. The standard levels are READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ and SERIALIZABLE; each one prevents more anomalies (dirty reads, non-repeatable reads, phantom rows). READ COMMITTED is the default in PostgreSQL, SQL Server and Oracle, REPEATABLE READ in MySQL InnoDB. PostgreSQL never shows uncommitted data, even in READ UNCOMMITTED. Under SERIALIZABLE, PostgreSQL may abort a transaction with a serialization failure that the application must retry.",
+        "Writes lock the rows they change until the transaction ends. A long transaction blocks other writers and, in PostgreSQL, prevents old row versions from being cleaned up. Keep transactions short and never wait for user input inside one. To avoid a lost update (two sessions read the same value, both write), update in a single statement (SET stock = stock - 1) or lock the rows first with SELECT ... FOR UPDATE."
+      ],
+      "points": [
+        "In PostgreSQL an error inside a transaction aborts it: every next statement fails until ROLLBACK.",
+        "SAVEPOINT s and ROLLBACK TO SAVEPOINT s undo part of a transaction.",
+        "DDL is transactional in PostgreSQL (a CREATE TABLE can be rolled back), not in MySQL or Oracle.",
+        "Check how many rows each UPDATE touched before you COMMIT."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "BEGIN;\n\nUPDATE accounts SET balance = balance - 100\nWHERE id = 1 AND balance >= 100;\n-- check that exactly 1 row was updated before going on\n\nUPDATE accounts SET balance = balance + 100\nWHERE id = 2;\n\nINSERT INTO transfers (from_id, to_id, amount) VALUES (1, 2, 100);\n\nCOMMIT;  -- or ROLLBACK; if anything went wrong",
+        "note": "Other sessions see either all three changes or none of them."
+      }
+    },
+    {
+      "title": "Change data safely: INSERT ... SELECT, UPDATE with joins, upserts",
+      "text": [
+        "Writing data is where SQL mistakes become expensive. Before any UPDATE or DELETE, run the same WHERE clause as a SELECT COUNT(*) and check the number. Work inside a transaction so you can roll back, and in PostgreSQL add RETURNING to see the rows you changed (SQL Server uses OUTPUT). An UPDATE without WHERE changes every row of the table.",
+        "INSERT INTO target (cols) SELECT ... copies the result of a query; always list the columns so a new column or a different order cannot shift values. To update from another table, PostgreSQL writes UPDATE t SET ... FROM s WHERE t.id = s.id, SQL Server UPDATE t SET ... FROM t JOIN s ON ..., MySQL UPDATE t JOIN s ON ... SET .... If the source has several rows per target row, the result is unpredictable: deduplicate the source first. PostgreSQL deletes with a join using DELETE FROM t USING s WHERE ....",
+        "An upsert inserts new rows and updates existing ones. PostgreSQL uses INSERT ... ON CONFLICT (key) DO UPDATE SET col = EXCLUDED.col, which needs a unique constraint or index on the key; MySQL has INSERT ... ON DUPLICATE KEY UPDATE. The standard MERGE INTO target USING source ON ... WHEN MATCHED THEN UPDATE WHEN NOT MATCHED THEN INSERT exists in PostgreSQL 15+, SQL Server, Oracle, Snowflake and BigQuery. Upserts make loads idempotent: rerunning the same load does not create duplicates."
+      ],
+      "points": [
+        "Run the WHERE as a SELECT first, then the UPDATE or DELETE inside BEGIN.",
+        "Delete or update millions of rows in batches to keep locks and logs small.",
+        "TRUNCATE empties a whole table instantly: it is never a replacement for DELETE ... WHERE.",
+        "A load that can safely run twice is worth more than a fast one that cannot."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Load staging rows into customers; safe to run again\nBEGIN;\n\nINSERT INTO customers (id, email, city, updated_at)\nSELECT DISTINCT ON (id) id, LOWER(TRIM(email)), city, loaded_at\nFROM staging_customers\nORDER BY id, loaded_at DESC\nON CONFLICT (id) DO UPDATE\nSET email = EXCLUDED.email,\n    city = EXCLUDED.city,\n    updated_at = EXCLUDED.updated_at\nWHERE customers.updated_at < EXCLUDED.updated_at\nRETURNING id;\n\nCOMMIT;",
+        "note": "DISTINCT ON (PostgreSQL) keeps the latest staging row per id: without it, two rows with the same id make ON CONFLICT DO UPDATE fail."
       }
     }
   ],
@@ -213,13 +307,104 @@
           "Running total"
         ]
       ]
+    },
+    {
+      "group": "Subqueries & recursion",
+      "items": [
+        [
+          "WHERE x IN (SELECT ...)",
+          "Filter on a list from another query"
+        ],
+        [
+          "WHERE NOT EXISTS (SELECT 1 FROM b WHERE ...)",
+          "Rows with no match, safe with NULLs"
+        ],
+        [
+          "WITH RECURSIVE t AS (anchor UNION ALL step)",
+          "Walk a hierarchy level by level"
+        ]
+      ]
+    },
+    {
+      "group": "Window frames",
+      "items": [
+        [
+          "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW",
+          "Strict row-by-row running total"
+        ],
+        [
+          "AVG(x) OVER (ORDER BY d ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)",
+          "7-row moving average"
+        ],
+        [
+          "x / SUM(x) OVER (PARTITION BY g)",
+          "Share of the group total"
+        ],
+        [
+          "NTILE(4) OVER (ORDER BY x)",
+          "Split rows into quartiles"
+        ]
+      ]
+    },
+    {
+      "group": "NULLs & cleaning",
+      "items": [
+        [
+          "NULLIF(a, 0)",
+          "NULL when a = 0: avoids division by zero"
+        ],
+        [
+          "a IS DISTINCT FROM b",
+          "Comparison that treats two NULLs as equal"
+        ],
+        [
+          "ORDER BY x NULLS LAST",
+          "Choose where NULLs sort (PostgreSQL, Oracle)"
+        ],
+        [
+          "TRIM(s) / LOWER(s) / SPLIT_PART(s, ',', 1)",
+          "Normalise text"
+        ]
+      ]
+    },
+    {
+      "group": "Transactions & DML",
+      "items": [
+        [
+          "BEGIN; ... COMMIT; / ROLLBACK;",
+          "All changes or none"
+        ],
+        [
+          "SELECT ... FOR UPDATE",
+          "Lock the rows you are about to update"
+        ],
+        [
+          "UPDATE t SET c = s.c FROM s WHERE t.id = s.id",
+          "Update from another table (PostgreSQL)"
+        ],
+        [
+          "INSERT ... ON CONFLICT (id) DO UPDATE SET c = EXCLUDED.c",
+          "Upsert (PostgreSQL)"
+        ],
+        [
+          "MERGE INTO t USING s ON ... WHEN MATCHED THEN ...",
+          "Standard upsert (PostgreSQL 15+, SQL Server, Oracle)"
+        ],
+        [
+          "UPDATE ... RETURNING id",
+          "Show the rows changed (SQL Server: OUTPUT)"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Writing = NULL instead of IS NULL: the condition is never true.",
     "Putting a condition on the right table of a LEFT JOIN in WHERE, which silently turns it into an INNER JOIN. Put it in the ON clause instead.",
     "Joining on a key that is not unique and getting duplicated totals.",
-    "Using SELECT * in production queries: slower and breaks when columns change."
+    "Using SELECT * in production queries: slower and breaks when columns change.",
+    "Using NOT IN with a subquery that can return NULL: the query returns no rows at all. Use NOT EXISTS.",
+    "Relying on the default window frame for a running total: with RANGE, rows sharing the same ORDER BY value get the same total. Write ROWS BETWEEN ... and add a unique tie-breaker.",
+    "Running an UPDATE or DELETE outside a transaction without first checking its WHERE with a SELECT: one typo can change the whole table."
   ],
   "exercises": [
     {
@@ -245,6 +430,30 @@
       "hint": "Compare the column itself to a date range.",
       "code": "sql",
       "answer": "SELECT id, total\nFROM orders\nWHERE created_at >= '2026-01-01'\n  AND created_at <  '2026-02-01';"
+    },
+    {
+      "q": "List the employees who earn more than the average salary of their own department.",
+      "hint": "A correlated subquery that compares with the department of the outer row.",
+      "code": "sql",
+      "answer": "SELECT e.first_name, e.department, e.salary\nFROM employees e\nWHERE e.salary > (\n  SELECT AVG(e2.salary)\n  FROM employees e2\n  WHERE e2.department = e.department\n);"
+    },
+    {
+      "q": "Show each order with a running total of amount per customer, strictly row by row even when two orders share a date.",
+      "hint": "An explicit ROWS frame and a unique tie-breaker in ORDER BY.",
+      "code": "sql",
+      "answer": "SELECT customer_id, ordered_at, amount,\n       SUM(amount) OVER (PARTITION BY customer_id ORDER BY ordered_at, id\n                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total\nFROM orders\nORDER BY customer_id, ordered_at, id;"
+    },
+    {
+      "q": "Compute the conversion rate (conversions / clicks, in %) per campaign without failing when a campaign has 0 clicks.",
+      "hint": "NULLIF on the divisor, and multiply by 100.0 to avoid integer division.",
+      "code": "sql",
+      "answer": "SELECT campaign,\n       SUM(clicks) AS clicks,\n       SUM(conversions) AS conversions,\n       ROUND(100.0 * SUM(conversions) / NULLIF(SUM(clicks), 0), 1) AS conversion_pct\nFROM campaign_stats\nGROUP BY campaign;"
+    },
+    {
+      "q": "Load the prices of staging_prices (one row per sku) into products: insert new skus, update the price of existing ones.",
+      "hint": "INSERT ... SELECT with ON CONFLICT; products needs a unique constraint on sku.",
+      "code": "sql",
+      "answer": "INSERT INTO products (sku, price, updated_at)\nSELECT sku, price, NOW()\nFROM staging_prices\nON CONFLICT (sku) DO UPDATE\nSET price = EXCLUDED.price,\n    updated_at = EXCLUDED.updated_at;"
     }
   ],
   "interview": [
@@ -263,6 +472,22 @@
     {
       "q": "A query became slow in production. How do you investigate?",
       "a": "I reproduce it with EXPLAIN ANALYZE to see the plan and where the time goes, check whether the data volume or the plan changed, and look for full scans, bad row estimates or missing indexes. Then I fix the cause: add or adjust an index, rewrite a non-sargable filter, update statistics or reduce the columns and rows read, and compare the plan before and after."
+    },
+    {
+      "q": "Subquery or CTE: which one do you use and why?",
+      "a": "They can express the same logic, and modern optimizers such as PostgreSQL 12+ usually inline a CTE used once, so the choice is mostly about readability. I use a subquery for a short, one-off filter and CTEs as soon as the logic has several steps or reuses an intermediate result. For hierarchies I need a recursive CTE, which a subquery cannot do."
+    },
+    {
+      "q": "What happens when a WHERE condition meets a NULL?",
+      "a": "SQL uses three-valued logic: a comparison with NULL is UNKNOWN, not TRUE or FALSE, and WHERE keeps only TRUE rows. So status <> 'cancelled' drops rows where status is NULL, and NOT IN with a NULL in the list returns nothing. I test NULLs explicitly with IS NULL, use COALESCE or IS DISTINCT FROM, and check NULL counts when I profile a table."
+    },
+    {
+      "q": "What are transaction isolation levels?",
+      "a": "They define what a transaction sees of concurrent changes. READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ and SERIALIZABLE prevent progressively more anomalies: dirty reads, non-repeatable reads, phantoms. Higher levels are safer but cause more waiting or retries. READ COMMITTED is the default in PostgreSQL, SQL Server and Oracle; under SERIALIZABLE the application must be ready to retry failed transactions."
+    },
+    {
+      "q": "How do you make a data load safe to run twice?",
+      "a": "I make it idempotent: load into a staging table, deduplicate it, then upsert into the target on its business key with INSERT ... ON CONFLICT or MERGE, or replace a whole partition (delete the day, insert the day) inside one transaction. Rerunning the same load then gives the same result instead of duplicates, which makes retries and backfills safe."
     }
   ]
 }

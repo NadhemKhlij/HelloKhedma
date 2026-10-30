@@ -4,7 +4,6 @@
   "lessons": [
     {
       "title": "Images and containers",
-      "minutes": 35,
       "text": [
         "An image is a read-only package: an OS base, your code, its dependencies and the command to start. A container is a running instance of an image.",
         "Images come from a registry (Docker Hub, GitHub Container Registry) or you build them from a Dockerfile."
@@ -23,7 +22,6 @@
     },
     {
       "title": "Write a Dockerfile",
-      "minutes": 45,
       "text": [
         "A Dockerfile lists the steps to build your image. Each instruction creates a cached layer, so put what changes least (dependencies) before what changes most (your code).",
         "Keep images small and safe: slim base images, no secrets baked in, a non-root user."
@@ -41,7 +39,6 @@
     },
     {
       "title": "Several services with Docker Compose",
-      "minutes": 40,
       "text": [
         "Real projects need several containers: an app, a database, maybe a scheduler. docker compose describes them in one YAML file and starts them together on a shared network.",
         "Services reach each other by service name (the app connects to host 'db', not localhost)."
@@ -59,7 +56,6 @@
     },
     {
       "title": "Volumes, networks and production-ready images",
-      "minutes": 40,
       "text": [
         "Containers are disposable: anything written inside disappears when the container is removed. Data that must survive goes in a volume (managed by Docker) or a bind mount (a host folder, handy in development). Containers on the same user-defined network reach each other by name.",
         "Production images should be small, safe and observable. Multi-stage builds keep compilers and build tools out of the final image, a non-root user limits damage, a HEALTHCHECK tells the orchestrator when the app is really up, and scanning the image finds known vulnerabilities."
@@ -74,6 +70,87 @@
         "lang": "dockerfile",
         "code": "# Multi-stage build: tools in the first stage, only the result in the final image\nFROM python:3.12 AS build\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip wheel --wheel-dir /wheels -r requirements.txt\n\nFROM python:3.12-slim\nWORKDIR /app\nCOPY --from=build /wheels /wheels\nRUN pip install --no-cache-dir /wheels/* && rm -rf /wheels\nCOPY . .\nUSER 1000\nHEALTHCHECK CMD python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\"\nCMD [\"python\", \"app.py\"]",
         "note": "The final image contains Python, the installed packages and your code, nothing else."
+      }
+    },
+    {
+      "title": "Multi-stage builds and small images",
+      "text": [
+        "Every tool you need to build an application (compilers, package managers, test libraries, source files) is useless at run time. If it stays in the image, the image is bigger to push and pull, slower to start on a new server, and has more software that can contain vulnerabilities. A multi-stage build solves this: one Dockerfile has several FROM lines, each starting a stage, and the final stage copies only the result it needs from earlier stages with COPY --from.",
+        "A typical example is a web frontend: the build stage needs Node.js and hundreds of megabytes of node_modules, but the result is a folder of static files that a small nginx image can serve. The same idea works for Java (build with Maven, run on a JRE image), Go (build a binary, run it on a tiny base) or Python (build wheels, install them in a slim image).",
+        "Size also depends on layers. Each RUN, COPY and ADD creates a layer, and a file deleted in a later layer still exists in the earlier one. So clean up in the same RUN that created the mess (apt caches, temporary files), order instructions from least to most frequently changed so the cache is reused, and keep a .dockerignore so the build context stays small. docker image history shows the size of each layer and helps you find the culprit."
+      ],
+      "points": [
+        "Name stages with AS build and copy from them with COPY --from=build.",
+        "docker build --target build . stops at a stage, useful to run tests in CI.",
+        "Choose a slim or alpine base for the final stage; check that your app works with it (alpine uses musl, not glibc).",
+        "apt-get install --no-install-recommends and rm -rf /var/lib/apt/lists/* in the same RUN.",
+        "Compare sizes with docker images and docker image history myapp:1.0."
+      ],
+      "example": {
+        "lang": "dockerfile",
+        "code": "# Stage 1: build the frontend with Node.js\nFROM node:20-alpine AS build\nWORKDIR /app\nCOPY package.json package-lock.json ./\nRUN npm ci\nCOPY . .\nRUN npm run build\n\n# Stage 2: serve only the static files with nginx\nFROM nginx:1.27-alpine\nCOPY --from=build /app/dist /usr/share/nginx/html\nEXPOSE 80",
+        "note": "The final image is nginx plus your built files: no Node.js, no node_modules, no source code."
+      }
+    },
+    {
+      "title": "Docker Compose for a multi-service app",
+      "text": [
+        "A realistic local stack has an API, a database and often a cache or a worker. Compose describes it in one compose.yaml file: each service has an image or a build context, its configuration, its ports and its volumes. Compose creates a network for the project, so every service reaches the others by service name.",
+        "depends_on alone only waits for the other container to start, not for the program inside to be ready. A database container can be running while PostgreSQL is still initialising, and your API crashes on its first connection. Add a healthcheck to the database and use depends_on with condition: service_healthy: Compose then starts the API only when the check passes. Your application should still retry connections, because a dependency can also restart later.",
+        "Keep configuration out of the file. env_file loads variables into a container. Separately, Compose reads a .env file in the project folder to replace ${VARIABLES} inside compose.yaml itself. Commit a .env.example with fake values and keep the real .env out of Git. docker compose config prints the final configuration with all variables replaced, which is the quickest way to check what Compose will actually run."
+      ],
+      "points": [
+        "healthcheck: test, interval, timeout, retries and start_period control the check.",
+        "depends_on: db: condition: service_healthy waits for the healthcheck to pass.",
+        "restart: unless-stopped restarts a crashed service automatically.",
+        "docker compose up -d --build rebuilds changed images before starting.",
+        "docker compose exec db psql -U postgres opens a client inside a running service.",
+        "profiles: [debug] marks an optional service (an admin tool, for example) that starts only with docker compose --profile debug up."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "services:\n  db:\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}\n    volumes:\n      - db-data:/var/lib/postgresql/data\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U postgres\"]\n      interval: 5s\n      timeout: 3s\n      retries: 10\n  api:\n    build: .\n    env_file: .env\n    ports:\n      - \"8000:8000\"\n    depends_on:\n      db:\n        condition: service_healthy\n    restart: unless-stopped\nvolumes:\n  db-data:",
+        "note": "POSTGRES_PASSWORD comes from the .env file next to compose.yaml; the API starts only once pg_isready succeeds."
+      }
+    },
+    {
+      "title": "Volumes, networks and debugging containers",
+      "text": [
+        "Three kinds of storage exist. A named volume is managed by Docker and is the right choice for database files. A bind mount maps a host folder into the container, ideal in development to see code changes live, but it depends on the host's paths and permissions. A tmpfs mount lives in memory and disappears with the container. To back up a named volume, mount it into a throwaway container together with a host folder and archive it.",
+        "On the default bridge network containers can only reach each other by IP address. On a user-defined network (the one Compose creates, or docker network create) Docker provides DNS, so containers find each other by name. Remember the difference between ports: containers on the same network talk on the container port directly; publishing with -p is only for access from the host. Publish on 127.0.0.1 when only your machine should reach a database.",
+        "When a container misbehaves, follow a routine. docker ps -a shows the status and exit code: 0 is a normal stop, 1 an application error, 137 a kill (often out of memory). docker logs --tail 100 shows the last lines. docker inspect gives the full configuration: environment, mounts, networks, State.OOMKilled. docker exec -it opens a shell to check files, variables or connectivity, and docker stats shows live CPU and memory use."
+      ],
+      "points": [
+        "docker volume ls / inspect; docker compose down -v also deletes the volumes.",
+        "docker network inspect app-net lists the containers attached to a network.",
+        "docker inspect --format '{{.State.ExitCode}} {{.State.OOMKilled}}' name for a quick check.",
+        "docker logs --since 10m name limits the output to recent lines.",
+        "docker cp name:/app/output.csv . copies a file out of a container."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "docker ps -a --filter name=api            # status and exit code\ndocker logs --tail 50 api\ndocker inspect --format '{{json .State}}' api\ndocker exec -it api sh -c 'env | sort; nslookup db'\ndocker stats --no-stream\n\n# back up the named volume db-data into the current folder\ndocker run --rm -v db-data:/data -v \"$PWD\":/backup alpine \\\n  tar czf /backup/db-data.tgz -C /data .",
+        "note": "nslookup is available in alpine and busybox based images; slim Debian images may not include it."
+      }
+    },
+    {
+      "title": "Image security, registries and tagging",
+      "text": [
+        "An image runs with the permissions you give it. By default the process runs as root inside the container, so a vulnerability in your app gives an attacker more power. Create a user and switch to it with USER, pin the base image and package versions so builds are reproducible, and scan images for known vulnerabilities with docker scout cves or trivy image, ideally in CI so a critical finding blocks the release.",
+        "Secrets never belong in an image. Anything written in a layer can be read by whoever pulls the image, even if a later instruction deletes the file, and ENV values are visible with docker inspect. Pass runtime secrets as environment variables or files from the platform (Compose, Kubernetes Secrets, a vault). When the build itself needs a secret, for example a token for a private package index, use a BuildKit secret mount: it is available during that RUN only and is not stored in any layer.",
+        "A registry stores and distributes images: Docker Hub, GitHub Container Registry, or the registry of your cloud. The full name is registry/namespace/name:tag. A tag is a movable label, so the same tag can point to a different image tomorrow; the digest (sha256:...) identifies one exact image forever. Tag each build with an immutable version, such as the release number and the Git commit, and deploy that tag rather than latest."
+      ],
+      "points": [
+        "USER 1000 or a named user created with useradd; never run the app as root.",
+        "Pin base images (python:3.12-slim) and, for maximum reproducibility, their digest.",
+        "RUN --mount=type=secret,id=... with docker build --secret keeps build secrets out of layers.",
+        "docker tag + docker push publish an image; docker login authenticates to the registry.",
+        "Scan regularly: a clean image today can have a published vulnerability next month."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# build with a secret that is not stored in the image\ndocker build --secret id=pip_conf,src=$HOME/.config/pip/pip.conf \\\n  -t myapp:1.4.0 .\n# Dockerfile line using it:\n# RUN --mount=type=secret,id=pip_conf,target=/etc/pip.conf pip install -r requirements.txt\n\ndocker scout cves myapp:1.4.0          # or: trivy image myapp:1.4.0\n\nGIT_SHA=$(git rev-parse --short HEAD)\ndocker tag myapp:1.4.0 ghcr.io/acme/myapp:1.4.0\ndocker tag myapp:1.4.0 ghcr.io/acme/myapp:sha-$GIT_SHA\ndocker login ghcr.io\ndocker push ghcr.io/acme/myapp:1.4.0\ndocker push ghcr.io/acme/myapp:sha-$GIT_SHA",
+        "note": "Two tags for one image: a human-readable version and the commit it was built from."
       }
     }
   ],
@@ -169,13 +246,104 @@
           "Rebuild images"
         ]
       ]
+    },
+    {
+      "group": "Small images",
+      "items": [
+        [
+          "FROM node:20-alpine AS build",
+          "Name a build stage"
+        ],
+        [
+          "COPY --from=build /app/dist ./",
+          "Copy only the result of a stage"
+        ],
+        [
+          "docker build --target build .",
+          "Stop at a given stage"
+        ],
+        [
+          "docker image history myapp:1.0",
+          "Size of each layer"
+        ]
+      ]
+    },
+    {
+      "group": "Compose in depth",
+      "items": [
+        [
+          "healthcheck: test: [\"CMD-SHELL\", \"pg_isready\"]",
+          "Tell Compose when a service is ready"
+        ],
+        [
+          "depends_on: db: condition: service_healthy",
+          "Start after the dependency is healthy"
+        ],
+        [
+          "docker compose config",
+          "Show the final configuration with variables replaced"
+        ],
+        [
+          "docker compose exec db sh",
+          "Shell in a running service"
+        ]
+      ]
+    },
+    {
+      "group": "Debug",
+      "items": [
+        [
+          "docker inspect name",
+          "Full configuration and state"
+        ],
+        [
+          "Exit code 137",
+          "Killed, often out of memory"
+        ],
+        [
+          "docker stats",
+          "Live CPU and memory per container"
+        ],
+        [
+          "docker network inspect net",
+          "Containers attached to a network"
+        ]
+      ]
+    },
+    {
+      "group": "Security and registries",
+      "items": [
+        [
+          "USER appuser",
+          "Run as non-root"
+        ],
+        [
+          "docker scout cves img / trivy image img",
+          "Scan for known vulnerabilities"
+        ],
+        [
+          "RUN --mount=type=secret,id=x",
+          "Build secret not stored in a layer"
+        ],
+        [
+          "docker tag img registry/ns/img:1.4.0",
+          "Name an image for a registry"
+        ],
+        [
+          "image@sha256:...",
+          "Digest: one exact, immutable image"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Connecting to localhost from one container to another: use the service name.",
     "Losing database data because no volume was mounted.",
     "Copying the whole project before installing dependencies, which rebuilds everything on each code change.",
-    "Baking passwords into the image with COPY .env or ENV."
+    "Baking passwords into the image with COPY .env or ENV.",
+    "Relying on depends_on without a healthcheck: the app starts before the database accepts connections.",
+    "Deleting a secret file in a later RUN and thinking it is gone: it is still in the earlier layer.",
+    "Running docker compose down -v by habit and losing the development database."
   ],
   "exercises": [
     {
@@ -197,6 +365,26 @@
       "hint": "Start a tiny throwaway container that mounts the same volume.",
       "code": "bash",
       "answer": "docker run --rm -v reports:/data alpine ls -l /data\ndocker volume inspect reports"
+    },
+    {
+      "q": "Your Python image is 1.1 GB. List three changes that make it smaller.",
+      "hint": "Base image, build tools, layers.",
+      "answer": "1) Use python:3.12-slim instead of the full python image for the final stage. 2) Use a multi-stage build so compilers and build dependencies stay in the build stage. 3) Install with pip --no-cache-dir and clean apt lists in the same RUN, and add a .dockerignore so data, .git and .venv are not copied. Check the result with docker image history."
+    },
+    {
+      "q": "Write the compose service for Redis with a healthcheck, and make a service worker wait for it to be healthy.",
+      "hint": "redis-cli ping answers PONG when Redis is ready.",
+      "code": "yaml",
+      "answer": "services:\n  cache:\n    image: redis:7\n    healthcheck:\n      test: [\"CMD\", \"redis-cli\", \"ping\"]\n      interval: 5s\n      retries: 5\n  worker:\n    build: .\n    depends_on:\n      cache:\n        condition: service_healthy"
+    },
+    {
+      "q": "A container stops with exit code 137 after a few minutes. How do you confirm the cause?",
+      "answer": "137 means the process was killed (signal 9). Run docker inspect --format '{{.State.OOMKilled}}' name: true means it used more memory than allowed. Watch memory with docker stats while it runs, check any --memory limit, then reduce memory use (smaller batches, streaming) or raise the limit."
+    },
+    {
+      "q": "Tag the local image report:2.0.0 for the registry ghcr.io/acme with the version and the short Git commit, then push both tags.",
+      "code": "bash",
+      "answer": "SHA=$(git rev-parse --short HEAD)\ndocker tag report:2.0.0 ghcr.io/acme/report:2.0.0\ndocker tag report:2.0.0 ghcr.io/acme/report:sha-$SHA\ndocker push ghcr.io/acme/report:2.0.0\ndocker push ghcr.io/acme/report:sha-$SHA"
     }
   ],
   "interview": [
@@ -215,6 +403,22 @@
     {
       "q": "How do you make a Docker image smaller and safer?",
       "a": "Start from a slim or distroless base, use a multi-stage build so build tools stay out of the final image, install only what is needed and clean caches in the same layer, add a .dockerignore, run as a non-root user, pin versions, never bake secrets into layers, and scan the image for vulnerabilities in CI."
+    },
+    {
+      "q": "What is a multi-stage build and why use it?",
+      "a": "A Dockerfile with several FROM stages where the final stage copies only the build output from earlier stages. Build tools, source code and caches stay out of the final image, so it is smaller, faster to deploy and has fewer packages that can contain vulnerabilities."
+    },
+    {
+      "q": "Why is depends_on not enough to make an API wait for its database?",
+      "a": "depends_on only orders container start-up: the database container may be running while the database is still initialising. Adding a healthcheck (pg_isready for PostgreSQL) and condition: service_healthy makes Compose wait until it really accepts connections. The application should also retry connections, since dependencies can restart later."
+    },
+    {
+      "q": "How do you handle secrets with Docker?",
+      "a": "Never put them in the image: no COPY of .env, no ENV with passwords, because layers and image metadata can be read by anyone who pulls the image. Inject them at run time from the platform (environment variables or mounted files from Compose, Kubernetes Secrets or a vault), and use BuildKit secret mounts when a build step needs a token."
+    },
+    {
+      "q": "What is the difference between an image tag and a digest?",
+      "a": "A tag is a human-readable label that can be moved to a new image at any time. A digest is the sha256 hash of the image content and always identifies the same image. Teams deploy immutable version tags (release number, commit) and can pin digests when they need exact reproducibility."
     }
   ]
 }

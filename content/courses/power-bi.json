@@ -4,7 +4,6 @@
   "lessons": [
     {
       "title": "Get and clean data with Power Query",
-      "minutes": 40,
       "text": [
         "Power Query (Transform data) is where you connect to sources (Excel, CSV, SQL, SharePoint) and clean them before they reach the model. Each step is recorded and replayed on refresh.",
         "Do cleaning here, not in visuals: set types, remove columns, split, unpivot, merge queries."
@@ -18,7 +17,6 @@
     },
     {
       "title": "Model: relationships and a date table",
-      "minutes": 40,
       "text": [
         "In Model view, connect fact tables to dimension tables with one-to-many relationships, filtering from dimension to fact. That is a star schema.",
         "Add a dedicated date table marked as date table, so time intelligence (year to date, previous year) works."
@@ -36,7 +34,6 @@
     },
     {
       "title": "DAX measures and CALCULATE",
-      "minutes": 50,
       "text": [
         "A measure is computed at query time in the current filter context (whatever the visual, slicers and filters select). That is why the same measure shows different values in each cell.",
         "CALCULATE changes the filter context: it is the most important DAX function."
@@ -55,7 +52,6 @@
     },
     {
       "title": "Design reports people use",
-      "minutes": 35,
       "text": [
         "Start from the questions the audience asks and put the answer at the top: 3 to 5 KPI cards, then the breakdowns, then the details.",
         "Consistency beats decoration: same colors for the same meaning, aligned visuals, clear titles that state the insight."
@@ -69,7 +65,6 @@
     },
     {
       "title": "Publish, refresh and secure reports",
-      "minutes": 40,
       "text": [
         "A report only helps once people can open it with fresh data. Publish from Power BI Desktop to a workspace in the Power BI service, set a scheduled refresh (with a gateway if the data is on-premises), and share it through an app so viewers get a clean, stable version.",
         "Row-level security (RLS) filters the data each person can see: a regional manager sees only their region in the same report. Define roles with DAX filters in Desktop, then assign people or groups to the roles in the service, and test with 'View as'."
@@ -84,6 +79,87 @@
         "lang": "dax",
         "code": "-- Row-level security role \"Region managers\" on table dim_store:\n[region] = LOOKUPVALUE(\n    dim_manager[region],\n    dim_manager[email], USERPRINCIPALNAME()\n)",
         "note": "Dynamic RLS: one role, the region comes from a mapping table of managers."
+      }
+    },
+    {
+      "title": "Data modelling in depth: star schema, cardinality and filter direction",
+      "text": [
+        "Power BI is built for star schemas. Fact tables hold events and numbers at a clear grain (one row per order line, per day and store); dimension tables describe them (product, customer, store, date) with one row per key. Relationships go from a dimension key to the matching fact column, and filters flow from the dimension (the one side) to the fact (the many side). This shape keeps DAX simple, gives correct totals and compresses well. A snowflake (Product to Subcategory to Category) works, but flattening it into one Product dimension in Power Query is usually simpler and faster.",
+        "Cardinality describes how keys match. Many-to-one (*:1) is the normal case and requires unique values on the one side; fact rows whose key is missing from the dimension are grouped under a blank member, a sign of data quality problems. One-to-one often means two tables should be merged. Many-to-many relationships exist, for example for a budget stored per month and category while sales are per day and product, but they are easy to misread: prefer bringing both facts to shared dimensions at the right grain.",
+        "Cross filter direction is single by default: the dimension filters the fact, not the reverse. Setting it to both lets a fact filter a dimension, which is tempting (show only products that sold) but creates ambiguous paths when there are several facts and slows the model. Keep single direction and solve the need in DAX or with a measure used as a visual filter.",
+        "A table can have only one active relationship to another table. When the fact has several dates (order date, ship date), keep the order date relationship active, create the others as inactive, and activate them in a measure with USERELATIONSHIP."
+      ],
+      "points": [
+        "Decide the grain of each fact table before building anything.",
+        "Use integer surrogate keys when you can: they compress better than long text keys.",
+        "A blank row in a slicer means fact keys with no match in the dimension.",
+        "Inactive relationships appear as dashed lines in Model view."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "-- Star schema:\n--   Dim_Date[Date] 1 --> * Fact_Sales[OrderDate]   (active)\n--   Dim_Date[Date] 1 --> * Fact_Sales[ShipDate]    (inactive)\n--   Dim_Product[ProductKey] 1 --> * Fact_Sales[ProductKey]\n--   Dim_Store[StoreKey]     1 --> * Fact_Sales[StoreKey]\n\nSales by Ship Date =\nCALCULATE (\n    [Total Sales],\n    USERELATIONSHIP ( Fact_Sales[ShipDate], Dim_Date[Date] )\n)",
+        "note": "One date table serves both dates: the measure switches to the ship date relationship only while it is evaluated."
+      }
+    },
+    {
+      "title": "DAX intermediate: filter context, CALCULATE and time intelligence",
+      "text": [
+        "Every measure is evaluated in a filter context: the filters coming from the visual's rows and columns, slicers, page and report filters, and relationships. CALCULATE evaluates an expression in a modified version of that context. A filter argument on a column replaces any existing filter on that column: CALCULATE([Total Sales], Dim_Product[Category] = \"Bikes\") shows bike sales even when the slicer selects Accessories. Wrap it in KEEPFILTERS to intersect with the slicer instead, and use REMOVEFILTERS or ALL to remove filters, for example for a percentage of total.",
+        "Measures and calculated columns are evaluated differently. A calculated column is computed row by row at refresh, in a row context, and stored: use it for attributes you slice by, such as a price band. A measure is computed at query time in the filter context: use it for anything you aggregate. When CALCULATE runs inside a row context (in a calculated column or an iterator like SUMX), it turns the current row into a filter: this is context transition, and it is why referencing a measure inside SUMX works per row.",
+        "Variables (VAR ... RETURN) make measures readable and faster, because each variable is computed once. Note that a variable is evaluated where it is defined: a VAR computed before CALCULATE is not affected by the filters CALCULATE adds later.",
+        "Time intelligence functions such as DATESYTD, DATEADD and DATESINPERIOD return a table of dates that CALCULATE uses as a filter. They need a proper date table: one row per day, no gaps, covering whole years, marked as date table, and related to the facts. Turn off the automatic date/time option so Power BI does not create hidden date tables for every date column."
+      ],
+      "points": [
+        "Iterators (SUMX, AVERAGEX) compute an expression per row, then aggregate.",
+        "ALLEXCEPT(Dim_Product, Dim_Product[Category]) removes all product filters but the category.",
+        "DATEADD(Dim_Date[Date], -1, MONTH) shifts the current period back one month.",
+        "Check a measure in a table visual with the dimension on rows before using it in charts."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Revenue = SUMX ( Fact_Sales, Fact_Sales[Quantity] * Fact_Sales[UnitPrice] )\n\nBike Sales (respects slicer) =\nCALCULATE ( [Revenue], KEEPFILTERS ( Dim_Product[Category] = \"Bikes\" ) )\n\nRevenue YTD = CALCULATE ( [Revenue], DATESYTD ( Dim_Date[Date] ) )\n\nRevenue Prev Month = CALCULATE ( [Revenue], DATEADD ( Dim_Date[Date], -1, MONTH ) )\n\nRevenue Rolling 12M =\nVAR LastVisibleDate = MAX ( Dim_Date[Date] )\nRETURN\n    CALCULATE (\n        [Revenue],\n        DATESINPERIOD ( Dim_Date[Date], LastVisibleDate, -12, MONTH )\n    )",
+        "note": "LastVisibleDate is computed in the current filter context, before CALCULATE replaces the date filter."
+      }
+    },
+    {
+      "title": "Power Query intermediate: merges, appends, parameters and query folding",
+      "text": [
+        "Merge queries is a join. Pick the key columns in both tables and a join kind: Left Outer keeps every row of the first table, Inner keeps only matches, Left Anti keeps rows with no match, which is perfect to find orders whose customer is missing. After the merge, expand only the columns you need. Append queries stacks tables with the same columns, such as one file per month; the From Folder connector with Combine Files appends every file of a folder automatically, so next month's file is picked up on refresh.",
+        "Parameters remove hard-coded values. Create them in Manage Parameters (server name, database, a start date) and use them in the source step. Switching from the test to the production server becomes a change in one place, and in the Power BI service parameters can be edited in the semantic model settings. Incremental refresh is built on two special DateTime parameters, RangeStart and RangeEnd.",
+        "Query folding means Power Query translates your steps into one query run by the source, for example a SQL statement with WHERE and GROUP BY. The database does the work and only the result travels to Power BI, which matters a lot for large tables. Right-click a step: if View Native Query is available, the step folds. Filtering rows, removing columns, simple merges between tables of the same database and grouping usually fold; adding an index column, many custom M functions or merging with an Excel file break folding, and every step after that runs locally. Put foldable steps first."
+      ],
+      "points": [
+        "Left Anti merge = rows without a match, a quick data quality check.",
+        "Append needs the same column names; mismatched names create extra columns full of nulls.",
+        "Reference a query instead of duplicating it, so cleaning steps are written once.",
+        "Disable load on staging queries you only use for merges.",
+        "Incremental refresh needs a filter on RangeStart and RangeEnd that folds to the source."
+      ],
+      "example": {
+        "lang": "m",
+        "code": "let\n    Source = Sql.Database(ServerName, \"SalesDB\"),\n    Sales = Source{[Schema = \"dbo\", Item = \"FactSales\"]}[Data],\n    Recent = Table.SelectRows(Sales, each [OrderDate] >= #date(2025, 1, 1)),\n    KeptColumns = Table.SelectColumns(Recent, {\"OrderID\", \"OrderDate\", \"ProductID\", \"Amount\"}),\n    Merged = Table.NestedJoin(KeptColumns, {\"ProductID\"}, Dim_Product, {\"ProductID\"}, \"Product\", JoinKind.LeftOuter),\n    Expanded = Table.ExpandTableColumn(Merged, \"Product\", {\"Category\"})\nin\n    Expanded",
+        "note": "ServerName is a parameter. Filter and column selection fold into SQL; the merge folds only if Dim_Product comes from the same database."
+      }
+    },
+    {
+      "title": "Performance and publishing in depth",
+      "text": [
+        "In Import mode Power BI stores data in its compressed in-memory engine (VertiPaq), which compresses each column separately. Model size depends mostly on the number of distinct values per column, not the number of rows. A datetime column with seconds, a transaction id or a free-text comment can weigh more than the rest of the model: remove columns you do not need, split date and time, and round values where precision does not matter. DirectQuery leaves data in the source and sends queries on every interaction: fresher data, but slower visuals and more load on the source; use it when data must be near real time or is too large to import.",
+        "To find a slow visual, open Performance Analyzer, start recording and refresh the visuals. Each visual shows its DAX query time, visual display time and other time. A slow DAX query points to the measure or the model; a slow display points to too many points or visuals. You can copy the query and analyse it further in DAX Studio, a free external tool.",
+        "In the service, a workspace has four roles: Admin, Member, Contributor and Viewer. Builders get Contributor or Member; consumers should be Viewers or use the app. Row-level security only applies to people who view content: workspace Admins, Members and Contributors see all the data, so test RLS with View as role and give report readers the Viewer role.",
+        "Data on-premises (a SQL Server in the office, files on a network share) needs an on-premises data gateway in standard mode, installed on an always-on server and shared by the team; personal mode is for one user only. Cloud sources such as SharePoint Online or Azure SQL do not need a gateway. Shared capacity allows up to 8 scheduled refreshes a day, Premium capacities more; for big tables, incremental refresh only reloads recent partitions."
+      ],
+      "points": [
+        "Fewer distinct values = smaller, faster model.",
+        "Performance Analyzer: DAX query vs visual display time tells you where to look.",
+        "RLS does not restrict workspace Admins, Members or Contributors.",
+        "Gateway in standard mode on a server, not on a laptop that goes to sleep.",
+        "Check refresh history and enable failure notifications after publishing."
+      ],
+      "example": {
+        "lang": "m",
+        "code": "// Incremental refresh filter on the fact query (RangeStart and RangeEnd are DateTime parameters)\nFiltered = Table.SelectRows(\n    Sales,\n    each [OrderDateTime] >= RangeStart and [OrderDateTime] < RangeEnd\n)",
+        "note": "Use >= on one side and < on the other so no row is loaded twice; the policy itself is set on the table in Desktop."
       }
     }
   ],
@@ -166,13 +242,104 @@
           "Readable measures"
         ]
       ]
+    },
+    {
+      "group": "Modelling in depth",
+      "items": [
+        [
+          "Grain",
+          "What one row of a fact table represents"
+        ],
+        [
+          "Many-to-one (*:1)",
+          "Normal fact-to-dimension relationship"
+        ],
+        [
+          "Cross filter direction: single",
+          "Dimension filters fact (default, preferred)"
+        ],
+        [
+          "USERELATIONSHIP(Fact[ShipDate], Dim_Date[Date])",
+          "Activate an inactive relationship in a measure"
+        ]
+      ]
+    },
+    {
+      "group": "DAX intermediate",
+      "items": [
+        [
+          "KEEPFILTERS(filter)",
+          "Intersect with existing filters instead of replacing them"
+        ],
+        [
+          "REMOVEFILTERS(table or column)",
+          "Clear filters"
+        ],
+        [
+          "SUMX(table, expression)",
+          "Row-by-row calculation, then sum"
+        ],
+        [
+          "DATEADD(Dim_Date[Date], -1, MONTH)",
+          "Previous month"
+        ],
+        [
+          "DATESINPERIOD(Dim_Date[Date], d, -12, MONTH)",
+          "Rolling 12 months ending at d"
+        ]
+      ]
+    },
+    {
+      "group": "Power Query intermediate",
+      "items": [
+        [
+          "Left Anti join",
+          "Rows with no match in the other table"
+        ],
+        [
+          "From Folder + Combine Files",
+          "Append every file of a folder"
+        ],
+        [
+          "Manage Parameters",
+          "Server, database or dates in one place"
+        ],
+        [
+          "View Native Query",
+          "Available = the step folds to the source"
+        ]
+      ]
+    },
+    {
+      "group": "Performance and service",
+      "items": [
+        [
+          "Performance Analyzer",
+          "Time per visual: DAX query, display, other"
+        ],
+        [
+          "Import / DirectQuery",
+          "Fast cached copy / live queries to the source"
+        ],
+        [
+          "Admin, Member, Contributor, Viewer",
+          "Workspace roles"
+        ],
+        [
+          "On-premises data gateway (standard mode)",
+          "Refresh on-premises sources from the service"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "One big flat table instead of a star schema: slow and wrong totals.",
     "Calculated columns where a measure is needed (they do not react to filters).",
     "Using the automatic date hierarchy instead of a real date table.",
-    "Bi-directional relationships everywhere, which create ambiguous results."
+    "Bi-directional relationships everywhere, which create ambiguous results.",
+    "Setting relationships to both directions to make a visual work, then getting ambiguous or slow results.",
+    "Adding a step that breaks query folding early, so millions of rows are pulled before filtering.",
+    "Testing RLS while being workspace Admin and believing it works for everyone."
   ],
   "exercises": [
     {
@@ -194,6 +361,25 @@
       "hint": "A role filter is a DAX expression that returns true for allowed rows.",
       "code": "dax",
       "answer": "[country] = \"France\""
+    },
+    {
+      "q": "Fact_Sales has OrderDate and DeliveryDate. Only OrderDate is related to Dim_Date (active). Write a measure for sales by delivery date.",
+      "hint": "Create the second relationship as inactive first.",
+      "code": "dax",
+      "answer": "Sales by Delivery Date =\nCALCULATE (\n    [Total Sales],\n    USERELATIONSHIP ( Fact_Sales[DeliveryDate], Dim_Date[Date] )\n)"
+    },
+    {
+      "q": "Write a measure for sales of the same period in the previous month, and a measure for the month-over-month change in percent.",
+      "code": "dax",
+      "answer": "Sales PM = CALCULATE ( [Total Sales], DATEADD ( Dim_Date[Date], -1, MONTH ) )\n\nSales MoM % =\nVAR cur = [Total Sales]\nVAR prev = [Sales PM]\nRETURN DIVIDE ( cur - prev, prev )"
+    },
+    {
+      "q": "You need the list of orders whose CustomerID does not exist in the customer table. How do you get it in Power Query?",
+      "answer": "Merge Orders with Customers on CustomerID using the Left Anti join kind. The result contains only orders without a matching customer; count them, show them to the data owner, and decide whether to fix the source or map them to an Unknown customer."
+    },
+    {
+      "q": "Your model is 1.5 GB and refresh is slow. Name four things you check.",
+      "answer": "1) Columns with many distinct values (ids, datetimes with seconds, comments) using a tool such as VertiPaq Analyzer in DAX Studio, and remove or split them. 2) Unused columns and tables. 3) Calculated columns that could be done in Power Query or replaced by measures. 4) Whether query folding works, and whether incremental refresh can reload only recent data."
     }
   ],
   "interview": [
@@ -212,6 +398,22 @@
     {
       "q": "How do you make sure each manager only sees their own region in a shared report?",
       "a": "With row-level security: a role whose DAX filter on the region table uses USERPRINCIPALNAME() and a mapping table of managers to regions, so one role serves everyone. I publish the semantic model, assign the role to a group in the service, test with 'View as' for a few users, and make sure the relationships propagate the filter to the fact tables."
+    },
+    {
+      "q": "Why do you avoid bi-directional relationships?",
+      "a": "With several fact tables they create more than one filter path between tables, which gives ambiguous results, and they make queries slower. I keep single direction from dimension to fact and handle special needs in DAX, for example with CROSSFILTER in one measure or a measure used as a visual filter."
+    },
+    {
+      "q": "What is context transition?",
+      "a": "When CALCULATE is evaluated inside a row context, such as a calculated column or an iterator like SUMX, it turns the current row into an equivalent filter context. That is why a measure referenced inside SUMX over customers returns the value for each customer. It is powerful but can be slow on large tables."
+    },
+    {
+      "q": "What is query folding and why does it matter?",
+      "a": "Query folding is Power Query translating the applied steps into a native query executed by the source, for example SQL. The database filters and aggregates, so less data is transferred and refresh is faster. Incremental refresh depends on it. I check it with View Native Query and keep folding steps before steps that break it."
+    },
+    {
+      "q": "When would you choose DirectQuery instead of Import?",
+      "a": "When data must be close to real time or is too large to import, or when the data must stay in the source for governance reasons. The cost is slower visuals, load on the source database and some DAX and Power Query limitations, so Import remains the default and composite models can mix both."
     }
   ]
 }

@@ -1,0 +1,154 @@
+{
+  "projects": [
+    {
+      "id": "do-cicd-pipeline",
+      "title": "Application conteneurisée et pipeline CI/CD",
+      "level": "Junior",
+      "hours": 14,
+      "skills": ["Docker", "CI/CD", "Git", "Linux", "Python"],
+      "summary": "Conteneurisez une petite application web et construisez un pipeline GitHub Actions qui la teste, construit une image, la pousse sur GitHub Container Registry et la déploie.",
+      "why": "Presque toutes les offres DevOps demandent Docker et la CI/CD. Un dépôt public où chaque push lance les tests, construit une image versionnée et la déploie montre aux recruteurs que vous savez automatiser une livraison de bout en bout, et ils peuvent en lire chaque ligne.",
+      "data": [
+        { "name": "Documentation GitHub Actions", "url": "https://docs.github.com/en/actions", "note": "Workflows, jobs, déclencheurs, secrets, environnements. Minutes gratuites pour les dépôts publics." },
+        { "name": "Utiliser le GitHub Container registry", "url": "https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry", "note": "Comment pousser des images sur ghcr.io avec GITHUB_TOKEN et la permission packages: write." },
+        { "name": "docker/build-push-action", "url": "https://github.com/docker/build-push-action", "note": "Action officielle pour construire et pousser des images avec Buildx et le cache des couches." }
+      ],
+      "steps": [
+        { "title": "Écrire ou choisir une petite application", "text": "Utilisez une petite API Python (Flask ou FastAPI) ou Node avec deux ou trois endpoints, dont un endpoint /health qui renvoie 200. Ajoutez 3 à 5 tests unitaires lancés par une seule commande (pytest ou npm test). Gardez l’application simple : le projet porte sur la livraison, pas sur les fonctionnalités." },
+        { "title": "Écrire un bon Dockerfile", "text": "Écrivez un Dockerfile avec une image de base officielle légère et une version fixée, les dépendances installées avant la copie du code (pour le cache des couches), un utilisateur non root et un HEALTHCHECK ou un endpoint de santé documenté. Ajoutez un .dockerignore. Construisez et lancez l’image en local, puis vérifiez sa taille et que le conteneur s’arrête proprement." },
+        { "title": "Ajouter un workflow de CI", "text": "Créez .github/workflows/ci.yml, déclenché sur les pull requests et les push sur main : récupération du code, installation du langage, installation des dépendances avec cache, linter et tests. Protégez la branche main pour qu’une pull request ne puisse être fusionnée que si la CI est verte. Ouvrez une pull request avec un test en échec pour voir la protection fonctionner." },
+        { "title": "Construire et pousser l’image", "text": "Ajoutez un job qui ne s’exécute que sur main après les tests, se connecte à ghcr.io avec GITHUB_TOKEN, puis construit et pousse l’image avec docker/build-push-action. Étiquetez les images avec le SHA du commit et latest, et définissez permissions: packages: write uniquement sur ce job. Vérifiez que l’image apparaît dans vos packages GitHub et peut être récupérée." },
+        { "title": "Déployer automatiquement", "text": "Ajoutez un job de déploiement qui utilise un environnement GitHub (par exemple staging) pour pouvoir exiger une approbation. La cible gratuite la plus simple est votre propre machine : enregistrez un runner auto-hébergé sur une VM Linux ou WSL, et faites en sorte que le job récupère la nouvelle image et redémarre le conteneur avec docker compose. Terminez par un smoke test qui appelle /health et fait échouer le job s’il ne répond pas 200." },
+        { "title": "Prévoir le retour arrière", "text": "Comme les images sont étiquetées par SHA de commit, décrivez et testez le retour arrière : redéployer l’étiquette précédente en une commande ou en relançant le workflow avec un paramètre. Cassez volontairement un déploiement (une application qui plante au démarrage) et vérifiez que le smoke test échoue et que le retour arrière fonctionne." },
+        { "title": "Ajouter une sécurité de base", "text": "Gardez les secrets dans les secrets GitHub, jamais dans le dépôt, et donnez au workflow les permissions minimales. Ajoutez une analyse de vulnérabilités de l’image comme Trivy dans le pipeline et décidez à partir de quelle gravité le build échoue. Fixez la version des actions tierces." },
+        { "title": "Documenter le pipeline", "text": "Rédigez un README avec un schéma du pipeline (push, tests, build, push de l’image, déploiement, smoke test), comment lancer l’application en local, comment déployer et comment revenir en arrière. Ajoutez le badge de statut de la CI. Gardez un historique de commits propre avec des messages explicites." }
+      ],
+      "deliverables": [
+        "Dépôt GitHub public avec l’application, les tests, le Dockerfile et le .dockerignore",
+        "Workflows GitHub Actions pour la CI, la construction de l’image et le déploiement",
+        "Images versionnées dans GitHub Container Registry",
+        "README avec schéma du pipeline, instructions de lancement, de déploiement et de retour arrière, et badge CI"
+      ],
+      "checklist": [
+        "L’image s’exécute-t-elle avec un utilisateur non root et une image de base à version fixée ?",
+        "La branche main est-elle protégée pour que des tests en échec bloquent la fusion ?",
+        "Les images sont-elles étiquetées avec le SHA du commit, pas seulement latest ?",
+        "Le workflow ne demande-t-il que les permissions dont il a besoin ?",
+        "Le job de déploiement se termine-t-il par un smoke test capable de faire échouer l’exécution ?",
+        "Avez-vous testé un retour arrière vers la version précédente ?",
+        "Aucun secret n’apparaît-il dans le dépôt ou dans les logs du workflow ?",
+        "Quelqu’un pourrait-il reproduire la configuration à partir du seul README ?"
+      ],
+      "cv": {
+        "bullet": "Construction d’un pipeline CI/CD GitHub Actions pour une application [Python / Node] conteneurisée (projet personnel) : tests à chaque pull request, images poussées sur GHCR étiquetées par commit, déploiement automatisé avec smoke test et retour arrière testé en [N] minutes.",
+        "talk": "Déroulez ce qui se passe entre le git push et le conteneur en production, et pourquoi chaque étape existe. Décrivez ensuite le déploiement raté que vous avez provoqué, comment le pipeline l’a détecté et comment vous êtes revenu en arrière."
+      },
+      "stretch": [
+        "Construisez des images multi-architectures (amd64 et arm64) avec Buildx.",
+        "Ajoutez des environnements de prévisualisation pour les pull requests.",
+        "Automatisez les releases avec une release GitHub et un changelog générés à partir des tags."
+      ]
+    },
+    {
+      "id": "do-kubernetes-helm",
+      "title": "Déploiement Kubernetes avec Helm et supervision",
+      "level": "Junior+",
+      "hours": 20,
+      "skills": ["Kubernetes", "Helm", "Docker", "Prometheus", "Grafana", "Monitoring"],
+      "summary": "Déployez votre application conteneurisée sur un cluster Kubernetes local avec votre propre chart Helm, des sondes de santé et une configuration externalisée, puis supervisez-la avec Prometheus et Grafana.",
+      "why": "Kubernetes est la compétence plateforme la plus demandée dans les offres DevOps, et les juniors en ont rarement une preuve concrète. Un cluster local avec un chart Helm propre, des sondes qui fonctionnent et un tableau de bord montre que vous comprenez comment les applications sont exécutées, configurées et observées en production.",
+      "data": [
+        { "name": "kind (Kubernetes in Docker)", "url": "https://kind.sigs.k8s.io/", "note": "Cluster Kubernetes local gratuit qui tourne dans des conteneurs Docker ; minikube est une bonne alternative." },
+        { "name": "Documentation Helm", "url": "https://helm.sh/docs/", "note": "Charts, templates, values, install, upgrade et rollback." },
+        { "name": "Chart kube-prometheus-stack", "url": "https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack", "note": "Chart Helm communautaire qui installe Prometheus, Alertmanager et Grafana en une fois." }
+      ],
+      "steps": [
+        { "title": "Créer le cluster", "text": "Installez kubectl, kind et Helm, puis créez un cluster à partir d’un fichier de configuration (un nœud control-plane et deux workers suffisent). Vérifiez-le avec kubectl get nodes et kubectl get pods -A. Chargez l’image de votre application dans kind ou récupérez-la depuis GHCR ; rendez l’image publique ou créez un image pull secret." },
+        { "title": "Déployer d’abord avec des manifestes simples", "text": "Écrivez un Deployment avec 2 réplicas et un Service, appliquez-les et accédez à l’application avec kubectl port-forward. Supprimez un pod et regardez le Deployment le recréer. Le faire une fois à la main rend les templates Helm bien plus faciles à comprendre." },
+        { "title": "Ajouter les sondes et les ressources", "text": "Ajoutez une readiness probe et une liveness probe sur l’endpoint /health avec des délais raisonnables, et définissez des requests et limits de CPU et de mémoire. Testez-les : faites échouer /health et observez le pod sortir des endpoints du Service, puis être redémarré. Expliquez dans votre README pourquoi readiness et liveness sont différentes." },
+        { "title": "Externaliser la configuration", "text": "Déplacez les paramètres dans une ConfigMap et les données sensibles dans un Secret, et injectez-les comme variables d’environnement. Montrez que modifier la ConfigMap puis redémarrer le rollout change le comportement de l’application sans reconstruire l’image. Ne versionnez jamais de vraies valeurs secrètes ; utilisez un fichier de values ignoré ou des valeurs fictives." },
+        { "title": "Packager en chart Helm", "text": "Créez un chart avec helm create, ne gardez que l’utile et paramétrez dans values.yaml l’étiquette de l’image, le nombre de réplicas, les ressources, les sondes et la configuration. Lancez helm lint et helm template pour vérifier le rendu, puis helm install. Faites un upgrade avec une nouvelle étiquette d’image puis un helm rollback vers la révision précédente." },
+        { "title": "Installer la supervision", "text": "Installez kube-prometheus-stack avec Helm dans un namespace monitoring. Ouvrez Grafana avec port-forward et explorez les tableaux de bord du cluster fournis. Si votre application expose /metrics, ajoutez un ServiceMonitor via votre chart pour que Prometheus la collecte, et vérifiez que la cible est up dans Prometheus." },
+        { "title": "Construire un tableau de bord et une alerte", "text": "Dans Grafana, construisez un tableau de bord applicatif : redémarrages de pods, CPU et mémoire par rapport aux requests et limits, réplicas disponibles, et débit de requêtes si vous avez des métriques applicatives. Ajoutez une PrometheusRule qui alerte quand l’application a moins de réplicas prêts que souhaité pendant 5 minutes. Déclenchez-la en déployant une version cassée et vérifiez qu’elle se déclenche." },
+        { "title": "S’entraîner au diagnostic", "text": "Cassez volontairement des choses et réparez-les avec kubectl describe, kubectl logs et kubectl get events : mauvaise étiquette d’image (ImagePullBackOff), conteneur qui plante (CrashLoopBackOff), limite mémoire trop basse (OOMKilled), sélecteur de Service qui ne correspond à rien. Rédigez un court guide de diagnostic à partir de ce que vous avez observé." },
+        { "title": "Documenter et publier", "text": "Versionnez la configuration kind, les manifestes, le chart Helm et les values de supervision sur GitHub avec un README : schéma d’architecture, commandes d’installation, déploiement, mise à jour et retour arrière, et captures des tableaux de bord. Ajoutez le guide de diagnostic. Vérifiez que tout peut être recréé de zéro en quelques commandes." }
+      ],
+      "deliverables": [
+        "Dépôt avec la configuration kind, les manifestes bruts et un chart Helm pour l’application",
+        "values.yaml avec image, réplicas, ressources, sondes et configuration",
+        "Values kube-prometheus-stack, ServiceMonitor et une PrometheusRule",
+        "JSON du tableau de bord Grafana et captures d’écran",
+        "README avec installation, déploiement, mise à jour, retour arrière et guide de diagnostic"
+      ],
+      "checklist": [
+        "L’environnement complet peut-il être recréé à partir du README en quelques commandes ?",
+        "Les sondes readiness et liveness existent-elles toutes les deux, et savez-vous expliquer la différence ?",
+        "Les requests et limits de CPU et de mémoire sont-elles définies pour l’application ?",
+        "La configuration est-elle dans une ConfigMap et les valeurs sensibles dans un Secret, jamais versionnées ?",
+        "helm lint passe-t-il, et avez-vous fait un upgrade et un rollback ?",
+        "Prometheus collecte-t-il l’application (ou au moins les métriques de ses pods) et la cible est-elle up ?",
+        "Votre alerte s’est-elle déclenchée quand vous avez provoqué la condition ?",
+        "Savez-vous diagnostiquer ImagePullBackOff, CrashLoopBackOff et OOMKilled à partir de la sortie de kubectl ?"
+      ],
+      "cv": {
+        "bullet": "Déploiement d’une application conteneurisée sur un cluster Kubernetes local (kind) avec un chart Helm sur mesure (projet personnel) : sondes, limites de ressources, configuration ConfigMap / Secret, supervision Prometheus et Grafana avec [N] règles d’alerte ; retour arrière testé en [X] secondes.",
+        "talk": "Expliquez comment une requête atteint votre pod et ce que fait Kubernetes quand la readiness probe échoue. Décrivez ensuite une panne que vous avez provoquée, comment vous l’avez trouvée avec kubectl et ce que montrait le tableau de bord."
+      },
+      "stretch": [
+        "Ajoutez un Ingress controller et exposez l’application sur un nom d’hôte local.",
+        "Ajoutez un HorizontalPodAutoscaler et testez-le sous charge.",
+        "Déployez le chart depuis Git avec Argo CD (GitOps)."
+      ]
+    },
+    {
+      "id": "do-terraform-iac",
+      "title": "Infrastructure as code avec Terraform",
+      "level": "Junior+",
+      "hours": 18,
+      "skills": ["Terraform", "AWS", "CI/CD", "Git", "Linux"],
+      "summary": "Décrivez un petit environnement en Terraform, stockez l’état à distance, lancez le plan automatiquement en CI à chaque pull request et maîtrisez les coûts avec une checklist de nettoyage.",
+      "why": "Les équipes ne construisent plus l’infrastructure à coups de clics dans une console. Un dépôt Terraform avec des modules, un état distant et un plan relu en CI montre que vous savez modifier une infrastructure de façon sûre et reproductible, exactement ce que testent les entretiens DevOps.",
+      "data": [
+        { "name": "Tutoriels Terraform AWS get-started", "url": "https://developer.hashicorp.com/terraform/tutorials/aws-get-started", "note": "Tutoriels officiels pas à pas : installation, création, modification, destruction, variables, outputs, état distant." },
+        { "name": "Offre gratuite AWS", "url": "https://aws.amazon.com/free/", "note": "Une carte bancaire est obligatoire pour ouvrir un compte AWS. Lisez les conditions actuelles de l’offre gratuite et créez une alerte de budget avant de créer quoi que ce soit." },
+        { "name": "Provider Terraform Docker", "url": "https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs", "note": "Option sans carte : gérez des conteneurs, réseaux et images Docker locaux avec le même workflow Terraform." }
+      ],
+      "steps": [
+        { "title": "Choisir sa cible et protéger son portefeuille", "text": "L’option A est AWS : une carte est obligatoire, donc activez d’abord la MFA sur le compte root, créez un utilisateur ou un rôle IAM pour Terraform et configurez une alerte AWS Budgets à quelques euros. L’option B est entièrement gratuite : utilisez le provider Docker en local pour créer un réseau, un conteneur de base de données et le conteneur de votre application. Les compétences Terraform sont les mêmes ; indiquez clairement dans votre README l’option choisie." },
+        { "title": "Écrire la première configuration", "text": "Installez Terraform, fixez les versions de Terraform et des providers dans un bloc terraform, et décrivez un petit environnement : pour AWS un VPC avec un sous-réseau public, un security group et une petite instance ou un bucket S3 ; pour Docker un réseau et deux conteneurs. Lancez terraform init, fmt, validate, plan et apply, puis lisez l’état avec terraform state list." },
+        { "title": "Utiliser variables, outputs et un module", "text": "Remplacez les valeurs codées en dur par des variables typées, décrites et validées, et exposez les valeurs utiles en outputs. Extrayez une partie réutilisable (par exemple le réseau ou le conteneur de l’application) dans un module local. Créez deux environnements, dev et staging, qui appellent le même module avec des fichiers de variables différents." },
+        { "title": "Stocker l’état à distance", "text": "Configurez un backend distant pour que l’état ne soit pas seulement sur votre ordinateur : sur AWS un bucket S3 avec versioning, chiffrement et verrouillage de l’état activés, ou l’offre gratuite HCP Terraform pour l’une ou l’autre option. Migrez l’état existant avec terraform init et vérifiez que le fichier local n’est plus utilisé. Ajoutez *.tfstate et .terraform/ au .gitignore." },
+        { "title": "Lancer le plan en CI", "text": "Créez un workflow GitHub Actions déclenché sur les pull requests : terraform fmt -check, validate et plan, avec un résumé du plan publié dans la pull request. Pour AWS, utilisez OpenID Connect pour assumer un rôle au lieu de stocker des clés d’accès permanentes. Gardez l’apply manuel, ou lancez-le uniquement sur main avec un environnement soumis à approbation." },
+        { "title": "Faire un changement en sécurité", "text": "Ouvrez une pull request qui modifie quelque chose (un tag supplémentaire, une taille d’instance, un nouveau port), lisez attentivement le plan et notez ce qui sera modifié, remplacé ou détruit. Fusionnez, appliquez et vérifiez que l’état correspond. Modifiez ensuite quelque chose à la main dans la console ou avec docker et utilisez terraform plan pour détecter la dérive." },
+        { "title": "Maîtriser les coûts et nettoyer", "text": "Étiquetez chaque ressource avec le projet et le propriétaire. Rédigez une checklist de coûts et de nettoyage : ce que chaque ressource pourrait coûter si elle restait active, comment lancer terraform destroy pour chaque environnement, comment vérifier dans la console qu’il ne reste rien (instances, volumes, IP, snapshots, buckets) et quand supprimer en dernier le bucket d’état. Appliquez-la et gardez une capture du compte vide ou des ressources détruites." },
+        { "title": "Documenter et publier", "text": "Publiez le dépôt avec un README : schéma d’architecture, prérequis, commandes pour plan, apply et destroy, fonctionnement de la CI et checklist de coûts. Ajoutez une courte section de décisions expliquant vos choix (backend, découpage des modules, ce que vous n’avez pas automatisé)." }
+      ],
+      "deliverables": [
+        "Dépôt Terraform avec versions fixées, variables, outputs et un module local",
+        "Environnements dev et staging utilisant le même module",
+        "Configuration de l’état distant avec verrouillage",
+        "Workflow GitHub Actions lançant fmt, validate et plan sur les pull requests",
+        "README avec schéma, commandes, checklist de coûts et de nettoyage, et décisions"
+      ],
+      "checklist": [
+        "Les versions de Terraform et des providers sont-elles fixées ?",
+        "L’état est-il stocké à distance avec verrouillage, et aucun fichier d’état n’est-il versionné ?",
+        "Les variables ont-elles un type et une description, et les secrets sont-ils hors du code ?",
+        "La CI lance-t-elle fmt -check, validate et plan à chaque pull request ?",
+        "La CI s’authentifie-t-elle sans clés permanentes (OIDC) avec un cloud ?",
+        "Avez-vous lu un plan qui remplace une ressource et compris pourquoi ?",
+        "Avez-vous détecté une dérive avec terraform plan après une modification manuelle ?",
+        "Une alerte de budget a-t-elle été créée avant les ressources cloud, et terraform destroy n’a-t-il rien laissé actif ?"
+      ],
+      "cv": {
+        "bullet": "Écriture du code Terraform d’un environnement [AWS / Docker local] (projet personnel) : module réutilisable pour [N] environnements, état distant avec verrouillage, plan à chaque pull request dans GitHub Actions, et checklist de coûts et de nettoyage.",
+        "talk": "Expliquez comment un changement passe d’une pull request à une infrastructure appliquée et ce que vous regardez dans un plan avant de l’approuver. Parlez ensuite de la façon dont vous avez maintenu un coût nul ou quasi nul et vérifié que rien ne restait actif."
+      },
+      "stretch": [
+        "Ajoutez des contrôles statiques comme tflint et un scanner de sécurité au pipeline.",
+        "Configurez le serveur créé avec Ansible une fois provisionné par Terraform.",
+        "Reconstruisez le même environnement sur Azure ou GCP et comparez les providers."
+      ]
+    }
+  ]
+}

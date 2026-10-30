@@ -4,7 +4,6 @@
   "lessons": [
     {
       "title": "Valeurs, listes et dictionnaires",
-      "minutes": 45,
       "text": [
         "Python a quelques types de base que vous utiliserez toute la journée : int, float, str, bool, None, list (ordonnée, modifiable), dict (clé vers valeur), tuple (liste figée) et set (valeurs uniques).",
         "L’indentation fait partie de la syntaxe : le corps d’un if, d’un for ou d’un def est le bloc indenté en dessous."
@@ -22,7 +21,6 @@
     },
     {
       "title": "Fonctions et structures de contrôle",
-      "minutes": 40,
       "text": [
         "Une fonction regroupe de la logique derrière un nom pour pouvoir la tester et la réutiliser. Donnez-lui des paramètres clairs, faites-lui renvoyer une valeur et évitez de modifier des variables globales.",
         "if / elif / else choisit une branche ; for parcourt n’importe quel itérable ; while répète tant qu’une condition est vraie."
@@ -40,7 +38,6 @@
     },
     {
       "title": "Fichiers, JSON et erreurs",
-      "minutes": 45,
       "text": [
         "Utilisez with open(...) pour que le fichier soit toujours fermé. Les modules csv et json de la bibliothèque standard couvrent la plupart des formats simples.",
         "Les erreurs sont des exceptions. Interceptez celles que vous attendez précisément avec try / except, journalisez un message clair et laissez remonter les erreurs inattendues."
@@ -58,7 +55,6 @@
     },
     {
       "title": "Packages, environnements virtuels et appel d’API",
-      "minutes": 45,
       "text": [
         "Installez les packages tiers avec pip dans un environnement virtuel, pour que chaque projet ait ses propres versions. Enregistrez-les dans requirements.txt.",
         "Le package requests appelle des API web ; définissez toujours un timeout et vérifiez le code de statut."
@@ -76,7 +72,6 @@
     },
     {
       "title": "Du code propre et testable : logging, annotations de type et pytest",
-      "minutes": 45,
       "text": [
         "Les scripts qui tournent en production ont besoin de plus que print(). Le module logging écrit des messages horodatés avec un niveau (DEBUG, INFO, WARNING, ERROR) que vous pouvez filtrer et envoyer vers des fichiers ou la supervision.",
         "De petites fonctions avec des entrées et sorties claires sont faciles à tester. pytest trouve les fichiers nommés test_*.py et exécute chaque fonction qui commence par test_ ; un assert en échec montre exactement la différence. Les annotations de type documentent ce qu’attend une fonction et permettent aux outils de repérer des erreurs avant l’exécution."
@@ -91,6 +86,105 @@
         "lang": "python",
         "code": "import logging\n\nlogging.basicConfig(level=logging.INFO, format=\"%(asctime)s %(levelname)s %(message)s\")\nlog = logging.getLogger(__name__)\n\ndef net_price(price: float, discount: float = 0.0) -> float:\n    if not 0 <= discount < 1:\n        raise ValueError(\"discount must be between 0 and 1\")\n    return round(price * (1 - discount), 2)\n\n# test_prices.py  (run: pytest -q)\nimport pytest\n\ndef test_net_price():\n    assert net_price(100, 0.2) == 80.0\n\ndef test_bad_discount():\n    with pytest.raises(ValueError):\n        net_price(100, 1.5)",
         "note": "Le test vit dans son propre fichier ; pytest -q le lance."
+      }
+    },
+    {
+      "title": "Structure de projet : modules, packages et pyproject.toml",
+      "text": [
+        "Dès qu’un script dépasse quelques centaines de lignes, découpez-le. Un module est n’importe quel fichier .py ; un package est un dossier de modules, en général avec un fichier __init__.py (il peut être vide). Python exécute le code de premier niveau d’un module la première fois qu’il est importé, puis le met en cache : c’est pourquoi le code qui ne doit tourner que lorsque vous lancez le fichier se place sous if __name__ == \"__main__\":.",
+        "Une organisation courante et robuste est le src layout : pyproject.toml à la racine, votre code dans src/jobtools/ (__init__.py, cleaning.py, cli.py) et les tests dans tests/. Comme src/ n’est pas dans le chemin d’import par défaut, vous devez installer le projet (pip install -e .) avant de l’importer. Cela semble être un effort en plus, mais cela garantit que les tests importent le package installé, exactement comme les utilisateurs et les serveurs, et non le fichier qui se trouve par hasard dans le dossier courant. Les imports sont alors absolus : from jobtools.cleaning import normalise_title.",
+        "pyproject.toml est le fichier standard qui décrit un projet : nom, version, versions de Python supportées, dépendances, groupes optionnels comme les outils de développement, points d’entrée en ligne de commande et réglages d’outils comme pytest ou ruff. Il liste ce dont le projet a besoin, en général avec des plages de versions. Pour un déploiement, il faut aussi figer les versions exactes : pip freeze > requirements.txt, ou un fichier de verrouillage produit par un outil comme pip-tools, Poetry ou uv.",
+        "Deux problèmes d’import classiques : les imports circulaires (a importe b, qui importe a) se règlent en déplaçant le code partagé dans un troisième module ; et un fichier qui porte le nom d’une bibliothèque importée (json.py, requests.py) masque la vraie bibliothèque."
+      ],
+      "points": [
+        "pip install -e \".[dev]\" installe votre projet en mode éditable avec ses extras de développement.",
+        "[project.scripts] transforme une fonction en commande disponible dans l’environnement virtuel.",
+        "python -m jobtools.cli exécute un module avec des imports de package qui fonctionnent.",
+        "Versionnez pyproject.toml et le fichier de verrouillage ou requirements, jamais le dossier .venv."
+      ],
+      "example": {
+        "lang": "toml",
+        "code": "[build-system]\nrequires = [\"setuptools>=68\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"jobtools\"\nversion = \"0.1.0\"\nrequires-python = \">=3.10\"\ndependencies = [\"requests>=2.31\"]\n\n[project.optional-dependencies]\ndev = [\"pytest>=8\", \"ruff\"]\n\n[project.scripts]\njobtools = \"jobtools.cli:main\"\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]",
+        "note": "Avec le code dans src/jobtools/, pip install -e \".[dev]\" vous donne la commande jobtools et pytest."
+      }
+    },
+    {
+      "title": "Les fichiers au travail : pathlib, CSV et JSON bien maîtrisés",
+      "text": [
+        "Les objets pathlib.Path représentent des chemins et fonctionnent de la même façon sous Windows, macOS et Linux. Construisez-les avec / (Path(\"data\") / \"jobs.csv\"), inspectez-les avec p.exists(), p.suffix ou p.stem, listez des fichiers avec p.glob(\"*.csv\") et créez des dossiers avec p.mkdir(parents=True, exist_ok=True). Les chemins relatifs dépendent du dossier depuis lequel vous lancez le script ; Path(__file__).resolve().parent donne le dossier du script lui-même, qui retrouve ainsi ses données où qu’il soit lancé.",
+        "Pour un CSV, ouvrez le fichier avec newline=\"\" et un encodage explicite, puis utilisez csv.DictReader pour obtenir un dict par ligne dont les clés sont les en-têtes. Chaque valeur est une chaîne : la conversion avec int() ou float() vous revient, et elle peut échouer sur des cellules vides ou mal formatées. Les fichiers exportés depuis Excel en France utilisent souvent ; comme séparateur et sont encodés en utf-8-sig (UTF-8 avec BOM) ou en cp1252 : passez delimiter=\";\" et le bon encodage plutôt que de réparer des accents cassés plus tard. csv.DictWriter réécrit des dicts avec un en-tête.",
+        "Les gros fichiers n’ont pas besoin de tenir en mémoire. Parcourez les lignes au lieu de tout lire, et écrivez des fonctions génératrices (avec yield) pour que chaque étape traite une ligne à la fois. json.load lit un fichier entier d’un coup ; pour de gros exports, le format JSON Lines (un objet JSON par ligne) se lit ligne par ligne. json.dumps(obj, ensure_ascii=False, indent=2) garde les accents lisibles, et default=str transforme les dates en texte.",
+        "Écrivez les sorties sans risque : écrivez dans un fichier temporaire du même dossier, puis remplacez la cible avec Path.replace(). Les lecteurs ne voient jamais un fichier à moitié écrit, même si le script plante en cours de route."
+      ],
+      "points": [
+        "Path(__file__).resolve().parent / \"data\" construit un chemin relatif au script.",
+        "Les valeurs issues de csv sont des str : gérez ValueError lors de la conversion.",
+        "p.glob(\"*.csv\") liste les fichiers correspondants ; p.rglob() cherche aussi dans les sous-dossiers.",
+        "Passez toujours encoding= : la valeur par défaut dépend du système d’exploitation."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import csv\nimport json\nfrom pathlib import Path\n\nDATA = Path(__file__).resolve().parent / \"data\"\n\ndef read_rows(path: Path):\n    with path.open(encoding=\"utf-8-sig\", newline=\"\") as f:\n        yield from csv.DictReader(f, delimiter=\";\")\n\ndef write_json(path: Path, obj) -> None:\n    tmp = path.with_suffix(\".tmp\")\n    tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding=\"utf-8\")\n    tmp.replace(path)  # swap in the finished file\n\ntotals: dict[str, int] = {}\nfor csv_file in sorted(DATA.glob(\"*.csv\")):\n    for row in read_rows(csv_file):\n        totals[row[\"city\"]] = totals.get(row[\"city\"], 0) + 1\n\nwrite_json(DATA / \"summary.json\", totals)",
+        "note": "Compte les lignes par ville dans tous les exports CSV de data/, une ligne en mémoire à la fois."
+      }
+    },
+    {
+      "title": "Appeler des API de façon fiable : sessions, relances et pagination",
+      "text": [
+        "Un script qui appelle une API une fois fonctionne sur votre ordinateur ; un script qui l’appelle chaque nuit doit résister aux serveurs lents, aux erreurs réseau et aux limites de débit. Commencez par une requests.Session : elle réutilise les connexions (beaucoup plus rapide pour de nombreux appels) et conserve les en-têtes communs comme le jeton Authorization. Passez toujours un timeout, par exemple timeout=(5, 30) pour 5 secondes de connexion et 30 de lecture : sans lui, un appel peut rester bloqué indéfiniment.",
+        "Ne relancez que ce qui peut réussir au second essai : erreurs de connexion, timeouts, 429 Too Many Requests et 500, 502, 503, 504. Relancer un 400, un 401 ou un 404 ne fait que répéter la même erreur. Attendez de plus en plus longtemps entre les tentatives (backoff exponentiel) pour ne pas saturer un serveur en difficulté, et respectez l’en-tête Retry-After qui accompagne souvent un 429. Le Retry d’urllib3, monté sur la session avec un HTTPAdapter, fait tout cela ; par défaut, il ne relance pas les POST, car envoyer deux fois un POST peut créer un doublon.",
+        "La plupart des API renvoient les résultats par pages : un numéro de page, un offset, ou un curseur / lien suivant à suivre. Bouclez jusqu’à ce que l’API indique qu’il n’y a plus rien, et ajoutez un nombre maximal de pages comme garde-fou contre une boucle infinie. Placer la boucle dans un générateur permet au reste du code de parcourir les éléments sans rien savoir des pages.",
+        "Journalisez l’URL, le code de statut et le nombre d’éléments par page : quand un traitement de nuit échoue, ces lignes vous disent si le problème vient de vous ou de l’API."
+      ],
+      "points": [
+        "resp.raise_for_status() transforme les réponses 4xx et 5xx en HTTPError.",
+        "requests.exceptions.RequestException est le parent de toutes les erreurs de requests.",
+        "Lisez la limite de débit documentée de l’API et faites une pause entre les pages si besoin.",
+        "Gardez les jetons dans des variables d’environnement, jamais dans le code ni dans les logs."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import os\nimport requests\nfrom requests.adapters import HTTPAdapter\nfrom urllib3.util.retry import Retry\n\ndef make_session() -> requests.Session:\n    retry = Retry(\n        total=4,\n        backoff_factor=1,  # wait longer after each failed attempt\n        status_forcelist=[429, 500, 502, 503, 504],\n        allowed_methods=[\"GET\"],\n    )\n    s = requests.Session()\n    s.mount(\"https://\", HTTPAdapter(max_retries=retry))\n    s.headers[\"Authorization\"] = f\"Bearer {os.environ['API_KEY']}\"\n    return s\n\ndef fetch_all(session: requests.Session, url: str, max_pages: int = 100):\n    params = {\"page\": 1, \"per_page\": 100}\n    while params[\"page\"] <= max_pages:\n        resp = session.get(url, params=params, timeout=(5, 30))\n        resp.raise_for_status()\n        items = resp.json()[\"results\"]\n        if not items:\n            break\n        yield from items\n        params[\"page\"] += 1\n\njobs = list(fetch_all(make_session(), \"https://api.example.com/jobs\"))",
+        "note": "Pagination par numéro de page ; pour une API à curseur, bouclez sur le curseur suivant renvoyé par chaque réponse."
+      }
+    },
+    {
+      "title": "Annotations de type, dataclasses et pytest approfondis",
+      "text": [
+        "Les annotations de type décrivent ce qu’une fonction accepte et renvoie : list[str], dict[str, int], str | None (Python 3.10+). Python les ignore à l’exécution, mais votre éditeur s’en sert pour l’autocomplétion et un vérificateur de types comme mypy ou pyright les lit pour détecter des erreurs avant l’exécution, par exemple une str passée là où un int est attendu. Commencez par les signatures de fonctions : c’est là que les annotations aident le plus.",
+        "Faire circuler des dicts partout est fragile : une faute de frappe dans une clé n’échoue qu’à l’exécution, au fond du code. Une dataclass est une classe dont vous déclarez les champs avec des annotations ; @dataclass génère __init__, __repr__ et __eq__ pour vous. frozen=True rend les instances immuables, et une valeur par défaut mutable doit utiliser field(default_factory=list). Les dataclasses ne vérifient pas les types à l’exécution : validez dans __post_init__, ou utilisez une bibliothèque comme pydantic pour analyser des données externes non fiables.",
+        "pytest va bien au-delà des simples assert. @pytest.mark.parametrize exécute le même test sur de nombreuses paires entrée / résultat attendu : ajouter un cas limite tient en une ligne. Les fixtures (@pytest.fixture) fournissent une préparation réutilisable, et pytest en propose des utiles en standard : tmp_path pour un dossier temporaire, monkeypatch pour définir des variables d’environnement ou remplacer une fonction (par exemple celle qui appelle une API), caplog pour vérifier les messages de log. De bons tests couvrent le cas nominal et les cas limites : entrée vide, champ manquant, mauvais format."
+      ],
+      "points": [
+        "mypy src/ vérifie les types de tout le projet ; lancez-le dans la CI à côté de pytest.",
+        "Une classmethod comme Job.from_dict() regroupe l’analyse des données en un seul endroit.",
+        "Deux dataclasses égales champ par champ sont égales, ce qui simplifie les assertions.",
+        "monkeypatch annule ses changements après chaque test : les tests restent indépendants."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass Job:\n    title: str\n    city: str = \"\"\n    salary: int | None = None\n\n    @classmethod\n    def from_dict(cls, d: dict) -> \"Job\":\n        salary = d.get(\"salary\")\n        return cls(\n            title=d[\"title\"].strip(),\n            city=d.get(\"city\", \"\").strip().title(),\n            salary=int(salary) if salary not in (None, \"\") else None,\n        )\n\n# tests/test_job.py\nimport pytest\n\n@pytest.mark.parametrize(\"raw, expected\", [\n    ({\"title\": \" Data Analyst \", \"city\": \"paris\"}, Job(\"Data Analyst\", \"Paris\")),\n    ({\"title\": \"DE\", \"salary\": \"52000\"}, Job(\"DE\", \"\", 52000)),\n    ({\"title\": \"BA\", \"salary\": \"\"}, Job(\"BA\")),\n])\ndef test_from_dict(raw, expected):\n    assert Job.from_dict(raw) == expected",
+        "note": "Dans un vrai projet, le fichier de test importe Job depuis votre package."
+      }
+    },
+    {
+      "title": "Un petit outil en ligne de commande : argparse, gestion des erreurs et codes de sortie",
+      "text": [
+        "Les scripts d’automatisation sont lancés par des ordonnanceurs, des pipelines de CI et des collègues, pas seulement par vous dans un éditeur. Au lieu de modifier des constantes avant chaque exécution, donnez au script une interface en ligne de commande. argparse, dans la bibliothèque standard, déclare arguments et options, convertit leurs types (type=int, type=Path), propose des choix et des drapeaux (action=\"store_true\") et génère --help gratuitement. Des arguments incorrects arrêtent le script avec un message d’usage et le code de sortie 2.",
+        "Placez la logique dans une fonction main(argv=None) -> int : elle analyse les arguments, configure le logging, appelle vos fonctions et renvoie un code de sortie. Le fichier se termine par sys.exit(main()). Le code 0 signifie succès et toute autre valeur signifie échec ; cron, Airflow, la CI et les scripts shell s’en servent pour décider d’alerter ou de continuer. Comme main accepte une liste d’arguments, un test peut appeler directement main([\"jobs.csv\", \"--top\", \"3\"]).",
+        "Traitez les erreurs en deux catégories. Les problèmes attendus (fichier absent, colonne manquante, valeur incorrecte) méritent un message clair : définissez une petite classe d’exception comme DataError, levez-la avec raise ... from err pour conserver la cause d’origine, interceptez-la une seule fois dans main, journalisez-la et renvoyez 1. Les erreurs inattendues ne doivent pas être masquées : laissez-les afficher leur traceback (ou utilisez log.exception) pour pouvoir les corriger.",
+        "Envoyez les logs sur stderr (le comportement par défaut de logging.basicConfig) et les résultats sur stdout : la sortie peut alors être redirigée vers une autre commande ou un fichier sans lignes de log mélangées."
+      ],
+      "points": [
+        "parser.add_argument(\"input\", type=Path) déclare un argument positionnel obligatoire.",
+        "Un drapeau --verbose qui passe le logging en DEBUG aide quand quelque chose ne va pas.",
+        "raise DataError(...) from err conserve les deux erreurs dans le traceback.",
+        "Renvoyez 0 en cas de succès et 1 pour une erreur gérée."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import argparse\nimport csv\nimport logging\nimport sys\nfrom pathlib import Path\n\nlog = logging.getLogger(\"jobtools\")\n\nclass DataError(Exception):\n    \"\"\"Expected problem with the input data.\"\"\"\n\ndef count_by_city(path: Path) -> dict[str, int]:\n    counts: dict[str, int] = {}\n    try:\n        with path.open(encoding=\"utf-8\", newline=\"\") as f:\n            for row in csv.DictReader(f):\n                counts[row[\"city\"]] = counts.get(row[\"city\"], 0) + 1\n    except FileNotFoundError as err:\n        raise DataError(f\"input file not found: {path}\") from err\n    except KeyError as err:\n        raise DataError(f\"missing column {err} in {path}\") from err\n    return counts\n\ndef main(argv: list[str] | None = None) -> int:\n    parser = argparse.ArgumentParser(description=\"Count job offers per city.\")\n    parser.add_argument(\"input\", type=Path, help=\"CSV file with a city column\")\n    parser.add_argument(\"--top\", type=int, default=5, help=\"number of cities to show\")\n    parser.add_argument(\"-v\", \"--verbose\", action=\"store_true\")\n    args = parser.parse_args(argv)\n    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)\n\n    try:\n        counts = count_by_city(args.input)\n    except DataError as err:\n        log.error(\"%s\", err)\n        return 1\n    for city, n in sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[: args.top]:\n        print(f\"{city}\\t{n}\")\n    log.debug(\"%d cities in total\", len(counts))\n    return 0\n\nif __name__ == \"__main__\":\n    sys.exit(main())",
+        "note": "Lancement : python count_cities.py jobs.csv --top 3 ; echo $? (Linux/macOS) affiche le code de sortie."
       }
     }
   ],
@@ -203,13 +297,113 @@
           "Lire un secret depuis l’environnement"
         ]
       ]
+    },
+    {
+      "group": "Projet et packaging",
+      "items": [
+        [
+          "pip install -e \".[dev]\"",
+          "Installation éditable avec les extras de développement"
+        ],
+        [
+          "[project.scripts] name = \"pkg.cli:main\"",
+          "Exposer une fonction comme commande"
+        ],
+        [
+          "python -m pkg.module",
+          "Exécuter un module avec les imports du package"
+        ],
+        [
+          "if __name__ == \"__main__\":",
+          "N’exécuter que si le fichier est lancé directement"
+        ]
+      ]
+    },
+    {
+      "group": "pathlib et CSV",
+      "items": [
+        [
+          "Path(__file__).resolve().parent",
+          "Dossier du script courant"
+        ],
+        [
+          "p.glob(\"*.csv\")",
+          "Lister les fichiers correspondants"
+        ],
+        [
+          "p.mkdir(parents=True, exist_ok=True)",
+          "Créer un dossier s’il n’existe pas"
+        ],
+        [
+          "csv.DictWriter(f, fieldnames=cols)",
+          "Écrire des dicts en lignes CSV"
+        ]
+      ]
+    },
+    {
+      "group": "API",
+      "items": [
+        [
+          "requests.Session()",
+          "Réutiliser connexions et en-têtes"
+        ],
+        [
+          "timeout=(5, 30)",
+          "Timeout de connexion / de lecture en secondes"
+        ],
+        [
+          "Retry(total=4, backoff_factor=1, status_forcelist=[429, 503])",
+          "Relances avec backoff exponentiel"
+        ]
+      ]
+    },
+    {
+      "group": "Types, dataclasses et tests",
+      "items": [
+        [
+          "@dataclass(frozen=True)",
+          "Classe d’enregistrement immuable"
+        ],
+        [
+          "field(default_factory=list)",
+          "Valeur par défaut mutable dans une dataclass"
+        ],
+        [
+          "@pytest.mark.parametrize(\"x, y\", [...])",
+          "Un test, plusieurs cas"
+        ],
+        [
+          "monkeypatch.setenv(\"KEY\", \"value\")",
+          "Définir une variable d’environnement pour un test"
+        ]
+      ]
+    },
+    {
+      "group": "Ligne de commande et erreurs",
+      "items": [
+        [
+          "parser.add_argument(\"--top\", type=int, default=5)",
+          "Déclarer une option typée"
+        ],
+        [
+          "raise DataError(\"msg\") from err",
+          "Chaîner les exceptions, garder la cause"
+        ],
+        [
+          "sys.exit(main())",
+          "Code de sortie : 0 = succès, autre = échec"
+        ]
+      ]
     }
   ],
   "pitfalls": [
     "Utiliser un argument par défaut mutable (def f(xs=[])) : la même liste est partagée entre les appels. Utilisez None et créez la liste dans la fonction.",
     "Comparer des flottants avec == (0.1 + 0.2 != 0.3). Utilisez round() ou math.isclose().",
     "Installer les packages globalement au lieu de les installer dans un environnement virtuel.",
-    "Intercepter toutes les exceptions avec un except nu et masquer de vrais bugs."
+    "Intercepter toutes les exceptions avec un except nu et masquer de vrais bugs.",
+    "Nommer votre propre fichier comme un module que vous importez (json.py, requests.py, pandas.py) : Python importe votre fichier à la place et échoue avec des erreurs déroutantes.",
+    "Appeler une API sans timeout, ou relancer toutes les erreurs y compris 400 et 401 : le script reste bloqué indéfiniment ou bombarde le serveur de requêtes qui ne peuvent jamais réussir.",
+    "Ouvrir des fichiers CSV sans newline=\"\" ni encodage explicite : des lignes vides apparaissent sous Windows et les accents sont cassés (les exports Excel sont souvent en utf-8-sig ou cp1252)."
   ],
   "exercises": [
     {
@@ -234,6 +428,30 @@
       "hint": "pathlib.Path.read_text().splitlines() ; tmp_path fournit un dossier temporaire.",
       "code": "python",
       "answer": "from pathlib import Path\n\ndef count_errors(path: str) -> int:\n    return sum(1 for line in Path(path).read_text().splitlines() if \"ERROR\" in line)\n\n\ndef test_count_errors(tmp_path):\n    log = tmp_path / \"app.log\"\n    log.write_text(\"INFO ok\\nERROR boom\\nERROR again\\n\")\n    assert count_errors(log) == 2"
+    },
+    {
+      "q": "Écrivez un générateur read_jsonl(path) qui renvoie un dict par ligne d’un fichier JSON Lines en ignorant les lignes vides.",
+      "hint": "Parcourez le fichier ouvert ligne par ligne et appliquez json.loads à chaque ligne non vide.",
+      "code": "python",
+      "answer": "import json\nfrom pathlib import Path\n\ndef read_jsonl(path: Path):\n    with path.open(encoding=\"utf-8\") as f:\n        for line in f:\n            if line.strip():\n                yield json.loads(line)"
+    },
+    {
+      "q": "Récupérez tous les éléments d’une API paginée par curseur : chaque réponse contient \"items\" et \"next_cursor\" (null sur la dernière page).",
+      "hint": "Bouclez, envoyez le curseur en paramètre, arrêtez-vous quand next_cursor est vide. N’oubliez pas le timeout.",
+      "code": "python",
+      "answer": "import requests\n\ndef fetch_all(url: str, session: requests.Session | None = None) -> list[dict]:\n    session = session or requests.Session()\n    items: list[dict] = []\n    cursor = None\n    while True:\n        params = {\"cursor\": cursor} if cursor else {}\n        resp = session.get(url, params=params, timeout=10)\n        resp.raise_for_status()\n        data = resp.json()\n        items.extend(data[\"items\"])\n        cursor = data.get(\"next_cursor\")\n        if not cursor:\n            return items"
+    },
+    {
+      "q": "Créez une dataclass Offer(title, salary_min, salary_max) qui lève ValueError quand salary_min > salary_max et expose une propriété midpoint.",
+      "hint": "Validez dans __post_init__ ; @property pour la valeur calculée.",
+      "code": "python",
+      "answer": "from dataclasses import dataclass\n\n@dataclass\nclass Offer:\n    title: str\n    salary_min: int\n    salary_max: int\n\n    def __post_init__(self) -> None:\n        if self.salary_min > self.salary_max:\n            raise ValueError(\"salary_min must be <= salary_max\")\n\n    @property\n    def midpoint(self) -> float:\n        return (self.salary_min + self.salary_max) / 2"
+    },
+    {
+      "q": "Écrivez slugify(text) (\"Data Engineer\" -> \"data-engineer\", \"  BI / Reporting \" -> \"bi-reporting\") et un test pytest paramétré qui couvre ces cas et la chaîne vide.",
+      "hint": "re.sub sur les suites de caractères non alphanumériques, puis retirez les tirets aux extrémités.",
+      "code": "python",
+      "answer": "import re\nimport pytest\n\ndef slugify(text: str) -> str:\n    return re.sub(r\"[^a-z0-9]+\", \"-\", text.lower()).strip(\"-\")\n\n@pytest.mark.parametrize(\"text, expected\", [\n    (\"Data Engineer\", \"data-engineer\"),\n    (\"  BI / Reporting \", \"bi-reporting\"),\n    (\"\", \"\"),\n])\ndef test_slugify(text, expected):\n    assert slugify(text) == expected"
     }
   ],
   "interview": [
@@ -252,6 +470,22 @@
     {
       "q": "Comment rendez-vous un script Python prêt pour la production ?",
       "a": "Je le découpe en petites fonctions annotées, je lis la configuration depuis des variables d’environnement ou un fichier plutôt qu’en dur, je remplace print par logging aux bons niveaux, je gère explicitement les erreurs attendues et laisse les autres échouer clairement, j’ajoute des tests pytest sur la logique principale, je fige les dépendances et je lance tests et linter dans la CI."
+    },
+    {
+      "q": "pyproject.toml ou requirements.txt ?",
+      "a": "pyproject.toml est la description standard d’un projet : métadonnées, dépendances nécessaires (en général sous forme de plages de versions), dépendances de développement optionnelles, points d’entrée et réglages des outils. requirements.txt, ou un fichier de verrouillage, fige les versions exactes installées dans un environnement donné pour qu’un déploiement soit reproductible. En pratique, je déclare les dépendances dans pyproject.toml et je les fige avec un fichier de verrouillage ou pip freeze pour le déploiement."
+    },
+    {
+      "q": "Comment appelez-vous de façon fiable une API paginée et limitée en débit ?",
+      "a": "J’utilise une Session requests avec un timeout sur chaque appel, des relances avec backoff exponentiel uniquement pour les erreurs temporaires (timeouts, erreurs de connexion, 429 et 5xx) en respectant Retry-After, et raise_for_status pour le reste. Je boucle sur les pages ou les curseurs jusqu’à ce que l’API indique qu’il n’y a plus rien, avec un nombre maximal de pages comme garde-fou, et je journalise le statut et le nombre d’éléments par page. Les secrets viennent de variables d’environnement."
+    },
+    {
+      "q": "Pourquoi utiliser une dataclass plutôt qu’un dict ?",
+      "a": "Une dataclass déclare ses champs et leurs types une fois : une faute de frappe est repérée par l’éditeur ou mypy au lieu d’échouer à l’exécution avec une KeyError. Elle génère __init__, __repr__ et l’égalité, peut être figée pour rester immuable, et offre un endroit naturel pour la validation dans __post_init__ et des méthodes d’analyse comme from_dict. Les dicts restent pratiques pour des données rapides et non structurées, mais les structures partagées sont plus claires en dataclasses."
+    },
+    {
+      "q": "Comment testez-vous du code qui appelle une API externe ?",
+      "a": "Je sépare l’appel HTTP de la logique qui analyse et transforme la réponse : la plupart des tests tournent ainsi sur de simples données Python, sans réseau. Pour le code qui appelle l’API, je remplace l’appel avec monkeypatch ou unittest.mock et je renvoie de fausses réponses, y compris des cas d’erreur comme un timeout ou un 500. Les tests restent rapides et déterministes, et je garde au plus quelques tests d’intégration séparés sur un vrai environnement de test."
     }
   ]
 }

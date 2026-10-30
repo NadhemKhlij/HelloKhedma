@@ -1,0 +1,155 @@
+{
+  "projects": [
+    {
+      "id": "as-incident-lab",
+      "title": "Labo d’incidents : casser, réparer et rédiger le post-mortem",
+      "level": "Junior",
+      "hours": 12,
+      "skills": ["Docker", "Linux", "Log analysis", "Incident management", "Root cause analysis", "ITIL", "SQL"],
+      "summary": "Faites tourner une petite application web et sa base de données dans Docker, cassez-la volontairement de façon réaliste, diagnostiquez à partir des logs et documentez chaque incident avec des tickets et un post-mortem sans recherche de coupable.",
+      "why": "Les entretiens en support applicatif testent votre réaction quand un service est en panne : ce que vous vérifiez en premier, comment vous communiquez et comment vous évitez que cela se reproduise. Un labo avec de vrais tickets d’incident et un post-mortem montre cette méthode noir sur blanc, ce que peu de candidats juniors peuvent faire.",
+      "data": [
+        { "name": "Docker awesome-compose", "url": "https://github.com/docker/awesome-compose", "note": "Applications d’exemple officielles avec Docker Compose, par exemple une application Python ou Node avec PostgreSQL ou MySQL." },
+        { "name": "Documentation Docker Compose", "url": "https://docs.docker.com/compose/", "note": "Les commandes que vous utiliserez : up, ps, logs, exec, restart, down." },
+        { "name": "Google SRE book : Postmortem culture", "url": "https://sre.google/sre-book/postmortem-culture/", "note": "Référence sur les post-mortems sans recherche de coupable, avec un exemple de structure." }
+      ],
+      "steps": [
+        { "title": "Lancer l’application et connaître son état normal", "text": "Installez Docker Desktop (ou Docker Engine sous Linux) et démarrez un exemple awesome-compose avec une application web et une base de données. Utilisez-le, puis notez à quoi ressemble l’état normal : sortie de docker compose ps, une ligne de log saine, temps de réponse de la page principale, nombre de lignes de la table principale. Impossible de repérer un comportement anormal si vous n’avez jamais noté le normal." },
+        { "title": "Préparer un modèle de ticket", "text": "Créez un modèle de ticket en Markdown, dans GitHub Issues ou sur un site Jira Service Management gratuit : ID, heure de signalement, demandeur, symptôme, impact, urgence, priorité, service concerné, chronologie, actions menées, résolution, cause racine, problème lié. Définissez une matrice de priorité simple (impact x urgence donne P1 à P4) et un délai cible de prise en charge et de résolution par priorité, comme un petit SLA." },
+        { "title": "Casser volontairement", "text": "Demandez à un ami de casser la stack sans que vous regardiez, ou écrivez les scénarios à l’avance et jouez-les quelques jours plus tard. Bons scénarios : arrêter le conteneur de base de données, changer le mot de passe de la base dans l’environnement de l’application, remplir une table pour ralentir une requête, modifier un mapping de port, supprimer une variable d’environnement obligatoire, faire planter l’application au démarrage. Un seul changement par incident, pour que l’enquête reste lisible." },
+        { "title": "Diagnostiquer avec méthode", "text": "Pour chaque incident, partez du symptôme qu’un utilisateur signalerait, puis vérifiez dans l’ordre : le conteneur tourne-t-il (docker compose ps), que disent ses logs (docker compose logs --since 10m app), l’application joint-elle la base (docker compose exec), qu’est-ce qui a changé récemment. Utilisez grep, tail et less sur les logs exportés. Notez chaque commande lancée et ce qu’elle vous a appris, y compris les fausses pistes." },
+        { "title": "Rétablir le service, puis trouver la cause racine", "text": "Séparez nettement les deux : rétablissez d’abord le service avec l’action sûre la plus rapide (redémarrage, retour à la configuration précédente), puis cherchez la vraie cause. Utilisez les 5 pourquoi pour passer de « l’application renvoie une erreur 500 » à la cause profonde, par exemple un changement de configuration fait sans relecture. Notez l’heure de chaque étape pour calculer le temps de détection et le temps de rétablissement." },
+        { "title": "Rédiger les tickets d’incident", "text": "Remplissez un ticket par incident avec une chronologie claire en UTC, l’impact en termes utilisateurs (« connexion impossible pour tous les utilisateurs pendant 12 minutes »), la priorité choisie et pourquoi, les actions et la résolution. Ajoutez le court message d’information que vous enverriez aux utilisateurs pendant l’incident. Restez factuel et posé." },
+        { "title": "Rédiger un post-mortem sans recherche de coupable", "text": "Choisissez l’incident le plus intéressant et rédigez un post-mortem complet : résumé, impact, chronologie, cause racine, facteurs contributifs, ce qui a bien fonctionné, ce qui a mal fonctionné, là où vous avez eu de la chance, et actions avec responsable et échéance. Sans recherche de coupable signifie décrire ce que le système a permis, pas qui s’est trompé. Reliez chaque action à un changement préventif, comme un health check ou une validation de configuration." },
+        { "title": "Publier le labo", "text": "Placez le fichier compose, la liste des scénarios (dans un dossier séparé pour que les lecteurs puissent essayer d’abord), les tickets, le post-mortem et un README dans un dépôt GitHub. Expliquez dans le README comment lancer le labo et ce que chaque incident apprend. Retirez tout secret des fichiers et utilisez un .env.example." }
+      ],
+      "deliverables": [
+        "Dépôt GitHub avec la stack Docker Compose et un README pour lancer le labo",
+        "Modèle de ticket et matrice de priorité (impact x urgence, délais cibles)",
+        "4 à 6 tickets d’incident avec chronologie, impact, actions et résolution",
+        "Un post-mortem sans recherche de coupable avec cause racine et actions attribuées",
+        "Notes de diagnostic avec les commandes utilisées"
+      ],
+      "checklist": [
+        "Avez-vous noté l’état normal de l’application avant de la casser ?",
+        "Chaque ticket décrit-il l’impact en termes utilisateurs et justifie-t-il sa priorité ?",
+        "Les chronologies sont-elles précises, dans un seul fuseau horaire, avec temps de détection et de rétablissement ?",
+        "Le rétablissement du service est-il clairement séparé de la recherche de la cause racine ?",
+        "La cause racine va-t-elle au-delà du premier symptôme (5 pourquoi ou équivalent) ?",
+        "Le post-mortem est-il exempt de reproches et de noms de personnes ?",
+        "Chaque action a-t-elle un responsable, une échéance et un lien avec la cause ?",
+        "Quelqu’un d’autre peut-il lancer le labo à partir du README en moins de 15 minutes ?",
+        "Aucun mot de passe ni secret n’est-il versionné dans le dépôt ?"
+      ],
+      "cv": {
+        "bullet": "Création d’un labo d’incidents (projet personnel) sur une stack Docker application web + [PostgreSQL / MySQL] : diagnostic de [N] incidents simulés à partir des logs, documentés en tickets de type ITIL, et rédaction d’un post-mortem sans recherche de coupable avec [N] actions préventives.",
+        "talk": "Décrivez un incident du symptôme utilisateur jusqu’à la cause racine, y compris une fausse piste. Expliquez ensuite l’action qui empêcherait qu’il se reproduise et comment vous communiqueriez pendant la panne."
+      },
+      "stretch": [
+        "Ajoutez un reverse proxy (nginx) et créez des incidents autour : mauvais upstream, timeout, certificat.",
+        "Enregistrez une courte vidéo d’écran où vous diagnostiquez un incident en direct.",
+        "Traitez les tickets dans une instance ServiceNow personnelle de développement gratuite pour pratiquer l’outil."
+      ]
+    },
+    {
+      "id": "as-monitoring-runbooks",
+      "title": "Supervision, alertes et runbooks",
+      "level": "Junior",
+      "hours": 14,
+      "skills": ["Monitoring", "Prometheus", "Grafana", "On-call", "SLA", "Docker", "Incident management"],
+      "summary": "Ajoutez des contrôles de disponibilité, des métriques, des tableaux de bord et des alertes à une petite application Docker, puis rédigez les runbooks et la checklist d’astreinte qui disent à un ingénieur support quoi faire quand une alerte se déclenche.",
+      "why": "Les équipes support vivent au rythme des tableaux de bord et des alertes. Montrer que vous savez choisir quoi superviser, fixer des seuils d’alerte qui ne génèrent pas de bruit et écrire un runbook qu’une autre personne peut suivre prouve que vous raisonnez comme un ingénieur d’astreinte, pas seulement comme un traiteur de tickets.",
+      "data": [
+        { "name": "Uptime Kuma", "url": "https://github.com/louislam/uptime-kuma", "note": "Outil de supervision de disponibilité gratuit et auto-hébergé, dans un seul conteneur Docker ; contrôles HTTP, TCP et par mot-clé avec notifications." },
+        { "name": "Documentation Prometheus", "url": "https://prometheus.io/docs/introduction/overview/", "note": "Collecte de métriques, PromQL et règles d’alerte ; ajoutez node_exporter pour les métriques de l’hôte." },
+        { "name": "Documentation Grafana", "url": "https://grafana.com/docs/grafana/latest/", "note": "Tableaux de bord et alertes open source, en local dans Docker." }
+      ],
+      "steps": [
+        { "title": "Partir d’une application qui fonctionne", "text": "Réutilisez l’application Docker Compose du labo d’incidents, ou toute petite application web avec une base de données. Ajoutez Uptime Kuma, Prometheus, node_exporter et Grafana comme services supplémentaires dans le même fichier compose. Fixez les versions des images au lieu d’utiliser latest pour que le labo reste reproductible." },
+        { "title": "Décider quoi superviser", "text": "Avant toute configuration, rédigez un court plan de supervision : ce qui compte pour les utilisateurs (le site répond-il, est-il rapide, y a-t-il des erreurs), ce qui explique les problèmes (CPU, mémoire, disque, connexions à la base) et ce que vous pouvez réellement collecter. Définissez un ou deux objectifs de niveau de service, par exemple 99 % des contrôles réussis sur 7 jours et une page principale servie en moins d’une seconde." },
+        { "title": "Mettre en place les contrôles de disponibilité", "text": "Dans Uptime Kuma, ajoutez un contrôle HTTP sur la page principale, un contrôle par mot-clé qui cherche un texte présent uniquement sur une page fonctionnelle et un contrôle TCP sur le port de la base. Configurez un canal de notification que vous lisez vraiment (e-mail, Discord, Telegram). Vérifiez qu’arrêter l’application fait passer le contrôle au rouge et envoie une seule notification." },
+        { "title": "Collecter les métriques et construire un tableau de bord", "text": "Configurez Prometheus pour collecter node_exporter et, si l’application en expose, ses métriques applicatives. Dans Grafana, ajoutez Prometheus comme source de données et construisez un tableau de bord avec : disponibilité, temps de réponse, taux d’erreur si disponible, CPU, mémoire et disque. Tenez-vous à un seul écran qui répond à « est-ce sain, et sinon, où regarder »." },
+        { "title": "Écrire des règles d’alerte utiles", "text": "Écrivez 3 à 5 règles d’alerte Prometheus ou Grafana, par exemple instance indisponible depuis 2 minutes, disque au-delà de 85 %, mémoire élevée pendant 10 minutes. Utilisez une durée for: pour éviter les alertes sur des pics brefs, et donnez à chaque alerte une gravité et un résumé qui dit ce qui ne va pas. Testez chaque alerte en provoquant la condition et notez le temps de déclenchement." },
+        { "title": "Rédiger un runbook par alerte", "text": "Pour chaque alerte, rédigez un runbook : ce que signifie l’alerte, l’impact utilisateur, les premières vérifications avec les commandes exactes, comment rétablir le service, quand et vers qui escalader, et comment confirmer la résolution. Liez le runbook depuis l’annotation de l’alerte. Testez chaque runbook en le suivant à la lettre pendant un incident simulé et corrigez les étapes peu claires." },
+        { "title": "Rédiger la checklist d’astreinte", "text": "Rédigez une checklist d’astreinte d’une page : début de service (tableaux de bord au vert, incidents ouverts, changements récents), pendant une alerte (acquitter, évaluer l’impact, communiquer, suivre le runbook), passation en fin de service. Ajoutez un court modèle de message d’information et les contacts d’escalade sous forme de rôles, pas de vrais noms." },
+        { "title": "Publier la configuration", "text": "Versionnez le fichier compose, la configuration Prometheus et les règles d’alerte, le JSON exporté du tableau de bord Grafana, les runbooks et la checklist dans un dépôt GitHub. Ajoutez des captures du tableau de bord à l’état sain et pendant un incident, et un README qui explique vos choix de supervision et vos SLO." }
+      ],
+      "deliverables": [
+        "Stack Docker Compose avec l’application, Uptime Kuma, Prometheus, node_exporter et Grafana",
+        "Configuration Prometheus et 3 à 5 règles d’alerte",
+        "JSON exporté du tableau de bord Grafana et captures d’écran",
+        "Un runbook par alerte et une checklist d’astreinte d’une page",
+        "README avec le plan de supervision et les SLO"
+      ],
+      "checklist": [
+        "Existe-t-il un plan de supervision écrit qui relie chaque contrôle à une question côté utilisateur ?",
+        "Les SLO sont-ils définis avec un chiffre et une fenêtre de temps ?",
+        "Avez-vous testé chaque alerte en provoquant sa condition, et noté le temps de déclenchement ?",
+        "Les règles d’alerte utilisent-elles une durée pour que les pics brefs ne réveillent personne ?",
+        "Chaque alerte renvoie-t-elle vers un runbook avec les commandes exactes ?",
+        "Un collègue qui n’a jamais vu l’application pourrait-il suivre chaque runbook pour rétablir le service ?",
+        "Le tableau de bord tient-il sur un écran et montre-t-il où regarder en premier ?",
+        "Les versions des images sont-elles fixées et aucun identifiant n’est-il versionné ?"
+      ],
+      "cv": {
+        "bullet": "Mise en place de la supervision d’une application web Docker (projet personnel) avec Uptime Kuma, Prometheus et Grafana : [N] règles d’alerte, [N] runbooks et une checklist d’astreinte, avec des alertes déclenchées en moins de [X] minutes lors des tests.",
+        "talk": "Expliquez comment vous avez choisi quoi superviser du point de vue utilisateur et comment vous avez évité les alertes bruyantes. Déroulez ensuite un runbook comme si l’alerte venait de se déclencher à 3 heures du matin."
+      },
+      "stretch": [
+        "Ajoutez la collecte de logs avec Grafana Loki et reliez les logs au tableau de bord.",
+        "Construisez un panneau de budget d’erreur SLO et expliquez ce que vous feriez une fois le budget épuisé.",
+        "Ajoutez une page de statut publique dans Uptime Kuma."
+      ]
+    },
+    {
+      "id": "as-support-automation",
+      "title": "Automatisation du support et base de connaissances",
+      "level": "Junior+",
+      "hours": 16,
+      "skills": ["Bash", "Python", "SQL", "Linux", "Log analysis", "ITIL", "Problem management"],
+      "summary": "Automatisez trois tâches courantes du support avec Bash, Python et SQL (rapport de logs, health check, correction de données sûre avec retour arrière) et documentez-les dans une base de connaissances de style ITIL.",
+      "why": "Les bons ingénieurs support éliminent le travail répétitif et rendent les corrections sûres et reproductibles. Des scripts à la sortie claire, une correction de données réversible et des articles de connaissance réutilisables montrent que vous êtes prêt pour le support de niveau 2, et pas seulement pour le traitement des tickets de premier niveau.",
+      "data": [
+        { "name": "Tutoriel PostgreSQL : transactions", "url": "https://www.postgresql.org/docs/current/tutorial-transactions.html", "note": "BEGIN, COMMIT et ROLLBACK : la base d’une correction de données sûre." },
+        { "name": "Python argparse", "url": "https://docs.python.org/3/library/argparse.html", "note": "Module de la bibliothèque standard pour donner à vos scripts des options et une aide claires." },
+        { "name": "ShellCheck", "url": "https://www.shellcheck.net/", "note": "Linter gratuit qui détecte les bugs dans les scripts Bash ; passez-le sur chaque script." }
+      ],
+      "steps": [
+        { "title": "Préparer le terrain de jeu", "text": "Lancez PostgreSQL dans Docker avec un petit schéma : customers, orders et une table order_status_history, plus quelques milliers de lignes générées. Faites tourner un serveur web comme nginx dans un conteneur pour produire des logs d’accès, et générez du trafic avec une boucle d’appels curl incluant des réponses 404 et 500. Rassemblez tout dans un dépôt avec un README." },
+        { "title": "Écrire un rapport d’analyse de logs", "text": "Écrivez un script Python qui lit un log d’accès nginx et affiche, pour une fenêtre de temps donnée : requêtes par code de statut, 10 URL renvoyant le plus d’erreurs, principales IP clientes et requêtes les plus lentes si le log contient les temps de réponse. Utilisez argparse pour le chemin du fichier et la fenêtre, gérez les lignes mal formées sans planter et comptez-les. Produisez un rapport texte lisible et un CSV en option." },
+        { "title": "Écrire un script de health check", "text": "Écrivez un script Bash qui vérifie l’occupation du disque, que la page web répond 200 dans un délai donné, que PostgreSQL accepte les connexions (pg_isready) et qu’une requête clé renvoie des lignes. Affichez une ligne claire par contrôle (OK / WARN / CRIT) et sortez avec un code non nul en cas d’échec, pour qu’un ordonnanceur ou un outil de supervision puisse l’exploiter. Passez ShellCheck et corrigez chaque avertissement." },
+        { "title": "Préparer un incident de données", "text": "Simulez un problème de données réaliste : par exemple, un mauvais déploiement a passé 37 commandes payées au statut annulé. Écrivez le SQL qui trouve exactement les lignes concernées grâce à la table d’historique, et vérifiez le nombre avant toute modification. Notez comment vous savez que la sélection est complète et n’attrape pas de lignes correctes." },
+        { "title": "Corriger les données en sécurité avec retour arrière", "text": "Écrivez la correction sous forme de script qui copie d’abord les lignes concernées dans une table de sauvegarde, puis les met à jour dans une transaction, vérifie le nombre de lignes attendu et ne valide que s’il correspond. Écrivez un script de retour arrière séparé qui restaure les lignes depuis la table de sauvegarde. Testez les deux sur une copie de la base et conservez les sorties comme preuves." },
+        { "title": "Planifier et journaliser", "text": "Exécutez le health check toutes les quelques minutes avec cron (ou un timer systemd) sous Linux ou WSL et écrivez sa sortie dans un fichier de log horodaté. Lancez le rapport de logs chaque jour de la même façon. Vérifiez que les scripts fonctionnent depuis n’importe quel répertoire et échouent clairement si une dépendance manque." },
+        { "title": "Rédiger la base de connaissances", "text": "Rédigez 4 à 5 articles de connaissance de style ITIL : un article d’erreur connue pour l’incident de données (symptôme, cause, contournement, correction définitive) et des articles pratiques pour lancer chaque script et lire sa sortie. Utilisez le même modèle pour tous : titre formulé comme le symptôme de l’utilisateur, périmètre, étapes, résultat attendu, escalade. Ajoutez un court enregistrement de problème qui relie l’incident de données à sa cause racine." },
+        { "title": "Publier et faire relire", "text": "Versionnez les scripts, le SQL, des exemples de sortie et la base de connaissances sur GitHub, avec un README qui liste ce que fait chaque outil et comment le lancer. Demandez à quelqu’un de suivre un article sans aide et corrigez ce qui l’a gêné." }
+      ],
+      "deliverables": [
+        "Script Python de rapport de logs avec argparse et exemple de sortie",
+        "Script Bash de health check avec codes de sortie, validé par ShellCheck",
+        "Scripts SQL : requête de détection, correction transactionnelle avec table de sauvegarde et script de retour arrière",
+        "Configuration cron ou timer systemd et exemple de log",
+        "4 à 5 articles de connaissance de style ITIL et un enregistrement de problème"
+      ],
+      "checklist": [
+        "Le rapport de logs résiste-t-il aux lignes mal formées et indique-t-il combien il en a ignoré ?",
+        "Le health check renvoie-t-il un code de sortie non nul quand un contrôle échoue ?",
+        "ShellCheck passe-t-il sur chaque script Bash ?",
+        "Avez-vous compté les lignes concernées avant de lancer la correction de données ?",
+        "La correction s’exécute-t-elle dans une transaction qui refuse de valider si le nombre est faux ?",
+        "Le script de retour arrière a-t-il été testé et restaure-t-il exactement les valeurs d’origine ?",
+        "Chaque article de connaissance part-il du symptôme utilisateur et se termine-t-il par un chemin d’escalade ?",
+        "Un autre ingénieur support pourrait-il lancer chaque script à partir du seul README ?"
+      ],
+      "cv": {
+        "bullet": "Automatisation de tâches de support dans un labo personnel avec Python, Bash et SQL : rapport de logs, health check planifié avec cron et correction de données transactionnelle avec retour arrière testé sur [N] lignes, documentés dans [N] articles de connaissance de style ITIL.",
+        "talk": "Déroulez l’incident de données : comment vous avez prouvé quelles lignes étaient touchées, pourquoi la correction s’exécute dans une transaction avec sauvegarde, et comment vous avez testé le retour arrière. Expliquez ensuite comment l’article de connaissance permet à la personne suivante d’aller plus vite."
+      },
+      "stretch": [
+        "Envoyez le résultat du health check à Uptime Kuma via un moniteur de type push.",
+        "Ajoutez des tests unitaires pour l’analyseur de logs avec pytest.",
+        "Transformez la correction de données en script paramétrable et réutilisable avec un mode dry-run."
+      ]
+    }
+  ]
+}

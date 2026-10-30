@@ -1,0 +1,288 @@
+{
+  "why": "Most data jobs now query a cloud warehouse every day. Knowing how Snowflake, BigQuery and Redshift store data, load it and bill for it lets you write queries that are fast and cheap, and answer the cost and design questions that come up in interviews.",
+  "outcome": "explain how a cloud warehouse stores and processes data, load files into Snowflake, BigQuery and Redshift, design partitioned and clustered tables, query JSON, use time travel and clones, and keep access and costs under control.",
+  "lessons": [
+    {
+      "title": "How cloud warehouses work: columns and separate compute",
+      "text": [
+        "A transactional database such as PostgreSQL stores each row together, which is ideal for reading or updating one order at a time. Analytical queries are different: they read millions of rows but only a few columns (sum of amount by month). Cloud warehouses therefore store data by column. A query that needs 3 columns out of 80 reads only those 3, and values of the same column compress very well because they look alike. Less data read means faster queries and, on BigQuery, a smaller bill.",
+        "The second idea is the separation of storage and compute. Data sits in cheap, durable object storage managed by the vendor; the machines that run queries are a separate resource that you can start, stop and resize without moving the data. Two teams can query the same tables with their own compute, and you pay for storage and compute separately.",
+        "The three products apply this differently. Snowflake stores tables as compressed micro-partitions and runs queries on virtual warehouses (clusters you size and that bill per second while running). BigQuery is serverless: you never manage machines, Google allocates slots (units of compute) per query, and you pay either by bytes scanned or for reserved capacity. Redshift started as a cluster of nodes holding the data; RA3 nodes and Redshift Serverless now keep data in managed storage and bill compute separately.",
+        "Each product also keeps metadata about every block of data, such as the minimum and maximum value of each column. The engine uses it to skip blocks that cannot match a filter. This is called pruning, and most performance work in a warehouse is about making pruning effective."
+      ],
+      "points": [
+        "Columnar storage: read only the columns you select, with strong compression.",
+        "Storage and compute are billed and scaled separately.",
+        "Snowflake = virtual warehouses; BigQuery = serverless slots; Redshift = provisioned clusters or Serverless.",
+        "Pruning skips blocks using min/max metadata: filters on well-organised columns make it work.",
+        "SELECT * defeats columnar storage: name the columns you need."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Snowflake / Redshift: only order_date and amount are read,\n-- not the 60 other columns of the table\nSELECT DATE_TRUNC('month', order_date) AS month,\n       SUM(amount) AS revenue\nFROM sales.orders\nWHERE order_date >= '2026-01-01'\nGROUP BY 1\nORDER BY 1;",
+        "note": "In BigQuery write DATE_TRUNC(order_date, MONTH): the date comes first and the part is a keyword. In all three, the filter on order_date lets the engine prune old blocks."
+      }
+    },
+    {
+      "title": "Loading data: COPY INTO, bq load and external tables",
+      "text": [
+        "Data usually lands as files (CSV, JSON, Parquet) in object storage: Amazon S3, Google Cloud Storage or Azure Blob Storage. Loading means copying those files into warehouse tables in bulk. Bulk loads are far faster and cheaper than inserting rows one by one, so pipelines write files first and load them in batches.",
+        "In Snowflake you point a stage at the storage location (an external stage uses a storage integration so no keys sit in SQL), define a file format, then run COPY INTO. Snowflake remembers which files it already loaded for 64 days, so running the same COPY twice does not duplicate rows. Snowpipe runs the same COPY automatically when new files arrive. In BigQuery, the bq load command or the LOAD DATA SQL statement loads files from Cloud Storage; batch loading uses a shared pool of slots and is not charged. In Redshift, COPY reads from S3 in parallel using an IAM role attached to the cluster.",
+        "External tables are the alternative: the files stay in object storage and the warehouse reads them at query time (Snowflake external tables, BigQuery external tables, Redshift Spectrum). They avoid a load step and suit rarely queried or very large raw data, but they are slower and cannot be pruned or optimised as well as native tables. A common pattern is to expose raw files as external tables and load only what is queried often.",
+        "Prefer Parquet when you can: it is columnar, typed and compressed, so loads are faster and you avoid CSV problems with delimiters, quotes and dates."
+      ],
+      "points": [
+        "Snowflake: CREATE STAGE + FILE FORMAT, then COPY INTO table FROM @stage.",
+        "BigQuery: bq load --source_format=PARQUET dataset.table 'gs://bucket/path/*.parquet'.",
+        "Redshift: COPY table FROM S3 location IAM_ROLE ... FORMAT AS PARQUET.",
+        "Load in batches of reasonably sized files (roughly 100-250 MB compressed) rather than millions of tiny files.",
+        "Check load errors: Snowflake ON_ERROR and VALIDATION_MODE, bq --max_bad_records, Redshift STL_LOAD_ERRORS / SYS_LOAD_ERROR_DETAIL."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Snowflake: load CSV files from a stage already pointing at cloud storage\nCREATE FILE FORMAT csv_fmt TYPE = 'CSV' SKIP_HEADER = 1\n  FIELD_OPTIONALLY_ENCLOSED_BY = '\"' NULL_IF = ('', 'NULL');\n\nCOPY INTO raw.orders\n  FROM @raw.landing_stage/orders/\n  FILE_FORMAT = (FORMAT_NAME = 'csv_fmt')\n  PATTERN = '.*[.]csv'\n  ON_ERROR = 'ABORT_STATEMENT';\n\n-- BigQuery (shell): load Parquet files from Cloud Storage\n-- bq load --source_format=PARQUET raw.orders 'gs://my-bucket/orders/*.parquet'\n\n-- Redshift: load Parquet files from S3\n-- COPY raw.orders FROM 's3://my-bucket/orders/'\n--   IAM_ROLE 'arn:aws:iam::123456789012:role/redshift-load' FORMAT AS PARQUET;",
+        "note": "Same job, three dialects. ABORT_STATEMENT (the default for COPY) stops at the first bad row, which is safer than silently skipping data."
+      }
+    },
+    {
+      "title": "Snowflake compute: warehouses, credits and auto-suspend",
+      "text": [
+        "In Snowflake, a virtual warehouse is the compute that runs your queries. Sizes go from X-Small to 6X-Large, and each step up doubles both the compute and the credits per hour: X-Small uses 1 credit per hour, Small 2, Medium 4, and so on. A credit is the unit Snowflake bills, at a price set in your contract. Billing is per second, with a minimum of 60 seconds each time a warehouse starts.",
+        "A running warehouse costs money even when nobody queries it. AUTO_SUSPEND stops it after a number of idle seconds and AUTO_RESUME starts it again on the next query. A short auto-suspend (60 seconds) suits most BI and ad hoc work. The trade-off: a suspended warehouse loses its local disk cache, so the first queries after a resume may be slower.",
+        "Bigger is not always more expensive. A query that takes 8 minutes on Small may take about 4 on Medium: double the rate for half the time costs the same, and the user waits less. Size up when a single query is slow because it spills to disk; for many concurrent users, a multi-cluster warehouse (Enterprise edition) adds clusters of the same size instead.",
+        "Separate warehouses by workload: one for loading, one for transformations (dbt), one for BI. Each can be sized and monitored on its own, and a heavy dbt run does not slow down dashboards. Snowflake also keeps a result cache: running exactly the same query on unchanged data within 24 hours returns the stored result without using a warehouse."
+      ],
+      "points": [
+        "Credits per hour double with each size: XS 1, S 2, M 4, L 8.",
+        "Per-second billing, 60-second minimum per resume.",
+        "AUTO_SUSPEND = 60 and AUTO_RESUME = TRUE for most warehouses.",
+        "One warehouse per workload makes costs visible and avoids contention.",
+        "Resource monitors notify or suspend warehouses when a credit quota is reached."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Snowflake\nCREATE WAREHOUSE IF NOT EXISTS bi_wh\n  WAREHOUSE_SIZE = 'XSMALL'\n  AUTO_SUSPEND = 60\n  AUTO_RESUME = TRUE\n  INITIALLY_SUSPENDED = TRUE;\n\nCREATE RESOURCE MONITOR bi_monthly\n  WITH CREDIT_QUOTA = 100\n  FREQUENCY = MONTHLY\n  START_TIMESTAMP = IMMEDIATELY\n  TRIGGERS ON 80 PERCENT DO NOTIFY\n           ON 100 PERCENT DO SUSPEND;\n\nALTER WAREHOUSE bi_wh SET RESOURCE_MONITOR = bi_monthly;",
+        "note": "Resource monitors are created by ACCOUNTADMIN. DO SUSPEND lets running queries finish; DO SUSPEND_IMMEDIATE cancels them."
+      }
+    },
+    {
+      "title": "BigQuery cost, partitioning and clustering",
+      "text": [
+        "With BigQuery on-demand pricing you pay for the bytes your queries scan, per TiB, with the first TiB each month free. Bytes scanned depend on the columns you reference and the partitions you read, not on the number of rows returned. LIMIT 10 on a non-clustered table still scans every referenced column in full. Organisations with steady workloads often switch to capacity pricing (BigQuery editions), where they pay for slots instead of bytes.",
+        "Always check the estimate before running a big query: the editor shows \"This query will process X GB\", and bq query --dry_run returns the same figure without running anything. The table preview tab is free, unlike SELECT * ... LIMIT.",
+        "Partitioning splits a table into segments, usually by day on a date or timestamp column (or by ingestion time, or an integer range). A filter on the partition column makes BigQuery read only the matching partitions. The option require_partition_filter forces every query to filter on it, which protects you from accidental full scans. Clustering then sorts the data inside each partition by up to four columns, so filters on those columns skip blocks too.",
+        "The other warehouses use the same idea under different names. Snowflake creates micro-partitions automatically in load order; on very large tables you can define a clustering key so that related rows stay together (automatic reclustering uses credits). Redshift uses sort keys to skip blocks and a distribution key to place rows that join together on the same node."
+      ],
+      "points": [
+        "On-demand BigQuery: cost = bytes scanned, so select fewer columns and filter on the partition column.",
+        "LIMIT does not reduce bytes scanned; the preview tab and --dry_run are free.",
+        "Partition by date for time-based data; cluster by the columns you filter or join on most.",
+        "Do not wrap the partition column in a function that hides it from pruning; compare it to constants.",
+        "Snowflake: CLUSTER BY on big tables only. Redshift: SORTKEY and DISTKEY."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- BigQuery\nCREATE TABLE analytics.events (\n  event_ts   TIMESTAMP,\n  user_id    STRING,\n  event_name STRING,\n  country    STRING\n)\nPARTITION BY DATE(event_ts)\nCLUSTER BY user_id, event_name\nOPTIONS (require_partition_filter = TRUE, partition_expiration_days = 400);\n\n-- Reads only 7 daily partitions, and few blocks inside them\nSELECT event_name, COUNT(*) AS events\nFROM analytics.events\nWHERE event_ts >= TIMESTAMP('2026-10-01')\n  AND event_ts <  TIMESTAMP('2026-10-08')\n  AND user_id = 'u_123'\nGROUP BY event_name;",
+        "note": "Without the date filter this query is rejected because of require_partition_filter."
+      }
+    },
+    {
+      "title": "Semi-structured data: VARIANT, JSON and SUPER",
+      "text": [
+        "Events, API responses and logs often arrive as JSON whose fields change over time. Warehouses can store it as is and let you query inside it with SQL, so you do not have to design every column before loading. Typical cases are clickstream events, webhook payloads and exports from SaaS tools, where a new field can appear at any time without warning.",
+        "Snowflake stores JSON in a VARIANT column. You read a field with a colon and dots (payload:customer.id), cast it with :: (payload:amount::NUMBER(10,2)) and turn an array into rows with LATERAL FLATTEN. Snowflake also extracts frequently used paths into columnar storage behind the scenes, so queries on common fields stay reasonably fast. PARSE_JSON converts a string to VARIANT.",
+        "BigQuery has a JSON type, read with JSON_VALUE (scalar as string) and JSON_QUERY_ARRAY, or with field access followed by a conversion such as STRING() or INT64(). Its native alternative is a STRUCT and ARRAY schema (nested and repeated fields), which is typed and efficient and is read with dot notation and UNNEST. Redshift stores JSON in a SUPER column, filled with JSON_PARSE and queried with PartiQL dot notation.",
+        "The usual pattern: land the raw JSON in a VARIANT, JSON or SUPER column, then build typed, flat tables from it in the transformation layer (often dbt). Analysts query the clean tables; the raw column keeps the full history when a new field appears."
+      ],
+      "points": [
+        "Snowflake: payload:field.sub::STRING and LATERAL FLATTEN(input => payload:items).",
+        "BigQuery: JSON_VALUE(payload, '$.customer.id') and UNNEST(JSON_QUERY_ARRAY(payload, '$.items')).",
+        "Redshift: SUPER column, JSON_PARSE(), payload.customer.id with PartiQL.",
+        "Always cast extracted values: a JSON number compared as text gives wrong results.",
+        "Keep raw JSON, expose typed columns to analysts."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Snowflake: one row per item in each order event\nSELECT e.payload:order_id::STRING     AS order_id,\n       e.payload:customer.id::STRING  AS customer_id,\n       i.value:sku::STRING            AS sku,\n       i.value:qty::INT               AS qty\nFROM raw.order_events e,\n     LATERAL FLATTEN(input => e.payload:items) i;\n\n-- BigQuery: the same with a JSON column\nSELECT JSON_VALUE(e.payload, '$.order_id')        AS order_id,\n       JSON_VALUE(e.payload, '$.customer.id')     AS customer_id,\n       JSON_VALUE(item, '$.sku')                  AS sku,\n       CAST(JSON_VALUE(item, '$.qty') AS INT64)   AS qty\nFROM raw.order_events e,\n     UNNEST(JSON_QUERY_ARRAY(e.payload, '$.items')) AS item;",
+        "note": "FLATTEN returns a VALUE column for each array element; in BigQuery, UNNEST does the same job."
+      }
+    },
+    {
+      "title": "Time travel, zero-copy clones and access control",
+      "text": [
+        "Time travel lets you query or restore a table as it was in the past. In Snowflake you add AT or BEFORE to a table name (AT(OFFSET => -3600) for one hour ago) and UNDROP brings back a dropped table. The retention period is 1 day by default and up to 90 days on Enterprise edition (DATA_RETENTION_TIME_IN_DAYS). In BigQuery, FOR SYSTEM_TIME AS OF reads a table up to 7 days back by default. Redshift has no time travel; you restore from automated or manual snapshots.",
+        "A zero-copy clone creates a new table, schema or database that shares the storage of the original. In Snowflake, CREATE DATABASE dev CLONE prod takes seconds whatever the size, and you pay only for data that later changes. It is ideal for testing a migration on real data or giving a developer a safe copy. BigQuery offers table clones and table snapshots with the same idea.",
+        "Access control decides who sees what. Snowflake uses roles: privileges are granted to roles and roles to users, and roles can be granted to other roles to build a hierarchy. To read a table, a role needs USAGE on the database and schema, SELECT on the table and USAGE on a warehouse. FUTURE grants apply to tables created later. BigQuery uses Google Cloud IAM: a role such as BigQuery Data Viewer on a dataset, plus BigQuery Job User on the project to run queries. Redshift uses database users, groups and roles with GRANT.",
+        "Follow least privilege: separate roles for loading, transforming and reading, no daily work as ACCOUNTADMIN, and service accounts for tools rather than personal logins."
+      ],
+      "points": [
+        "Snowflake: SELECT ... AT(OFFSET => -3600), BEFORE(STATEMENT => '<query id>'), UNDROP TABLE.",
+        "BigQuery: FOR SYSTEM_TIME AS OF TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR).",
+        "Clones copy metadata, not data: instant dev and test environments.",
+        "Snowflake read access = USAGE on warehouse, database and schema + SELECT on tables.",
+        "Grant to roles or groups, never directly to individuals, and keep admin roles for admin work."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Snowflake: recover rows deleted by mistake an hour ago\nCREATE TABLE sales.orders_restored CLONE sales.orders AT(OFFSET => -3600);\n\n-- Snowflake: read-only role for analysts\nCREATE ROLE IF NOT EXISTS analyst;\nGRANT USAGE ON WAREHOUSE bi_wh TO ROLE analyst;\nGRANT USAGE ON DATABASE analytics TO ROLE analyst;\nGRANT USAGE ON SCHEMA analytics.marts TO ROLE analyst;\nGRANT SELECT ON ALL TABLES IN SCHEMA analytics.marts TO ROLE analyst;\nGRANT SELECT ON FUTURE TABLES IN SCHEMA analytics.marts TO ROLE analyst;\nGRANT ROLE analyst TO USER jdupont;",
+        "note": "The clone is instant and shares storage with the original until rows change."
+      }
+    },
+    {
+      "title": "Cost habits, and where dbt and Airflow fit",
+      "text": [
+        "Cloud warehouse bills grow quietly: a dashboard refreshing every 5 minutes, a forgotten warehouse without auto-suspend, a scheduled SELECT * on a huge table. Good habits matter more than clever tuning. Select only the columns you need, filter on partition or clustering columns, materialise expensive results once instead of recomputing them in every dashboard, and match refresh schedules to how often the data really changes.",
+        "Put guardrails in place. In Snowflake: auto-suspend, resource monitors, STATEMENT_TIMEOUT_IN_SECONDS on warehouses, and QUERY_TAG to attribute costs. In BigQuery: dry runs, the maximum bytes billed setting on queries, custom per-user or per-project quotas, and require_partition_filter. In all three, review the query history views (Snowflake ACCOUNT_USAGE.QUERY_HISTORY and WAREHOUSE_METERING_HISTORY, BigQuery INFORMATION_SCHEMA.JOBS, Redshift SYS_QUERY_HISTORY) to find the most expensive queries each week.",
+        "dbt and Airflow sit on top of the warehouse. dbt does the T of ELT: it compiles SQL models into CREATE TABLE or CREATE VIEW statements, runs them in the warehouse in dependency order and tests the results. Warehouse features appear as dbt configs: partition_by and cluster_by on BigQuery, cluster_by and snowflake_warehouse on Snowflake, sort and dist on Redshift. Incremental models process only new data, which is one of the biggest cost savers.",
+        "Airflow orchestrates the whole chain: wait for files, run the load (COPY INTO or a BigQuery load job), trigger dbt, then refresh or alert. Its provider packages include operators for each warehouse, for example BigQueryInsertJobOperator, or SQLExecuteQueryOperator with a Snowflake connection. The warehouse does the heavy computing; Airflow only decides when and in which order."
+      ],
+      "points": [
+        "Biggest savings: fewer columns, partition filters, incremental models, sensible refresh schedules.",
+        "Guardrails: auto-suspend, resource monitors, timeouts, maximum bytes billed, quotas.",
+        "Review query history weekly and fix the top expensive queries first.",
+        "dbt = transformations and tests inside the warehouse; Airflow = scheduling and dependencies.",
+        "Tag queries (Snowflake QUERY_TAG, BigQuery labels) to know which team or job spends what."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- dbt model for BigQuery: models/marts/fct_events.sql\n{{ config(\n    materialized = 'incremental',\n    partition_by = {'field': 'event_date', 'data_type': 'date'},\n    cluster_by = ['user_id'],\n    incremental_strategy = 'insert_overwrite'\n) }}\n\nSELECT DATE(event_ts) AS event_date, user_id, event_name, country\nFROM {{ source('raw', 'events') }}\n{% if is_incremental() %}\nWHERE DATE(event_ts) >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY)\n{% endif %}",
+        "note": "Each run rewrites only the last 3 daily partitions instead of rebuilding the whole table."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Architecture",
+      "items": [
+        ["Columnar storage", "Reads only the referenced columns, compresses well"],
+        ["Separation of storage and compute", "Scale and pay for each independently"],
+        ["Pruning", "Skip blocks whose min/max cannot match the filter"],
+        ["External table", "Query files in object storage without loading them"]
+      ]
+    },
+    {
+      "group": "Loading",
+      "items": [
+        ["COPY INTO t FROM @stage (Snowflake)", "Bulk load files from a stage, skips files already loaded"],
+        ["bq load --source_format=PARQUET ds.t 'gs://...' (BigQuery)", "Load files from Cloud Storage, free batch load"],
+        ["COPY t FROM 's3://...' IAM_ROLE ... (Redshift)", "Parallel load from S3"],
+        ["Snowpipe (Snowflake)", "Automatic COPY when new files arrive"]
+      ]
+    },
+    {
+      "group": "Snowflake compute",
+      "items": [
+        ["WAREHOUSE_SIZE = 'XSMALL'", "1 credit per hour; each size up doubles it"],
+        ["AUTO_SUSPEND = 60", "Stop after 60 idle seconds"],
+        ["CREATE RESOURCE MONITOR ... CREDIT_QUOTA", "Notify or suspend at a credit limit"],
+        ["Result cache", "Same query on unchanged data within 24 h is free"]
+      ]
+    },
+    {
+      "group": "BigQuery cost and layout",
+      "items": [
+        ["bq query --dry_run", "Estimate bytes scanned without running"],
+        ["PARTITION BY DATE(ts)", "Read only the partitions in the filter"],
+        ["CLUSTER BY a, b", "Sort data in partitions, up to 4 columns"],
+        ["require_partition_filter = TRUE", "Reject queries without a partition filter"]
+      ]
+    },
+    {
+      "group": "Semi-structured",
+      "items": [
+        ["payload:customer.id::STRING (Snowflake)", "Read and cast a field in a VARIANT"],
+        ["LATERAL FLATTEN(input => payload:items)", "One row per array element (Snowflake)"],
+        ["JSON_VALUE(payload, '$.id') (BigQuery)", "Extract a scalar from JSON as a string"],
+        ["JSON_PARSE() / SUPER (Redshift)", "Store and query JSON with PartiQL"]
+      ]
+    },
+    {
+      "group": "Recovery and access",
+      "items": [
+        ["AT(OFFSET => -3600) / UNDROP TABLE", "Snowflake time travel and restore"],
+        ["FOR SYSTEM_TIME AS OF ts", "BigQuery time travel (7 days by default)"],
+        ["CREATE TABLE b CLONE a", "Zero-copy clone (Snowflake, BigQuery)"],
+        ["GRANT SELECT ON FUTURE TABLES IN SCHEMA s TO ROLE r", "Snowflake: also cover tables created later"]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "Snowflake: create a warehouse for dbt runs, size Small, that stops after 2 idle minutes, restarts on demand and does not start when created.",
+      "hint": "WAREHOUSE_SIZE, AUTO_SUSPEND is in seconds, AUTO_RESUME, INITIALLY_SUSPENDED.",
+      "code": "sql",
+      "answer": "CREATE WAREHOUSE IF NOT EXISTS transform_wh\n  WAREHOUSE_SIZE = 'SMALL'\n  AUTO_SUSPEND = 120\n  AUTO_RESUME = TRUE\n  INITIALLY_SUSPENDED = TRUE;"
+    },
+    {
+      "q": "BigQuery: a query on a 2 TB events table partitioned by DATE(event_ts) costs too much. It is: SELECT * FROM analytics.events WHERE EXTRACT(YEAR FROM event_ts) = 2026 LIMIT 100. Rewrite it to scan less.",
+      "hint": "Name the columns, filter the partition column against constants, and remember LIMIT does not reduce bytes scanned.",
+      "code": "sql",
+      "answer": "SELECT event_ts, user_id, event_name\nFROM analytics.events\nWHERE event_ts >= TIMESTAMP('2026-01-01')\n  AND event_ts <  TIMESTAMP('2027-01-01')\nLIMIT 100;"
+    },
+    {
+      "q": "Snowflake: from a table raw.signups with a VARIANT column payload like {\"user\": {\"id\": 7, \"email\": \"a@b.c\"}, \"plan\": \"pro\"}, return user_id as a number and plan as text.",
+      "hint": "Colon for the first level, dot for nested fields, :: to cast.",
+      "code": "sql",
+      "answer": "SELECT payload:user.id::NUMBER AS user_id,\n       payload:plan::STRING    AS plan\nFROM raw.signups;"
+    },
+    {
+      "q": "Snowflake: someone ran a wrong UPDATE on sales.orders 20 minutes ago. Create a copy of the table as it was 30 minutes ago so you can compare and repair.",
+      "hint": "Combine CLONE with time travel.",
+      "code": "sql",
+      "answer": "CREATE TABLE sales.orders_before_fix CLONE sales.orders AT(OFFSET => -1800);"
+    },
+    {
+      "q": "Redshift: load the Parquet files under s3://acme-data/orders/ into raw.orders using the IAM role arn:aws:iam::111122223333:role/redshift-load.",
+      "hint": "COPY ... FROM ... IAM_ROLE ... FORMAT AS ...",
+      "code": "sql",
+      "answer": "COPY raw.orders\nFROM 's3://acme-data/orders/'\nIAM_ROLE 'arn:aws:iam::111122223333:role/redshift-load'\nFORMAT AS PARQUET;"
+    },
+    {
+      "q": "Your Snowflake bill doubled this month. List, in order, what you would check.",
+      "hint": "Think about which warehouses spent the credits, then which queries, then why.",
+      "answer": "1) WAREHOUSE_METERING_HISTORY: which warehouse consumed the extra credits and when. 2) Its settings: auto-suspend missing or too long, size increased, multi-cluster maximum raised. 3) QUERY_HISTORY for that warehouse: the most expensive or most frequent queries, by query tag or user. 4) The cause: a dashboard refreshing too often, a full rebuild that should be incremental, a new scheduled job, a missing filter. 5) Fix it and add guardrails: auto-suspend, a resource monitor with notify and suspend triggers, statement timeouts."
+    }
+  ],
+  "pitfalls": [
+    "Running SELECT * ... LIMIT 10 in BigQuery to look at a table: you pay for a full scan of every column. Use the preview tab.",
+    "Leaving a Snowflake warehouse without auto-suspend, or with a long one, so it bills credits all night.",
+    "Wrapping the partition or clustering column in a function or comparing it to a subquery result, which can stop pruning.",
+    "Loading many tiny files one by one instead of batching them: slow loads and, in Snowflake, wasted warehouse time.",
+    "Comparing values extracted from JSON without casting them, so '10' is compared as text and sorts before '9'.",
+    "Granting rights directly to users or doing daily work as ACCOUNTADMIN instead of using dedicated roles."
+  ],
+  "interview": [
+    {
+      "q": "Why are cloud data warehouses columnar?",
+      "a": "Analytical queries read many rows but few columns. Storing data by column means a query reads only the columns it needs, and similar values compress very well. Together with min/max metadata per block, which lets the engine skip blocks that cannot match a filter, this makes scans much faster and, on BigQuery on-demand, cheaper."
+    },
+    {
+      "q": "What does separation of storage and compute mean, and why does it matter?",
+      "a": "Data lives in managed object storage, and the compute that runs queries is a separate resource. You can resize or stop compute without moving data, give each team or workload its own compute on the same tables, and pay for storage and compute separately. In Snowflake that compute is a virtual warehouse; in BigQuery it is slots allocated by the service."
+    },
+    {
+      "q": "How is Snowflake billed compared with BigQuery?",
+      "a": "Snowflake bills compute in credits per second while a warehouse runs, with a 60-second minimum per start, and credits per hour double with each size; storage is billed separately. BigQuery on-demand bills by bytes scanned per query, so the columns and partitions you read drive the cost; with capacity pricing you pay for reserved slots instead. Both bill storage per GB per month."
+    },
+    {
+      "q": "What is the difference between partitioning and clustering in BigQuery?",
+      "a": "Partitioning splits the table into segments, usually one per day on a date or timestamp column, and a filter on that column makes BigQuery read only matching partitions; the cost estimate reflects it before the query runs. Clustering sorts data within partitions by up to four columns, so filters on them skip blocks; the saving is known only after execution. I partition on the main date filter and cluster on columns used in filters and joins."
+    },
+    {
+      "q": "A Snowflake query is slow. Do you make the warehouse bigger?",
+      "a": "First I look at the query profile. If the problem is spilling to disk or a large scan with little pruning, a bigger warehouse can help and may cost about the same because the query finishes faster. If many users are waiting, a multi-cluster warehouse is the answer, not a bigger size. If the query reads far more than needed, I fix the query, the filters or the clustering instead of paying for more compute."
+    },
+    {
+      "q": "What are time travel and zero-copy cloning used for?",
+      "a": "Time travel reads or restores data as it was in the past: recovering from a bad UPDATE or DELETE, UNDROP of a dropped table, or comparing before and after a change. In Snowflake the retention is 1 day by default, up to 90 on Enterprise; BigQuery keeps 7 days by default. A zero-copy clone creates a new table or database sharing the original storage, so you get an instant test or dev copy and pay only for data that changes."
+    },
+    {
+      "q": "How do you query JSON in a warehouse?",
+      "a": "In Snowflake I store it in a VARIANT column, read fields with payload:field.sub, cast with :: and explode arrays with LATERAL FLATTEN. In BigQuery I use the JSON type with JSON_VALUE and JSON_QUERY_ARRAY plus UNNEST, or a typed STRUCT/ARRAY schema. Redshift uses SUPER with PartiQL. In all cases I keep the raw JSON and build typed tables from it for analysts."
+    },
+    {
+      "q": "How do dbt and Airflow work with a cloud warehouse?",
+      "a": "The warehouse stores data and does the computing. dbt turns SQL models into tables and views inside it, in dependency order, with tests and documentation, and exposes warehouse features as configs such as partition_by and cluster_by. Airflow schedules the whole pipeline: waits for files, runs the load, triggers dbt, then alerts or refreshes downstream tools."
+    }
+  ]
+}

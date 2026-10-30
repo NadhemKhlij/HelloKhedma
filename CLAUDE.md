@@ -114,6 +114,7 @@ Read the header comment of any file before modifying it; update the header if be
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
 - js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
 - js/offercheck.js — age of an offer, level (Junior…Lead) and trust warnings (scam signals, stale, no company)
+- js/pulse.js — path market pulse on Home, from the offers seen on the Offers page (local only, "hk.pulse.<path>")
 - js/tailor.js — "Tailor my CV" dialog: honest gap analysis, prompt to copy for the user's own AI, and "Rewrite with AI"
   (cv-tailor function, signed-in users, after a notice)
 - js/letters.js — letters pack: cover letter prompt to copy (offers, CV match), thank-you / follow-up emails from a

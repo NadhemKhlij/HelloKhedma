@@ -63,6 +63,11 @@ years of experience asked (offers with no level stay in when filtering), "⚠ Ch
 contact, personal email address, fees or money transfers, easy-money wording) and "🕒 Worth checking" (no company,
 older than 45 days) with the reasons, and a filter to hide them. Reposted offers are not detected yet (needs history
 across searches).
+Done (2026-10-30): 3.9 path market pulse (js/pulse.js): a "Your market" card on Home built from the offers the user
+looked at for the path (last 60 days, up to 400, in this browser only): typical salary (middle half of the euro
+salaries given by employers; estimates and other currencies left out), % remote / hybrid, % stating a salary, top 10
+skills with CV gaps and course links, levels asked. Next: the same from France Travail "Marché du travail" (3.6) for
+figures beyond the user's own searches.
 Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text),
 3.3 hide / "not interested", seen marker, "Tracked ✓", 3.4 minimum CV-fit filter, saved searches (this browser; email alerts still to do).
 Done (2026-10-29): "Companies I follow" (career pages on Greenhouse, Lever, Ashby, Workable, SmartRecruiters; full descriptions,

@@ -1,7 +1,10 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-30)
-- **Just finished (2026-10-30):** smoke tests in CI (tests/smoke.spec.mjs, 15 tests, all passing): every deploy now
+- **Just finished (2026-10-30):** path market pulse on Home (ROADMAP 3.9, js/pulse.js): typical salary, % remote,
+  % with a salary, top skills with CV gaps, levels, from the offers seen for the path (this browser only). Tested in
+  the preview (EN/FR, phone) and by a new smoke test (16 passing). Fills up as the owner runs searches.
+- **Before that:** smoke tests in CI (tests/smoke.spec.mjs): every deploy now
   runs them first and stops if one fails. Push a non-main branch to test a change without publishing it.
 - **Also 2026-10-30 (another session):** DevOps Engineer path (seed + interview questions) and fuller courses: 4 new DevOps
   courses (CI/CD, Kubernetes, Terraform, AWS) and one more lesson, exercise and interview question in each of the 17
@@ -17,7 +20,7 @@
 - **Owner, first:** O17 (re-run seed.sql for DevOps), O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). Also check
   "Confirm email" is OFF in Supabase and delete the Resend key that was pasted in the chat (O5b).
 - **Next in code (owner's choice):** accessibility pass (1.9),
-  LinkedIn import (3.10), path market pulse (3.9), networking contacts. 2026-10-30:
+  LinkedIn import (3.10), networking contacts, offer coach (2.8, can reuse the pulse salaries). 2026-10-30:
   ROADMAP gained items from a jobicy.com review (2.8, 3.8–3.10, 4.4b, 4.7, 5.5).
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
   local preview without Node: scripts/preview-cdn.sh + scripts/serve.ps1.
@@ -45,6 +48,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-10-30 | Path market pulse on Home ("Your market": salary, remote, top skills, levels from the offers you looked at); no setup needed |
 | 2026-10-30 | Smoke tests (Playwright) run before every deploy; a failing test stops it; no setup needed |
 | 2026-10-30 | DevOps Engineer path in code (seed, interview questions, 4 new courses) and every course extended by one lesson, exercise and interview question; setup-all.sql regenerated. Live once O17 is done |
 | 2026-10-30 | Offer checks: posted date chip + filter, level (Junior…Lead) + filter, "⚠ Check this offer" warnings (scam signals, stale, no company) + filter; no setup needed |

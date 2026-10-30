@@ -5,13 +5,16 @@
 // - Remote jobs: remote.js (Jobicy, Remotive; titles filtered to the path).
 // Every offer gets its skills, contract / remote tags (from the text), a fit score against the active CV and its salary
 // (salary.js: provider field or description; the "≥ N k€" filter and the salary sort use the yearly amount, euros only).
+// offercheck.js adds its age ("Posted 3 days ago", date filter, "Most recent" sort), its level (Junior…Lead, level
+// filter) and the "⚠ Check this offer" warnings (scam signals, stale offer, no company; filter to hide them).
 // "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent); "✉ Cover letter" opens
 // letters.js (prompt to copy).
 // Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode").
 // Source credits required by the providers' terms: CREDITS.
 import { $, h, safeUrl, ls, toast } from "./lib.js";
-import { t, tn } from "./i18n.js";
+import { t, tn, LOCALE } from "./i18n.js";
 import { CONFIG } from "./supabase.js";
+import { offerAge, ageLabel, seniority, trustFlags, STALE_DAYS } from "./offercheck.js";
 import { state, path, fitColor, skillChip } from "./state.js";
 import { searchJobs, boardLinks } from "./jobs.js";
 import { extractSkills, matchSkills, norm } from "./ats.js";
@@ -101,7 +104,20 @@ async function track(job, btn) {
   } catch (e) { toast(e.code === "DUPLICATE" ? t("Already in your tracker") : e.message); }
 }
 
-function renderJob({ j, skills, fit, tags, key, salary }) {
+// "⚠ Check this offer" (serious signals) or "🕒 Worth checking" (stale / no company): a folded list of the reasons.
+function trustPanel(flags) {
+  if (!flags.length) return null;
+  const serious = flags.some((f) => f.serious), color = serious ? "#e0508b" : "#f08a24";
+  return h("details", { class: "mt-2 text-xs" },
+    h("summary", { class: "chip !py-0 text-xs font-medium cursor-pointer w-fit", style: `border-color:${color};color:${color}` },
+      serious ? t("⚠ Check this offer") : t("🕒 Worth checking")),
+    h("ul", { class: "grid gap-1 mt-2 pl-4 list-disc" }, flags.map((f) => h("li", {}, f.text))),
+    h("p", { class: "mute mt-1" }, serious
+      ? t("These are warning signs, not proof. Look the company up on its own website, and never pay or share bank details to apply.")
+      : t("Look the company up and check the offer is still open on its website before applying.")));
+}
+
+function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
   const url = safeUrl(j.url);
   const tracked = state.cards.some((c) => c.external_id === j.id && c.source === j.source);
   const hidden = state.hidden.has(key), seen = state.seen.has(key);
@@ -123,7 +139,10 @@ function renderJob({ j, skills, fit, tags, key, salary }) {
         h("b", { class: "block" }, j.title),
         h("span", { class: "mute text-sm block" }, [j.company, j.location].filter(Boolean).join(" · "))),
       badge),
-    salary || tags.contract || tags.remote || seen || hidden || j.isNew ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
+    salary || tags.contract || tags.remote || seen || hidden || j.isNew || days != null || level ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
+      days != null ? h("span", { class: "chip !py-0 text-xs", style: days > STALE_DAYS ? "border-color:#f08a24;color:#f08a24" : "",
+        title: new Date(j.posted).toLocaleDateString(LOCALE) }, ageLabel(days)) : null,
+      level ? tag(t(`level|${level}`)) : null,
       salary ? h("span", { class: "chip chip-ok !py-0 text-xs font-medium",
         title: salary.estimated ? t("Estimated by the job site, not given by the employer") : t("Salary given in the offer") },
         `💶 ${formatSalary(salary)}`) : null,
@@ -136,6 +155,7 @@ function renderJob({ j, skills, fit, tags, key, salary }) {
       ? h("div", { class: "flex flex-wrap gap-1.5 mt-2", "aria-label": t("Skills in this offer") }, skills.slice(0, 8).map((s) => skillChip(s, state.cv.names.has(s))))
       : h("p", { class: "mute text-xs mt-2" }, t("No specific skills detected in the offer summary.")),
     h("p", { class: "text-sm mt-2 mute" }, j.snippet),
+    trustPanel(flags),
     h("div", { class: "flex flex-wrap items-center gap-2 mt-2" },
       url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn", onClick: () => markSeen(key) }, t("View offer")) : null,
       btn, hideBtn,
@@ -157,7 +177,8 @@ export function renderOffers() {
     if (fit && fit.total < MIN_SKILLS_FOR_FIT) fit = { ...fit, score: null };
     const salary = offerSalary(j);
     j.salaryInfo = salary; // kept for Track, which copies it into the application
-    return { j, skills, fit, tags: offerTags(j), key: offerKey(j), salary };
+    const days = offerAge(j);
+    return { j, skills, fit, tags: offerTags(j), key: offerKey(j), salary, days, level: seniority(j), flags: trustFlags(j, days) };
   });
   const total = list.length, showHidden = $("#fHidden").checked;
   const hiddenCount = list.filter((x) => state.hidden.has(x.key)).length;
@@ -189,19 +210,27 @@ export function renderOffers() {
   // "≥ N k€" compares yearly amounts in euros: offers in another currency are not converted, so they are left out.
   const salaryOk = (x) => !salaryFilter || (salaryFilter === "shown" ? Boolean(x.salary)
     : x.salary?.currency === "EUR" && x.salary.yearMax >= Number(salaryFilter));
+  // Date: offers without a date are left out (their age can't be checked). Level: offers that state no level stay in.
+  const maxDays = Number($("#fDate").value), level = $("#fLevel").value, hideFlagged = $("#fTrust").checked;
+  const flaggedCount = list.filter((x) => x.flags.some((f) => f.serious)).length;
   list = list.filter((x) =>
     (!state.skillFilter || x.skills.includes(state.skillFilter))
     && (!contract || x.tags.contract === contract)
     && (!remote || (remote === "Remote" ? x.tags.remote === "Remote" : Boolean(x.tags.remote)))
     && (!minFit || (x.fit?.score ?? -1) >= minFit)
-    && salaryOk(x));
+    && salaryOk(x)
+    && (!maxDays || (x.days != null && x.days <= maxDays))
+    && (!level || !x.level || x.level === level)
+    && (!hideFlagged || !x.flags.some((f) => f.serious)));
   const sort = $("#sortBy").value;
   if (hasCv && sort === "fit") list = [...list].sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1));
   if (sort === "salary") list = [...list].sort((a, b) => (b.salary?.yearMax ?? -1) - (a.salary?.yearMax ?? -1));
+  if (sort === "recent") list = [...list].sort((a, b) => (a.days ?? 1e9) - (b.days ?? 1e9));
   $("#fitNote").append(h("span", { class: "mute" }, t(" · Showing {shown} of {total}", { shown: list.length, total })
     + (hiddenCount ? t(" ({n} hidden)", { n: hiddenCount }) : "")),
     h("span", { class: "mute", title: t("An EU directive will require a pay range in every job ad; France plans to apply it in 2027.") },
-      t(" · {n} with a salary", { n: withSalary })));
+      t(" · {n} with a salary", { n: withSalary })),
+    flaggedCount ? h("span", { style: "color:#e0508b" }, t(" · ⚠ {n} to check", { n: flaggedCount })) : "");
   $("#offerTools").hidden = false;
   $("#results").replaceChildren(...(list.length ? list.map(renderJob)
     : [h("li", { class: "mute text-sm" }, t("No offer matches these filters. Loosen a filter to see more."))]));
@@ -402,7 +431,7 @@ export function initOffers() {
   $("#role").addEventListener("change", renderBoards);
   $("#loc").addEventListener("input", renderBoards);
   $("#searchForm").addEventListener("submit", onSearch);
-  for (const id of ["#sortBy", "#fContract", "#fRemote", "#fFit", "#fSalary", "#fHidden"]) $(id).addEventListener("change", renderOffers);
+  for (const id of ["#sortBy", "#fContract", "#fRemote", "#fFit", "#fSalary", "#fDate", "#fLevel", "#fTrust", "#fHidden"]) $(id).addEventListener("change", renderOffers);
   $("#saveSearch").addEventListener("click", onSaveSearch);
   renderSavedSearches();
   $("#tabSearch").addEventListener("click", () => setOfferMode("search"));

@@ -57,7 +57,13 @@ application (2.7b).
 | 2.8 | Offer coach: when a card reaches "Offer", compare the offered salary with the salaries already seen for that path and region (low / typical / high), negotiation tips and a prompt to copy | Negotiate with data, not guesses | M |
 
 ## Phase 3: find better offers faster
-Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text; date filter still to do),
+Done (2026-10-30): 3.1 date and level filters and 3.8 offer trust check (js/offercheck.js, in the browser): "Posted N
+days ago" chip (orange after 45 days), date filter (offers without a date are left out), level from the title or the
+years of experience asked (offers with no level stay in when filtering), "⚠ Check this offer" (WhatsApp / Telegram
+contact, personal email address, fees or money transfers, easy-money wording) and "🕒 Worth checking" (no company,
+older than 45 days) with the reasons, and a filter to hide them. Reposted offers are not detected yet (needs history
+across searches).
+Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text),
 3.3 hide / "not interested", seen marker, "Tracked ✓", 3.4 minimum CV-fit filter, saved searches (this browser; email alerts still to do).
 Done (2026-10-29): "Companies I follow" (career pages on Greenhouse, Lever, Ashby, Workable, SmartRecruiters; full descriptions,
 "New since last visit"). Done (2026-10-29): "Remote jobs" tab (Jobicy by category + Remotive; Himalayas blocks browser

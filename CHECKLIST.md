@@ -1,9 +1,10 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-30)
-- **Just finished (2026-10-30):** letters pack (ROADMAP 5.1, js/letters.js): cover letter prompt, thank-you and
-  follow-up emails, EN + FR, tested as a guest in the local preview (not signed in; the offer-card button not tried
-  with live results). Roadmap gained items from a jobicy.com review.
+- **Just finished (2026-10-30):** offer checks (ROADMAP 3.1 + 3.8, js/offercheck.js): "Posted N days ago" chip, date
+  and level filters, "Most recent" sort by date, "⚠ Check this offer" warnings with reasons and a filter to hide them.
+  Before that, the letters pack (5.1, js/letters.js). Both tested as a guest in the local preview with sample offers
+  (not with live search results, not signed in). Roadmap gained items from a jobicy.com review.
 - **Before that:** "Rewrite with AI" in Tailor my CV (ROADMAP 5.2): cv-tailor function (Claude Opus 5.5), signed-in
   only, 5 a day, notice before every send, privacy policy updated. It needs O16 (API key + deploy); the function code
   was not run by Claude (no Deno/key here), only the app side. Before that: "Tailor my CV" prompt, salary on offers,
@@ -11,8 +12,7 @@
 - **Owner, first:** O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). Also check
   "Confirm email" is OFF in Supabase and delete the Resend key that was pasted in the chat (O5b).
 - **Next in code (owner's choice):** smoke tests in CI (ROADMAP, Engineering hygiene), accessibility pass (1.9),
-  offer trust check + date / seniority
-  filters (3.8, 3.1), LinkedIn import (3.10), networking contacts; also update supabase/setup-all.sql. 2026-10-30:
+  LinkedIn import (3.10), path market pulse (3.9), networking contacts; also update supabase/setup-all.sql. 2026-10-30:
   ROADMAP gained items from a jobicy.com review (2.8, 3.8–3.10, 4.4b, 4.7, 5.5).
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
   local preview without Node: scripts/preview-cdn.sh + scripts/serve.ps1.
@@ -39,6 +39,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-10-30 | Offer checks: posted date chip + filter, level (Junior…Lead) + filter, "⚠ Check this offer" warnings (scam signals, stale, no company) + filter; no setup needed |
 | 2026-10-30 | Letters pack: cover letter prompt on offers and the CV match, thank-you / follow-up emails from tracker cards and Home (EN + FR); no setup needed |
 | 2026-10-29 | Interactive learning: lesson-by-lesson course player, quiz and flashcards from every cheat sheet, self-graded exercises, roadmap of tracks, streak + XP; no setup needed |
 | 2026-10-29 | New look (warm ivory / charcoal, serif titles, greeting + summary cards, illustrated path cards, segmented tabs, page fade-in); no setup needed |

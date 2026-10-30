@@ -56,29 +56,99 @@
         "lang": "bash",
         "code": "airflow dags list\nairflow dags test job_offers 2026-10-01\nairflow tasks test job_offers load 2026-10-01"
       }
+    },
+    {
+      "title": "Production DAGs: idempotency, backfills and retries",
+      "minutes": 45,
+      "text": [
+        "A task will run more than once: retries after a timeout, a manual re-run, a backfill of past dates. Make every task idempotent: running it twice for the same date gives the same result. Replace the partition for the run's logical date instead of appending, and use the date Airflow gives you, not datetime.now().",
+        "A backfill runs the DAG for past dates, for example after fixing a bug. With idempotent tasks it is safe. Add retries with a delay for flaky sources, timeouts so a stuck task does not block the day, and alerts on failure so someone knows."
+      ],
+      "points": [
+        "Use the logical date ({{ ds }} or the ds argument) to select the data of the run.",
+        "catchup=False avoids an accidental flood of runs when a DAG is first deployed.",
+        "retries + retry_delay handle temporary errors; execution_timeout stops stuck tasks.",
+        "Keep heavy processing out of the scheduler: push it to the warehouse, Spark or a container."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "from datetime import datetime, timedelta\nfrom airflow.decorators import dag, task\n\n@dag(schedule=\"@daily\", start_date=datetime(2026, 1, 1), catchup=False,\n     default_args={\"retries\": 3, \"retry_delay\": timedelta(minutes=5)})\ndef sales_daily():\n    @task\n    def load(ds=None):\n        # idempotent: replace the partition of this run's date, never append blindly\n        run_sql(f\"DELETE FROM sales WHERE day = '{ds}'\")\n        run_sql(f\"INSERT INTO sales SELECT * FROM staging_sales WHERE day = '{ds}'\")\n    load()\n\nsales_daily()",
+        "note": "Delete then insert for the run date: running the task twice gives the same table."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "DAG settings", "items": [
-      ["schedule=\"@daily\" / \"0 6 * * *\"", "When it runs"],
-      ["start_date=datetime(2026,1,1)", "First interval"],
-      ["catchup=False", "Do not run missed intervals"],
-      ["default_args={\"retries\": 2}", "Retries for every task"],
-      ["max_active_runs=1", "One run at a time"]
-    ]},
-    { "group": "Tasks", "items": [
-      ["@task def f(): ...", "Python task (TaskFlow)"],
-      ["BashOperator(bash_command=...)", "Run a shell command"],
-      ["a >> b >> c", "Dependencies"],
-      ["[a, b] >> c", "c waits for a and b"],
-      ["{{ ds }}", "Logical date in templates"]
-    ]},
-    { "group": "CLI", "items": [
-      ["airflow dags list", "Known DAGs"],
-      ["airflow dags test <dag> <date>", "Run once locally"],
-      ["airflow tasks test <dag> <task> <date>", "Run one task"],
-      ["airflow dags backfill -s D1 -e D2 <dag>", "Re-run a date range"]
-    ]}
+    {
+      "group": "DAG settings",
+      "items": [
+        [
+          "schedule=\"@daily\" / \"0 6 * * *\"",
+          "When it runs"
+        ],
+        [
+          "start_date=datetime(2026,1,1)",
+          "First interval"
+        ],
+        [
+          "catchup=False",
+          "Do not run missed intervals"
+        ],
+        [
+          "default_args={\"retries\": 2}",
+          "Retries for every task"
+        ],
+        [
+          "max_active_runs=1",
+          "One run at a time"
+        ]
+      ]
+    },
+    {
+      "group": "Tasks",
+      "items": [
+        [
+          "@task def f(): ...",
+          "Python task (TaskFlow)"
+        ],
+        [
+          "BashOperator(bash_command=...)",
+          "Run a shell command"
+        ],
+        [
+          "a >> b >> c",
+          "Dependencies"
+        ],
+        [
+          "[a, b] >> c",
+          "c waits for a and b"
+        ],
+        [
+          "{{ ds }}",
+          "Logical date in templates"
+        ]
+      ]
+    },
+    {
+      "group": "CLI",
+      "items": [
+        [
+          "airflow dags list",
+          "Known DAGs"
+        ],
+        [
+          "airflow dags test <dag> <date>",
+          "Run once locally"
+        ],
+        [
+          "airflow tasks test <dag> <task> <date>",
+          "Run one task"
+        ],
+        [
+          "airflow dags backfill -s D1 -e D2 <dag>",
+          "Re-run a date range"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Heavy code at the top level of the DAG file (API calls, queries): it runs every time the scheduler parses the file.",
@@ -87,14 +157,43 @@
     "Dynamic start_date (datetime.now()) that makes the DAG never run."
   ],
   "exercises": [
-    { "q": "Write the dependency line for: extract runs first, then clean and enrich in parallel, then load.",
-      "code": "python", "answer": "extract >> [clean, enrich] >> load" },
-    { "q": "A daily DAG failed for 3 days because of a bug, now fixed. How do you re-process those days?", "answer": "Clear the failed runs in the UI (with downstream tasks) or run a backfill for that date range: airflow dags backfill -s 2026-10-01 -e 2026-10-03 <dag_id>. This works because tasks use the logical date and are idempotent." },
-    { "q": "Write a cron schedule for every Monday at 07:30.", "code": "text", "answer": "30 7 * * 1" }
+    {
+      "q": "Write the dependency line for: extract runs first, then clean and enrich in parallel, then load.",
+      "code": "python",
+      "answer": "extract >> [clean, enrich] >> load"
+    },
+    {
+      "q": "A daily DAG failed for 3 days because of a bug, now fixed. How do you re-process those days?",
+      "answer": "Clear the failed runs in the UI (with downstream tasks) or run a backfill for that date range: airflow dags backfill -s 2026-10-01 -e 2026-10-03 <dag_id>. This works because tasks use the logical date and are idempotent."
+    },
+    {
+      "q": "Write a cron schedule for every Monday at 07:30.",
+      "code": "text",
+      "answer": "30 7 * * 1"
+    },
+    {
+      "q": "A bug corrupted the sales of 1 to 7 March. The code is fixed. Re-run those days with the CLI.",
+      "hint": "airflow dags backfill with start and end dates.",
+      "code": "bash",
+      "answer": "airflow dags backfill sales_daily \\\n  --start-date 2026-03-01 --end-date 2026-03-07"
+    }
   ],
   "interview": [
-    { "q": "What does idempotent mean for a pipeline task?", "a": "Running it several times for the same interval gives the same result, for example by overwriting the partition for that date instead of appending. It makes retries and backfills safe." },
-    { "q": "What is XCom and when should you avoid it?", "a": "A mechanism to pass small values between tasks, stored in Airflow's metadata database. Avoid it for large data such as DataFrames or files: write them to storage and pass the path." },
-    { "q": "Airflow vs cron?", "a": "Cron only triggers commands at times. Airflow adds dependencies between tasks, retries, backfills, a UI with history and logs, and connections management." }
+    {
+      "q": "What does idempotent mean for a pipeline task?",
+      "a": "Running it several times for the same interval gives the same result, for example by overwriting the partition for that date instead of appending. It makes retries and backfills safe."
+    },
+    {
+      "q": "What is XCom and when should you avoid it?",
+      "a": "A mechanism to pass small values between tasks, stored in Airflow's metadata database. Avoid it for large data such as DataFrames or files: write them to storage and pass the path."
+    },
+    {
+      "q": "Airflow vs cron?",
+      "a": "Cron only triggers commands at times. Airflow adds dependencies between tasks, retries, backfills, a UI with history and logs, and connections management."
+    },
+    {
+      "q": "What does idempotent mean for a data pipeline task, and how do you achieve it?",
+      "a": "Running the task several times for the same input period gives the same result, with no duplicates. I achieve it by processing a well-defined partition (the run's logical date), overwriting or merging that partition instead of appending, using upserts with keys, and avoiding side effects based on the current time."
+    }
   ]
 }

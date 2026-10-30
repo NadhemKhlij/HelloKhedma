@@ -75,42 +75,145 @@
         "code": "WITH monthly AS (\n  SELECT DATE_TRUNC('month', ordered_at) AS month, SUM(amount) AS revenue\n  FROM orders\n  GROUP BY 1\n)\nSELECT month, revenue,\n       revenue - LAG(revenue) OVER (ORDER BY month) AS change_vs_prev\nFROM monthly\nORDER BY month;",
         "note": "DATE_TRUNC is PostgreSQL / Snowflake / BigQuery-style; SQL Server uses DATETRUNC or FORMAT."
       }
+    },
+    {
+      "title": "Performance: indexes and query plans",
+      "minutes": 45,
+      "text": [
+        "A query that takes seconds on a big table usually reads every row. An index is a sorted copy of one or more columns with pointers to the rows, like the index of a book: the database jumps to the right rows instead of scanning everything.",
+        "EXPLAIN shows the plan the database chose; EXPLAIN ANALYZE runs the query and shows real timings. Look for full scans (Seq Scan) on large tables, row estimates far from reality and sorts or joins that spill to disk."
+      ],
+      "points": [
+        "Index the columns you filter and join on most; put the most selective, equality-filtered column first.",
+        "Functions on a column (WHERE YEAR(created_at) = 2026) prevent using its index: filter on a range instead.",
+        "Every index speeds up reads but slows down writes and takes space: do not index everything.",
+        "Select only the columns you need instead of SELECT * on wide tables."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Before: the query scans the whole orders table\nEXPLAIN ANALYZE\nSELECT * FROM orders WHERE customer_id = 42 AND created_at >= '2026-01-01';\n\nCREATE INDEX idx_orders_customer_date ON orders (customer_id, created_at);\n\n-- After: Index Scan using idx_orders_customer_date ... (a few ms instead of seconds)",
+        "note": "Measure before and after: the plan, not intuition, tells you what changed."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Query skeleton", "items": [
-      ["SELECT col, ... FROM t", "Choose columns from a table"],
-      ["WHERE cond", "Keep rows before grouping"],
-      ["GROUP BY col", "One row per group"],
-      ["HAVING agg_cond", "Keep groups after aggregation"],
-      ["ORDER BY col DESC", "Sort (ASC is default)"],
-      ["LIMIT n", "First n rows (SQL Server: TOP n)"]
-    ]},
-    { "group": "Filters", "items": [
-      ["col IN ('a','b')", "Matches any value in the list"],
-      ["col BETWEEN 1 AND 9", "Inclusive range"],
-      ["col LIKE 'Dat%'", "% = any text, _ = one character"],
-      ["col IS NULL", "Test for missing values"],
-      ["COALESCE(col, 0)", "Replace NULL with a default"]
-    ]},
-    { "group": "Joins", "items": [
-      ["a JOIN b ON a.id = b.a_id", "Only matching rows"],
-      ["a LEFT JOIN b ON ...", "All rows of a, NULL when no match"],
-      ["... WHERE b.id IS NULL", "Rows of a with no match in b"],
-      ["a FULL JOIN b ON ...", "All rows of both"]
-    ]},
-    { "group": "Aggregates", "items": [
-      ["COUNT(*) / COUNT(DISTINCT c)", "Rows / unique values"],
-      ["SUM, AVG, MIN, MAX", "Numeric summaries"],
-      ["CASE WHEN x THEN 1 ELSE 0 END", "Conditional value, e.g. inside SUM"]
-    ]},
-    { "group": "Windows & CTEs", "items": [
-      ["WITH t AS (SELECT ...)", "Named sub-query"],
-      ["ROW_NUMBER() OVER (PARTITION BY g ORDER BY d)", "Number rows inside each group"],
-      ["RANK() / DENSE_RANK()", "Ranking with / without gaps"],
-      ["LAG(x) OVER (ORDER BY d)", "Previous row's value"],
-      ["SUM(x) OVER (ORDER BY d)", "Running total"]
-    ]}
+    {
+      "group": "Query skeleton",
+      "items": [
+        [
+          "SELECT col, ... FROM t",
+          "Choose columns from a table"
+        ],
+        [
+          "WHERE cond",
+          "Keep rows before grouping"
+        ],
+        [
+          "GROUP BY col",
+          "One row per group"
+        ],
+        [
+          "HAVING agg_cond",
+          "Keep groups after aggregation"
+        ],
+        [
+          "ORDER BY col DESC",
+          "Sort (ASC is default)"
+        ],
+        [
+          "LIMIT n",
+          "First n rows (SQL Server: TOP n)"
+        ]
+      ]
+    },
+    {
+      "group": "Filters",
+      "items": [
+        [
+          "col IN ('a','b')",
+          "Matches any value in the list"
+        ],
+        [
+          "col BETWEEN 1 AND 9",
+          "Inclusive range"
+        ],
+        [
+          "col LIKE 'Dat%'",
+          "% = any text, _ = one character"
+        ],
+        [
+          "col IS NULL",
+          "Test for missing values"
+        ],
+        [
+          "COALESCE(col, 0)",
+          "Replace NULL with a default"
+        ]
+      ]
+    },
+    {
+      "group": "Joins",
+      "items": [
+        [
+          "a JOIN b ON a.id = b.a_id",
+          "Only matching rows"
+        ],
+        [
+          "a LEFT JOIN b ON ...",
+          "All rows of a, NULL when no match"
+        ],
+        [
+          "... WHERE b.id IS NULL",
+          "Rows of a with no match in b"
+        ],
+        [
+          "a FULL JOIN b ON ...",
+          "All rows of both"
+        ]
+      ]
+    },
+    {
+      "group": "Aggregates",
+      "items": [
+        [
+          "COUNT(*) / COUNT(DISTINCT c)",
+          "Rows / unique values"
+        ],
+        [
+          "SUM, AVG, MIN, MAX",
+          "Numeric summaries"
+        ],
+        [
+          "CASE WHEN x THEN 1 ELSE 0 END",
+          "Conditional value, e.g. inside SUM"
+        ]
+      ]
+    },
+    {
+      "group": "Windows & CTEs",
+      "items": [
+        [
+          "WITH t AS (SELECT ...)",
+          "Named sub-query"
+        ],
+        [
+          "ROW_NUMBER() OVER (PARTITION BY g ORDER BY d)",
+          "Number rows inside each group"
+        ],
+        [
+          "RANK() / DENSE_RANK()",
+          "Ranking with / without gaps"
+        ],
+        [
+          "LAG(x) OVER (ORDER BY d)",
+          "Previous row's value"
+        ],
+        [
+          "SUM(x) OVER (ORDER BY d)",
+          "Running total"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Writing = NULL instead of IS NULL: the condition is never true.",
@@ -119,16 +222,47 @@
     "Using SELECT * in production queries: slower and breaks when columns change."
   ],
   "exercises": [
-    { "q": "List the 5 cities with the most customers, with the number of customers.", "hint": "GROUP BY city, ORDER BY the count, LIMIT.",
-      "code": "sql", "answer": "SELECT city, COUNT(*) AS customers\nFROM customers\nGROUP BY city\nORDER BY customers DESC\nLIMIT 5;" },
-    { "q": "Find customers who never placed an order.", "hint": "LEFT JOIN and look for NULL on the orders side.",
-      "code": "sql", "answer": "SELECT c.id, c.name\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.id IS NULL;" },
-    { "q": "For each customer, return their most recent order only.", "hint": "ROW_NUMBER() partitioned by customer, ordered by date descending.",
-      "code": "sql", "answer": "WITH ranked AS (\n  SELECT o.*, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY ordered_at DESC) AS rn\n  FROM orders o\n)\nSELECT * FROM ranked WHERE rn = 1;" }
+    {
+      "q": "List the 5 cities with the most customers, with the number of customers.",
+      "hint": "GROUP BY city, ORDER BY the count, LIMIT.",
+      "code": "sql",
+      "answer": "SELECT city, COUNT(*) AS customers\nFROM customers\nGROUP BY city\nORDER BY customers DESC\nLIMIT 5;"
+    },
+    {
+      "q": "Find customers who never placed an order.",
+      "hint": "LEFT JOIN and look for NULL on the orders side.",
+      "code": "sql",
+      "answer": "SELECT c.id, c.name\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.id IS NULL;"
+    },
+    {
+      "q": "For each customer, return their most recent order only.",
+      "hint": "ROW_NUMBER() partitioned by customer, ordered by date descending.",
+      "code": "sql",
+      "answer": "WITH ranked AS (\n  SELECT o.*, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY ordered_at DESC) AS rn\n  FROM orders o\n)\nSELECT * FROM ranked WHERE rn = 1;"
+    },
+    {
+      "q": "Rewrite this filter so an index on created_at can be used: WHERE EXTRACT(MONTH FROM created_at) = 1 AND EXTRACT(YEAR FROM created_at) = 2026.",
+      "hint": "Compare the column itself to a date range.",
+      "code": "sql",
+      "answer": "SELECT id, total\nFROM orders\nWHERE created_at >= '2026-01-01'\n  AND created_at <  '2026-02-01';"
+    }
   ],
   "interview": [
-    { "q": "What is the difference between WHERE and HAVING?", "a": "WHERE filters individual rows before grouping and cannot use aggregates. HAVING filters groups after GROUP BY and is where conditions on COUNT, SUM, etc. go." },
-    { "q": "INNER JOIN vs LEFT JOIN?", "a": "INNER JOIN returns only rows that match in both tables. LEFT JOIN returns every row of the left table, with NULLs for the right table when there is no match. Use LEFT JOIN when you must not lose rows, for example customers without orders." },
-    { "q": "RANK, DENSE_RANK and ROW_NUMBER?", "a": "All number rows within a window. ROW_NUMBER is always 1, 2, 3 even with ties. RANK gives ties the same number and skips the next ones (1, 1, 3). DENSE_RANK gives ties the same number without gaps (1, 1, 2)." }
+    {
+      "q": "What is the difference between WHERE and HAVING?",
+      "a": "WHERE filters individual rows before grouping and cannot use aggregates. HAVING filters groups after GROUP BY and is where conditions on COUNT, SUM, etc. go."
+    },
+    {
+      "q": "INNER JOIN vs LEFT JOIN?",
+      "a": "INNER JOIN returns only rows that match in both tables. LEFT JOIN returns every row of the left table, with NULLs for the right table when there is no match. Use LEFT JOIN when you must not lose rows, for example customers without orders."
+    },
+    {
+      "q": "RANK, DENSE_RANK and ROW_NUMBER?",
+      "a": "All number rows within a window. ROW_NUMBER is always 1, 2, 3 even with ties. RANK gives ties the same number and skips the next ones (1, 1, 3). DENSE_RANK gives ties the same number without gaps (1, 1, 2)."
+    },
+    {
+      "q": "A query became slow in production. How do you investigate?",
+      "a": "I reproduce it with EXPLAIN ANALYZE to see the plan and where the time goes, check whether the data volume or the plan changed, and look for full scans, bad row estimates or missing indexes. Then I fix the cause: add or adjust an index, rewrite a non-sargable filter, update statistics or reduce the columns and rows read, and compare the plan before and after."
+    }
   ]
 }

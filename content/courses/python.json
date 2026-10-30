@@ -73,40 +73,137 @@
         "lang": "python",
         "code": "import os\nimport requests\n\nresp = requests.get(\n    \"https://api.example.com/jobs\",\n    params={\"q\": \"data engineer\"},\n    headers={\"Authorization\": f\"Bearer {os.environ['API_KEY']}\"},\n    timeout=10,\n)\nresp.raise_for_status()\nprint(len(resp.json()[\"results\"]))"
       }
+    },
+    {
+      "title": "Clean, testable code: logging, type hints and pytest",
+      "minutes": 45,
+      "text": [
+        "Scripts that run in production need more than print(). The logging module writes timestamped messages with a level (DEBUG, INFO, WARNING, ERROR) that you can filter and send to files or monitoring.",
+        "Small functions with clear inputs and outputs are easy to test. pytest finds files named test_*.py and runs every function starting with test_; a failing assert shows exactly what differed. Type hints document what a function expects and let tools catch mistakes before running."
+      ],
+      "points": [
+        "log.info / log.warning / log.exception(...) instead of print; log.exception adds the stack trace.",
+        "One function, one job: read, transform and write in separate functions.",
+        "pytest.raises checks that bad input raises the right error.",
+        "Run pytest and a linter (ruff) in CI so every change is checked."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import logging\n\nlogging.basicConfig(level=logging.INFO, format=\"%(asctime)s %(levelname)s %(message)s\")\nlog = logging.getLogger(__name__)\n\ndef net_price(price: float, discount: float = 0.0) -> float:\n    if not 0 <= discount < 1:\n        raise ValueError(\"discount must be between 0 and 1\")\n    return round(price * (1 - discount), 2)\n\n# test_prices.py  (run: pytest -q)\nimport pytest\n\ndef test_net_price():\n    assert net_price(100, 0.2) == 80.0\n\ndef test_bad_discount():\n    with pytest.raises(ValueError):\n        net_price(100, 1.5)",
+        "note": "The test lives in its own file; pytest -q runs it."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Basics", "items": [
-      ["f\"{x:.2f}\"", "Format a number with 2 decimals"],
-      ["len(x)", "Length of a list, string, dict"],
-      ["type(x) / isinstance(x, int)", "Check a type"],
-      ["x if cond else y", "Inline condition"]
-    ]},
-    { "group": "Lists & dicts", "items": [
-      ["xs.append(v) / xs.extend(ys)", "Add one / many items"],
-      ["sorted(xs, key=lambda j: j[\"salary\"])", "Sorted copy by a field"],
-      ["[f(x) for x in xs if cond]", "List comprehension"],
-      ["d.get(k, default)", "Safe dict lookup"],
-      ["d.items()", "Loop over key, value pairs"],
-      ["{k: v for k, v in pairs}", "Dict comprehension"]
-    ]},
-    { "group": "Strings", "items": [
-      ["s.strip() / s.lower()", "Trim spaces / lowercase"],
-      ["s.split(\",\") / \",\".join(xs)", "Split / join"],
-      ["s.replace(a, b)", "Replace text"],
-      ["s.startswith(\"Data\")", "Prefix test"]
-    ]},
-    { "group": "Files & errors", "items": [
-      ["with open(p, encoding=\"utf-8\") as f:", "Open and auto-close a file"],
-      ["json.load(f) / json.dump(o, f)", "Read / write JSON"],
-      ["try: ... except ValueError as e:", "Catch a specific error"],
-      ["raise ValueError(\"msg\")", "Signal bad input"]
-    ]},
-    { "group": "Environment", "items": [
-      ["python -m venv .venv", "Create a virtual environment"],
-      ["pip install -r requirements.txt", "Install project packages"],
-      ["os.environ[\"KEY\"]", "Read a secret from the environment"]
-    ]}
+    {
+      "group": "Basics",
+      "items": [
+        [
+          "f\"{x:.2f}\"",
+          "Format a number with 2 decimals"
+        ],
+        [
+          "len(x)",
+          "Length of a list, string, dict"
+        ],
+        [
+          "type(x) / isinstance(x, int)",
+          "Check a type"
+        ],
+        [
+          "x if cond else y",
+          "Inline condition"
+        ]
+      ]
+    },
+    {
+      "group": "Lists & dicts",
+      "items": [
+        [
+          "xs.append(v) / xs.extend(ys)",
+          "Add one / many items"
+        ],
+        [
+          "sorted(xs, key=lambda j: j[\"salary\"])",
+          "Sorted copy by a field"
+        ],
+        [
+          "[f(x) for x in xs if cond]",
+          "List comprehension"
+        ],
+        [
+          "d.get(k, default)",
+          "Safe dict lookup"
+        ],
+        [
+          "d.items()",
+          "Loop over key, value pairs"
+        ],
+        [
+          "{k: v for k, v in pairs}",
+          "Dict comprehension"
+        ]
+      ]
+    },
+    {
+      "group": "Strings",
+      "items": [
+        [
+          "s.strip() / s.lower()",
+          "Trim spaces / lowercase"
+        ],
+        [
+          "s.split(\",\") / \",\".join(xs)",
+          "Split / join"
+        ],
+        [
+          "s.replace(a, b)",
+          "Replace text"
+        ],
+        [
+          "s.startswith(\"Data\")",
+          "Prefix test"
+        ]
+      ]
+    },
+    {
+      "group": "Files & errors",
+      "items": [
+        [
+          "with open(p, encoding=\"utf-8\") as f:",
+          "Open and auto-close a file"
+        ],
+        [
+          "json.load(f) / json.dump(o, f)",
+          "Read / write JSON"
+        ],
+        [
+          "try: ... except ValueError as e:",
+          "Catch a specific error"
+        ],
+        [
+          "raise ValueError(\"msg\")",
+          "Signal bad input"
+        ]
+      ]
+    },
+    {
+      "group": "Environment",
+      "items": [
+        [
+          "python -m venv .venv",
+          "Create a virtual environment"
+        ],
+        [
+          "pip install -r requirements.txt",
+          "Install project packages"
+        ],
+        [
+          "os.environ[\"KEY\"]",
+          "Read a secret from the environment"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Using a mutable default argument (def f(xs=[])): the same list is shared between calls. Use None and create the list inside.",
@@ -115,16 +212,46 @@
     "Catching every exception with a bare except and hiding real bugs."
   ],
   "exercises": [
-    { "q": "Given a list of job dicts with a 'salary' key, return the average salary rounded to the nearest euro.",
-      "code": "python", "answer": "def average_salary(jobs):\n    if not jobs:\n        return 0\n    return round(sum(j[\"salary\"] for j in jobs) / len(jobs))" },
-    { "q": "Count how many times each word appears in a sentence (case-insensitive).", "hint": "Split, lowercase, and use a dict or collections.Counter.",
-      "code": "python", "answer": "from collections import Counter\n\ndef word_counts(text):\n    return Counter(text.lower().split())" },
-    { "q": "Write a function that reads a CSV file of jobs and returns the titles in Paris.", "hint": "csv.DictReader gives one dict per row.",
-      "code": "python", "answer": "import csv\n\ndef paris_titles(path):\n    with open(path, encoding=\"utf-8\", newline=\"\") as f:\n        return [row[\"title\"] for row in csv.DictReader(f) if row[\"city\"] == \"Paris\"]" }
+    {
+      "q": "Given a list of job dicts with a 'salary' key, return the average salary rounded to the nearest euro.",
+      "code": "python",
+      "answer": "def average_salary(jobs):\n    if not jobs:\n        return 0\n    return round(sum(j[\"salary\"] for j in jobs) / len(jobs))"
+    },
+    {
+      "q": "Count how many times each word appears in a sentence (case-insensitive).",
+      "hint": "Split, lowercase, and use a dict or collections.Counter.",
+      "code": "python",
+      "answer": "from collections import Counter\n\ndef word_counts(text):\n    return Counter(text.lower().split())"
+    },
+    {
+      "q": "Write a function that reads a CSV file of jobs and returns the titles in Paris.",
+      "hint": "csv.DictReader gives one dict per row.",
+      "code": "python",
+      "answer": "import csv\n\ndef paris_titles(path):\n    with open(path, encoding=\"utf-8\", newline=\"\") as f:\n        return [row[\"title\"] for row in csv.DictReader(f) if row[\"city\"] == \"Paris\"]"
+    },
+    {
+      "q": "Write count_errors(path) that returns the number of lines containing ERROR in a log file, and a pytest test for it using the tmp_path fixture.",
+      "hint": "pathlib.Path.read_text().splitlines(); tmp_path gives a temporary folder.",
+      "code": "python",
+      "answer": "from pathlib import Path\n\ndef count_errors(path: str) -> int:\n    return sum(1 for line in Path(path).read_text().splitlines() if \"ERROR\" in line)\n\n\ndef test_count_errors(tmp_path):\n    log = tmp_path / \"app.log\"\n    log.write_text(\"INFO ok\\nERROR boom\\nERROR again\\n\")\n    assert count_errors(log) == 2"
+    }
   ],
   "interview": [
-    { "q": "List vs tuple?", "a": "Both are ordered sequences. A list is mutable (you can add or change items); a tuple is immutable, slightly lighter, and can be used as a dict key." },
-    { "q": "What is a virtual environment and why use one?", "a": "An isolated folder with its own Python and packages. It lets each project pin its own versions so installing something for one project cannot break another, and makes the setup reproducible with requirements.txt." },
-    { "q": "How do you handle an error when calling an API?", "a": "Set a timeout, check the status code (raise_for_status), catch the specific exceptions (timeout, connection error, HTTP error), log a useful message, and retry with a delay only when the error is temporary." }
+    {
+      "q": "List vs tuple?",
+      "a": "Both are ordered sequences. A list is mutable (you can add or change items); a tuple is immutable, slightly lighter, and can be used as a dict key."
+    },
+    {
+      "q": "What is a virtual environment and why use one?",
+      "a": "An isolated folder with its own Python and packages. It lets each project pin its own versions so installing something for one project cannot break another, and makes the setup reproducible with requirements.txt."
+    },
+    {
+      "q": "How do you handle an error when calling an API?",
+      "a": "Set a timeout, check the status code (raise_for_status), catch the specific exceptions (timeout, connection error, HTTP error), log a useful message, and retry with a delay only when the error is temporary."
+    },
+    {
+      "q": "How do you make a Python script production-ready?",
+      "a": "I split it into small functions with type hints, read configuration from environment variables or a config file instead of hard-coding it, replace print with logging at the right levels, handle expected errors explicitly and let unexpected ones fail loudly, add pytest tests for the core logic, pin dependencies, and run tests and a linter in CI."
+    }
   ]
 }

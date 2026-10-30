@@ -1,0 +1,130 @@
+{
+  "why": "Toutes les offres DevOps demandent du CI/CD. Les équipes livrent plusieurs fois par jour uniquement parce qu’un pipeline construit, teste et déploie chaque changement de la même façon, à chaque fois.",
+  "outcome": "écrire un pipeline GitHub Actions qui vérifie le code, lance les tests et construit une image, stocker les secrets en sécurité, déployer dans un environnement avec validation, et revenir en arrière quand une livraison se passe mal.",
+  "lessons": [
+    {
+      "title": "CI et CD : ce que fait un pipeline",
+      "minutes": 30,
+      "text": [
+        "L’intégration continue (CI) signifie que chaque push est construit et testé automatiquement : les problèmes sont trouvés quelques minutes après avoir été écrits, pas des semaines plus tard. La livraison continue (Continuous Delivery) signifie que chaque changement qui passe la CI est prêt à être livré en un clic ; le déploiement continu (Continuous Deployment) le livre automatiquement.",
+        "Un pipeline est une suite d’étapes exécutées sur un serveur de CI (GitHub Actions, GitLab CI, Jenkins, Azure DevOps) : récupérer le code, installer, vérifier le style, tester, construire un artefact, puis déployer. Si une étape échoue, les suivantes ne s’exécutent pas et l’auteur est prévenu."
+      ],
+      "points": [
+        "Un retour rapide d’abord : vérification du style et tests unitaires en quelques minutes, les contrôles lents ensuite.",
+        "Construire une seule fois, déployer le même artefact partout (test, préproduction, production).",
+        "La branche principale doit toujours être livrable : protégez-la et exigez un pipeline vert avant de fusionner.",
+        "Les pipelines sont du code : ils vivent dans le dépôt et sont relus comme le reste."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "push → checkout → install → lint → unit tests → build image → push image\n                                                  ↓\n                          deploy to staging → smoke tests → approval → production",
+        "note": "Un enchaînement typique. Chaque flèche ne s’exécute que si l’étape précédente a réussi."
+      }
+    },
+    {
+      "title": "Votre premier workflow GitHub Actions",
+      "minutes": 45,
+      "text": [
+        "Un workflow est un fichier YAML dans .github/workflows/. Il indique quand s’exécuter (on: push, pull_request, schedule), sur quelle machine (runs-on) et quelles étapes lancer. Une étape exécute soit des commandes shell (run:), soit une action publiée (uses:).",
+        "Les jobs tournent en parallèle par défaut ; needs: fait attendre un job après un autre. Une matrice lance le même job pour plusieurs versions, par exemple Python 3.11 et 3.12."
+      ],
+      "points": [
+        "actions/checkout récupère votre code ; actions/setup-python ou setup-node installe le langage.",
+        "Mettez les dépendances en cache (cache: pip) pour des exécutions bien plus rapides.",
+        "on: pull_request lance les contrôles avant la fusion ; on: push sur main lance la partie livraison.",
+        "Lisez les logs d’une étape en échec : l’erreur est généralement dans les 20 dernières lignes."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "name: ci\non:\n  pull_request:\n  push:\n    branches: [main]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n        python: [\"3.11\", \"3.12\"]\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-python@v5\n        with:\n          python-version: ${{ matrix.python }}\n          cache: pip\n      - run: pip install -r requirements.txt\n      - run: ruff check .\n      - run: pytest -q",
+        "note": "Vérifie le style et lance les tests sur deux versions de Python à chaque pull request et à chaque push sur main."
+      }
+    },
+    {
+      "title": "Construire, versionner et stocker les artefacts",
+      "minutes": 40,
+      "text": [
+        "Un artefact est ce que vous déployez : une image Docker, un package, une archive. Donnez à chacun une version unique et traçable, par exemple le SHA du commit Git ou un tag de version sémantique (1.4.2), pour toujours savoir ce qui tourne en production.",
+        "Les secrets (mots de passe de registre, clés cloud) ne vont jamais dans le YAML. Stockez-les comme secrets chiffrés dans l’outil de CI et lisez-les comme des variables ; mieux encore, utilisez des identifiants temporaires (OIDC) plutôt que des clés permanentes."
+      ],
+      "points": [
+        "Taguez les images avec le SHA du commit ; ajoutez un tag lisible comme v1.4.2 pour les versions livrées.",
+        "${{ secrets.NAME }} lit un secret ; il est masqué dans les logs.",
+        "Donnez au pipeline uniquement les droits nécessaires (permissions: dans GitHub Actions).",
+        "Gardez les artefacts dans un registre (GHCR, Docker Hub, ECR, Artifactory), pas sur la machine de CI."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "  build:\n    needs: test\n    if: github.ref == 'refs/heads/main'\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read\n      packages: write\n    steps:\n      - uses: actions/checkout@v4\n      - uses: docker/login-action@v3\n        with:\n          registry: ghcr.io\n          username: ${{ github.actor }}\n          password: ${{ secrets.GITHUB_TOKEN }}\n      - uses: docker/build-push-action@v6\n        with:\n          push: true\n          tags: ghcr.io/acme/api:${{ github.sha }}"
+      }
+    },
+    {
+      "title": "Déployer sans risque : environnements, validations et retour arrière",
+      "minutes": 45,
+      "text": [
+        "Déployez le même artefact d’environnement en environnement : la préproduction d’abord, avec des tests de fumée, puis la production après une validation, ou automatiquement si les contrôles passent. Chaque environnement a ses propres secrets et règles de protection.",
+        "Des choses vont casser. Les stratégies prudentes limitent les dégâts : la mise à jour progressive (rolling update) remplace les instances petit à petit, le blue-green bascule le trafic entre deux copies complètes, le canary envoie d’abord une petite part des utilisateurs vers la nouvelle version. Sachez toujours revenir en arrière en une étape : redéployer la version précédente."
+      ],
+      "points": [
+        "Tests de fumée : quelques vérifications rapides juste après le déploiement (endpoint de santé, page de connexion).",
+        "Les feature flags séparent le déploiement du code de l’activation d’une fonctionnalité.",
+        "Les migrations de base de données doivent rester rétrocompatibles pour qu’un retour arrière ne casse pas le schéma.",
+        "Mesurez la livraison avec les indicateurs DORA : fréquence de déploiement, délai de mise en production, taux d’échec des changements, délai de rétablissement."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "  deploy-prod:\n    needs: deploy-staging\n    runs-on: ubuntu-latest\n    environment: production   # requires a reviewer's approval\n    steps:\n      - run: ./deploy.sh ghcr.io/acme/api:${{ github.sha }}\n      - run: curl --fail https://api.acme.com/health",
+        "note": "Retour arrière = relancer le même job avec le tag de l’image précédente."
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Concepts", "items": [
+      ["CI", "Construire et tester chaque changement automatiquement"],
+      ["Continuous Delivery", "Chaque changement validé est prêt à être livré"],
+      ["Continuous Deployment", "Chaque changement validé est livré automatiquement"],
+      ["Artifact", "Ce que l’on déploie (image, package)"],
+      ["Environment", "Une cible comme la préproduction ou la production, avec ses règles"]
+    ]},
+    { "group": "GitHub Actions", "items": [
+      ["on: pull_request", "S’exécuter à chaque pull request"],
+      ["runs-on: ubuntu-latest", "Machine qui exécute le job"],
+      ["uses: actions/checkout@v4", "Réutiliser une action publiée"],
+      ["needs: test", "Attendre un autre job"],
+      ["strategy: matrix", "Le même job pour plusieurs versions"],
+      ["${{ secrets.NAME }}", "Lire un secret chiffré"]
+    ]},
+    { "group": "Stratégies de livraison", "items": [
+      ["Rolling update", "Remplacer les instances quelques-unes à la fois"],
+      ["Blue-green", "Basculer le trafic entre deux copies complètes"],
+      ["Canary", "Envoyer d’abord une petite part du trafic vers la nouvelle version"],
+      ["Feature flag", "Activer une fonctionnalité sans redéployer"]
+    ]},
+    { "group": "Indicateurs DORA", "items": [
+      ["Deployment frequency", "À quelle fréquence vous livrez"],
+      ["Lead time for changes", "Délai entre le commit et la production"],
+      ["Change failure rate", "Part des livraisons qui causent un problème"],
+      ["Time to restore", "Rapidité de rétablissement après une panne"]
+    ]}
+  ],
+  "pitfalls": [
+    "Mettre des mots de passe ou des clés dans le fichier de workflow : utilisez le coffre de secrets de la CI.",
+    "Reconstruire l’artefact pour chaque environnement : construisez une fois, promouvez la même version.",
+    "Des pipelines lents que personne n’attend : mettez en cache et lancez les contrôles rapides en premier.",
+    "Aucun plan de retour arrière : gardez toujours la version précédente déployable en une étape.",
+    "Ignorer les tests instables : corrigez-les ou isolez-les, sinon plus personne ne croit un pipeline rouge."
+  ],
+  "exercises": [
+    { "q": "Écrivez un workflow GitHub Actions qui lance npm ci et npm test à chaque pull request.", "hint": "on: pull_request, actions/checkout, actions/setup-node avec cache: npm.", "code": "yaml",
+      "answer": "name: ci\non: pull_request\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 20\n          cache: npm\n      - run: npm ci\n      - run: npm test" },
+    { "q": "Votre livraison en production échoue à 18 h et les utilisateurs voient des erreurs. Que faites-vous, dans l’ordre ?", "hint": "Rétablir d’abord, analyser ensuite.",
+      "answer": "Revenir à la dernière version saine (redéployer l’artefact précédent), vérifier avec le contrôle de santé et la supervision que les erreurs cessent, communiquer l’impact et l’état, puis analyser la cause sur la version fautive en préproduction, ajouter un test qui l’aurait détectée et rédiger un court post-mortem." },
+    { "q": "Quel tag donneriez-vous à l’image construite depuis le commit 3f2c9ab pour la version 2.1.0, et pourquoi ?", "hint": "Traçabilité et lisibilité.",
+      "answer": "Deux tags sur la même image : ghcr.io/acme/api:3f2c9ab (commit exact, toujours traçable) et ghcr.io/acme/api:2.1.0 (version lisible). Ne comptez jamais sur :latest pour savoir ce qui tourne en production." }
+  ],
+  "interview": [
+    { "q": "Quelle est la différence entre livraison continue et déploiement continu ?", "a": "Les deux construisent et testent chaque changement automatiquement. En livraison continue, un changement validé est prêt à être livré mais une personne décide quand ; en déploiement continu, chaque changement validé part automatiquement en production. Le déploiement continu exige des tests automatisés et une supervision solides." },
+    { "q": "Comment gérez-vous les secrets dans un pipeline ?", "a": "Jamais dans le code ni dans le YAML. J’utilise le coffre de secrets de la CI ou un vault, je donne à chaque job le minimum de droits, je privilégie les identifiants temporaires via OIDC plutôt que des clés cloud statiques, et je fais tourner les secrets. Ils sont masqués dans les logs, mais j’évite quand même de les afficher." },
+    { "q": "Décrivez une stratégie de déploiement qui limite le risque.", "a": "Une livraison canary : déployer la nouvelle version pour une petite part du trafic, surveiller le taux d’erreur et la latence quelques minutes, puis augmenter progressivement ou revenir en arrière automatiquement si les indicateurs se dégradent. Le blue-green est l’alternative quand il faut pouvoir rebasculer instantanément." }
+  ]
+}

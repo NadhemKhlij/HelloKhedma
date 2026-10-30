@@ -56,37 +56,128 @@
         "lang": "bash",
         "code": "#!/usr/bin/env bash\nset -euo pipefail\n# health.sh: quick health check for an app\nAPP=myapp\nsystemctl is-active --quiet \"$APP\" && echo \"$APP running\" || echo \"$APP DOWN\"\ndf -h / | tail -1\ncurl -s -o /dev/null -w \"health: %{http_code}\\n\" http://localhost:8080/health"
       }
+    },
+    {
+      "title": "Utilisateurs, droits et SSH",
+      "minutes": 40,
+      "text": [
+        "Chaque fichier a un propriétaire, un groupe et trois jeux de droits : lecture (r), écriture (w) et exécution (x) pour le propriétaire, le groupe et tous les autres. Beaucoup de problèmes « ça ne marche pas sur le serveur » sont des problèmes de droits : l’utilisateur de l’application ne peut pas lire sa configuration ni écrire dans son dossier de logs.",
+        "SSH est le moyen d’accéder aux serveurs. Utilisez des paires de clés plutôt que des mots de passe : la clé privée reste sur votre machine, la clé publique va sur le serveur dans ~/.ssh/authorized_keys. sudo exécute une commande en root quand c’est vraiment nécessaire."
+      ],
+      "points": [
+        "chmod 640 fichier : propriétaire lecture+écriture, groupe lecture, autres rien (r=4, w=2, x=1).",
+        "chown utilisateur:groupe change le propriétaire ; -R s’applique à tout un dossier.",
+        "Ne faites jamais chmod 777 pour « réparer » : trouvez quel utilisateur a besoin de quel accès.",
+        "~/.ssh/config enregistre alias d’hôtes, utilisateurs et clés pour qu’un simple ssh prod suffise."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "ls -l deploy.sh\n# -rw-r--r-- 1 anna devops 812 Oct 30 09:12 deploy.sh\nchmod u+x deploy.sh            # owner can execute\nsudo chown app:app /srv/app -R  # give the folder to the app user\n\nssh-keygen -t ed25519 -C \"anna@laptop\"\nssh-copy-id anna@server.example.com\nssh anna@server.example.com 'df -h /'\nscp report.csv anna@server.example.com:/tmp/",
+        "note": "Gardez les clés privées privées (chmod 600) et protégez-les par une phrase de passe."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Fichiers", "items": [
-      ["ls -lah", "Lister avec les tailles et les fichiers cachés"],
-      ["cd -", "Revenir au répertoire précédent"],
-      ["find / -name \"*.log\" -mtime -1", "Logs modifiés depuis moins d’un jour"],
-      ["chmod +x f / chmod 640 f", "Rendre exécutable / définir les permissions"],
-      ["tar -czf a.tgz dir/", "Compresser un dossier"]
-    ]},
-    { "group": "Logs et texte", "items": [
-      ["tail -f app.log", "Suivre un log en direct"],
-      ["grep -i -C 3 \"error\" f", "Recherche insensible à la casse, avec contexte"],
-      ["grep -c \"timeout\" f", "Compter les lignes correspondantes"],
-      ["cut -d',' -f2", "Deuxième champ séparé par des virgules"],
-      ["sort | uniq -c | sort -nr", "Compter et classer les lignes identiques"],
-      ["awk '{print $1}' f", "Première colonne"]
-    ]},
-    { "group": "Système", "items": [
-      ["ps aux | grep name", "Trouver un processus"],
-      ["top / htop", "CPU et mémoire en direct"],
-      ["df -h / du -sh *", "Espace disque libre / taille des dossiers"],
-      ["free -h", "Mémoire"],
-      ["systemctl status|restart svc", "État du service / redémarrage"],
-      ["journalctl -u svc -n 100", "Logs du service"]
-    ]},
-    { "group": "Réseau", "items": [
-      ["curl -I url", "Code de statut et en-têtes HTTP"],
-      ["ss -tlnp", "Ports en écoute et processus associés"],
-      ["ping host / nslookup host", "Joignabilité / DNS"]
-    ]}
+    {
+      "group": "Fichiers",
+      "items": [
+        [
+          "ls -lah",
+          "Lister avec les tailles et les fichiers cachés"
+        ],
+        [
+          "cd -",
+          "Revenir au répertoire précédent"
+        ],
+        [
+          "find / -name \"*.log\" -mtime -1",
+          "Logs modifiés depuis moins d’un jour"
+        ],
+        [
+          "chmod +x f / chmod 640 f",
+          "Rendre exécutable / définir les permissions"
+        ],
+        [
+          "tar -czf a.tgz dir/",
+          "Compresser un dossier"
+        ]
+      ]
+    },
+    {
+      "group": "Logs et texte",
+      "items": [
+        [
+          "tail -f app.log",
+          "Suivre un log en direct"
+        ],
+        [
+          "grep -i -C 3 \"error\" f",
+          "Recherche insensible à la casse, avec contexte"
+        ],
+        [
+          "grep -c \"timeout\" f",
+          "Compter les lignes correspondantes"
+        ],
+        [
+          "cut -d',' -f2",
+          "Deuxième champ séparé par des virgules"
+        ],
+        [
+          "sort | uniq -c | sort -nr",
+          "Compter et classer les lignes identiques"
+        ],
+        [
+          "awk '{print $1}' f",
+          "Première colonne"
+        ]
+      ]
+    },
+    {
+      "group": "Système",
+      "items": [
+        [
+          "ps aux | grep name",
+          "Trouver un processus"
+        ],
+        [
+          "top / htop",
+          "CPU et mémoire en direct"
+        ],
+        [
+          "df -h / du -sh *",
+          "Espace disque libre / taille des dossiers"
+        ],
+        [
+          "free -h",
+          "Mémoire"
+        ],
+        [
+          "systemctl status|restart svc",
+          "État du service / redémarrage"
+        ],
+        [
+          "journalctl -u svc -n 100",
+          "Logs du service"
+        ]
+      ]
+    },
+    {
+      "group": "Réseau",
+      "items": [
+        [
+          "curl -I url",
+          "Code de statut et en-têtes HTTP"
+        ],
+        [
+          "ss -tlnp",
+          "Ports en écoute et processus associés"
+        ],
+        [
+          "ping host / nslookup host",
+          "Joignabilité / DNS"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Lancer rm -rf avec une variable qui s’avère vide : mettez toujours les variables entre guillemets et vérifiez deux fois les chemins.",
@@ -95,16 +186,44 @@
     "Des scripts sans set -e qui continuent après une étape en échec."
   ],
   "exercises": [
-    { "q": "Affichez les 20 lignes les plus récentes de app.log qui contiennent 'ERROR' ou 'FATAL'.",
-      "code": "bash", "answer": "grep -E \"ERROR|FATAL\" app.log | tail -n 20" },
-    { "q": "Le disque est plein. Trouvez les 10 plus gros dossiers sous /var.",
-      "code": "bash", "answer": "sudo du -sh /var/* 2>/dev/null | sort -h | tail -n 10" },
-    { "q": "Comptez les requêtes par code de statut HTTP dans un access log où le statut est le 9e champ.",
-      "code": "bash", "answer": "awk '{print $9}' access.log | sort | uniq -c | sort -nr" }
+    {
+      "q": "Affichez les 20 lignes les plus récentes de app.log qui contiennent 'ERROR' ou 'FATAL'.",
+      "code": "bash",
+      "answer": "grep -E \"ERROR|FATAL\" app.log | tail -n 20"
+    },
+    {
+      "q": "Le disque est plein. Trouvez les 10 plus gros dossiers sous /var.",
+      "code": "bash",
+      "answer": "sudo du -sh /var/* 2>/dev/null | sort -h | tail -n 10"
+    },
+    {
+      "q": "Comptez les requêtes par code de statut HTTP dans un access log où le statut est le 9e champ.",
+      "code": "bash",
+      "answer": "awk '{print $9}' access.log | sort | uniq -c | sort -nr"
+    },
+    {
+      "q": "Rendez /srv/app/backup.sh exécutable uniquement par son propriétaire et son groupe, lisible par le groupe, invisible pour les autres, avec l’utilisateur backup et le groupe ops comme propriétaires.",
+      "hint": "7 = rwx, 5 = r-x, 0 = rien.",
+      "code": "bash",
+      "answer": "chmod 750 /srv/app/backup.sh\nsudo chown backup:ops /srv/app/backup.sh"
+    }
   ],
   "interview": [
-    { "q": "Une application est lente. Que vérifiez-vous sur le serveur ?", "a": "Le processus tourne-t-il (systemctl / ps) ? Le CPU et la mémoire (top), l’espace disque et les I/O (df -h, iostat), les erreurs récentes dans les logs (tail, grep), les dépendances comme la base de données et le réseau (curl, ping), et ce qui a changé récemment (déploiements, configuration)." },
-    { "q": "Que signifie chmod 755 ?", "a": "Le propriétaire peut lire, écrire et exécuter (7) ; le groupe et les autres peuvent lire et exécuter (5). C’est la valeur typique pour les scripts et les répertoires." },
-    { "q": "Comment suivre un log en temps réel en ne voyant que les erreurs ?", "a": "tail -f app.log | grep --line-buffered -i error" }
+    {
+      "q": "Une application est lente. Que vérifiez-vous sur le serveur ?",
+      "a": "Le processus tourne-t-il (systemctl / ps) ? Le CPU et la mémoire (top), l’espace disque et les I/O (df -h, iostat), les erreurs récentes dans les logs (tail, grep), les dépendances comme la base de données et le réseau (curl, ping), et ce qui a changé récemment (déploiements, configuration)."
+    },
+    {
+      "q": "Que signifie chmod 755 ?",
+      "a": "Le propriétaire peut lire, écrire et exécuter (7) ; le groupe et les autres peuvent lire et exécuter (5). C’est la valeur typique pour les scripts et les répertoires."
+    },
+    {
+      "q": "Comment suivre un log en temps réel en ne voyant que les erreurs ?",
+      "a": "tail -f app.log | grep --line-buffered -i error"
+    },
+    {
+      "q": "Après un déploiement, une application n’arrive plus à écrire son fichier de logs. Comment enquêtez-vous ?",
+      "a": "Je vérifie sous quel utilisateur tourne le processus (ps -o user= -p PID ou le fichier de service), puis ls -l sur le fichier de logs et son dossier pour voir propriétaire, groupe et droits, et si le disque est plein (df -h) ou le système de fichiers en lecture seule. Je corrige la propriété ou les droits pour cet utilisateur précisément avec chown ou chmod, jamais avec 777, et je l’ajoute au déploiement pour que le problème ne revienne pas."
+    }
   ]
 }

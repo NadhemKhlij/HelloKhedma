@@ -1,0 +1,130 @@
+{
+  "why": "Kubernetes runs containers at scale in most mid-size and large companies. DevOps, SRE and platform roles expect you to deploy, expose and debug an application on a cluster.",
+  "outcome": "explain pods, deployments and services, deploy an app with YAML manifests, pass configuration and secrets, set resource limits and health checks, and debug a failing pod with kubectl.",
+  "lessons": [
+    {
+      "title": "Why Kubernetes: cluster, nodes and pods",
+      "minutes": 35,
+      "text": [
+        "Docker runs containers on one machine. Kubernetes runs them on a cluster of machines (nodes) and keeps them in the state you declared: if a container crashes or a node dies, Kubernetes starts a replacement somewhere else.",
+        "The smallest unit is a pod: one or a few containers that share a network address and storage. You rarely create pods directly; you declare a Deployment that says 'I want 3 copies of this pod' and Kubernetes makes it so."
+      ],
+      "points": [
+        "Declarative: you describe the desired state in YAML, Kubernetes reconciles reality towards it.",
+        "The control plane (API server, scheduler, etcd) decides; worker nodes run the pods.",
+        "kubectl is the command-line client: every action is an API call.",
+        "Namespaces separate teams or environments inside one cluster."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "kubectl get nodes\nkubectl get pods -A          # pods in every namespace\nkubectl create namespace demo\nkubectl run hello --image=nginx:1.27 -n demo\nkubectl get pods -n demo -o wide",
+        "note": "Try it locally with kind, minikube or Docker Desktop's built-in cluster."
+      }
+    },
+    {
+      "title": "Deployments and Services",
+      "minutes": 45,
+      "text": [
+        "A Deployment manages a set of identical pods (replicas) and rolls out new versions gradually: change the image tag, apply, and Kubernetes replaces pods a few at a time. kubectl rollout undo goes back to the previous version.",
+        "Pods come and go and change IP addresses. A Service gives them one stable name and address and load-balances between them. ClusterIP is reachable inside the cluster; an Ingress (or a LoadBalancer Service) exposes HTTP traffic to the outside world."
+      ],
+      "points": [
+        "Labels (app: api) connect things: the Service selects pods by label.",
+        "kubectl apply -f file.yaml creates or updates; the file is the source of truth.",
+        "Inside the cluster, other apps call http://api (the Service name) or api.demo.svc.cluster.local.",
+        "kubectl rollout status deployment/api waits until a release is done."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\nspec:\n  replicas: 3\n  selector:\n    matchLabels: { app: api }\n  template:\n    metadata:\n      labels: { app: api }\n    spec:\n      containers:\n        - name: api\n          image: ghcr.io/acme/api:2.1.0\n          ports: [{ containerPort: 8000 }]\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: api\nspec:\n  selector: { app: api }\n  ports: [{ port: 80, targetPort: 8000 }]"
+      }
+    },
+    {
+      "title": "Configuration, secrets, resources and health checks",
+      "minutes": 45,
+      "text": [
+        "Keep configuration out of the image. A ConfigMap holds settings, a Secret holds sensitive values; both are injected as environment variables or files. Secrets are only base64-encoded by default, so restrict access and use an external secret manager in production.",
+        "Tell Kubernetes what each container needs and how to check it. Requests reserve CPU and memory for scheduling; limits cap them. A readiness probe says when a pod can receive traffic; a liveness probe restarts a pod that is stuck."
+      ],
+      "points": [
+        "Memory over the limit = the container is killed (OOMKilled).",
+        "No readiness probe = traffic can reach a pod that is still starting.",
+        "A HorizontalPodAutoscaler adds replicas when CPU or another metric goes up.",
+        "Never commit real secrets in YAML; generate them from a vault or sealed secrets."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "      containers:\n        - name: api\n          image: ghcr.io/acme/api:2.1.0\n          envFrom:\n            - configMapRef: { name: api-config }\n            - secretRef: { name: api-secrets }\n          resources:\n            requests: { cpu: 100m, memory: 128Mi }\n            limits: { memory: 256Mi }\n          readinessProbe:\n            httpGet: { path: /health, port: 8000 }\n          livenessProbe:\n            httpGet: { path: /health, port: 8000 }\n            initialDelaySeconds: 15"
+      }
+    },
+    {
+      "title": "Debug a failing pod",
+      "minutes": 40,
+      "text": [
+        "Most problems show up in the pod status. Pending means it cannot be scheduled (not enough resources, a missing volume). ImagePullBackOff means the image name, tag or registry access is wrong. CrashLoopBackOff means the container starts and exits again and again.",
+        "Follow the same order every time: get the status, describe the pod and read its events, read the logs (including the previous crashed container), then check the configuration it receives. Helm packages all these manifests as one versioned release when an app grows."
+      ],
+      "points": [
+        "kubectl describe pod NAME: events at the bottom tell you why.",
+        "kubectl logs NAME --previous: the logs of the container that crashed.",
+        "kubectl exec -it NAME -- sh: look inside a running container.",
+        "kubectl get events --sort-by=.lastTimestamp: what happened recently in the namespace."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "kubectl get pods -n demo\n# api-7d9f...   0/1   CrashLoopBackOff   5   3m\nkubectl describe pod api-7d9f... -n demo | tail -20\nkubectl logs api-7d9f... -n demo --previous\n# KeyError: 'DATABASE_URL'  -> the Secret is missing a key\nkubectl get secret api-secrets -n demo -o yaml",
+        "note": "A classic: the app crashes at start because a variable it needs is not set."
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Objects", "items": [
+      ["Pod", "One or a few containers sharing network and storage"],
+      ["Deployment", "Keeps N replicas running and rolls out new versions"],
+      ["Service", "Stable name and load balancing for a set of pods"],
+      ["Ingress", "Routes outside HTTP traffic to Services"],
+      ["ConfigMap / Secret", "Configuration / sensitive values for pods"],
+      ["Namespace", "A separate space inside the cluster"]
+    ]},
+    { "group": "kubectl", "items": [
+      ["kubectl apply -f app.yaml", "Create or update from a file"],
+      ["kubectl get pods -n ns", "List pods in a namespace"],
+      ["kubectl describe pod name", "Details and events"],
+      ["kubectl logs name -f", "Follow container logs"],
+      ["kubectl exec -it name -- sh", "Shell inside a container"],
+      ["kubectl rollout undo deploy/api", "Go back to the previous version"]
+    ]},
+    { "group": "Pod status", "items": [
+      ["Pending", "Cannot be scheduled yet (resources, volume)"],
+      ["ImagePullBackOff", "Image name, tag or registry access is wrong"],
+      ["CrashLoopBackOff", "Container keeps starting and exiting"],
+      ["OOMKilled", "Used more memory than its limit"]
+    ]},
+    { "group": "Health and scale", "items": [
+      ["readinessProbe", "Ready to receive traffic?"],
+      ["livenessProbe", "Stuck? Restart it"],
+      ["resources.requests / limits", "Reserved / maximum CPU and memory"],
+      ["HorizontalPodAutoscaler", "Add replicas when load goes up"]
+    ]}
+  ],
+  "pitfalls": [
+    "Using the :latest tag: you cannot tell which version runs or roll back reliably.",
+    "No resource requests and limits: one pod can starve the whole node.",
+    "Missing readiness probe: users hit pods that are still starting during a rollout.",
+    "Treating Secrets as encrypted: base64 is not encryption, restrict access.",
+    "Editing live objects with kubectl edit and forgetting to update the YAML in Git."
+  ],
+  "exercises": [
+    { "q": "Write the kubectl commands to scale the deployment api to 5 replicas in namespace shop, then watch the rollout.", "hint": "kubectl scale and kubectl rollout status.", "code": "bash",
+      "answer": "kubectl scale deployment/api --replicas=5 -n shop\nkubectl rollout status deployment/api -n shop\nkubectl get pods -n shop -l app=api" },
+    { "q": "A pod is in ImagePullBackOff. List three likely causes and how you check each.", "hint": "Name, tag, credentials.",
+      "answer": "1) Wrong image name or tag: kubectl describe pod shows the exact image; compare with the registry. 2) Private registry without credentials: check imagePullSecrets on the pod or service account. 3) Registry unreachable or rate-limited: the events show the pull error message; try pulling the same image from a node or locally." },
+    { "q": "Your app needs 200 MiB of memory normally and can spike to 400 MiB. Write its resources block.", "hint": "Request the normal need, limit the peak.", "code": "yaml",
+      "answer": "resources:\n  requests:\n    cpu: 100m\n    memory: 256Mi\n  limits:\n    memory: 512Mi" }
+  ],
+  "interview": [
+    { "q": "What is the difference between a Deployment and a Service?", "a": "A Deployment manages the pods: how many replicas, which image, and how to roll out a new version. A Service gives those changing pods one stable name and IP and load-balances traffic to them by label. You usually need both: the Deployment runs the app, the Service makes it reachable." },
+    { "q": "How do you troubleshoot a CrashLoopBackOff?", "a": "kubectl describe pod to read the events and exit code, kubectl logs --previous to see why the last container died, then check the configuration it receives: environment variables, ConfigMaps, Secrets, mounted files, and the command. Common causes are a missing variable, a wrong command, a failing dependency or an OOMKill." },
+    { "q": "What are readiness and liveness probes for?", "a": "Readiness tells Kubernetes when a pod can receive traffic, so a starting or overloaded pod is taken out of the Service without being killed. Liveness detects a stuck process and restarts the container. A wrong liveness probe can cause restart loops, so it should be simple and have a sensible initial delay." }
+  ]
+}

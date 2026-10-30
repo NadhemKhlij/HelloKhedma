@@ -55,37 +55,125 @@
         "lang": "excel",
         "code": "=UNIQUE(Offers[City])\n=FILTER(Offers, Offers[Fit]>=60, \"None\")\n=SORT(FILTER(Offers[[Title]:[Fit]], Offers[Path]=\"da\"), 2, -1)"
       }
+    },
+    {
+      "title": "Dynamic arrays and Power Query: stop copy-pasting",
+      "minutes": 40,
+      "text": [
+        "Modern Excel formulas return whole ranges that spill into the cells below: UNIQUE lists distinct values, FILTER keeps the rows that match conditions, SORT orders them. One formula replaces manual copying, and the result updates when the data changes.",
+        "Power Query (Data > Get Data) records cleaning steps once: import files, remove columns, split text, fix types, merge tables. Next month you drop the new file in the folder and click Refresh. That is the step from 'Excel user' to 'analyst'."
+      ],
+      "points": [
+        "A spilled range is referenced with # : =SUM(F2#).",
+        "FILTER with * means AND, with + means OR between conditions.",
+        "LET names intermediate results so long formulas stay readable.",
+        "Power Query 'From Folder' combines every monthly file in a folder into one table."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=LET(\n  sales, Table1[Amount],\n  region, Table1[Region],\n  SORT(UNIQUE(region))\n)\n\n=FILTER(Table1, (Table1[Region]=\"North\") * (Table1[Amount]>1000), \"none\")\n=SUMIFS(Table1[Amount], Table1[Region], H2, Table1[Month], H$1)",
+        "note": "Each formula fills as many cells as needed; no dragging down."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Conditional", "items": [
-      ["SUMIFS / COUNTIFS / AVERAGEIFS", "Multi-criteria aggregation"],
-      ["IF / IFS", "Conditional values"],
-      ["IFERROR(x, \"\")", "Hide errors"],
-      ["AND(...) / OR(...)", "Combine conditions"]
-    ]},
-    { "group": "Lookup", "items": [
-      ["XLOOKUP(k, col, ret, \"n/a\")", "Modern lookup"],
-      ["INDEX(ret, MATCH(k, col, 0))", "Works everywhere"],
-      ["VLOOKUP(k, tbl, n, FALSE)", "Exact-match legacy lookup"]
-    ]},
-    { "group": "Text & dates", "items": [
-      ["TRIM / PROPER / UPPER", "Clean text"],
-      ["TEXTSPLIT / TEXTJOIN", "Split / join text"],
-      ["EOMONTH(d, 0)", "End of month"],
-      ["NETWORKDAYS(start, end)", "Working days between dates"]
-    ]},
-    { "group": "Dynamic arrays", "items": [
-      ["UNIQUE(range)", "Distinct values"],
-      ["FILTER(range, cond)", "Rows matching a condition"],
-      ["SORT(range, col, -1)", "Sort descending"]
-    ]},
-    { "group": "Shortcuts", "items": [
-      ["Ctrl+T", "Format as table"],
-      ["Ctrl+Shift+L", "Toggle filters"],
-      ["F4", "Toggle $ absolute reference"],
-      ["Alt+=", "AutoSum"]
-    ]}
+    {
+      "group": "Conditional",
+      "items": [
+        [
+          "SUMIFS / COUNTIFS / AVERAGEIFS",
+          "Multi-criteria aggregation"
+        ],
+        [
+          "IF / IFS",
+          "Conditional values"
+        ],
+        [
+          "IFERROR(x, \"\")",
+          "Hide errors"
+        ],
+        [
+          "AND(...) / OR(...)",
+          "Combine conditions"
+        ]
+      ]
+    },
+    {
+      "group": "Lookup",
+      "items": [
+        [
+          "XLOOKUP(k, col, ret, \"n/a\")",
+          "Modern lookup"
+        ],
+        [
+          "INDEX(ret, MATCH(k, col, 0))",
+          "Works everywhere"
+        ],
+        [
+          "VLOOKUP(k, tbl, n, FALSE)",
+          "Exact-match legacy lookup"
+        ]
+      ]
+    },
+    {
+      "group": "Text & dates",
+      "items": [
+        [
+          "TRIM / PROPER / UPPER",
+          "Clean text"
+        ],
+        [
+          "TEXTSPLIT / TEXTJOIN",
+          "Split / join text"
+        ],
+        [
+          "EOMONTH(d, 0)",
+          "End of month"
+        ],
+        [
+          "NETWORKDAYS(start, end)",
+          "Working days between dates"
+        ]
+      ]
+    },
+    {
+      "group": "Dynamic arrays",
+      "items": [
+        [
+          "UNIQUE(range)",
+          "Distinct values"
+        ],
+        [
+          "FILTER(range, cond)",
+          "Rows matching a condition"
+        ],
+        [
+          "SORT(range, col, -1)",
+          "Sort descending"
+        ]
+      ]
+    },
+    {
+      "group": "Shortcuts",
+      "items": [
+        [
+          "Ctrl+T",
+          "Format as table"
+        ],
+        [
+          "Ctrl+Shift+L",
+          "Toggle filters"
+        ],
+        [
+          "F4",
+          "Toggle $ absolute reference"
+        ],
+        [
+          "Alt+=",
+          "AutoSum"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "VLOOKUP without FALSE: approximate match returns wrong values silently.",
@@ -94,13 +182,43 @@
     "Forgetting to Refresh a pivot table after changing data."
   ],
   "exercises": [
-    { "q": "Count applications with status 'Interview' for the path in cell B2.", "code": "excel", "answer": "=COUNTIFS(Apps[Status], \"Interview\", Apps[Path], $B$2)" },
-    { "q": "Return the salary for the offer ID in A2 from table Offers, or 'missing' if not found.", "code": "excel", "answer": "=XLOOKUP(A2, Offers[ID], Offers[Salary], \"missing\")" },
-    { "q": "How do you show the number of offers per city and month?", "answer": "Insert a PivotTable from the Offers table: City in Rows, Posted date in Columns grouped by Month, Title in Values set to Count." }
+    {
+      "q": "Count applications with status 'Interview' for the path in cell B2.",
+      "code": "excel",
+      "answer": "=COUNTIFS(Apps[Status], \"Interview\", Apps[Path], $B$2)"
+    },
+    {
+      "q": "Return the salary for the offer ID in A2 from table Offers, or 'missing' if not found.",
+      "code": "excel",
+      "answer": "=XLOOKUP(A2, Offers[ID], Offers[Salary], \"missing\")"
+    },
+    {
+      "q": "How do you show the number of offers per city and month?",
+      "answer": "Insert a PivotTable from the Offers table: City in Rows, Posted date in Columns grouped by Month, Title in Values set to Count."
+    },
+    {
+      "q": "In a table Sales (columns Date, Client, Amount), write one formula listing the sales above 5,000, sorted by Amount from highest to lowest.",
+      "hint": "FILTER inside SORT; Amount is the third column.",
+      "code": "excel",
+      "answer": "=SORT(FILTER(Sales, Sales[Amount]>5000), 3, -1)"
+    }
   ],
   "interview": [
-    { "q": "VLOOKUP vs XLOOKUP vs INDEX/MATCH?", "a": "VLOOKUP looks only to the right and uses a column number that breaks when columns move. INDEX/MATCH looks in any direction and is robust. XLOOKUP does the same in one function, with exact match by default and a 'not found' value." },
-    { "q": "How do you check data quality in a spreadsheet?", "a": "Remove duplicates, look for blanks and errors with filters or COUNTBLANK/ISERROR, check types (numbers stored as text), validate ranges with conditional formatting, and reconcile totals with the source." },
-    { "q": "When would you use a pivot table instead of formulas?", "a": "For exploring and summarising data quickly by several dimensions, especially when the layout changes often. Formulas are better for a fixed report layout or calculations that pivots cannot express." }
+    {
+      "q": "VLOOKUP vs XLOOKUP vs INDEX/MATCH?",
+      "a": "VLOOKUP looks only to the right and uses a column number that breaks when columns move. INDEX/MATCH looks in any direction and is robust. XLOOKUP does the same in one function, with exact match by default and a 'not found' value."
+    },
+    {
+      "q": "How do you check data quality in a spreadsheet?",
+      "a": "Remove duplicates, look for blanks and errors with filters or COUNTBLANK/ISERROR, check types (numbers stored as text), validate ranges with conditional formatting, and reconcile totals with the source."
+    },
+    {
+      "q": "When would you use a pivot table instead of formulas?",
+      "a": "For exploring and summarising data quickly by several dimensions, especially when the layout changes often. Formulas are better for a fixed report layout or calculations that pivots cannot express."
+    },
+    {
+      "q": "You receive the same report as a new Excel file every month and spend hours cleaning it. What do you do?",
+      "a": "Automate the cleaning in Power Query: connect to the folder where the files arrive, record the steps once (remove columns, fix types, split and merge), load the result into a table or the data model, and build the pivot tables or charts on top. Each month I drop the file in the folder and click Refresh. I also document the steps and check row counts after refresh."
+    }
   ]
 }

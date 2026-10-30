@@ -51,28 +51,95 @@
         "lang": "python",
         "code": "from statsmodels.stats.proportion import proportions_ztest\n# conversions and visitors for A and B\nstat, p_value = proportions_ztest([410, 470], [10000, 10000])\nprint(round(p_value, 4))  # about 0.04 -> unlikely to be noise at the 5% level"
       }
+    },
+    {
+      "title": "Correlation, regression and classic traps",
+      "minutes": 40,
+      "text": [
+        "Correlation measures how two variables move together, from -1 to 1. A simple linear regression draws the best straight line through the points: its slope says how much y changes on average when x increases by one unit.",
+        "Correlation is not causation. Ice-cream sales and drownings both rise in summer: the hidden cause is the weather (a confounder). Other traps: a few outliers that create a correlation, averages that reverse when you split by group (Simpson's paradox), and testing so many metrics that one looks significant by chance."
+      ],
+      "points": [
+        "Always plot the data before trusting r: very different shapes can share the same r.",
+        "r² is the share of the variance of y explained by the line.",
+        "To claim a cause, you need an experiment (A/B test) or a careful design that controls confounders.",
+        "Segment results (by country, device, new or returning users) before concluding."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import numpy as np\nfrom scipy import stats\n\nads = np.array([10, 15, 20, 25, 30, 35])        # ad spend (k€)\nsales = np.array([110, 135, 170, 180, 220, 240])  # sales (k€)\n\nr, p = stats.pearsonr(ads, sales)\nfit = stats.linregress(ads, sales)\nprint(f\"r = {r:.2f}, slope = {fit.slope:.1f} k€ sales per k€ of ads\")\n# r = 0.99, slope = 5.2 -> strong association, not proof of cause",
+        "note": "Strong correlation; the budget and the season may both drive sales."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Describe", "items": [
-      ["Mean", "Sum / count; sensitive to outliers"],
-      ["Median (P50)", "Middle value; robust"],
-      ["P90 / P95", "Value 90% / 95% of cases are below"],
-      ["Std deviation", "Typical distance from the mean"],
-      ["IQR = P75 − P25", "Robust spread"]
-    ]},
-    { "group": "Relationships", "items": [
-      ["Correlation r", "−1 to 1, linear association only"],
-      ["Confounder", "Third factor driving both variables"],
-      ["Simpson's paradox", "Trend reverses when groups are combined"]
-    ]},
-    { "group": "Experiments", "items": [
-      ["Null hypothesis", "No difference between A and B"],
-      ["p-value < 0.05", "Unlikely under no effect (not 'proof')"],
-      ["Confidence interval", "Plausible range for the true effect"],
-      ["Statistical power", "Chance to detect a real effect (aim 80%)"],
-      ["MDE", "Minimum detectable effect, sets sample size"]
-    ]}
+    {
+      "group": "Describe",
+      "items": [
+        [
+          "Mean",
+          "Sum / count; sensitive to outliers"
+        ],
+        [
+          "Median (P50)",
+          "Middle value; robust"
+        ],
+        [
+          "P90 / P95",
+          "Value 90% / 95% of cases are below"
+        ],
+        [
+          "Std deviation",
+          "Typical distance from the mean"
+        ],
+        [
+          "IQR = P75 − P25",
+          "Robust spread"
+        ]
+      ]
+    },
+    {
+      "group": "Relationships",
+      "items": [
+        [
+          "Correlation r",
+          "−1 to 1, linear association only"
+        ],
+        [
+          "Confounder",
+          "Third factor driving both variables"
+        ],
+        [
+          "Simpson's paradox",
+          "Trend reverses when groups are combined"
+        ]
+      ]
+    },
+    {
+      "group": "Experiments",
+      "items": [
+        [
+          "Null hypothesis",
+          "No difference between A and B"
+        ],
+        [
+          "p-value < 0.05",
+          "Unlikely under no effect (not 'proof')"
+        ],
+        [
+          "Confidence interval",
+          "Plausible range for the true effect"
+        ],
+        [
+          "Statistical power",
+          "Chance to detect a real effect (aim 80%)"
+        ],
+        [
+          "MDE",
+          "Minimum detectable effect, sets sample size"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Reporting the mean of a skewed distribution as 'typical'.",
@@ -81,13 +148,40 @@
     "Concluding causation from a correlation in observational data."
   ],
   "exercises": [
-    { "q": "Average delivery time is 3 days but customers complain. What would you look at?", "answer": "The distribution: median and P90/P95. A long tail (some deliveries taking 10+ days) can hide behind a good average. Then segment by region, carrier and product." },
-    { "q": "Variant B has 4.7% conversion vs 4.1% for A, p = 0.04, on 10,000 users each. What do you tell the product manager?", "answer": "B likely improves conversion: the difference is unlikely to be noise. The estimated lift is about +0.6 points, and the confidence interval should be shared because the true lift could be smaller. Check guardrail metrics and that the test ran its planned duration before rolling out." },
-    { "q": "Why compute a conversion rate as total conversions / total visitors rather than the average of daily rates?", "answer": "Days have different traffic. Averaging daily rates gives a small day the same weight as a big one, which biases the result. The ratio of totals weights every visitor equally." }
+    {
+      "q": "Average delivery time is 3 days but customers complain. What would you look at?",
+      "answer": "The distribution: median and P90/P95. A long tail (some deliveries taking 10+ days) can hide behind a good average. Then segment by region, carrier and product."
+    },
+    {
+      "q": "Variant B has 4.7% conversion vs 4.1% for A, p = 0.04, on 10,000 users each. What do you tell the product manager?",
+      "answer": "B likely improves conversion: the difference is unlikely to be noise. The estimated lift is about +0.6 points, and the confidence interval should be shared because the true lift could be smaller. Check guardrail metrics and that the test ran its planned duration before rolling out."
+    },
+    {
+      "q": "Why compute a conversion rate as total conversions / total visitors rather than the average of daily rates?",
+      "answer": "Days have different traffic. Averaging daily rates gives a small day the same weight as a big one, which biases the result. The ratio of totals weights every visitor equally."
+    },
+    {
+      "q": "A manager says: 'Customers who use our app spend 40% more, so pushing everyone to the app will raise revenue by 40%.' What is wrong, and how would you check?",
+      "hint": "Who chooses to use the app?",
+      "answer": "Self-selection: the most engaged customers choose the app, so they would spend more anyway; the app is correlated with spending, it does not prove it causes it. Check by comparing similar customers (same tenure, past spend) before and after adopting the app, or better, run an experiment that randomly encourages a group to use the app and compare its revenue with a control group."
+    }
   ],
   "interview": [
-    { "q": "Explain a p-value to a non-technical person.", "a": "If the change really had no effect, the p-value is how often we would still see a difference this big just by chance. A small value means chance alone is an unlikely explanation. It does not tell us how big or valuable the effect is." },
-    { "q": "Mean or median for salaries?", "a": "Median, because salaries are skewed by a few very high values. The median describes the typical salary; I would add percentiles to show the spread." },
-    { "q": "What can go wrong in an A/B test?", "a": "Too small a sample, peeking and stopping early, multiple metrics without correction, sample ratio mismatch from a bug, novelty effects, and running it during an unusual period." }
+    {
+      "q": "Explain a p-value to a non-technical person.",
+      "a": "If the change really had no effect, the p-value is how often we would still see a difference this big just by chance. A small value means chance alone is an unlikely explanation. It does not tell us how big or valuable the effect is."
+    },
+    {
+      "q": "Mean or median for salaries?",
+      "a": "Median, because salaries are skewed by a few very high values. The median describes the typical salary; I would add percentiles to show the spread."
+    },
+    {
+      "q": "What can go wrong in an A/B test?",
+      "a": "Too small a sample, peeking and stopping early, multiple metrics without correction, sample ratio mismatch from a bug, novelty effects, and running it during an unusual period."
+    },
+    {
+      "q": "How do you explain to a manager that correlation is not causation?",
+      "a": "With a concrete example from their data: the users who adopt a feature were already the most engaged, so they would spend more anyway. The feature and spending move together, but engagement drives both. To measure the real effect, we need an experiment where users are randomly given the feature, or at least a comparison of similar users before and after."
+    }
   ]
 }

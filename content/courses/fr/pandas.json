@@ -57,34 +57,116 @@
         "lang": "python",
         "code": "summary = (\n    clean.groupby(\"city\")\n         .agg(offers=(\"title\", \"count\"), avg_salary=(\"salary\", \"mean\"))\n         .sort_values(\"offers\", ascending=False)\n         .round(0)\n)\nsummary.to_csv(\"offers_by_city.csv\")"
       }
+    },
+    {
+      "title": "Dates et séries temporelles",
+      "minutes": 40,
+      "text": [
+        "Les données métier sont presque toujours dans le temps : ventes quotidiennes, inscriptions hebdomadaires, churn mensuel. Commencez par convertir le texte en vraies dates avec pd.to_datetime, sinon le tri et le regroupement par mois seront faux.",
+        "Avec un index de dates, resample regroupe par n’importe quelle période (jour, semaine, mois), comme un GROUP BY sur le temps. rolling calcule des moyennes mobiles qui lissent les séries bruitées, et pct_change ou shift comparent une période avec une période antérieure."
+      ],
+      "points": [
+        "L’accesseur .dt extrait des parties d’une date : .dt.month, .dt.day_name(), .dt.to_period(\"M\").",
+        "resample(\"D\").sum() remplit les jours manquants avec 0 : un trou devient visible au lieu d’être caché.",
+        "rolling(7).mean() est une moyenne mobile sur 7 jours ; les 6 premières valeurs sont NaN.",
+        "Attention aux fuseaux horaires : tz_localize puis tz_convert avant de comparer des horodatages de sources différentes."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "df[\"date\"] = pd.to_datetime(df[\"date\"])\ndaily = df.set_index(\"date\").resample(\"D\")[\"sales\"].sum()\n\nweekly = daily.resample(\"W\").sum()\nrolling_7d = daily.rolling(7).mean()\ngrowth = daily.pct_change(7)          # vs same day last week\n\ndf[\"month\"] = df[\"date\"].dt.to_period(\"M\")\ndf[\"weekday\"] = df[\"date\"].dt.day_name()",
+        "note": "pct_change(7) sur des données quotidiennes compare chaque jour au même jour de la semaine précédente."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Charger et explorer", "items": [
-      ["pd.read_csv(p, parse_dates=[\"d\"])", "Lire un CSV en parsant les dates"],
-      ["df.head() / df.info() / df.describe()", "Premières lignes / types / statistiques"],
-      ["df[\"c\"].value_counts()", "Fréquence de chaque valeur"],
-      ["df.isna().sum()", "Valeurs manquantes par colonne"]
-    ]},
-    { "group": "Sélectionner et filtrer", "items": [
-      ["df[[\"a\", \"b\"]]", "Certaines colonnes"],
-      ["df[df[\"x\"] > 5]", "Lignes qui vérifient une condition"],
-      ["df.query(\"x > 5 and city == 'Paris'\")", "Idem, sous forme de texte"],
-      ["df.loc[r, c] / df.iloc[i, j]", "Par libellé / par position"]
-    ]},
-    { "group": "Nettoyer", "items": [
-      ["pd.to_numeric(s, errors=\"coerce\")", "Texte en nombre, valeurs invalides en NaN"],
-      ["s.str.strip().str.lower()", "Normaliser le texte"],
-      ["df.fillna({\"c\": 0})", "Remplir les valeurs manquantes"],
-      ["df.drop_duplicates(subset=[...])", "Supprimer les doublons"],
-      ["df.rename(columns={\"old\": \"new\"})", "Renommer des colonnes"]
-    ]},
-    { "group": "Agréger et combiner", "items": [
-      ["df.groupby(\"g\").agg(n=(\"id\", \"count\"))", "Agrégations nommées"],
-      ["pd.merge(a, b, on=\"k\", how=\"left\")", "Joindre deux tables"],
-      ["df.pivot_table(index=\"a\", columns=\"b\", values=\"v\", aggfunc=\"sum\")", "Tableau croisé"],
-      ["df.sort_values(\"v\", ascending=False)", "Trier"]
-    ]}
+    {
+      "group": "Charger et explorer",
+      "items": [
+        [
+          "pd.read_csv(p, parse_dates=[\"d\"])",
+          "Lire un CSV en parsant les dates"
+        ],
+        [
+          "df.head() / df.info() / df.describe()",
+          "Premières lignes / types / statistiques"
+        ],
+        [
+          "df[\"c\"].value_counts()",
+          "Fréquence de chaque valeur"
+        ],
+        [
+          "df.isna().sum()",
+          "Valeurs manquantes par colonne"
+        ]
+      ]
+    },
+    {
+      "group": "Sélectionner et filtrer",
+      "items": [
+        [
+          "df[[\"a\", \"b\"]]",
+          "Certaines colonnes"
+        ],
+        [
+          "df[df[\"x\"] > 5]",
+          "Lignes qui vérifient une condition"
+        ],
+        [
+          "df.query(\"x > 5 and city == 'Paris'\")",
+          "Idem, sous forme de texte"
+        ],
+        [
+          "df.loc[r, c] / df.iloc[i, j]",
+          "Par libellé / par position"
+        ]
+      ]
+    },
+    {
+      "group": "Nettoyer",
+      "items": [
+        [
+          "pd.to_numeric(s, errors=\"coerce\")",
+          "Texte en nombre, valeurs invalides en NaN"
+        ],
+        [
+          "s.str.strip().str.lower()",
+          "Normaliser le texte"
+        ],
+        [
+          "df.fillna({\"c\": 0})",
+          "Remplir les valeurs manquantes"
+        ],
+        [
+          "df.drop_duplicates(subset=[...])",
+          "Supprimer les doublons"
+        ],
+        [
+          "df.rename(columns={\"old\": \"new\"})",
+          "Renommer des colonnes"
+        ]
+      ]
+    },
+    {
+      "group": "Agréger et combiner",
+      "items": [
+        [
+          "df.groupby(\"g\").agg(n=(\"id\", \"count\"))",
+          "Agrégations nommées"
+        ],
+        [
+          "pd.merge(a, b, on=\"k\", how=\"left\")",
+          "Joindre deux tables"
+        ],
+        [
+          "df.pivot_table(index=\"a\", columns=\"b\", values=\"v\", aggfunc=\"sum\")",
+          "Tableau croisé"
+        ],
+        [
+          "df.sort_values(\"v\", ascending=False)",
+          "Trier"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Modifier une sélection filtrée et obtenir un SettingWithCopyWarning : utilisez .loc ou .assign sur une copie.",
@@ -93,16 +175,44 @@
     "Perdre des lignes sans s’en rendre compte avec un merge inner."
   ],
   "exercises": [
-    { "q": "Renvoyez les 3 entreprises qui ont le plus d’offres dans le DataFrame df.",
-      "code": "python", "answer": "df[\"company\"].value_counts().head(3)" },
-    { "q": "Ajoutez une colonne « is_remote » qui vaut True quand le titre ou la description contient « remote » ou « télétravail » (sans tenir compte de la casse).",
-      "code": "python", "answer": "text = (df[\"title\"] + \" \" + df[\"description\"]).str.lower()\ndf[\"is_remote\"] = text.str.contains(\"remote|télétravail\", regex=True)" },
-    { "q": "Comptez les offres par mois et par ville, avec les mois en lignes et les villes en colonnes.",
-      "code": "python", "answer": "df[\"month\"] = df[\"posted_at\"].dt.to_period(\"M\")\ndf.pivot_table(index=\"month\", columns=\"city\", values=\"title\", aggfunc=\"count\", fill_value=0)" }
+    {
+      "q": "Renvoyez les 3 entreprises qui ont le plus d’offres dans le DataFrame df.",
+      "code": "python",
+      "answer": "df[\"company\"].value_counts().head(3)"
+    },
+    {
+      "q": "Ajoutez une colonne « is_remote » qui vaut True quand le titre ou la description contient « remote » ou « télétravail » (sans tenir compte de la casse).",
+      "code": "python",
+      "answer": "text = (df[\"title\"] + \" \" + df[\"description\"]).str.lower()\ndf[\"is_remote\"] = text.str.contains(\"remote|télétravail\", regex=True)"
+    },
+    {
+      "q": "Comptez les offres par mois et par ville, avec les mois en lignes et les villes en colonnes.",
+      "code": "python",
+      "answer": "df[\"month\"] = df[\"posted_at\"].dt.to_period(\"M\")\ndf.pivot_table(index=\"month\", columns=\"city\", values=\"title\", aggfunc=\"count\", fill_value=0)"
+    },
+    {
+      "q": "À partir d’un DataFrame avec les colonnes date (texte) et revenue, construisez une table mensuelle avec le chiffre d’affaires total et la croissance d’un mois sur l’autre en pourcentage.",
+      "hint": "to_datetime, set_index, resample(\"MS\"), pct_change.",
+      "code": "python",
+      "answer": "df[\"date\"] = pd.to_datetime(df[\"date\"])\nmonthly = (df.set_index(\"date\")\n             .resample(\"MS\")[\"revenue\"].sum()\n             .to_frame())\nmonthly[\"mom_growth_%\"] = monthly[\"revenue\"].pct_change() * 100"
+    }
   ],
   "interview": [
-    { "q": "Comment gérez-vous les valeurs manquantes ?", "a": "D’abord, je les mesure par colonne et je cherche à comprendre pourquoi elles manquent. Ensuite, je choisis colonne par colonne : supprimer les lignes si elles sont peu nombreuses et aléatoires, remplir avec une valeur par défaut pertinente (0, médiane, « unknown ») si c’est justifié, ou les garder et les traiter explicitement. Je documente ce choix, car il modifie les résultats." },
-    { "q": "loc ou iloc ?", "a": "loc sélectionne par libellés (valeurs d’index et noms de colonnes, borne de fin incluse) ; iloc sélectionne par position entière, comme le slicing Python (borne de fin exclue)." },
-    { "q": "Quelle différence entre merge et concat ?", "a": "merge joint des tables côte à côte sur des colonnes clés, comme un JOIN SQL. concat empile des tables les unes sous les autres (ou côte à côte selon l’index) sans faire correspondre de clés." }
+    {
+      "q": "Comment gérez-vous les valeurs manquantes ?",
+      "a": "D’abord, je les mesure par colonne et je cherche à comprendre pourquoi elles manquent. Ensuite, je choisis colonne par colonne : supprimer les lignes si elles sont peu nombreuses et aléatoires, remplir avec une valeur par défaut pertinente (0, médiane, « unknown ») si c’est justifié, ou les garder et les traiter explicitement. Je documente ce choix, car il modifie les résultats."
+    },
+    {
+      "q": "loc ou iloc ?",
+      "a": "loc sélectionne par libellés (valeurs d’index et noms de colonnes, borne de fin incluse) ; iloc sélectionne par position entière, comme le slicing Python (borne de fin exclue)."
+    },
+    {
+      "q": "Quelle différence entre merge et concat ?",
+      "a": "merge joint des tables côte à côte sur des colonnes clés, comme un JOIN SQL. concat empile des tables les unes sous les autres (ou côte à côte selon l’index) sans faire correspondre de clés."
+    },
+    {
+      "q": "Comment détecteriez-vous une baisse inhabituelle des ventes quotidiennes avec pandas ?",
+      "a": "Convertir les dates, regrouper en totaux quotidiens pour faire apparaître les jours manquants, puis comparer chaque jour à une référence : le même jour des semaines précédentes ou une moyenne et un écart-type glissants. Signaler les jours très en dessous de la référence, et vérifier les problèmes de données (chargement en retard, source manquante) avant de conclure à un problème métier."
+    }
   ]
 }

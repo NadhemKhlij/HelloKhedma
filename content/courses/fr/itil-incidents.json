@@ -53,34 +53,116 @@
         "lang": "text",
         "code": "5 Whys\n1. Why was search down? The API returned 500 errors.\n2. Why? It could not connect to the database.\n3. Why? The connection pool was exhausted.\n4. Why? A new feature opened connections without closing them.\n5. Why? No load test or code review check covered connection handling.\nActions: fix the leak, add a pool-usage alert, add a load test to CI."
       }
+    },
+    {
+      "title": "Problèmes, changements et niveaux de service",
+      "minutes": 40,
+      "text": [
+        "La gestion des incidents rétablit le service ; la gestion des problèmes supprime la cause. Quand le même incident revient, ouvrez un problème, trouvez la cause racine, consignez un contournement dans la base des erreurs connues pour que le service desk règle la prochaine occurrence en quelques minutes, et poussez une correction définitive.",
+        "La plupart des incidents suivent un changement. La gestion des changements équilibre vitesse et risque : les changements standard sont pré-approuvés et routiniers, les changements normaux sont évalués et approuvés (parfois par un Change Advisory Board), les changements urgents sont accélérés et revus après coup. Les accords de niveau de service (SLA) fixent des objectifs comme les délais de prise en charge et de résolution par priorité ; mesurez-les honnêtement."
+      ],
+      "points": [
+        "Erreur connue = un problème dont la cause racine ou le contournement est documenté.",
+        "Un bon changement a un plan, un test, un retour arrière et une communication.",
+        "Première question pour tout incident : qu’est-ce qui a changé récemment ?",
+        "SLA (avec le client), OLA (entre équipes internes), SLO (l’objectif que vous mesurez)."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Change request CHG-2291 (normal change)\nWhat:      upgrade the payments database from PostgreSQL 15 to 16\nWhy:       end of support, performance fixes\nRisk:      medium (rollback tested in staging)\nPlan:      Sat 06:00-07:00, maintenance page on, backup verified before start\nTest:      smoke tests + 3 sample payments\nRollback:  restore snapshot taken at 05:55 (20 min)\nApproval:  CAB 28/10   Communication: users notified 25/10",
+        "note": "Si le retour arrière n’est ni écrit ni testé, le changement n’est pas prêt."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Termes ITIL", "items": [
-      ["Incident", "Service en panne ou dégradé → rétablir vite"],
-      ["Problème", "Cause sous-jacente → la supprimer"],
-      ["Erreur connue", "Problème avec un contournement documenté"],
-      ["Demande de service", "Demande standard (accès, information)"],
-      ["Changement (standard / normal / urgent)", "Modification maîtrisée"]
-    ]},
-    { "group": "Priorité", "items": [
-      ["Impact", "Combien d’utilisateurs / quelle criticité"],
-      ["Urgence", "À quelle vitesse cela devient dommageable"],
-      ["P1", "Service critique indisponible pour de nombreux utilisateurs"],
-      ["P4", "Problème mineur avec un contournement"]
-    ]},
-    { "group": "Indicateurs", "items": [
-      ["SLA", "Objectif convenu avec le client"],
-      ["OLA", "Accord interne entre équipes"],
-      ["MTTD / MTTR", "Délai moyen de détection / de rétablissement"],
-      ["Résolution au premier contact", "Résolu sans escalade"]
-    ]},
-    { "group": "Point de situation", "items": [
-      ["Impact", "Qui / quoi est touché, depuis quand"],
-      ["Ce que l’on sait", "Ce que l’on sait à ce stade"],
-      ["Action", "Ce que l’on fait, heure estimée (ETA)"],
-      ["Prochain point", "Heure du prochain message"]
-    ]}
+    {
+      "group": "Termes ITIL",
+      "items": [
+        [
+          "Incident",
+          "Service en panne ou dégradé → rétablir vite"
+        ],
+        [
+          "Problème",
+          "Cause sous-jacente → la supprimer"
+        ],
+        [
+          "Erreur connue",
+          "Problème avec un contournement documenté"
+        ],
+        [
+          "Demande de service",
+          "Demande standard (accès, information)"
+        ],
+        [
+          "Changement (standard / normal / urgent)",
+          "Modification maîtrisée"
+        ]
+      ]
+    },
+    {
+      "group": "Priorité",
+      "items": [
+        [
+          "Impact",
+          "Combien d’utilisateurs / quelle criticité"
+        ],
+        [
+          "Urgence",
+          "À quelle vitesse cela devient dommageable"
+        ],
+        [
+          "P1",
+          "Service critique indisponible pour de nombreux utilisateurs"
+        ],
+        [
+          "P4",
+          "Problème mineur avec un contournement"
+        ]
+      ]
+    },
+    {
+      "group": "Indicateurs",
+      "items": [
+        [
+          "SLA",
+          "Objectif convenu avec le client"
+        ],
+        [
+          "OLA",
+          "Accord interne entre équipes"
+        ],
+        [
+          "MTTD / MTTR",
+          "Délai moyen de détection / de rétablissement"
+        ],
+        [
+          "Résolution au premier contact",
+          "Résolu sans escalade"
+        ]
+      ]
+    },
+    {
+      "group": "Point de situation",
+      "items": [
+        [
+          "Impact",
+          "Qui / quoi est touché, depuis quand"
+        ],
+        [
+          "Ce que l’on sait",
+          "Ce que l’on sait à ce stade"
+        ],
+        [
+          "Action",
+          "Ce que l’on fait, heure estimée (ETA)"
+        ],
+        [
+          "Prochain point",
+          "Heure du prochain message"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Chercher la cause racine pendant une heure alors que les utilisateurs sont toujours bloqués : rétablissez d’abord.",
@@ -89,13 +171,40 @@
     "Chercher des coupables dans les post-mortems, ce qui pousse les gens à cacher des informations la fois suivante."
   ],
   "exercises": [
-    { "q": "L’export de paie échoue pour une agence la veille du jour de paie ; les autres fonctionnent. Quelle priorité et pourquoi ?", "answer": "Haute (P2, voire P1 selon la matrice) : l’impact se limite à une agence, mais l’urgence est très forte car les salaires sont dus demain. La priorité combine les deux." },
-    { "q": "Rédigez un premier message de situation pour une panne de connexion touchant tous les utilisateurs depuis 14 h 05.", "answer": "[P1] Depuis 14 h 05, les utilisateurs ne peuvent plus se connecter à l’application. L’équipe investigue ; les changements récents sont en cours de vérification. Contournement : aucun pour l’instant. Prochain point à 14 h 45." },
-    { "q": "Le même incident « disque plein » s’est produit 4 fois ce mois-ci. Que faites-vous ?", "answer": "Ouvrir un problème, trouver la cause racine (rotation des logs absente, table qui grossit, fichiers temporaires), appliquer une correction définitive, ajouter une alerte à 80 % d’occupation disque, et documenter entre-temps l’erreur connue et son contournement." }
+    {
+      "q": "L’export de paie échoue pour une agence la veille du jour de paie ; les autres fonctionnent. Quelle priorité et pourquoi ?",
+      "answer": "Haute (P2, voire P1 selon la matrice) : l’impact se limite à une agence, mais l’urgence est très forte car les salaires sont dus demain. La priorité combine les deux."
+    },
+    {
+      "q": "Rédigez un premier message de situation pour une panne de connexion touchant tous les utilisateurs depuis 14 h 05.",
+      "answer": "[P1] Depuis 14 h 05, les utilisateurs ne peuvent plus se connecter à l’application. L’équipe investigue ; les changements récents sont en cours de vérification. Contournement : aucun pour l’instant. Prochain point à 14 h 45."
+    },
+    {
+      "q": "Le même incident « disque plein » s’est produit 4 fois ce mois-ci. Que faites-vous ?",
+      "answer": "Ouvrir un problème, trouver la cause racine (rotation des logs absente, table qui grossit, fichiers temporaires), appliquer une correction définitive, ajouter une alerte à 80 % d’occupation disque, et documenter entre-temps l’erreur connue et son contournement."
+    },
+    {
+      "q": "Le même incident « disque plein » sur le serveur de reporting a été résolu cinq fois ce mois-ci en supprimant de vieux fichiers. Que doit-il se passer maintenant ?",
+      "hint": "Incident ou problème.",
+      "answer": "Arrêter de le traiter seulement comme des incidents : ouvrir un problème qui relie les cinq incidents. Documenter le contournement comme erreur connue pour que le prochain soit réglé vite, puis trouver la cause racine (quel processus remplit le disque, pourquoi les vieux fichiers ne sont pas purgés, si le disque est trop petit). Mettre en place une correction définitive via un changement, comme une rotation des logs ou une tâche de rétention et une alerte d’occupation disque à 80 %, et clore le problème quand les incidents cessent."
+    }
   ],
   "interview": [
-    { "q": "Incident ou problème ?", "a": "Un incident est une interruption non planifiée que l’on rétablit le plus vite possible. Un problème est la cause sous-jacente d’un ou plusieurs incidents, que l’on analyse pour éviter qu’ils ne se reproduisent." },
-    { "q": "Racontez-moi comment vous avez géré un incident critique.", "a": "Utilisez la méthode STAR : la situation et l’impact, votre rôle, les actions (enregistrer, évaluer, communiquer, rétablir, escalader) et le résultat chiffré (rétabli en 40 minutes), puis ce que vous avez amélioré ensuite." },
-    { "q": "Comment priorisez-vous les tickets ?", "a": "Avec une matrice impact × urgence convenue avec le métier et alignée sur les SLA, puis par échéance SLA. Je réévalue quand une nouvelle information modifie l’impact." }
+    {
+      "q": "Incident ou problème ?",
+      "a": "Un incident est une interruption non planifiée que l’on rétablit le plus vite possible. Un problème est la cause sous-jacente d’un ou plusieurs incidents, que l’on analyse pour éviter qu’ils ne se reproduisent."
+    },
+    {
+      "q": "Racontez-moi comment vous avez géré un incident critique.",
+      "a": "Utilisez la méthode STAR : la situation et l’impact, votre rôle, les actions (enregistrer, évaluer, communiquer, rétablir, escalader) et le résultat chiffré (rétabli en 40 minutes), puis ce que vous avez amélioré ensuite."
+    },
+    {
+      "q": "Comment priorisez-vous les tickets ?",
+      "a": "Avec une matrice impact × urgence convenue avec le métier et alignée sur les SLA, puis par échéance SLA. Je réévalue quand une nouvelle information modifie l’impact."
+    },
+    {
+      "q": "Quelle est la différence entre un SLA, un OLA et un SLO ?",
+      "a": "Un SLA est l’accord avec le client ou le métier sur les niveaux de service, par exemple un P1 résolu en 4 heures. Un OLA est un accord entre équipes internes qui soutient le SLA, par exemple l’équipe base de données répond en 30 minutes. Un SLO est un objectif mesurable pour un service, comme 99,9 % de disponibilité par mois, utilisé pour suivre si nous tenons nos engagements."
+    }
   ]
 }

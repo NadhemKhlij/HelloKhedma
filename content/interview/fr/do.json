@@ -1,0 +1,52 @@
+{
+  "role": [
+    {
+      "id": "do-1",
+      "q": "Un déploiement vient de casser la production. Expliquez ce que vous faites.",
+      "why": "Le scénario DevOps central : calme, ordre, communication.",
+      "model": "Je confirme l’impact avec la supervision et je déclare un incident avec un responsable clair. Comme un changement vient de partir, je reviens d’abord en arrière pour rétablir le service, puis je vérifie que les indicateurs sont redevenus normaux. Je communique l’impact et l’heure du prochain point. Ensuite, je cherche la cause racine sur la version fautive, j’ajoute un test ou un contrôle de pipeline qui l’aurait détectée, et je rédige un post-mortem sans reproche avec des actions."
+    },
+    {
+      "id": "do-2",
+      "q": "Comment concevriez-vous un pipeline CI/CD pour un nouveau service web ?",
+      "why": "Montre que vous pensez en étapes, sécurité et rapidité.",
+      "model": "À chaque pull request : lint, tests unitaires et analyse de sécurité en quelques minutes, puis construction d’une image versionnée. À la fusion sur main : envoi de l’image dans un registre avec le tag du commit, déploiement en préproduction, tests de fumée et d’intégration, puis promotion de la même image en production avec validation ou automatiquement, en rolling ou en canary. Les secrets viennent du coffre de secrets, et un retour arrière en une étape redéploie l’image précédente."
+    },
+    {
+      "id": "do-3",
+      "q": "Qu’apporte l’Infrastructure as Code par rapport à une configuration manuelle des serveurs ?",
+      "why": "Vérifie que vous comprenez le pourquoi, pas seulement l’outil.",
+      "model": "L’infrastructure devient relisible, versionnée et reproductible : les changements passent par des pull requests, l’historique montre qui a changé quoi, et le même code recrée un environnement pour des tests ou une reprise après sinistre. Cela réduit la dérive et les erreurs manuelles et documente l’installation. Les points d’attention sont la gestion de l’état, les secrets et l’exécution des apply depuis un pipeline plutôt que depuis des ordinateurs."
+    },
+    {
+      "id": "do-4",
+      "q": "Un pod redémarre en boucle dans Kubernetes. Comment enquêtez-vous ?",
+      "why": "Dépannage concret.",
+      "model": "kubectl get pods pour voir l’état et le nombre de redémarrages, kubectl describe pod pour les événements et le dernier code de sortie, et kubectl logs --previous pour la sortie du conteneur qui a planté. Causes fréquentes : variable d’environnement ou secret manquant, mauvaise commande, dépendance injoignable, OOMKill parce que la limite mémoire est trop basse, ou liveness probe trop stricte. Je corrige la configuration dans Git et je redéploie plutôt que de modifier en direct."
+    },
+    {
+      "id": "do-5",
+      "q": "Comment gérez-vous les secrets entre les environnements ?",
+      "why": "La sécurité fait partie de tout poste DevOps.",
+      "model": "Jamais dans le code, les images ou Git. Je les garde dans un gestionnaire de secrets (Vault, AWS Secrets Manager, Azure Key Vault) ou le coffre de la CI, je les injecte à l’exécution, je donne à chaque application uniquement les secrets nécessaires via des rôles, je privilégie les identifiants temporaires comme OIDC pour les pipelines, je les fais tourner régulièrement et j’audite les accès. Les Secrets Kubernetes sont synchronisés depuis le gestionnaire et leur accès est restreint."
+    },
+    {
+      "id": "do-6",
+      "q": "Que superviseriez-vous pour une API exposée aux clients, et comment alerteriez-vous ?",
+      "why": "Observabilité et qualité des alertes.",
+      "model": "Les quatre signaux clés : trafic, erreurs, latence (les percentiles, pas seulement la moyenne) et saturation des ressources, plus des contrôles métier comme les paiements réussis. Je définis des SLO du point de vue de l’utilisateur et j’alerte sur les symptômes et la vitesse de consommation du budget d’erreur plutôt que sur chaque pic de CPU, avec un runbook lié à chaque alerte et un routage vers la personne d’astreinte. Des logs et des traces avec un identifiant de corrélation accélèrent le diagnostic."
+    },
+    {
+      "id": "do-7",
+      "q": "Comment réduire les coûts cloud sans nuire à la fiabilité ?",
+      "why": "La maîtrise des coûts est de plus en plus attendue.",
+      "model": "D’abord rendre les coûts visibles : tags par équipe et projet, budgets et alertes. Puis supprimer le gaspillage : ressources inutilisées, instances surdimensionnées, vieux snapshots et logs conservés indéfiniment. Utiliser l’auto scaling et des horaires pour les environnements hors production, des savings plans ou de la capacité réservée pour la base stable, et des instances spot pour les traitements interruptibles. Surveiller le transfert de données et les coûts de NAT, et suivre la tendance lors d’une revue mensuelle avec les équipes."
+    },
+    {
+      "id": "do-8",
+      "q": "Parlez-moi de quelque chose que vous avez automatisé et de son impact.",
+      "why": "Ils veulent la preuve que vous supprimez le travail répétitif.",
+      "model": "Utilisez une histoire STAR chiffrée : la tâche répétitive (par exemple une checklist de livraison manuelle de deux heures chaque semaine), ce que vous avez construit (un pipeline ou un script, testé et documenté), comment vous l’avez déployé dans l’équipe, et le résultat (temps gagné, moins d’erreurs, livraisons plus rapides). Mentionnez ce que vous avez appris et ce que vous amélioreriez ensuite."
+    }
+  ]
+}

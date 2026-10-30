@@ -51,32 +51,108 @@
         "lang": "text",
         "code": "              dim_date\n                 |\ndim_company -- fact_applications -- dim_offer\n                 |\n            dim_candidate\n\nGrain: one row per application status change."
       }
+    },
+    {
+      "title": "History and change: slowly changing dimensions",
+      "minutes": 40,
+      "text": [
+        "Dimensions change: customers move, products change category, employees change team. The question is whether reports should show the value at the time of the event or the value today. Slowly changing dimension (SCD) types are the standard answers.",
+        "Type 1 overwrites the old value: simple, no history. Type 2 adds a new row for each change with validity dates and a surrogate key, so facts keep pointing to the version that was true when they happened. Choose per attribute, with the business."
+      ],
+      "points": [
+        "Surrogate key (customer_key) identifies a version; business key (customer_id) identifies the customer.",
+        "valid_from / valid_to / is_current make 'as of' and 'current' queries easy.",
+        "Type 2 grows the table: keep it for attributes people really analyse over time.",
+        "Late-arriving facts must look up the version valid at their own date, not today's."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "CREATE TABLE dim_customer (\n  customer_key   BIGINT PRIMARY KEY,   -- surrogate key, one per version\n  customer_id    TEXT NOT NULL,        -- business key from the source\n  city           TEXT,\n  segment        TEXT,\n  valid_from     DATE NOT NULL,\n  valid_to       DATE,                 -- NULL = current version\n  is_current     BOOLEAN NOT NULL\n);\n\n-- the fact stores the version that was true at order time\nSELECT f.order_id, d.city\nFROM fact_orders f\nJOIN dim_customer d ON d.customer_key = f.customer_key;",
+        "note": "Revenue by city 'at the time of the order' is a plain join on the surrogate key."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Keys", "items": [
-      ["Primary key", "Unique, not null identifier of a row"],
-      ["Foreign key", "Points to a primary key in another table"],
-      ["Surrogate key", "Generated id with no business meaning"],
-      ["Composite key", "Several columns together are unique"]
-    ]},
-    { "group": "Relationships", "items": [
-      ["1 → N", "Foreign key on the N side"],
-      ["N ↔ N", "Bridge table with both keys"],
-      ["1 → 1", "Same key, or merge the tables"]
-    ]},
-    { "group": "Normal forms", "items": [
-      ["1NF", "Atomic values, no repeating columns"],
-      ["2NF", "No partial dependency on a composite key"],
-      ["3NF", "No dependency between non-key columns"]
-    ]},
-    { "group": "Analytics", "items": [
-      ["Fact table", "Events / measures at a stated grain"],
-      ["Dimension", "Descriptive attributes to slice by"],
-      ["Star schema", "Facts in the middle, dimensions around"],
-      ["SCD type 2", "History rows with valid_from / valid_to"],
-      ["OLTP vs OLAP", "Write-optimised vs read-optimised"]
-    ]}
+    {
+      "group": "Keys",
+      "items": [
+        [
+          "Primary key",
+          "Unique, not null identifier of a row"
+        ],
+        [
+          "Foreign key",
+          "Points to a primary key in another table"
+        ],
+        [
+          "Surrogate key",
+          "Generated id with no business meaning"
+        ],
+        [
+          "Composite key",
+          "Several columns together are unique"
+        ]
+      ]
+    },
+    {
+      "group": "Relationships",
+      "items": [
+        [
+          "1 → N",
+          "Foreign key on the N side"
+        ],
+        [
+          "N ↔ N",
+          "Bridge table with both keys"
+        ],
+        [
+          "1 → 1",
+          "Same key, or merge the tables"
+        ]
+      ]
+    },
+    {
+      "group": "Normal forms",
+      "items": [
+        [
+          "1NF",
+          "Atomic values, no repeating columns"
+        ],
+        [
+          "2NF",
+          "No partial dependency on a composite key"
+        ],
+        [
+          "3NF",
+          "No dependency between non-key columns"
+        ]
+      ]
+    },
+    {
+      "group": "Analytics",
+      "items": [
+        [
+          "Fact table",
+          "Events / measures at a stated grain"
+        ],
+        [
+          "Dimension",
+          "Descriptive attributes to slice by"
+        ],
+        [
+          "Star schema",
+          "Facts in the middle, dimensions around"
+        ],
+        [
+          "SCD type 2",
+          "History rows with valid_from / valid_to"
+        ],
+        [
+          "OLTP vs OLAP",
+          "Write-optimised vs read-optimised"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Not stating the grain of a fact table, then double counting.",
@@ -85,13 +161,41 @@
     "Snowflaking dimensions everywhere, which makes BI models slower and harder to use."
   ],
   "exercises": [
-    { "q": "Model candidates who apply to offers, where an application has a status that changes over time.", "answer": "Tables candidates(id, ...), offers(id, company_id, ...), applications(id, candidate_id, offer_id, created_at) and application_status_history(application_id, status, changed_at). History is a separate table because one application has many status changes." },
-    { "q": "What is the grain of a fact table that stores daily counts of offers per city and skill?", "answer": "One row per day, per city, per skill." },
-    { "q": "An offers table has columns company_name and company_city. Which normal form is broken and how do you fix it?", "answer": "3NF: company_city depends on the company, not on the offer. Move company attributes to a companies table and keep company_id in offers." }
+    {
+      "q": "Model candidates who apply to offers, where an application has a status that changes over time.",
+      "answer": "Tables candidates(id, ...), offers(id, company_id, ...), applications(id, candidate_id, offer_id, created_at) and application_status_history(application_id, status, changed_at). History is a separate table because one application has many status changes."
+    },
+    {
+      "q": "What is the grain of a fact table that stores daily counts of offers per city and skill?",
+      "answer": "One row per day, per city, per skill."
+    },
+    {
+      "q": "An offers table has columns company_name and company_city. Which normal form is broken and how do you fix it?",
+      "answer": "3NF: company_city depends on the company, not on the offer. Move company attributes to a companies table and keep company_id in offers."
+    },
+    {
+      "q": "With dim_customer as type 2, write the revenue by city at order time, then by the customer's current city.",
+      "hint": "Join on the surrogate key for history; join again on the business key with is_current for today's value.",
+      "code": "sql",
+      "answer": "SELECT d.city, SUM(f.amount) AS revenue\nFROM fact_orders f\nJOIN dim_customer d ON d.customer_key = f.customer_key\nGROUP BY d.city;\n\n-- current city instead:\nSELECT cur.city, SUM(f.amount) AS revenue\nFROM fact_orders f\nJOIN dim_customer d   ON d.customer_key = f.customer_key\nJOIN dim_customer cur ON cur.customer_id = d.customer_id AND cur.is_current\nGROUP BY cur.city;"
+    }
   ],
   "interview": [
-    { "q": "Star schema vs snowflake schema?", "a": "In a star schema each dimension is one denormalised table joined directly to the fact. In a snowflake schema dimensions are normalised into several tables. Stars are simpler and faster for BI; snowflakes save space and avoid duplication." },
-    { "q": "What is a slowly changing dimension?", "a": "A dimension whose attributes change over time, such as a customer's city. Type 1 overwrites the value (no history); type 2 adds a new row with validity dates so past facts keep the old value." },
-    { "q": "OLTP vs OLAP?", "a": "OLTP systems handle many small reads and writes for applications and use normalised models. OLAP systems handle large analytical queries and use denormalised models like star schemas, often in columnar warehouses." }
+    {
+      "q": "Star schema vs snowflake schema?",
+      "a": "In a star schema each dimension is one denormalised table joined directly to the fact. In a snowflake schema dimensions are normalised into several tables. Stars are simpler and faster for BI; snowflakes save space and avoid duplication."
+    },
+    {
+      "q": "What is a slowly changing dimension?",
+      "a": "A dimension whose attributes change over time, such as a customer's city. Type 1 overwrites the value (no history); type 2 adds a new row with validity dates so past facts keep the old value."
+    },
+    {
+      "q": "OLTP vs OLAP?",
+      "a": "OLTP systems handle many small reads and writes for applications and use normalised models. OLAP systems handle large analytical queries and use denormalised models like star schemas, often in columnar warehouses."
+    },
+    {
+      "q": "Explain SCD type 1 versus type 2 and when you would use each.",
+      "a": "Type 1 overwrites the attribute, keeping only the current value: good for corrections or attributes nobody analyses historically. Type 2 keeps every version as a new row with a surrogate key and validity dates, so facts stay linked to the value true at the time: needed when reports must reflect history, like sales by the region a customer was in at the time."
+    }
   ]
 }

@@ -55,34 +55,116 @@
         "lang": "bash",
         "code": "git switch feature/salary-filter\ngit pull origin main      # conflict in search.py\n# edit search.py, keep the right lines, remove <<<<<<< ======= >>>>>>>\ngit add search.py\ngit commit                # completes the merge"
       }
+    },
+    {
+      "title": "Undo safely: restore, revert, reset and stash",
+      "minutes": 40,
+      "text": [
+        "Everyone commits the wrong thing sometimes. What matters is choosing an undo that does not hurt your teammates. On your own unpushed work you can rewrite freely; on a shared branch you add a new commit that undoes the old one instead of rewriting history.",
+        "git revert creates that undo commit. git reset moves your branch back and is for local history only. git stash puts unfinished work aside so you can switch branches, and git reflog remembers where your branch pointed, so almost nothing is ever truly lost."
+      ],
+      "points": [
+        "Pushed already? Use revert, not reset.",
+        "git reset --soft HEAD~1 undoes the last commit but keeps its changes staged.",
+        "git reset --hard throws away uncommitted work: check git status first.",
+        "Interactive rebase (git rebase -i) cleans up your own commits before opening a pull request."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "git restore app.py              # drop local changes to a file\ngit restore --staged app.py     # unstage, keep the changes\ngit commit --amend              # fix the last commit (not pushed yet)\ngit stash push -m \"wip\"         # put work aside\ngit stash pop                   # bring it back\ngit revert 3f2c9ab              # new commit that undoes 3f2c9ab (safe on shared branches)\ngit reflog                      # find a 'lost' commit",
+        "note": "revert is the safe default on main; reset and amend are for work nobody else has pulled."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Everyday", "items": [
-      ["git status", "What changed"],
-      ["git add <file> / git add -A", "Stage one file / everything"],
-      ["git commit -m \"msg\"", "Record a snapshot"],
-      ["git log --oneline --graph", "Compact history"],
-      ["git diff / git diff --staged", "See changes"]
-    ]},
-    { "group": "Branches", "items": [
-      ["git switch -c name", "Create and switch to a branch"],
-      ["git switch main", "Go back to main"],
-      ["git branch -d name", "Delete a merged branch"],
-      ["git merge name", "Merge a branch into the current one"]
-    ]},
-    { "group": "Remote (GitHub)", "items": [
-      ["git clone <url>", "Copy a repository"],
-      ["git push -u origin name", "Publish a branch"],
-      ["git pull", "Fetch and merge remote changes"],
-      ["git remote -v", "Show remotes"]
-    ]},
-    { "group": "Undo", "items": [
-      ["git restore <file>", "Discard local edits to a file"],
-      ["git restore --staged <file>", "Unstage a file"],
-      ["git revert <sha>", "Undo a commit with a new commit"],
-      ["git commit --amend", "Fix the last commit (before pushing)"]
-    ]}
+    {
+      "group": "Everyday",
+      "items": [
+        [
+          "git status",
+          "What changed"
+        ],
+        [
+          "git add <file> / git add -A",
+          "Stage one file / everything"
+        ],
+        [
+          "git commit -m \"msg\"",
+          "Record a snapshot"
+        ],
+        [
+          "git log --oneline --graph",
+          "Compact history"
+        ],
+        [
+          "git diff / git diff --staged",
+          "See changes"
+        ]
+      ]
+    },
+    {
+      "group": "Branches",
+      "items": [
+        [
+          "git switch -c name",
+          "Create and switch to a branch"
+        ],
+        [
+          "git switch main",
+          "Go back to main"
+        ],
+        [
+          "git branch -d name",
+          "Delete a merged branch"
+        ],
+        [
+          "git merge name",
+          "Merge a branch into the current one"
+        ]
+      ]
+    },
+    {
+      "group": "Remote (GitHub)",
+      "items": [
+        [
+          "git clone <url>",
+          "Copy a repository"
+        ],
+        [
+          "git push -u origin name",
+          "Publish a branch"
+        ],
+        [
+          "git pull",
+          "Fetch and merge remote changes"
+        ],
+        [
+          "git remote -v",
+          "Show remotes"
+        ]
+      ]
+    },
+    {
+      "group": "Undo",
+      "items": [
+        [
+          "git restore <file>",
+          "Discard local edits to a file"
+        ],
+        [
+          "git restore --staged <file>",
+          "Unstage a file"
+        ],
+        [
+          "git revert <sha>",
+          "Undo a commit with a new commit"
+        ],
+        [
+          "git commit --amend",
+          "Fix the last commit (before pushing)"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Committing passwords or API keys. Even after deletion they stay in history: rotate the key.",
@@ -91,15 +173,43 @@
     "Using git push --force on a shared branch."
   ],
   "exercises": [
-    { "q": "You committed to main by mistake but have not pushed. How do you move that commit to a new branch?",
-      "code": "bash", "answer": "git branch my-feature        # new branch points at your commit\ngit reset --hard HEAD~1      # move main back one commit\ngit switch my-feature" },
-    { "q": "How do you see which commit changed a given line of a file?", "answer": "git blame <file> shows, for each line, the last commit and author that changed it. On GitHub, the 'Blame' button does the same." },
-    { "q": "Write a .gitignore for a Python data project.",
-      "code": "text", "answer": ".venv/\n__pycache__/\n*.pyc\n.env\ndata/raw/\n*.csv\n.ipynb_checkpoints/" }
+    {
+      "q": "You committed to main by mistake but have not pushed. How do you move that commit to a new branch?",
+      "code": "bash",
+      "answer": "git branch my-feature        # new branch points at your commit\ngit reset --hard HEAD~1      # move main back one commit\ngit switch my-feature"
+    },
+    {
+      "q": "How do you see which commit changed a given line of a file?",
+      "answer": "git blame <file> shows, for each line, the last commit and author that changed it. On GitHub, the 'Blame' button does the same."
+    },
+    {
+      "q": "Write a .gitignore for a Python data project.",
+      "code": "text",
+      "answer": ".venv/\n__pycache__/\n*.pyc\n.env\ndata/raw/\n*.csv\n.ipynb_checkpoints/"
+    },
+    {
+      "q": "A commit a1b2c3d pushed to main an hour ago broke the build. Others have pulled since. Undo it safely.",
+      "hint": "Do not rewrite shared history.",
+      "code": "bash",
+      "answer": "git revert a1b2c3d\ngit push"
+    }
   ],
   "interview": [
-    { "q": "merge vs rebase?", "a": "Both integrate changes from one branch into another. merge keeps history as it happened and adds a merge commit; rebase replays your commits on top of the other branch for a linear history. Never rebase commits others already use." },
-    { "q": "How do you undo a commit that is already pushed?", "a": "Use git revert <sha>: it creates a new commit that reverses the change, without rewriting shared history." },
-    { "q": "What makes a good pull request?", "a": "Small and focused, a clear title, a description of what and why, how it was tested, screenshots for UI, and passing CI." }
+    {
+      "q": "merge vs rebase?",
+      "a": "Both integrate changes from one branch into another. merge keeps history as it happened and adds a merge commit; rebase replays your commits on top of the other branch for a linear history. Never rebase commits others already use."
+    },
+    {
+      "q": "How do you undo a commit that is already pushed?",
+      "a": "Use git revert <sha>: it creates a new commit that reverses the change, without rewriting shared history."
+    },
+    {
+      "q": "What makes a good pull request?",
+      "a": "Small and focused, a clear title, a description of what and why, how it was tested, screenshots for UI, and passing CI."
+    },
+    {
+      "q": "What is the difference between git revert and git reset?",
+      "a": "revert adds a new commit that undoes the changes of an earlier one, so history is preserved and it is safe on shared branches. reset moves the branch pointer back, removing commits from the branch history; it is fine for local, unpushed work but rewriting pushed history forces others to fix their copies, so I avoid it on shared branches."
+    }
   ]
 }

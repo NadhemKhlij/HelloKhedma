@@ -7,7 +7,7 @@
 // Bump VERSION to drop old caches after a big change.
 // New JS files: add them to SHELL. New top-level files (like this one): add them to the "Assemble site" step of
 // .github/workflows/deploy.yml, or they are not published.
-const VERSION = "hk-v13";
+const VERSION = "hk-v14";
 const SHELL = [
   "./", "index.html", "css/app.css", "manifest.json", "icons/icon-192.png",
   "js/app.js", "js/lib.js", "js/supabase.js", "js/config.js", "js/store.js", "js/jobs.js", "js/tracker.js", "js/ats.js",

@@ -56,37 +56,128 @@
         "lang": "bash",
         "code": "#!/usr/bin/env bash\nset -euo pipefail\n# health.sh: quick health check for an app\nAPP=myapp\nsystemctl is-active --quiet \"$APP\" && echo \"$APP running\" || echo \"$APP DOWN\"\ndf -h / | tail -1\ncurl -s -o /dev/null -w \"health: %{http_code}\\n\" http://localhost:8080/health"
       }
+    },
+    {
+      "title": "Users, permissions and SSH",
+      "minutes": 40,
+      "text": [
+        "Every file has an owner, a group and three sets of permissions: read (r), write (w) and execute (x) for the owner, the group and everyone else. Many 'it does not work on the server' problems are permission problems: the app user cannot read its config or write its log folder.",
+        "SSH is how you reach servers. Use key pairs instead of passwords: the private key stays on your machine, the public key goes on the server in ~/.ssh/authorized_keys. sudo runs one command as root when you really need it."
+      ],
+      "points": [
+        "chmod 640 file: owner read+write, group read, others nothing (r=4, w=2, x=1).",
+        "chown user:group changes the owner; -R applies to a whole folder.",
+        "Never chmod 777 to 'fix' a problem: find which user needs which access.",
+        "~/.ssh/config stores host aliases, users and keys so ssh prod is enough."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "ls -l deploy.sh\n# -rw-r--r-- 1 anna devops 812 Oct 30 09:12 deploy.sh\nchmod u+x deploy.sh            # owner can execute\nsudo chown app:app /srv/app -R  # give the folder to the app user\n\nssh-keygen -t ed25519 -C \"anna@laptop\"\nssh-copy-id anna@server.example.com\nssh anna@server.example.com 'df -h /'\nscp report.csv anna@server.example.com:/tmp/",
+        "note": "Keep private keys private (chmod 600) and protect them with a passphrase."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Files", "items": [
-      ["ls -lah", "List with sizes, hidden files"],
-      ["cd -", "Go back to the previous directory"],
-      ["find / -name \"*.log\" -mtime -1", "Logs changed in the last day"],
-      ["chmod +x f / chmod 640 f", "Make executable / set permissions"],
-      ["tar -czf a.tgz dir/", "Compress a folder"]
-    ]},
-    { "group": "Logs & text", "items": [
-      ["tail -f app.log", "Follow a log live"],
-      ["grep -i -C 3 \"error\" f", "Case-insensitive search with context"],
-      ["grep -c \"timeout\" f", "Count matching lines"],
-      ["cut -d',' -f2", "Second comma-separated field"],
-      ["sort | uniq -c | sort -nr", "Count and rank identical lines"],
-      ["awk '{print $1}' f", "First column"]
-    ]},
-    { "group": "System", "items": [
-      ["ps aux | grep name", "Find a process"],
-      ["top / htop", "CPU and memory live"],
-      ["df -h / du -sh *", "Disk free / folder sizes"],
-      ["free -h", "Memory"],
-      ["systemctl status|restart svc", "Service state / restart"],
-      ["journalctl -u svc -n 100", "Service logs"]
-    ]},
-    { "group": "Network", "items": [
-      ["curl -I url", "HTTP status and headers"],
-      ["ss -tlnp", "Listening ports and processes"],
-      ["ping host / nslookup host", "Reachability / DNS"]
-    ]}
+    {
+      "group": "Files",
+      "items": [
+        [
+          "ls -lah",
+          "List with sizes, hidden files"
+        ],
+        [
+          "cd -",
+          "Go back to the previous directory"
+        ],
+        [
+          "find / -name \"*.log\" -mtime -1",
+          "Logs changed in the last day"
+        ],
+        [
+          "chmod +x f / chmod 640 f",
+          "Make executable / set permissions"
+        ],
+        [
+          "tar -czf a.tgz dir/",
+          "Compress a folder"
+        ]
+      ]
+    },
+    {
+      "group": "Logs & text",
+      "items": [
+        [
+          "tail -f app.log",
+          "Follow a log live"
+        ],
+        [
+          "grep -i -C 3 \"error\" f",
+          "Case-insensitive search with context"
+        ],
+        [
+          "grep -c \"timeout\" f",
+          "Count matching lines"
+        ],
+        [
+          "cut -d',' -f2",
+          "Second comma-separated field"
+        ],
+        [
+          "sort | uniq -c | sort -nr",
+          "Count and rank identical lines"
+        ],
+        [
+          "awk '{print $1}' f",
+          "First column"
+        ]
+      ]
+    },
+    {
+      "group": "System",
+      "items": [
+        [
+          "ps aux | grep name",
+          "Find a process"
+        ],
+        [
+          "top / htop",
+          "CPU and memory live"
+        ],
+        [
+          "df -h / du -sh *",
+          "Disk free / folder sizes"
+        ],
+        [
+          "free -h",
+          "Memory"
+        ],
+        [
+          "systemctl status|restart svc",
+          "Service state / restart"
+        ],
+        [
+          "journalctl -u svc -n 100",
+          "Service logs"
+        ]
+      ]
+    },
+    {
+      "group": "Network",
+      "items": [
+        [
+          "curl -I url",
+          "HTTP status and headers"
+        ],
+        [
+          "ss -tlnp",
+          "Listening ports and processes"
+        ],
+        [
+          "ping host / nslookup host",
+          "Reachability / DNS"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "rm -rf with a variable that turns out empty: always quote variables and double-check paths.",
@@ -95,16 +186,44 @@
     "Scripts without set -e that keep going after a failed step."
   ],
   "exercises": [
-    { "q": "Show the 20 most recent lines that contain 'ERROR' or 'FATAL' in app.log.",
-      "code": "bash", "answer": "grep -E \"ERROR|FATAL\" app.log | tail -n 20" },
-    { "q": "The disk is full. Find the 10 biggest folders under /var.",
-      "code": "bash", "answer": "sudo du -sh /var/* 2>/dev/null | sort -h | tail -n 10" },
-    { "q": "Count requests per HTTP status code in an access log where the status is the 9th field.",
-      "code": "bash", "answer": "awk '{print $9}' access.log | sort | uniq -c | sort -nr" }
+    {
+      "q": "Show the 20 most recent lines that contain 'ERROR' or 'FATAL' in app.log.",
+      "code": "bash",
+      "answer": "grep -E \"ERROR|FATAL\" app.log | tail -n 20"
+    },
+    {
+      "q": "The disk is full. Find the 10 biggest folders under /var.",
+      "code": "bash",
+      "answer": "sudo du -sh /var/* 2>/dev/null | sort -h | tail -n 10"
+    },
+    {
+      "q": "Count requests per HTTP status code in an access log where the status is the 9th field.",
+      "code": "bash",
+      "answer": "awk '{print $9}' access.log | sort | uniq -c | sort -nr"
+    },
+    {
+      "q": "Make /srv/app/backup.sh executable by its owner and group only, readable by the group, invisible to others, owned by user backup and group ops.",
+      "hint": "7 = rwx, 5 = r-x, 0 = nothing.",
+      "code": "bash",
+      "answer": "chmod 750 /srv/app/backup.sh\nsudo chown backup:ops /srv/app/backup.sh"
+    }
   ],
   "interview": [
-    { "q": "An application is slow. What do you check on the server?", "a": "Is the process up (systemctl / ps)? CPU and memory (top), disk space and I/O (df -h, iostat), recent errors in logs (tail, grep), dependencies such as the database and network (curl, ping), and what changed recently (deployments, config)." },
-    { "q": "What does chmod 755 mean?", "a": "Owner can read, write, execute (7); group and others can read and execute (5). Typical for scripts and directories." },
-    { "q": "How do you follow a log in real time and only see errors?", "a": "tail -f app.log | grep --line-buffered -i error" }
+    {
+      "q": "An application is slow. What do you check on the server?",
+      "a": "Is the process up (systemctl / ps)? CPU and memory (top), disk space and I/O (df -h, iostat), recent errors in logs (tail, grep), dependencies such as the database and network (curl, ping), and what changed recently (deployments, config)."
+    },
+    {
+      "q": "What does chmod 755 mean?",
+      "a": "Owner can read, write, execute (7); group and others can read and execute (5). Typical for scripts and directories."
+    },
+    {
+      "q": "How do you follow a log in real time and only see errors?",
+      "a": "tail -f app.log | grep --line-buffered -i error"
+    },
+    {
+      "q": "An application cannot write its log file after a deployment. How do you investigate?",
+      "a": "Check which user the process runs as (ps -o user= -p PID or the service file), then ls -l on the log file and its folder to see owner, group and permissions, and whether the disk is full (df -h) or the filesystem read-only. Fix the ownership or permissions for that user specifically with chown or chmod, never with 777, and add it to the deployment so it does not come back."
+    }
   ]
 }

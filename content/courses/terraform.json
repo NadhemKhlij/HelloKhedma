@@ -1,0 +1,123 @@
+{
+  "why": "Infrastructure as Code is how teams create cloud resources today: reviewed, repeatable and versioned in Git. Terraform is the most requested IaC tool in DevOps and cloud job offers.",
+  "outcome": "write Terraform configuration for cloud resources, use variables and outputs, read a plan before applying, store state remotely and safely, and reuse code with modules.",
+  "lessons": [
+    {
+      "title": "Infrastructure as Code and the Terraform workflow",
+      "minutes": 35,
+      "text": [
+        "Clicking in a cloud console is fast once and impossible to repeat or review. With Infrastructure as Code you describe servers, networks and databases in files, review them in a pull request and recreate the same environment anywhere.",
+        "Terraform reads .tf files written in HCL, compares them with what exists, and shows a plan: what it will create, change or destroy. You apply the plan only after reading it."
+      ],
+      "points": [
+        "terraform init downloads the providers (AWS, Azure, Google, GitHub...).",
+        "terraform plan shows the changes; apply makes them; destroy removes everything.",
+        "A provider talks to an API; a resource is one thing to manage (a bucket, a VM).",
+        "OpenTofu is an open-source fork with the same language and workflow."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "terraform {\n  required_providers {\n    aws = { source = \"hashicorp/aws\", version = \"~> 5.0\" }\n  }\n}\n\nprovider \"aws\" {\n  region = \"eu-west-3\"\n}\n\nresource \"aws_s3_bucket\" \"reports\" {\n  bucket = \"acme-reports-dev\"\n  tags   = { team = \"data\", env = \"dev\" }\n}",
+        "note": "Then: terraform init, terraform plan, terraform apply."
+      }
+    },
+    {
+      "title": "Variables, outputs and data sources",
+      "minutes": 40,
+      "text": [
+        "Hard-coded values make code impossible to reuse. Variables are the inputs (environment name, instance size), outputs are the values you want to read afterwards (an IP address, a URL), and locals are names for computed values inside the code.",
+        "Data sources read things that already exist without managing them, for example the latest Ubuntu image or an existing network."
+      ],
+      "points": [
+        "Give variables a type, a description and a default when it makes sense.",
+        "Set values in a .tfvars file per environment (dev.tfvars, prod.tfvars).",
+        "Mark secrets as sensitive = true so they are hidden in the output.",
+        "Reference other resources: aws_s3_bucket.reports.arn creates the dependency automatically."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "variable \"env\" {\n  type        = string\n  description = \"dev, staging or prod\"\n}\n\nlocals {\n  name = \"acme-reports-${var.env}\"\n}\n\nresource \"aws_s3_bucket\" \"reports\" {\n  bucket = local.name\n}\n\noutput \"bucket_arn\" {\n  value = aws_s3_bucket.reports.arn\n}",
+        "note": "terraform apply -var-file=dev.tfvars"
+      }
+    },
+    {
+      "title": "State: what Terraform remembers",
+      "minutes": 40,
+      "text": [
+        "Terraform keeps a state file that maps your code to the real resources (this resource block = that bucket id). Without it, Terraform would not know what it created. Lose it or let two people edit it at the same time and you get duplicates or broken infrastructure.",
+        "In a team, store state remotely (an S3 bucket with locking, Azure Storage, Terraform Cloud) so everyone and the CI pipeline share it, with locking to stop two applies at once. State can contain secrets: encrypt it and restrict access."
+      ],
+      "points": [
+        "Never edit the state file by hand; use terraform state mv / rm / import when needed.",
+        "Never commit terraform.tfstate to Git.",
+        "Drift = someone changed a resource by hand; terraform plan shows it.",
+        "terraform import brings an existing resource under Terraform management."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "terraform {\n  backend \"s3\" {\n    bucket       = \"acme-terraform-state\"\n    key          = \"reports/dev.tfstate\"\n    region       = \"eu-west-3\"\n    encrypt      = true\n    use_lockfile = true\n  }\n}"
+      }
+    },
+    {
+      "title": "Modules and Terraform in CI",
+      "minutes": 45,
+      "text": [
+        "A module is a folder of Terraform code with inputs and outputs, used like a function: write a 'web service' module once, call it for each team or environment with different variables. Public modules exist for common things (a VPC, a Kubernetes cluster).",
+        "In a team, nobody runs apply from a laptop. The pipeline runs fmt, validate and plan on each pull request and posts the plan for review; after merge, it applies the reviewed plan with the pipeline's own credentials."
+      ],
+      "points": [
+        "terraform fmt formats code; terraform validate checks it.",
+        "Pin provider and module versions so a new release does not surprise you.",
+        "One state per environment and per component keeps the blast radius small.",
+        "Policy and security scanners (tflint, checkov) catch open buckets before they exist."
+      ],
+      "example": {
+        "lang": "hcl",
+        "code": "module \"reports_dev\" {\n  source = \"./modules/bucket\"\n  env    = \"dev\"\n}\n\nmodule \"reports_prod\" {\n  source     = \"./modules/bucket\"\n  env        = \"prod\"\n  versioning = true\n}"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Workflow", "items": [
+      ["terraform init", "Download providers, configure the backend"],
+      ["terraform fmt / validate", "Format / check the code"],
+      ["terraform plan", "Show what will change"],
+      ["terraform apply", "Make the changes"],
+      ["terraform destroy", "Remove everything in this configuration"]
+    ]},
+    { "group": "Language", "items": [
+      ["resource \"type\" \"name\" { }", "Something Terraform creates and manages"],
+      ["data \"type\" \"name\" { }", "Read something that already exists"],
+      ["variable \"env\" { }", "An input"],
+      ["output \"url\" { }", "A value to read after apply"],
+      ["locals { }", "Named computed values"],
+      ["module \"x\" { source = ... }", "Reuse a folder of Terraform code"]
+    ]},
+    { "group": "State", "items": [
+      ["backend \"s3\" { }", "Store state remotely with locking"],
+      ["terraform state list", "Resources Terraform tracks"],
+      ["terraform import addr id", "Adopt an existing resource"],
+      ["terraform state mv a b", "Rename a resource without recreating it"]
+    ]}
+  ],
+  "pitfalls": [
+    "Applying without reading the plan: a rename can mean destroy and recreate.",
+    "Committing terraform.tfstate or secrets to Git.",
+    "Local state in a team: two people apply at once and break things.",
+    "Changing resources by hand in the console: the next apply reverts or conflicts.",
+    "Unpinned provider versions: a new major version changes behaviour overnight."
+  ],
+  "exercises": [
+    { "q": "Write a variable instance_type with default t3.micro, and an output that prints the public IP of aws_instance.web.", "hint": "variable block with type and default; output block with value.", "code": "hcl",
+      "answer": "variable \"instance_type\" {\n  type    = string\n  default = \"t3.micro\"\n}\n\noutput \"web_ip\" {\n  value = aws_instance.web.public_ip\n}" },
+    { "q": "terraform plan shows '1 to destroy, 1 to add' for your database after you renamed its resource block. What happened and how do you avoid losing data?", "hint": "Terraform tracks resources by address.",
+      "answer": "Terraform tracks resources by their address in the code. Renaming the block changed the address, so Terraform thinks the old one must go and a new one must be created. Use a moved block (moved { from = aws_db_instance.old to = aws_db_instance.new }) or terraform state mv before applying, then check that the plan shows no destroy." },
+    { "q": "Your team runs Terraform from laptops with local state. Propose a safer setup in three points.", "hint": "State, locking, pipeline.",
+      "answer": "1) Move state to a remote backend with encryption and locking. 2) Run plan on each pull request in CI and apply only from the pipeline after review, with dedicated credentials. 3) Separate state per environment, pin versions and add fmt, validate and a security scanner to the pipeline." }
+  ],
+  "interview": [
+    { "q": "What is Terraform state and why does it matter?", "a": "State maps the resources in the code to real resources in the cloud, with their ids and attributes. Terraform uses it to compute the plan. It must be shared, locked and protected: stored in a remote backend with locking and encryption, never edited by hand or committed, because it can contain secrets." },
+    { "q": "How do you handle different environments with Terraform?", "a": "Reuse the same modules with different variables, and keep a separate state per environment, for example one folder or workspace per environment with its own tfvars. Production gets stricter settings and an approval step in the pipeline." },
+    { "q": "What is configuration drift and how do you detect it?", "a": "Drift is when the real infrastructure no longer matches the code, usually after a manual change. terraform plan shows it as an unexpected change. I run scheduled plans in CI to detect drift, then either import the change into the code or let Terraform revert it, and restrict console write access." }
+  ]
+}

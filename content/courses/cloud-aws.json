@@ -1,0 +1,128 @@
+{
+  "why": "Most companies run on a public cloud, and AWS is the one most often named in job offers. DevOps, data engineering and support roles all need its core services and the vocabulary that goes with them.",
+  "outcome": "explain regions and the shared responsibility model, secure access with IAM, choose between EC2, containers and serverless, store data in S3 and managed databases, and keep an eye on cost and monitoring.",
+  "lessons": [
+    {
+      "title": "Cloud basics: regions, responsibility and the CLI",
+      "minutes": 35,
+      "text": [
+        "The cloud rents computing as a service: you create servers, storage and databases in minutes and pay for what you use. AWS, Azure and Google Cloud offer the same families of services under different names, so what you learn on one transfers.",
+        "Resources live in a region (eu-west-3 is Paris), split into availability zones: separate data centres. Spread important services over several zones so one failure does not take you down. Under the shared responsibility model, AWS secures the hardware and the platform; you secure your data, access and configuration."
+      ],
+      "points": [
+        "Pick the region close to users and compliant with data rules (GDPR: an EU region).",
+        "Infrastructure as a Service (EC2), Platform (RDS, ECS) and serverless (Lambda) trade control for less work.",
+        "The AWS CLI and SDKs do everything the console does, scriptably.",
+        "Tag every resource (team, env, project) to find owners and costs."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "aws configure sso            # sign in with your organisation account\naws sts get-caller-identity  # who am I?\naws s3 ls\naws ec2 describe-instances --region eu-west-3 \\\n  --query 'Reservations[].Instances[].[InstanceId,State.Name]' --output table"
+      }
+    },
+    {
+      "title": "IAM: who can do what",
+      "minutes": 40,
+      "text": [
+        "Identity and Access Management (IAM) controls every action in AWS. Users and roles get permissions through policies: JSON documents that allow or deny actions on resources. Everything is denied unless a policy allows it.",
+        "Use roles, not long-lived keys: an EC2 instance, a Lambda function or a CI pipeline assumes a role and receives temporary credentials. Give the least privilege needed, protect the root account with MFA and never use it day to day."
+      ],
+      "points": [
+        "Least privilege: only the actions and resources a job needs.",
+        "Roles for workloads and pipelines (OIDC from GitHub Actions), groups for people.",
+        "Access keys in code or Git are the most common cloud leak.",
+        "CloudTrail records who did what, for audits and investigations."
+      ],
+      "example": {
+        "lang": "json",
+        "code": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Action\": [\"s3:GetObject\", \"s3:PutObject\"],\n    \"Resource\": \"arn:aws:s3:::acme-reports-dev/*\"\n  }]\n}",
+        "note": "This policy can read and write objects in one bucket, nothing else."
+      }
+    },
+    {
+      "title": "Compute and networking",
+      "minutes": 45,
+      "text": [
+        "EC2 gives you virtual machines you manage yourself. Containers run on ECS or EKS (managed Kubernetes). Lambda runs a function on demand without servers: great for events and small APIs, limited for long jobs.",
+        "A VPC is your private network. Public subnets reach the internet through an internet gateway; private subnets hold databases and back-end services. Security groups are firewalls on each resource: allow only the ports and sources you need. A load balancer spreads traffic over healthy instances in several zones."
+      ],
+      "points": [
+        "Auto Scaling groups add or remove instances with the load.",
+        "Databases belong in private subnets, never open to 0.0.0.0/0.",
+        "Security groups are stateful: allow inbound, the response is allowed automatically.",
+        "Choose the simplest compute that fits: managed or serverless before raw VMs."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Internet → Application Load Balancer (public subnets, 2 zones)\n         → ECS service, 3 tasks (private subnets)\n         → RDS PostgreSQL, Multi-AZ (private subnets)\nSecurity groups: ALB allows 443 from anywhere; tasks allow 8000 from the ALB only;\n                 database allows 5432 from the tasks only."
+      }
+    },
+    {
+      "title": "Storage, databases, monitoring and cost",
+      "minutes": 40,
+      "text": [
+        "S3 stores files (objects) cheaply and durably: data lakes, backups, static websites. Block public access unless you really mean it, turn on versioning for important data and use lifecycle rules to move old files to cheaper storage. RDS and Aurora are managed relational databases with backups and failover; DynamoDB is a managed key-value database.",
+        "CloudWatch collects metrics and logs and triggers alarms. Cost is part of the job: set budgets and alerts, stop unused resources, right-size instances and watch data transfer, which is often the surprise on the bill."
+      ],
+      "points": [
+        "S3 Block Public Access on by default; share files with pre-signed URLs.",
+        "Managed databases: automated backups, Multi-AZ for production.",
+        "CloudWatch alarm on errors and latency, sent to the on-call channel.",
+        "AWS Budgets alert before the bill surprises you."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "aws s3 cp report.csv s3://acme-reports-dev/2026/10/\naws s3 presign s3://acme-reports-dev/2026/10/report.csv --expires-in 3600\naws logs tail /ecs/api --follow --since 10m"
+      }
+    }
+  ],
+  "cheatsheet": [
+    { "group": "Core services", "items": [
+      ["EC2", "Virtual machines"],
+      ["S3", "Object storage for files"],
+      ["RDS / Aurora", "Managed relational databases"],
+      ["Lambda", "Run functions without servers"],
+      ["ECS / EKS", "Run containers / managed Kubernetes"],
+      ["CloudWatch", "Metrics, logs and alarms"]
+    ]},
+    { "group": "Security", "items": [
+      ["IAM policy", "JSON that allows or denies actions"],
+      ["IAM role", "Identity with temporary credentials for a workload"],
+      ["Least privilege", "Only the permissions a job needs"],
+      ["Security group", "Firewall around a resource"],
+      ["CloudTrail", "Log of every API call"]
+    ]},
+    { "group": "Network", "items": [
+      ["Region / availability zone", "Geographic area / separate data centre"],
+      ["VPC", "Your private network"],
+      ["Public / private subnet", "With / without direct internet access"],
+      ["Load balancer", "Spreads traffic over healthy targets"]
+    ]},
+    { "group": "Equivalents", "items": [
+      ["S3 ≈ Azure Blob ≈ Cloud Storage", "Object storage"],
+      ["EC2 ≈ Azure VM ≈ Compute Engine", "Virtual machines"],
+      ["EKS ≈ AKS ≈ GKE", "Managed Kubernetes"],
+      ["Lambda ≈ Azure Functions ≈ Cloud Functions", "Serverless functions"]
+    ]}
+  ],
+  "pitfalls": [
+    "Access keys committed to Git: use roles and temporary credentials.",
+    "Public S3 buckets or databases open to the internet.",
+    "Everything in one availability zone: one outage takes you down.",
+    "Forgotten resources running all month: tag them and set a budget alert.",
+    "Using the root account for daily work."
+  ],
+  "exercises": [
+    { "q": "Write an IAM policy that lets a role read (only) the objects under the prefix exports/ of the bucket acme-data.", "hint": "s3:GetObject on arn:aws:s3:::bucket/prefix/*.", "code": "json",
+      "answer": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Action\": \"s3:GetObject\",\n    \"Resource\": \"arn:aws:s3:::acme-data/exports/*\"\n  }]\n}" },
+    { "q": "Your web app runs on one EC2 instance with its database on the same machine. Propose a more reliable design.", "hint": "Zones, managed database, load balancer.",
+      "answer": "Put the app on at least two instances or containers in two availability zones behind a load balancer, with auto scaling. Move the database to RDS with Multi-AZ and automated backups in private subnets. Restrict security groups (database reachable only from the app) and add CloudWatch alarms on errors and latency." },
+    { "q": "The monthly bill doubled. Where do you look first?", "hint": "Cost Explorer, tags, usual suspects.",
+      "answer": "Open Cost Explorer grouped by service and by tag to see what grew and who owns it. Usual suspects: instances left running or oversized, unattached volumes and old snapshots, NAT gateway and data transfer, logs kept forever. Then fix the cause and add a budget alert so it is caught earlier next time." }
+  ],
+  "interview": [
+    { "q": "Explain the shared responsibility model.", "a": "AWS is responsible for the security of the cloud: data centres, hardware, network and the managed service platforms. The customer is responsible for security in the cloud: their data, IAM permissions, network rules, encryption choices and the configuration of what they deploy. A public bucket is the customer's mistake, not AWS's." },
+    { "q": "How do you give an application access to S3 without storing keys?", "a": "Attach an IAM role to the workload (an EC2 instance profile, an ECS task role, a Lambda execution role or OIDC for a CI pipeline). The SDK picks up temporary credentials automatically. The role has a least-privilege policy limited to the bucket and actions it needs." },
+    { "q": "How would you make an application highly available on AWS?", "a": "Run it in at least two availability zones behind a load balancer with health checks and auto scaling, use a managed database with Multi-AZ failover and backups, keep state out of the instances (S3, database, cache), and monitor with alarms. For disaster recovery across regions, replicate data and automate the infrastructure with code." }
+  ]
+}

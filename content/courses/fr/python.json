@@ -73,40 +73,137 @@
         "lang": "python",
         "code": "import os\nimport requests\n\nresp = requests.get(\n    \"https://api.example.com/jobs\",\n    params={\"q\": \"data engineer\"},\n    headers={\"Authorization\": f\"Bearer {os.environ['API_KEY']}\"},\n    timeout=10,\n)\nresp.raise_for_status()\nprint(len(resp.json()[\"results\"]))"
       }
+    },
+    {
+      "title": "Du code propre et testable : logging, annotations de type et pytest",
+      "minutes": 45,
+      "text": [
+        "Les scripts qui tournent en production ont besoin de plus que print(). Le module logging écrit des messages horodatés avec un niveau (DEBUG, INFO, WARNING, ERROR) que vous pouvez filtrer et envoyer vers des fichiers ou la supervision.",
+        "De petites fonctions avec des entrées et sorties claires sont faciles à tester. pytest trouve les fichiers nommés test_*.py et exécute chaque fonction qui commence par test_ ; un assert en échec montre exactement la différence. Les annotations de type documentent ce qu’attend une fonction et permettent aux outils de repérer des erreurs avant l’exécution."
+      ],
+      "points": [
+        "log.info / log.warning / log.exception(...) au lieu de print ; log.exception ajoute la pile d’appels.",
+        "Une fonction, un rôle : lire, transformer et écrire dans des fonctions séparées.",
+        "pytest.raises vérifie qu’une mauvaise entrée lève la bonne erreur.",
+        "Lancez pytest et un linter (ruff) dans la CI pour vérifier chaque changement."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import logging\n\nlogging.basicConfig(level=logging.INFO, format=\"%(asctime)s %(levelname)s %(message)s\")\nlog = logging.getLogger(__name__)\n\ndef net_price(price: float, discount: float = 0.0) -> float:\n    if not 0 <= discount < 1:\n        raise ValueError(\"discount must be between 0 and 1\")\n    return round(price * (1 - discount), 2)\n\n# test_prices.py  (run: pytest -q)\nimport pytest\n\ndef test_net_price():\n    assert net_price(100, 0.2) == 80.0\n\ndef test_bad_discount():\n    with pytest.raises(ValueError):\n        net_price(100, 1.5)",
+        "note": "Le test vit dans son propre fichier ; pytest -q le lance."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Bases", "items": [
-      ["f\"{x:.2f}\"", "Formater un nombre avec 2 décimales"],
-      ["len(x)", "Longueur d’une liste, d’une chaîne, d’un dict"],
-      ["type(x) / isinstance(x, int)", "Vérifier un type"],
-      ["x if cond else y", "Condition en ligne"]
-    ]},
-    { "group": "Listes et dictionnaires", "items": [
-      ["xs.append(v) / xs.extend(ys)", "Ajouter un / plusieurs éléments"],
-      ["sorted(xs, key=lambda j: j[\"salary\"])", "Copie triée selon un champ"],
-      ["[f(x) for x in xs if cond]", "Compréhension de liste"],
-      ["d.get(k, default)", "Lecture sûre dans un dict"],
-      ["d.items()", "Parcourir les paires clé, valeur"],
-      ["{k: v for k, v in pairs}", "Compréhension de dictionnaire"]
-    ]},
-    { "group": "Chaînes de caractères", "items": [
-      ["s.strip() / s.lower()", "Supprimer les espaces / mettre en minuscules"],
-      ["s.split(\",\") / \",\".join(xs)", "Découper / assembler"],
-      ["s.replace(a, b)", "Remplacer du texte"],
-      ["s.startswith(\"Data\")", "Tester un préfixe"]
-    ]},
-    { "group": "Fichiers et erreurs", "items": [
-      ["with open(p, encoding=\"utf-8\") as f:", "Ouvrir un fichier et le fermer automatiquement"],
-      ["json.load(f) / json.dump(o, f)", "Lire / écrire du JSON"],
-      ["try: ... except ValueError as e:", "Intercepter une erreur précise"],
-      ["raise ValueError(\"msg\")", "Signaler une entrée incorrecte"]
-    ]},
-    { "group": "Environnement", "items": [
-      ["python -m venv .venv", "Créer un environnement virtuel"],
-      ["pip install -r requirements.txt", "Installer les packages du projet"],
-      ["os.environ[\"KEY\"]", "Lire un secret depuis l’environnement"]
-    ]}
+    {
+      "group": "Bases",
+      "items": [
+        [
+          "f\"{x:.2f}\"",
+          "Formater un nombre avec 2 décimales"
+        ],
+        [
+          "len(x)",
+          "Longueur d’une liste, d’une chaîne, d’un dict"
+        ],
+        [
+          "type(x) / isinstance(x, int)",
+          "Vérifier un type"
+        ],
+        [
+          "x if cond else y",
+          "Condition en ligne"
+        ]
+      ]
+    },
+    {
+      "group": "Listes et dictionnaires",
+      "items": [
+        [
+          "xs.append(v) / xs.extend(ys)",
+          "Ajouter un / plusieurs éléments"
+        ],
+        [
+          "sorted(xs, key=lambda j: j[\"salary\"])",
+          "Copie triée selon un champ"
+        ],
+        [
+          "[f(x) for x in xs if cond]",
+          "Compréhension de liste"
+        ],
+        [
+          "d.get(k, default)",
+          "Lecture sûre dans un dict"
+        ],
+        [
+          "d.items()",
+          "Parcourir les paires clé, valeur"
+        ],
+        [
+          "{k: v for k, v in pairs}",
+          "Compréhension de dictionnaire"
+        ]
+      ]
+    },
+    {
+      "group": "Chaînes de caractères",
+      "items": [
+        [
+          "s.strip() / s.lower()",
+          "Supprimer les espaces / mettre en minuscules"
+        ],
+        [
+          "s.split(\",\") / \",\".join(xs)",
+          "Découper / assembler"
+        ],
+        [
+          "s.replace(a, b)",
+          "Remplacer du texte"
+        ],
+        [
+          "s.startswith(\"Data\")",
+          "Tester un préfixe"
+        ]
+      ]
+    },
+    {
+      "group": "Fichiers et erreurs",
+      "items": [
+        [
+          "with open(p, encoding=\"utf-8\") as f:",
+          "Ouvrir un fichier et le fermer automatiquement"
+        ],
+        [
+          "json.load(f) / json.dump(o, f)",
+          "Lire / écrire du JSON"
+        ],
+        [
+          "try: ... except ValueError as e:",
+          "Intercepter une erreur précise"
+        ],
+        [
+          "raise ValueError(\"msg\")",
+          "Signaler une entrée incorrecte"
+        ]
+      ]
+    },
+    {
+      "group": "Environnement",
+      "items": [
+        [
+          "python -m venv .venv",
+          "Créer un environnement virtuel"
+        ],
+        [
+          "pip install -r requirements.txt",
+          "Installer les packages du projet"
+        ],
+        [
+          "os.environ[\"KEY\"]",
+          "Lire un secret depuis l’environnement"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Utiliser un argument par défaut mutable (def f(xs=[])) : la même liste est partagée entre les appels. Utilisez None et créez la liste dans la fonction.",
@@ -115,16 +212,46 @@
     "Intercepter toutes les exceptions avec un except nu et masquer de vrais bugs."
   ],
   "exercises": [
-    { "q": "À partir d’une liste de dictionnaires d’offres avec une clé 'salary', renvoyez le salaire moyen arrondi à l’euro près.",
-      "code": "python", "answer": "def average_salary(jobs):\n    if not jobs:\n        return 0\n    return round(sum(j[\"salary\"] for j in jobs) / len(jobs))" },
-    { "q": "Comptez le nombre d’occurrences de chaque mot dans une phrase (sans tenir compte de la casse).", "hint": "Découpez, passez en minuscules, et utilisez un dict ou collections.Counter.",
-      "code": "python", "answer": "from collections import Counter\n\ndef word_counts(text):\n    return Counter(text.lower().split())" },
-    { "q": "Écrivez une fonction qui lit un fichier CSV d’offres et renvoie les intitulés des postes situés à Paris.", "hint": "csv.DictReader renvoie un dict par ligne.",
-      "code": "python", "answer": "import csv\n\ndef paris_titles(path):\n    with open(path, encoding=\"utf-8\", newline=\"\") as f:\n        return [row[\"title\"] for row in csv.DictReader(f) if row[\"city\"] == \"Paris\"]" }
+    {
+      "q": "À partir d’une liste de dictionnaires d’offres avec une clé 'salary', renvoyez le salaire moyen arrondi à l’euro près.",
+      "code": "python",
+      "answer": "def average_salary(jobs):\n    if not jobs:\n        return 0\n    return round(sum(j[\"salary\"] for j in jobs) / len(jobs))"
+    },
+    {
+      "q": "Comptez le nombre d’occurrences de chaque mot dans une phrase (sans tenir compte de la casse).",
+      "hint": "Découpez, passez en minuscules, et utilisez un dict ou collections.Counter.",
+      "code": "python",
+      "answer": "from collections import Counter\n\ndef word_counts(text):\n    return Counter(text.lower().split())"
+    },
+    {
+      "q": "Écrivez une fonction qui lit un fichier CSV d’offres et renvoie les intitulés des postes situés à Paris.",
+      "hint": "csv.DictReader renvoie un dict par ligne.",
+      "code": "python",
+      "answer": "import csv\n\ndef paris_titles(path):\n    with open(path, encoding=\"utf-8\", newline=\"\") as f:\n        return [row[\"title\"] for row in csv.DictReader(f) if row[\"city\"] == \"Paris\"]"
+    },
+    {
+      "q": "Écrivez count_errors(path) qui renvoie le nombre de lignes contenant ERROR dans un fichier de logs, et un test pytest qui utilise la fixture tmp_path.",
+      "hint": "pathlib.Path.read_text().splitlines() ; tmp_path fournit un dossier temporaire.",
+      "code": "python",
+      "answer": "from pathlib import Path\n\ndef count_errors(path: str) -> int:\n    return sum(1 for line in Path(path).read_text().splitlines() if \"ERROR\" in line)\n\n\ndef test_count_errors(tmp_path):\n    log = tmp_path / \"app.log\"\n    log.write_text(\"INFO ok\\nERROR boom\\nERROR again\\n\")\n    assert count_errors(log) == 2"
+    }
   ],
   "interview": [
-    { "q": "Liste ou tuple ?", "a": "Ce sont deux séquences ordonnées. Une liste est mutable (on peut ajouter ou modifier des éléments) ; un tuple est immuable, un peu plus léger, et peut servir de clé de dictionnaire." },
-    { "q": "Qu’est-ce qu’un environnement virtuel et pourquoi en utiliser un ?", "a": "Un dossier isolé avec son propre Python et ses propres packages. Chaque projet peut ainsi fixer ses versions : installer quelque chose pour un projet ne peut pas en casser un autre, et l’installation est reproductible grâce à requirements.txt." },
-    { "q": "Comment gérez-vous une erreur lors d’un appel d’API ?", "a": "Je définis un timeout, je vérifie le code de statut (raise_for_status), j’intercepte les exceptions précises (timeout, erreur de connexion, erreur HTTP), je journalise un message utile et je ne relance l’appel avec un délai que si l’erreur est temporaire." }
+    {
+      "q": "Liste ou tuple ?",
+      "a": "Ce sont deux séquences ordonnées. Une liste est mutable (on peut ajouter ou modifier des éléments) ; un tuple est immuable, un peu plus léger, et peut servir de clé de dictionnaire."
+    },
+    {
+      "q": "Qu’est-ce qu’un environnement virtuel et pourquoi en utiliser un ?",
+      "a": "Un dossier isolé avec son propre Python et ses propres packages. Chaque projet peut ainsi fixer ses versions : installer quelque chose pour un projet ne peut pas en casser un autre, et l’installation est reproductible grâce à requirements.txt."
+    },
+    {
+      "q": "Comment gérez-vous une erreur lors d’un appel d’API ?",
+      "a": "Je définis un timeout, je vérifie le code de statut (raise_for_status), j’intercepte les exceptions précises (timeout, erreur de connexion, erreur HTTP), je journalise un message utile et je ne relance l’appel avec un délai que si l’erreur est temporaire."
+    },
+    {
+      "q": "Comment rendez-vous un script Python prêt pour la production ?",
+      "a": "Je le découpe en petites fonctions annotées, je lis la configuration depuis des variables d’environnement ou un fichier plutôt qu’en dur, je remplace print par logging aux bons niveaux, je gère explicitement les erreurs attendues et laisse les autres échouer clairement, j’ajoute des tests pytest sur la logique principale, je fige les dépendances et je lance tests et linter dans la CI."
+    }
   ]
 }

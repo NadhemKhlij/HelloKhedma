@@ -66,31 +66,107 @@
         "Tooltips and drill-through add detail without clutter.",
         "Publish to the Power BI Service, set a scheduled refresh, and share through an app or workspace."
       ]
+    },
+    {
+      "title": "Publish, refresh and secure reports",
+      "minutes": 40,
+      "text": [
+        "A report only helps once people can open it with fresh data. Publish from Power BI Desktop to a workspace in the Power BI service, set a scheduled refresh (with a gateway if the data is on-premises), and share it through an app so viewers get a clean, stable version.",
+        "Row-level security (RLS) filters the data each person can see: a regional manager sees only their region in the same report. Define roles with DAX filters in Desktop, then assign people or groups to the roles in the service, and test with 'View as'."
+      ],
+      "points": [
+        "Workspaces are for builders; apps are for consumers.",
+        "Scheduled refresh fails silently for viewers: set up failure notifications.",
+        "USERPRINCIPALNAME() returns the signed-in user's email for dynamic RLS.",
+        "Keep one certified dataset (semantic model) reused by many reports instead of copies."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "-- Row-level security role \"Region managers\" on table dim_store:\n[region] = LOOKUPVALUE(\n    dim_manager[region],\n    dim_manager[email], USERPRINCIPALNAME()\n)",
+        "note": "Dynamic RLS: one role, the region comes from a mapping table of managers."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Power Query", "items": [
-      ["Change type", "Set correct data types first"],
-      ["Unpivot columns", "Columns → rows"],
-      ["Merge queries", "Join two tables"],
-      ["Append queries", "Stack tables"],
-      ["Group by", "Aggregate before loading"]
-    ]},
-    { "group": "Modeling", "items": [
-      ["1 → * relationship", "Dimension filters fact"],
-      ["Mark as date table", "Enable time intelligence"],
-      ["Hide in report view", "Keep keys out of sight"],
-      ["Measure vs calculated column", "Query time vs row level, stored"]
-    ]},
-    { "group": "DAX", "items": [
-      ["SUM / AVERAGE / DISTINCTCOUNT", "Basic aggregations"],
-      ["DIVIDE(a, b)", "Safe division"],
-      ["CALCULATE(m, filter)", "Change filter context"],
-      ["ALL(table)", "Remove filters (e.g. % of total)"],
-      ["TOTALYTD(m, Dim_Date[Date])", "Year to date"],
-      ["SAMEPERIODLASTYEAR(Dim_Date[Date])", "Same period last year"],
-      ["VAR x = ... RETURN ...", "Readable measures"]
-    ]}
+    {
+      "group": "Power Query",
+      "items": [
+        [
+          "Change type",
+          "Set correct data types first"
+        ],
+        [
+          "Unpivot columns",
+          "Columns → rows"
+        ],
+        [
+          "Merge queries",
+          "Join two tables"
+        ],
+        [
+          "Append queries",
+          "Stack tables"
+        ],
+        [
+          "Group by",
+          "Aggregate before loading"
+        ]
+      ]
+    },
+    {
+      "group": "Modeling",
+      "items": [
+        [
+          "1 → * relationship",
+          "Dimension filters fact"
+        ],
+        [
+          "Mark as date table",
+          "Enable time intelligence"
+        ],
+        [
+          "Hide in report view",
+          "Keep keys out of sight"
+        ],
+        [
+          "Measure vs calculated column",
+          "Query time vs row level, stored"
+        ]
+      ]
+    },
+    {
+      "group": "DAX",
+      "items": [
+        [
+          "SUM / AVERAGE / DISTINCTCOUNT",
+          "Basic aggregations"
+        ],
+        [
+          "DIVIDE(a, b)",
+          "Safe division"
+        ],
+        [
+          "CALCULATE(m, filter)",
+          "Change filter context"
+        ],
+        [
+          "ALL(table)",
+          "Remove filters (e.g. % of total)"
+        ],
+        [
+          "TOTALYTD(m, Dim_Date[Date])",
+          "Year to date"
+        ],
+        [
+          "SAMEPERIODLASTYEAR(Dim_Date[Date])",
+          "Same period last year"
+        ],
+        [
+          "VAR x = ... RETURN ...",
+          "Readable measures"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "One big flat table instead of a star schema: slow and wrong totals.",
@@ -99,15 +175,43 @@
     "Bi-directional relationships everywhere, which create ambiguous results."
   ],
   "exercises": [
-    { "q": "Write a measure for the share of each category in total sales (percent of grand total).",
-      "code": "dax", "answer": "% of Total =\nDIVIDE ( [Total Sales], CALCULATE ( [Total Sales], ALL ( Dim_Product[Category] ) ) )" },
-    { "q": "Write a measure counting distinct customers who bought in the selected period.",
-      "code": "dax", "answer": "Active Customers = DISTINCTCOUNT ( Fact_Sales[CustomerID] )" },
-    { "q": "Sales data has one column per month. What do you do in Power Query?", "answer": "Select the identifier columns, then Unpivot Other Columns: you get one row per month with Attribute (month) and Value (sales), then set types and rename." }
+    {
+      "q": "Write a measure for the share of each category in total sales (percent of grand total).",
+      "code": "dax",
+      "answer": "% of Total =\nDIVIDE ( [Total Sales], CALCULATE ( [Total Sales], ALL ( Dim_Product[Category] ) ) )"
+    },
+    {
+      "q": "Write a measure counting distinct customers who bought in the selected period.",
+      "code": "dax",
+      "answer": "Active Customers = DISTINCTCOUNT ( Fact_Sales[CustomerID] )"
+    },
+    {
+      "q": "Sales data has one column per month. What do you do in Power Query?",
+      "answer": "Select the identifier columns, then Unpivot Other Columns: you get one row per month with Attribute (month) and Value (sales), then set types and rename."
+    },
+    {
+      "q": "Write the DAX filter of a static RLS role on dim_store that shows only French stores (column country).",
+      "hint": "A role filter is a DAX expression that returns true for allowed rows.",
+      "code": "dax",
+      "answer": "[country] = \"France\""
+    }
   ],
   "interview": [
-    { "q": "Calculated column vs measure?", "a": "A calculated column is computed per row at refresh and stored in the model; it does not react to slicers. A measure is computed at query time in the current filter context and is what you use for aggregations in visuals." },
-    { "q": "What does CALCULATE do?", "a": "It evaluates an expression in a modified filter context: it can add, replace or remove filters. It is the basis of most advanced measures, such as year-over-year or percentage of total." },
-    { "q": "How do you make a slow report faster?", "a": "Remove unused columns and rows, use a star schema, prefer measures over calculated columns, avoid bi-directional relationships, reduce visuals per page, and check with Performance Analyzer." }
+    {
+      "q": "Calculated column vs measure?",
+      "a": "A calculated column is computed per row at refresh and stored in the model; it does not react to slicers. A measure is computed at query time in the current filter context and is what you use for aggregations in visuals."
+    },
+    {
+      "q": "What does CALCULATE do?",
+      "a": "It evaluates an expression in a modified filter context: it can add, replace or remove filters. It is the basis of most advanced measures, such as year-over-year or percentage of total."
+    },
+    {
+      "q": "How do you make a slow report faster?",
+      "a": "Remove unused columns and rows, use a star schema, prefer measures over calculated columns, avoid bi-directional relationships, reduce visuals per page, and check with Performance Analyzer."
+    },
+    {
+      "q": "How do you make sure each manager only sees their own region in a shared report?",
+      "a": "With row-level security: a role whose DAX filter on the region table uses USERPRINCIPALNAME() and a mapping table of managers to regions, so one role serves everyone. I publish the semantic model, assign the role to a group in the service, test with 'View as' for a few users, and make sure the relationships propagate the filter to the fact tables."
+    }
   ]
 }

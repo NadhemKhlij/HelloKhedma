@@ -1,6 +1,6 @@
 # HelloKhedma
 
-Pick a career path (Data Engineer, Business Analyst, Application Support, Data Analyst) and the app adapts:
+Pick a career path (Data Engineer, Business Analyst, Application Support, Data Analyst, DevOps Engineer) and the app adapts:
 live job offers, learning tracks with progress and a time estimate, tools, tips, a CV keyword check, and a Kanban application tracker.
 
 - **Guests** are saved in the browser (localStorage).

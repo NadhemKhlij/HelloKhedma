@@ -1,6 +1,7 @@
 -- HelloKhedma: one-shot setup for the Supabase SQL Editor on a NEW, empty project.
--- Same content as the three migrations + seed.sql, in order. Run it once; afterwards re-run only seed.sql.
+-- Same content as every migration in supabase/migrations + seed.sql, in order. Run it once; afterwards re-run only seed.sql.
 -- (If you use the Supabase CLI, run 'supabase db push' + seed.sql instead of this file.)
+-- Regenerate it after adding a migration or editing seed.sql: concatenate the files in the same order.
 
 -- ================= supabase/migrations/20261028000000_init.sql =================
 
@@ -196,6 +197,55 @@ $$;
 revoke execute on function public.job_search_hit(text, int, int) from public, anon, authenticated;
 grant execute on function public.job_search_hit(text, int, int) to service_role;
 
+-- ================= supabase/migrations/20261029000000_application_details.sql =================
+
+-- Tracker 2.0: details per application, follow-ups, interviews and a stage history.
+-- Safe to run more than once. Existing rows get an empty history.
+
+alter table public.applications
+  add column if not exists salary        text not null default '',
+  add column if not exists contact       text not null default '',   -- recruiter / referral: name, email, LinkedIn
+  add column if not exists next_action   text not null default '',   -- e.g. "Send follow-up email"
+  add column if not exists follow_up_on  date,                       -- reminder date for next_action
+  add column if not exists interview_at  timestamptz,
+  add column if not exists history       jsonb not null default '[]'::jsonb;  -- [{ "stage": "applied", "at": "2026-10-29T..." }]
+
+create index if not exists applications_follow_up on public.applications (user_id, follow_up_on);
+
+-- ================= supabase/migrations/20261029000100_application_cv.sql =================
+
+-- Which CV version was sent for each application (ROADMAP 2.7).
+-- Only the version's name is stored (e.g. "CV Business Analyst"): the CV text itself never leaves the browser.
+-- Safe to run more than once.
+
+alter table public.applications
+  add column if not exists cv_version text not null default '';
+
+-- ================= supabase/migrations/20261029000200_content_fr.sql =================
+
+-- French texts for the career-path content (ROADMAP 1.7b). The English columns stay the source and the key
+-- (resource and step ids are derived from the English titles), so progress is never reset by a translation.
+-- Filled by the French block at the end of seed.sql; the app falls back to English when a value is null.
+-- Skill keywords and job titles have no French column: CV matching and the offer search rely on them.
+-- Safe to run more than once.
+
+alter table public.career_paths
+  add column if not exists name_fr  text,
+  add column if not exists blurb_fr text;
+
+alter table public.path_resources
+  add column if not exists title_fr       text,
+  add column if not exists description_fr text;
+
+alter table public.training_tracks
+  add column if not exists title_fr   text,
+  add column if not exists summary_fr text,
+  add column if not exists outcome_fr text;
+
+alter table public.training_steps
+  add column if not exists title_fr       text,
+  add column if not exists description_fr text;
+
 -- ================= supabase/seed.sql =================
 
 -- Idempotent seed: safe to re-run. Resource ids are derived from (path, kind, title),
@@ -227,7 +277,9 @@ insert into public.career_paths (id, name, blurb, color, job_titles, sort_order)
  ('as','Application Support','Incidents, monitoring, run','#f08a24',
    array['Application Support Analyst','Support Applicatif','L2 Support Engineer','Production Support Engineer'],3),
  ('da','Data Analyst','Insights, dashboards, storytelling','#e0508b',
-   array['Data Analyst','Analyste de Données','BI Analyst','Reporting Analyst'],4)
+   array['Data Analyst','Analyste de Données','BI Analyst','Reporting Analyst'],4),
+ ('do','DevOps Engineer','CI/CD, containers, cloud, automation','#3b82f6',
+   array['DevOps Engineer','Ingénieur DevOps','Site Reliability Engineer','Platform Engineer','Cloud Engineer'],5)
 on conflict (id) do update set
   name = excluded.name, blurb = excluded.blurb, color = excluded.color,
   job_titles = excluded.job_titles, sort_order = excluded.sort_order;
@@ -275,6 +327,17 @@ select pg_temp.seed('da','tip','[
  "Lead with the insight, then the method; recruiters skim.",
  "Practise explaining a metric definition out loud: it is a classic interview test."]'::jsonb);
 select pg_temp.seed('da','keyword','["SQL","Excel","Power BI","Tableau","Python","Pandas","A/B testing","Statistics","Data storytelling","KPI","Looker Studio","Data cleaning"]'::jsonb);
+
+-- DevOps Engineer ------------------------------------------------------------------------
+select pg_temp.seed('do','tool','[
+ ["GitHub Actions / GitLab CI","Build, test and deploy pipelines"],["Docker","Package apps as images"],
+ ["Kubernetes + Helm","Run containers at scale"],["Terraform","Infrastructure as Code"],
+ ["Prometheus + Grafana","Metrics, dashboards and alerts"]]'::jsonb);
+select pg_temp.seed('do','tip','[
+ "Build one project end to end: a small API in Docker, a CI/CD pipeline, infrastructure in Terraform and a dashboard. Link it on your CV.",
+ "Talk about incidents you handled and what you automated afterwards; DevOps interviews test judgement as much as tools.",
+ "Quantify your impact: deployment time cut, releases per week, incidents avoided, cloud costs saved."]'::jsonb);
+select pg_temp.seed('do','keyword','["CI/CD","Docker","Kubernetes","Terraform","AWS","Azure","GCP","Linux","Bash","Python","Git","Ansible","Helm","Prometheus","Grafana","Monitoring"]'::jsonb);
 
 -- =====================================================================================
 -- Learning tracks. Step = [title, description, kind, provider, url, est_hours, is_free?]
@@ -400,3 +463,239 @@ select pg_temp.track('da','da-advanced','Portfolio and certification','advanced'
  ["Google Data Analytics Certificate","Beginner-friendly professional certificate. Hours are approximate and vary by pace.","certification","Coursera","https://www.coursera.org/professional-certificates/google-data-analytics",150,false],
  ["Microsoft Power BI Data Analyst (PL-300)","Recognised if you chose Power BI.","certification","Microsoft Learn","https://learn.microsoft.com/credentials/certifications/data-analyst-associate/",30,false],
  ["Practice: SQL and metric definition drills","Define conversion, retention and churn out loud, then write the SQL for each.","practice","Your notes","",4]]'::jsonb);
+
+-- DevOps Engineer -----------------------------------------------------------------------------
+select pg_temp.track('do','do-foundations','Linux, Git, networking and scripting','beginner',
+ 'The everyday base of every DevOps and cloud role.',
+ 'Work comfortably on a Linux server, version everything with Git, understand how requests travel and automate small tasks.',1,'[
+ ["Linux Journey","Beginner-friendly Linux lessons.","learn","linuxjourney.com","https://linuxjourney.com",8],
+ ["OverTheWire: Bandit","Learn the shell by solving small challenges.","practice","OverTheWire","https://overthewire.org/wargames/bandit/",6],
+ ["Pro Git book","Chapters 1 to 3: basics and branching.","learn","git-scm.com","https://git-scm.com/book/en/v2",5],
+ ["Learn Git Branching","Interactive exercises on branches, merges and rebases.","practice","learngitbranching.js.org","https://learngitbranching.js.org",3],
+ ["Cloudflare Learning Center","How DNS, HTTP, TLS, load balancing and CDNs work.","learn","Cloudflare","https://www.cloudflare.com/learning/",4]]'::jsonb);
+select pg_temp.track('do','do-delivery','Containers, CI/CD and Kubernetes','intermediate',
+ 'Ship applications the way modern teams do: in containers, through a pipeline, onto a cluster.',
+ 'Containerise an app, build and test it in a pipeline and deploy it to Kubernetes.',2,'[
+ ["Docker: get started","Images, containers, volumes and Compose.","learn","Docker docs","https://docs.docker.com/get-started/",6],
+ ["GitHub Actions documentation","Workflows, jobs, secrets and environments.","learn","GitHub Docs","https://docs.github.com/en/actions",4],
+ ["Kubernetes basics","Deploy, expose, scale and update an app on a cluster.","learn","Kubernetes docs","https://kubernetes.io/docs/tutorials/kubernetes-basics/",6],
+ ["Project: ship a containerised API","Dockerise a small API, add a pipeline that tests and builds the image, and deploy it to a local kind cluster.","project","Your repo","",12]]'::jsonb);
+select pg_temp.track('do','do-cloud','Cloud, Infrastructure as Code and reliability','advanced',
+ 'Run real infrastructure from code and keep it healthy.',
+ 'Create cloud infrastructure with Terraform from a pipeline, monitor it with SLOs and hold a recognised certification.',3,'[
+ ["Terraform tutorials","Get started with Terraform on AWS, Azure or Google Cloud.","learn","HashiCorp","https://developer.hashicorp.com/terraform/tutorials",8],
+ ["AWS Skill Builder","Free cloud fundamentals courses, including Cloud Practitioner Essentials.","learn","AWS","https://skillbuilder.aws",10],
+ ["Prometheus: first steps","Metrics, targets and queries.","learn","Prometheus","https://prometheus.io/docs/introduction/first_steps/",2],
+ ["SRE book: service level objectives","Define SLIs, SLOs and error budgets.","learn","Google SRE","https://sre.google/sre-book/service-level-objectives/",1.5],
+ ["Project: infrastructure as code","Create the cloud resources of your API with Terraform from a pipeline, with remote state, a dashboard and one alert.","project","Your repo","",15],
+ ["AWS Certified Cloud Practitioner or CKA","Pick one: cloud fundamentals (AWS) or Kubernetes administration (CNCF). Check current exam details.","certification","AWS / CNCF","https://aws.amazon.com/certification/",25,false]]'::jsonb);
+
+-- =====================================================================================
+-- French texts (shown when the interface is French). Needs migration 20261029000200_content_fr.sql.
+-- Rows are matched on their English title (the id key): when you rename an English title, update it here too.
+-- Resources: [english title, french title, french description]; tips: [english, french].
+-- Steps: [english title, french title, french description]. Use ’ for apostrophes (never a straight quote).
+-- Skill keywords and job titles stay English (CV matching and offer search rely on them).
+-- =====================================================================================
+update public.career_paths p set name_fr = v.n, blurb_fr = v.b
+from (values
+  ('de', 'Data Engineer', 'Pipelines, entrepôts de données, cloud'),
+  ('ba', 'Business Analyst', 'Besoins, processus, parties prenantes'),
+  ('as', 'Support applicatif', 'Incidents, supervision, run'),
+  ('da', 'Data Analyst', 'Analyses, tableaux de bord, storytelling'),
+  ('do', 'DevOps Engineer', 'CI/CD, conteneurs, cloud, automatisation')
+) as v(id, n, b)
+where p.id = v.id;
+
+create or replace function pg_temp.res_fr(p text, k public.resource_kind, items jsonb)
+returns void language sql as $$
+  update public.path_resources r
+  set title_fr = x.e->>1, description_fr = nullif(coalesce(x.e->>2, ''), '')
+  from jsonb_array_elements(items) as x(e)
+  where r.id = md5(p || ':' || k::text || ':' || (x.e->>0))::uuid;
+$$;
+
+create or replace function pg_temp.track_fr(tid text, ttl text, summ text, outc text, steps jsonb)
+returns void language sql as $$
+  update public.training_tracks set title_fr = ttl, summary_fr = summ, outcome_fr = outc where id = tid;
+  update public.training_steps s
+  set title_fr = x.e->>1, description_fr = nullif(coalesce(x.e->>2, ''), '')
+  from jsonb_array_elements(steps) as x(e)
+  where s.id = md5(tid || ':' || (x.e->>0))::uuid;
+$$;
+
+-- Data Engineer ---------------------------------------------------------------
+select pg_temp.res_fr('de','tool','[
+ ["PostgreSQL / DuckDB","PostgreSQL / DuckDB","Pratiquer gratuitement en local"],["Airflow or Dagster","Airflow ou Dagster","Orchestration"],
+ ["dbt Core","dbt Core","Transformations et tests"],["Docker","Docker","Environnements reproductibles"],
+ ["GitHub","GitHub","Portfolio de projets de pipelines"]]'::jsonb);
+select pg_temp.res_fr('de','tip','[
+ ["Build one end-to-end project: API, storage, transform, dashboard. Document it in the README.","Réalisez un projet de bout en bout : API, stockage, transformation, tableau de bord. Documentez-le dans le README."],
+ ["Show data quality checks and tests; recruiters look for reliability, not only tools.","Montrez vos contrôles de qualité et vos tests : les recruteurs cherchent de la fiabilité, pas seulement des outils."],
+ ["Quantify results on your CV: rows per day, runtime cut, cost saved.","Chiffrez vos résultats sur le CV : lignes par jour, temps d’exécution réduit, coûts économisés."]]'::jsonb);
+
+-- Business Analyst ---------------------------------------------------------------
+select pg_temp.res_fr('ba','tool','[
+ ["Jira + Confluence","Jira + Confluence","Backlog et documentation"],["Miro / draw.io","Miro / draw.io","Ateliers et schémas de flux"],
+ ["Power BI","Power BI","Montrer l’impact avec des données"],["Excel","Excel","Analyse rapide et prototypage"],
+ ["Figma","Figma","Lire et commenter des maquettes"]]'::jsonb);
+select pg_temp.res_fr('ba','tip','[
+ ["Prepare two STAR stories: a requirement conflict you solved and a process you improved.","Préparez deux histoires STAR : un conflit sur un besoin que vous avez résolu et un processus que vous avez amélioré."],
+ ["Show you can talk to both business and tech: plain words first, then precise ones.","Montrez que vous savez parler au métier comme à la technique : des mots simples d’abord, puis des termes précis."],
+ ["Bring a sample artifact: a BPMN diagram or a user story set from a personal project.","Apportez un exemple de livrable : un diagramme BPMN ou un lot de user stories issu d’un projet personnel."]]'::jsonb);
+
+-- Application Support ------------------------------------------------------------
+select pg_temp.res_fr('as','tool','[
+ ["ServiceNow / Jira Service Management","ServiceNow / Jira Service Management","Gestion des tickets"],["Grafana / Kibana","Grafana / Kibana","Supervision et logs"],
+ ["Postman","Postman","Tester des API pendant un diagnostic"],["Bash + SQL","Bash + SQL","La boîte à outils quotidienne d’investigation"],
+ ["Splunk","Splunk","Courant dans les grandes entreprises"]]'::jsonb);
+select pg_temp.res_fr('as','tip','[
+ ["Describe an incident end to end: symptom, diagnosis, fix, prevention. That is the interview.","Racontez un incident de bout en bout : symptôme, diagnostic, correction, prévention. C’est tout l’entretien."],
+ ["Mention calm under pressure and clear written updates; they matter as much as technical skill.","Parlez de votre calme sous pression et de communications écrites claires : elles comptent autant que la technique."],
+ ["Automate one repetitive task with a script and put it on your CV.","Automatisez une tâche répétitive avec un script et mettez-la sur votre CV."]]'::jsonb);
+
+-- Data Analyst ------------------------------------------------------------------------
+select pg_temp.res_fr('da','tool','[
+ ["Power BI / Tableau","Power BI / Tableau","Tableaux de bord"],["Excel / Google Sheets","Excel / Google Sheets","Analyse rapide"],
+ ["Jupyter","Jupyter","Notebooks d’exploration"],["Metabase / Looker Studio","Metabase / Looker Studio","Reporting gratuit"],
+ ["Kaggle / data.gouv.fr","Kaggle / data.gouv.fr","Jeux de données publics pour vos projets"]]'::jsonb);
+select pg_temp.res_fr('da','tip','[
+ ["Publish 2 or 3 dashboards on public data, each answering a clear business question.","Publiez 2 ou 3 tableaux de bord sur des données publiques, chacun répondant à une question métier claire."],
+ ["Lead with the insight, then the method; recruiters skim.","Commencez par l’enseignement, puis la méthode : les recruteurs lisent en diagonale."],
+ ["Practise explaining a metric definition out loud: it is a classic interview test.","Entraînez-vous à expliquer à voix haute la définition d’un indicateur : c’est un test classique en entretien."]]'::jsonb);
+
+-- Learning tracks: Data Engineer ---------------------------------------------------
+select pg_temp.track_fr('de-foundations','Fondamentaux : SQL, Python, Git',
+ 'La boîte à outils que chaque entretien de data engineer vérifie en premier.',
+ 'Interroger et transformer des données en SQL, écrire des scripts Python propres et tout versionner avec Git.','[
+ ["SQL basics","Les bases du SQL","Sélectionner, filtrer, joindre et agréger avec des leçons interactives."],
+ ["Advanced SQL: CTEs and window functions","SQL avancé : CTE et fonctions de fenêtrage","Fonctions analytiques, données imbriquées et structure des requêtes."],
+ ["Python tutorial","Tutoriel Python","Le parcours officiel : structures de données, modules, erreurs, fichiers."],
+ ["pandas getting started","Premiers pas avec pandas","Charger, nettoyer, remodeler et exporter des données tabulaires."],
+ ["Git fundamentals","Les fondamentaux de Git","Commits, branches et pull requests."],
+ ["Practice: clean a messy CSV and load it into PostgreSQL","Pratique : nettoyer un CSV désordonné et le charger dans PostgreSQL","Choisissez un jeu de données public, scriptez le nettoyage en Python, chargez-le dans Postgres et committez avec un README."]]'::jsonb);
+select pg_temp.track_fr('de-pipelines','Pipelines et orchestration',
+ 'Passer des scripts à des pipelines planifiés, testés et reproductibles.',
+ 'Construire un pipeline ELT planifié avec un entrepôt de données, des modèles dbt et des tests.','[
+ ["Docker: get started","Docker : premiers pas","Des conteneurs pour des pipelines locaux reproductibles."],
+ ["Airflow tutorial","Tutoriel Airflow","Écrire votre premier DAG : tâches, planification et dépendances."],
+ ["dbt Fundamentals","Les fondamentaux de dbt","Modèles, tests, documentation et déploiement."],
+ ["BigQuery sandbox","Bac à sable BigQuery","Charger des données dans un entrepôt cloud sans carte bancaire."],
+ ["Data Engineering Zoomcamp","Data Engineering Zoomcamp","Cours gratuit par projets : Docker, Postgres, orchestration, dbt, Spark et Kafka. À suivre en parallèle ou à la place des étapes ci-dessus."]]'::jsonb);
+select pg_temp.track_fr('de-advanced','Passage à l’échelle, streaming et certification',
+ 'Ce qui sépare un portfolio junior d’un profil qu’on embauche.',
+ 'Concevoir des pipelines fiables, expliquer vos arbitrages et l’appuyer par un projet et une certification cloud.','[
+ ["Spark quick start","Démarrage rapide Spark","DataFrames et SQL sur un moteur distribué."],
+ ["Kafka quickstart","Démarrage rapide Kafka","Topics, producteurs et consommateurs."],
+ ["Designing Data-Intensive Applications","Designing Data-Intensive Applications","Livre de référence sur le stockage, la réplication et le streaming. Lisez les chapitres dont vous avez besoin."],
+ ["Portfolio project: end-to-end pipeline","Projet portfolio : pipeline de bout en bout","Ingérez une API publique chaque jour, orchestrez-la, transformez avec dbt, ajoutez des tests de données et un tableau de bord. Notez vos arbitrages."],
+ ["Cloud data engineer certification","Certification data engineer cloud","Choisissez un cloud (Google Professional Data Engineer ici ; AWS et Azure ont des équivalents)."]]'::jsonb);
+
+-- Learning tracks: Business Analyst ------------------------------------------------
+select pg_temp.track_fr('ba-foundations','Les bases de l’analyse métier',
+ 'Les besoins, les user stories et le vocabulaire agile utilisés dans toutes les équipes.',
+ 'Recueillir des besoins et écrire des user stories claires avec leurs critères d’acceptation.','[
+ ["User stories","User stories","Écrire des stories avec un qui, un quoi et un pourquoi clairs."],
+ ["The Scrum Guide","Le Guide Scrum","La source de référence, courte, sur les rôles et les événements Scrum."],
+ ["Jira and agile tutorials","Tutoriels Jira et agilité","Epics, stories, tableaux et workflows."],
+ ["SQL practice","Pratique du SQL","Vérifier les besoins sur des données réelles."],
+ ["Practice: write 10 user stories for an app you use","Pratique : écrire 10 user stories pour une application que vous utilisez","Avec des critères d’acceptation et un backlog priorisé."]]'::jsonb);
+select pg_temp.track_fr('ba-process','Modélisation des processus et reporting',
+ 'Montrer comment le travail circule aujourd’hui, où il bloque et quels changements en valent la peine.',
+ 'Cartographier les processus actuels et cibles et chiffrer l’impact dans un rapport.','[
+ ["BPMN overview","Introduction à BPMN","La notation des événements, tâches et passerelles."],
+ ["Practice: model a process in draw.io","Pratique : modéliser un processus dans draw.io","Dessinez le flux actuel d’un processus que vous connaissez et repérez les points de friction."],
+ ["Power BI documentation and training","Documentation et formation Power BI","Construire un rapport à partir de données Excel ou SQL."],
+ ["Practice: as-is, to-be and gap list","Pratique : existant, cible et liste des écarts","Rédigez une proposition d’évolution de processus d’une page avec les KPI attendus."]]'::jsonb);
+select pg_temp.track_fr('ba-advanced','Étude de cas et certification',
+ 'La preuve que vous savez mener un besoin de l’idée à la livraison.',
+ 'Présenter un dossier de besoins complet et détenir une certification reconnue.','[
+ ["Case study: full requirements pack","Étude de cas : dossier de besoins complet","Cartographie des parties prenantes, flux BPMN, user stories, critères d’acceptation et KPI pour un projet réaliste."],
+ ["IIBA entry-level certification (ECBA)","Certification IIBA de premier niveau (ECBA)","Vérifiez les conditions d’examen actuelles sur le site de l’IIBA."],
+ ["Professional Scrum certification","Certification Professional Scrum","Facultative, sauf si les postes visés mentionnent Product Owner ou Scrum."],
+ ["Practice: interview stories","Pratique : histoires pour l’entretien","Préparez deux histoires STAR et présentez votre étude de cas à voix haute."]]'::jsonb);
+
+-- Learning tracks: Application Support ---------------------------------------------
+select pg_temp.track_fr('as-foundations','Linux, SQL et bases des incidents',
+ 'La boîte à outils quotidienne d’un analyste support N1/N2.',
+ 'Naviguer sur un serveur Linux, lire des logs, interroger une base de données et suivre un processus d’incident.','[
+ ["Linux Journey","Linux Journey","Des leçons Linux accessibles aux débutants."],
+ ["OverTheWire: Bandit","OverTheWire : Bandit","Apprendre le shell en résolvant de petits défis."],
+ ["SQL basics","Les bases du SQL","Sélectionner, filtrer, joindre et agréger."],
+ ["Incident management guide","Guide de la gestion des incidents","Niveaux de gravité, rôles, communication et escalade."]]'::jsonb);
+select pg_temp.track_fr('as-monitoring','Supervision, API et automatisation',
+ 'Repérer les problèmes avant les utilisateurs et arrêter de répéter le travail manuel.',
+ 'Lire des tableaux de bord et des logs, tester des API et automatiser une tâche récurrente.','[
+ ["Prometheus: first steps","Prometheus : premiers pas","Métriques, cibles et requêtes."],
+ ["Grafana tutorials","Tutoriels Grafana","Construire des tableaux de bord et des alertes."],
+ ["Postman Learning Center","Postman Learning Center","Envoyer des requêtes, inspecter les réponses, écrire des tests simples."],
+ ["Python tutorial","Tutoriel Python","Assez de Python pour automatiser des contrôles et analyser des logs."],
+ ["Practice: log summary script","Pratique : script de synthèse de logs","Écrivez un script Bash ou Python qui parcourt un fichier de logs et compte les erreurs par type."]]'::jsonb);
+select pg_temp.track_fr('as-advanced','Fiabilité et certification',
+ 'Passer de la correction des incidents à leur prévention.',
+ 'Piloter un incident, rédiger un post-mortem sans reproche et détenir une certification ITIL.','[
+ ["SRE book: effective troubleshooting","Livre SRE : un diagnostic efficace","Une méthode systématique pour diagnostiquer les problèmes de production."],
+ ["SRE book: postmortem culture","Livre SRE : la culture du post-mortem","Rédiger des post-mortems sans reproche qui mènent à des changements."],
+ ["Project: runbook and post-mortem","Projet : runbook et post-mortem","Cassez volontairement une petite application Docker, supervisez-la avec Grafana, puis rédigez le runbook et un post-mortem."],
+ ["ITIL 4 Foundation","ITIL 4 Foundation","Vérifiez les détails actuels de l’examen auprès de l’organisme de certification."]]'::jsonb);
+
+-- Learning tracks: Data Analyst ------------------------------------------------------
+select pg_temp.track_fr('da-foundations','SQL, statistiques et données propres',
+ 'Répondre correctement aux questions métier avant de les rendre jolies.',
+ 'Interroger des données en SQL, les nettoyer et utiliser des statistiques simples pour étayer une conclusion.','[
+ ["Intro to SQL","Introduction au SQL","Sélectionner, filtrer, joindre et agréger."],
+ ["Advanced SQL","SQL avancé","CTE et fonctions de fenêtrage pour l’analyse."],
+ ["Statistics and probability","Statistiques et probabilités","Distributions, échantillonnage, intervalles de confiance et tests."],
+ ["Data cleaning","Nettoyage de données","Valeurs manquantes, mise à l’échelle, dates à parser et textes incohérents."],
+ ["Practice: analyse a public dataset in SQL","Pratique : analyser un jeu de données public en SQL","Choisissez un jeu de données, écrivez 5 questions métier et répondez-y avec des requêtes."]]'::jsonb);
+select pg_temp.track_fr('da-viz','Python, BI et storytelling visuel',
+ 'Transformer une analyse en quelque chose sur quoi un manager peut agir.',
+ 'Construire des tableaux de bord qui mènent à une décision et les expliquer clairement.','[
+ ["pandas","pandas","Manipuler et résumer des données en Python."],
+ ["Data visualization","Visualisation de données","Des graphiques qui montrent la bonne comparaison."],
+ ["Power BI","Power BI","Choisissez Power BI ou Tableau et tenez-vous-en à un seul. Documentation et formation Power BI."],
+ ["Tableau free training","Formation gratuite Tableau","L’alternative si vos employeurs cibles utilisent Tableau."],
+ ["Storytelling with Data","Storytelling with Data","Épurer les graphiques, guider l’attention, commencer par l’enseignement."]]'::jsonb);
+select pg_temp.track_fr('da-advanced','Portfolio et certification',
+ 'Les preuves valent mieux que les promesses. Livrez trois petits projets terminés.',
+ 'Présenter des tableaux de bord sur des données publiques et détenir une certification reconnue.','[
+ ["Portfolio: three dashboards on public data","Portfolio : trois tableaux de bord sur des données publiques","Chacun répond à une question métier claire et se termine par une recommandation."],
+ ["Google Data Analytics Certificate","Google Data Analytics Certificate","Certificat professionnel accessible aux débutants. Les heures sont approximatives et dépendent de votre rythme."],
+ ["Microsoft Power BI Data Analyst (PL-300)","Microsoft Power BI Data Analyst (PL-300)","Reconnue si vous avez choisi Power BI."],
+ ["Practice: SQL and metric definition drills","Pratique : exercices de SQL et de définition d’indicateurs","Définissez à voix haute la conversion, la rétention et le churn, puis écrivez le SQL de chacun."]]'::jsonb);
+
+-- DevOps Engineer ------------------------------------------------------------------------
+select pg_temp.res_fr('do','tool','[
+ ["GitHub Actions / GitLab CI","GitHub Actions / GitLab CI","Pipelines de build, de test et de déploiement"],["Docker","Docker","Empaqueter les applications en images"],
+ ["Kubernetes + Helm","Kubernetes + Helm","Faire tourner des conteneurs à grande échelle"],["Terraform","Terraform","Infrastructure as Code"],
+ ["Prometheus + Grafana","Prometheus + Grafana","Métriques, tableaux de bord et alertes"]]'::jsonb);
+select pg_temp.res_fr('do','tip','[
+ ["Build one project end to end: a small API in Docker, a CI/CD pipeline, infrastructure in Terraform and a dashboard. Link it on your CV.","Construisez un projet de bout en bout : une petite API dans Docker, un pipeline CI/CD, l’infrastructure en Terraform et un tableau de bord. Mettez le lien sur votre CV."],
+ ["Talk about incidents you handled and what you automated afterwards; DevOps interviews test judgement as much as tools.","Parlez des incidents que vous avez gérés et de ce que vous avez automatisé ensuite : les entretiens DevOps testent le jugement autant que les outils."],
+ ["Quantify your impact: deployment time cut, releases per week, incidents avoided, cloud costs saved.","Chiffrez votre impact : temps de déploiement réduit, livraisons par semaine, incidents évités, coûts cloud économisés."]]'::jsonb);
+
+-- Learning tracks: DevOps Engineer --------------------------------------------------
+select pg_temp.track_fr('do-foundations','Linux, Git, réseau et scripts',
+ 'La base quotidienne de tout poste DevOps et cloud.',
+ 'Travailler à l’aise sur un serveur Linux, tout versionner avec Git, comprendre le trajet des requêtes et automatiser de petites tâches.','[
+ ["Linux Journey","Linux Journey","Des leçons Linux accessibles aux débutants."],
+ ["OverTheWire: Bandit","OverTheWire : Bandit","Apprendre le shell en résolvant de petits défis."],
+ ["Pro Git book","Le livre Pro Git","Chapitres 1 à 3 : les bases et les branches."],
+ ["Learn Git Branching","Learn Git Branching","Exercices interactifs sur les branches, les fusions et les rebases."],
+ ["Cloudflare Learning Center","Cloudflare Learning Center","Comment fonctionnent DNS, HTTP, TLS, la répartition de charge et les CDN."]]'::jsonb);
+select pg_temp.track_fr('do-delivery','Conteneurs, CI/CD et Kubernetes',
+ 'Livrer des applications comme les équipes modernes : en conteneurs, via un pipeline, sur un cluster.',
+ 'Conteneuriser une application, la construire et la tester dans un pipeline et la déployer sur Kubernetes.','[
+ ["Docker: get started","Docker : premiers pas","Images, conteneurs, volumes et Compose."],
+ ["GitHub Actions documentation","Documentation GitHub Actions","Workflows, jobs, secrets et environnements."],
+ ["Kubernetes basics","Les bases de Kubernetes","Déployer, exposer, faire évoluer et mettre à jour une application sur un cluster."],
+ ["Project: ship a containerised API","Projet : livrer une API conteneurisée","Conteneurisez une petite API, ajoutez un pipeline qui teste et construit l’image, et déployez-la sur un cluster kind local."]]'::jsonb);
+select pg_temp.track_fr('do-cloud','Cloud, Infrastructure as Code et fiabilité',
+ 'Gérer une vraie infrastructure depuis du code et la garder en bonne santé.',
+ 'Créer une infrastructure cloud avec Terraform depuis un pipeline, la superviser avec des SLO et détenir une certification reconnue.','[
+ ["Terraform tutorials","Tutoriels Terraform","Bien démarrer avec Terraform sur AWS, Azure ou Google Cloud."],
+ ["AWS Skill Builder","AWS Skill Builder","Des cours gratuits sur les fondamentaux du cloud, dont Cloud Practitioner Essentials."],
+ ["Prometheus: first steps","Prometheus : premiers pas","Métriques, cibles et requêtes."],
+ ["SRE book: service level objectives","Livre SRE : les objectifs de niveau de service","Définir SLI, SLO et budgets d’erreur."],
+ ["Project: infrastructure as code","Projet : infrastructure as code","Créez les ressources cloud de votre API avec Terraform depuis un pipeline, avec un état distant, un tableau de bord et une alerte."],
+ ["AWS Certified Cloud Practitioner or CKA","AWS Certified Cloud Practitioner ou CKA","Choisissez-en une : fondamentaux du cloud (AWS) ou administration Kubernetes (CNCF). Vérifiez les détails actuels de l’examen."]]'::jsonb);

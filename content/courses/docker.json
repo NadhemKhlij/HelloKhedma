@@ -56,35 +56,120 @@
         "lang": "yaml",
         "code": "services:\n  db:\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: dev\n    volumes:\n      - db-data:/var/lib/postgresql/data\n  app:\n    build: .\n    env_file: .env\n    environment:\n      DATABASE_URL: postgresql://postgres:dev@db:5432/postgres\n    depends_on:\n      - db\nvolumes:\n  db-data:"
       }
+    },
+    {
+      "title": "Volumes, networks and production-ready images",
+      "minutes": 40,
+      "text": [
+        "Containers are disposable: anything written inside disappears when the container is removed. Data that must survive goes in a volume (managed by Docker) or a bind mount (a host folder, handy in development). Containers on the same user-defined network reach each other by name.",
+        "Production images should be small, safe and observable. Multi-stage builds keep compilers and build tools out of the final image, a non-root user limits damage, a HEALTHCHECK tells the orchestrator when the app is really up, and scanning the image finds known vulnerabilities."
+      ],
+      "points": [
+        "docker volume ls / inspect; named volumes survive docker compose down (unless -v).",
+        "docker network create app-net, then --network app-net on each container.",
+        "Scan images with docker scout or trivy before shipping them.",
+        "Log to stdout and stderr: docker logs and the platform collect them, no log files inside the container."
+      ],
+      "example": {
+        "lang": "dockerfile",
+        "code": "# Multi-stage build: tools in the first stage, only the result in the final image\nFROM python:3.12 AS build\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip wheel --wheel-dir /wheels -r requirements.txt\n\nFROM python:3.12-slim\nWORKDIR /app\nCOPY --from=build /wheels /wheels\nRUN pip install --no-cache-dir /wheels/* && rm -rf /wheels\nCOPY . .\nUSER 1000\nHEALTHCHECK CMD python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\"\nCMD [\"python\", \"app.py\"]",
+        "note": "The final image contains Python, the installed packages and your code, nothing else."
+      }
     }
   ],
   "cheatsheet": [
-    { "group": "Run", "items": [
-      ["docker run -d -p 8080:80 --name web nginx", "Start a container in the background"],
-      ["docker ps / docker ps -a", "Running / all containers"],
-      ["docker logs -f name", "Follow logs"],
-      ["docker exec -it name sh", "Open a shell inside"],
-      ["docker stop name / docker rm name", "Stop / remove"]
-    ]},
-    { "group": "Build", "items": [
-      ["docker build -t myapp:1.0 .", "Build an image from ./Dockerfile"],
-      ["docker images", "List local images"],
-      ["docker push registry/myapp:1.0", "Publish an image"],
-      ["docker system prune", "Clean unused data (careful)"]
-    ]},
-    { "group": "Dockerfile", "items": [
-      ["FROM python:3.12-slim", "Base image"],
-      ["COPY requirements.txt . + RUN pip install", "Install deps before code (cache)"],
-      ["ENV KEY=value", "Default environment variable"],
-      ["EXPOSE 8000", "Document the port"],
-      ["CMD [\"python\", \"app.py\"]", "Start command"]
-    ]},
-    { "group": "Compose", "items": [
-      ["docker compose up -d", "Start all services"],
-      ["docker compose down", "Stop and remove (volumes kept)"],
-      ["docker compose ps / logs -f svc", "Status / logs"],
-      ["docker compose build", "Rebuild images"]
-    ]}
+    {
+      "group": "Run",
+      "items": [
+        [
+          "docker run -d -p 8080:80 --name web nginx",
+          "Start a container in the background"
+        ],
+        [
+          "docker ps / docker ps -a",
+          "Running / all containers"
+        ],
+        [
+          "docker logs -f name",
+          "Follow logs"
+        ],
+        [
+          "docker exec -it name sh",
+          "Open a shell inside"
+        ],
+        [
+          "docker stop name / docker rm name",
+          "Stop / remove"
+        ]
+      ]
+    },
+    {
+      "group": "Build",
+      "items": [
+        [
+          "docker build -t myapp:1.0 .",
+          "Build an image from ./Dockerfile"
+        ],
+        [
+          "docker images",
+          "List local images"
+        ],
+        [
+          "docker push registry/myapp:1.0",
+          "Publish an image"
+        ],
+        [
+          "docker system prune",
+          "Clean unused data (careful)"
+        ]
+      ]
+    },
+    {
+      "group": "Dockerfile",
+      "items": [
+        [
+          "FROM python:3.12-slim",
+          "Base image"
+        ],
+        [
+          "COPY requirements.txt . + RUN pip install",
+          "Install deps before code (cache)"
+        ],
+        [
+          "ENV KEY=value",
+          "Default environment variable"
+        ],
+        [
+          "EXPOSE 8000",
+          "Document the port"
+        ],
+        [
+          "CMD [\"python\", \"app.py\"]",
+          "Start command"
+        ]
+      ]
+    },
+    {
+      "group": "Compose",
+      "items": [
+        [
+          "docker compose up -d",
+          "Start all services"
+        ],
+        [
+          "docker compose down",
+          "Stop and remove (volumes kept)"
+        ],
+        [
+          "docker compose ps / logs -f svc",
+          "Status / logs"
+        ],
+        [
+          "docker compose build",
+          "Rebuild images"
+        ]
+      ]
+    }
   ],
   "pitfalls": [
     "Connecting to localhost from one container to another: use the service name.",
@@ -93,15 +178,43 @@
     "Baking passwords into the image with COPY .env or ENV."
   ],
   "exercises": [
-    { "q": "Run a Redis server in the background on port 6379 and check its logs.",
-      "code": "bash", "answer": "docker run -d --name cache -p 6379:6379 redis:7\ndocker logs cache" },
-    { "q": "Your container exits immediately. How do you find out why?", "answer": "docker ps -a to see the exit code, then docker logs <name> to read the error. Running it interactively (docker run -it image sh) helps to test the start command by hand." },
-    { "q": "Write a .dockerignore for a Python project.",
-      "code": "text", "answer": ".git\n.venv\n__pycache__\n*.pyc\n.env\ndata/" }
+    {
+      "q": "Run a Redis server in the background on port 6379 and check its logs.",
+      "code": "bash",
+      "answer": "docker run -d --name cache -p 6379:6379 redis:7\ndocker logs cache"
+    },
+    {
+      "q": "Your container exits immediately. How do you find out why?",
+      "answer": "docker ps -a to see the exit code, then docker logs <name> to read the error. Running it interactively (docker run -it image sh) helps to test the start command by hand."
+    },
+    {
+      "q": "Write a .dockerignore for a Python project.",
+      "code": "text",
+      "answer": ".git\n.venv\n__pycache__\n*.pyc\n.env\ndata/"
+    },
+    {
+      "q": "A container wrote reports into the named volume reports. Show how to list the files in that volume without starting the original app.",
+      "hint": "Start a tiny throwaway container that mounts the same volume.",
+      "code": "bash",
+      "answer": "docker run --rm -v reports:/data alpine ls -l /data\ndocker volume inspect reports"
+    }
   ],
   "interview": [
-    { "q": "Image vs container?", "a": "An image is the immutable template (code, dependencies, start command). A container is a running, isolated instance created from an image; you can run many containers from one image." },
-    { "q": "Docker vs a virtual machine?", "a": "Containers share the host's kernel and only package the app and its libraries, so they start in seconds and are light. A VM emulates a whole machine with its own OS, which is heavier but more isolated." },
-    { "q": "How do you persist data in Docker?", "a": "With volumes (named volumes managed by Docker) or bind mounts (a host folder). The container filesystem is lost when the container is removed." }
+    {
+      "q": "Image vs container?",
+      "a": "An image is the immutable template (code, dependencies, start command). A container is a running, isolated instance created from an image; you can run many containers from one image."
+    },
+    {
+      "q": "Docker vs a virtual machine?",
+      "a": "Containers share the host's kernel and only package the app and its libraries, so they start in seconds and are light. A VM emulates a whole machine with its own OS, which is heavier but more isolated."
+    },
+    {
+      "q": "How do you persist data in Docker?",
+      "a": "With volumes (named volumes managed by Docker) or bind mounts (a host folder). The container filesystem is lost when the container is removed."
+    },
+    {
+      "q": "How do you make a Docker image smaller and safer?",
+      "a": "Start from a slim or distroless base, use a multi-stage build so build tools stay out of the final image, install only what is needed and clean caches in the same layer, add a .dockerignore, run as a non-root user, pin versions, never bake secrets into layers, and scan the image for vulnerabilities in CI."
+    }
   ]
 }

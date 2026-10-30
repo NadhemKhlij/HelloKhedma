@@ -5,7 +5,8 @@
 // - Remote jobs: remote.js (Jobicy, Remotive; titles filtered to the path).
 // Every offer gets its skills, contract / remote tags (from the text), a fit score against the active CV and its salary
 // (salary.js: provider field or description; the "≥ N k€" filter and the salary sort use the yearly amount, euros only).
-// "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent).
+// "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent); "✉ Cover letter" opens
+// letters.js (prompt to copy).
 // Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode").
 // Source credits required by the providers' terms: CREDITS.
 import { $, h, safeUrl, ls, toast } from "./lib.js";
@@ -21,6 +22,7 @@ import {
 } from "./companies.js";
 import { cvSwitcher, cvUsed } from "./cvpage.js";
 import { openTailor } from "./tailor.js";
+import { openCoverLetter } from "./letters.js";
 import { refreshTracker } from "./applications.js";
 
 const COUNTRIES = ["fr", "gb", "us", "de", "nl", "ca", "au", "be", "ch", "es", "it"];
@@ -139,6 +141,8 @@ function renderJob({ j, skills, fit, tags, key, salary }) {
       btn, hideBtn,
       h("button", { type: "button", class: "btn-ghost !px-2", title: t("Gaps and a ready-made prompt to adapt your CV to this offer"),
         onClick: () => openTailor({ title: j.title, company: j.company, text: jobText(j) }) }, t("✍ Tailor my CV")),
+      h("button", { type: "button", class: "btn-ghost !px-2", title: t("A ready-made prompt to write a cover letter for this offer"),
+        onClick: () => openCoverLetter({ title: j.title, company: j.company, text: jobText(j) }) }, t("✉ Cover letter")),
       h("span", { class: "mute text-xs ml-auto" },
         SOURCE_NAMES[j.source] || (PROVIDER_NAMES[j.source] ? t("Careers page") : j.source))));
 }

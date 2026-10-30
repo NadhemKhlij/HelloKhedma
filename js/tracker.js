@@ -1,6 +1,7 @@
 // Application tracker UI: Kanban board, details dialog, stats, follow-ups, CSV and calendar files.
 // - Board: drag and drop + arrow buttons; "Details" opens #appDialog (fields read via form.elements, since
-//   form.title is the form's own attribute). Interview-stage cards get a "Prepare" link to #/interview.
+//   form.title is the form's own attribute). Interview-stage cards get a "Prepare" link to #/interview; applied and
+//   interview cards an "✉ Email" button (thank-you / follow-up email, letters.js).
 // - Stage changes append to `history` (timeline, stats). nextActions() feeds Home: due follow-ups, interviews in 7 days.
 // - Stats + weekly goal ("hk.weeklyGoal"), CSV export/import (accepts "," or ";"), .ics file for interviews.
 // - CV sent (cv_version, the version name from js/cvs.js): card badge, select in the dialog, response rate per CV.
@@ -11,6 +12,7 @@
 import { $, h, safeUrl, safeColor, download } from "./lib.js";
 import { t, LOCALE } from "./i18n.js";
 import { STAGES } from "./store.js";
+import { openCardLetter } from "./letters.js";
 
 const DAY = 86_400_000;
 const stageLabel = (id) => STAGES.find((s) => s.id === id)?.label || id;
@@ -85,11 +87,13 @@ function card(c, stageIndex, { onMove, onOpen, colorOf }) {
       f ? badge(`⏰ ${FOLLOW[f][0]}`, FOLLOW[f][1]) : null),
     c.next_action ? h("p", { class: "mute text-xs mt-1" }, t("Next: {action}", { action: c.next_action })) : null,
     url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "block underline text-xs mt-1", style: "color:var(--accent)" }, t("Open offer")) : null,
-    h("div", { class: "flex gap-1 mt-2" },
+    h("div", { class: "flex flex-wrap gap-1 mt-2" },
       btn("←", t("Move back"), stageIndex === 0, () => move(-1)),
       btn("→", t("Move forward"), stageIndex === STAGES.length - 1, () => move(1)),
       btn(t("Details"), t("Edit details, notes, follow-up and interview"), false, () => onOpen(c)),
       c.stage === "interview" ? h("a", { href: "#/interview", class: "btn-ghost !px-2 !py-0", title: t("Practise for this interview") }, t("Prepare")) : null,
+      c.stage === "applied" || c.stage === "interview"
+        ? btn(t("✉ Email"), c.stage === "interview" ? t("Write a thank-you or follow-up email") : t("Write a follow-up email"), false, () => openCardLetter(c)) : null,
     ),
   );
   el.addEventListener("dragstart", (e) => e.dataTransfer.setData("text/plain", c.id));

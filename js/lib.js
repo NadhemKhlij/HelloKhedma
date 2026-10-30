@@ -47,6 +47,12 @@ export function toast(msg) {
   toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
 }
 
+// Copy a text to the clipboard (selecting `area` as a fallback where the clipboard API is refused), then a toast.
+export async function copyText(text, area, message) {
+  try { await navigator.clipboard.writeText(text); } catch { area?.select(); document.execCommand("copy"); }
+  toast(message);
+}
+
 // SVG version of h() (icons, progress ring): attributes only, children are SVG nodes.
 export function svg(tag, attrs = {}, ...kids) {
   const n = document.createElementNS("http://www.w3.org/2000/svg", tag);

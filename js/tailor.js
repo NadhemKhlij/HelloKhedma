@@ -7,7 +7,7 @@
 // - "Rewrite with AI" (aiSection): signed-in users only. After a notice shown before every send, the CV and the offer
 //   go to the cv-tailor Edge Function (Claude API, daily limit per account), which stores nothing. This is the only
 //   place where the CV text leaves the browser, and only on that explicit click.
-import { $, h, toast } from "./lib.js";
+import { $, h, copyText } from "./lib.js";
 import { t, lang } from "./i18n.js";
 import { sb } from "./supabase.js";
 import { state, path, fitColor, skillChip } from "./state.js";
@@ -72,10 +72,7 @@ function linesToPutForward(cvText, wanted) {
     .slice(0, 6);
 }
 
-async function copy(text, area, message = t("Prompt copied. Paste it into your AI assistant.")) {
-  try { await navigator.clipboard.writeText(text); } catch { area?.select(); document.execCommand("copy"); }
-  toast(message);
-}
+const copy = (text, area, message = t("Prompt copied. Paste it into your AI assistant.")) => copyText(text, area, message);
 
 // Messages for the error codes of the cv-tailor function.
 const AI_ERRORS = {

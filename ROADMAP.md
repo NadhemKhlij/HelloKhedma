@@ -105,6 +105,11 @@ Done (2026-10-29): 4.3 weekly study plan on the Training page (courses for CV ga
 | 5.4 | Smarter skill extraction (synonyms, seniority, must-have vs nice-to-have) | Better fit scores | M |
 | 5.5 | Professional summary: prompt turning your CV + path into a 3–4 line summary (CV top or LinkedIn "About") | A strong first impression in seconds | S |
 Note: these have a cost per use; add per-user limits (like the search rate limit) before launching them.
+Done (2026-10-30): 5.1 letters pack, first stage (js/letters.js): "✉ Cover letter" on offers and the CV match (prompt
+to copy with honesty rules, letter language EN/FR, default = offer language); "✉ Email" on applied / interview cards
+and "Write the email" on Home follow-ups (thank-you and follow-up templates in EN/FR filled from the card, copy or open
+in the email app). Still to do: "Write with AI" in the app (same rules as cv-tailor), keep the letter sent per
+application (2.7b).
 Done (2026-10-29): 5.2, "Tailor my CV" on offers and the CV match: gap analysis + a prompt to copy into your own AI (CV stays local), and "Rewrite with AI" in the app (cv-tailor function, Claude Opus 5.5 at medium effort, signed-in users only, 5 a day per account, notice before every send, nothing stored). Needs the owner's Anthropic API key and the function deployed (CHECKLIST O16).
 
 ## Phase 6: grow

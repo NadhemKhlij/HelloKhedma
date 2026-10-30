@@ -110,6 +110,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
 - js/tailor.js — "Tailor my CV" dialog: honest gap analysis, prompt to copy for the user's own AI, and "Rewrite with AI"
   (cv-tailor function, signed-in users, after a notice)
+- js/letters.js — letters pack: cover letter prompt to copy (offers, CV match), thank-you / follow-up emails from a
+  tracker card (templates EN + FR, copy or open in the email app; nothing is sent by HelloKhedma)
 - js/courses.js — course list and course page (tabs: lessons one at a time, quiz, flashcards, practice, interview, cheat sheet)
 - js/practice.js — quiz (generated from the cheat sheet), flashcards, self-graded exercises, interview reveal
 - js/activity.js — XP, study streak, 7-day strip, last course for "Resume" (local only, "hk.activity")

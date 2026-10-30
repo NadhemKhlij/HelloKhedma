@@ -8,7 +8,9 @@
 - **Owner, first:** O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). Also check
   "Confirm email" is OFF in Supabase and delete the Resend key that was pasted in the chat (O5b).
 - **Next in code (owner's choice):** smoke tests in CI (ROADMAP, Engineering hygiene), accessibility pass (1.9),
-  cover letter prompt (same approach as Tailor, 5.1), networking contacts; also update supabase/setup-all.sql.
+  letters pack (5.1: cover letter, thank-you, follow-up; same approach as Tailor), offer trust check + date / seniority
+  filters (3.8, 3.1), LinkedIn import (3.10), networking contacts; also update supabase/setup-all.sql. 2026-10-30:
+  ROADMAP gained items from a jobicy.com review (2.8, 3.8–3.10, 4.4b, 4.7, 5.5).
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
   local preview without Node: scripts/preview-cdn.sh + scripts/serve.ps1.
 

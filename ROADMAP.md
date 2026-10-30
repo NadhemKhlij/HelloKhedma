@@ -54,6 +54,7 @@ application (2.7b).
 | 2.6 | CSV export / import | Bring an existing spreadsheet in, take data out | S |
 | 2.7 | Attach the CV version + cover letter used per application | Know what was sent to whom | M |
 | 2.7b | Cover letter used per application (text kept locally like the CV, or a short note) | Know what was sent to whom | S |
+| 2.8 | Offer coach: when a card reaches "Offer", compare the offered salary with the salaries already seen for that path and region (low / typical / high), negotiation tips and a prompt to copy | Negotiate with data, not guesses | M |
 
 ## Phase 3: find better offers faster
 Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text; date filter still to do),
@@ -67,13 +68,16 @@ the scoring CV on the Offers page; the CV match compares every version). Local o
 
 | # | Item | Why | Effort |
 |---|---|---|---|
-| 3.1 | Filters: contract type, remote, salary, date posted, seniority | Cut noise | M |
+| 3.1 | Filters: contract type, remote, salary, date posted ("posted N days ago" chip + filter), seniority (junior / mid / senior / lead, detected from the title and text) | Cut noise | M |
 | 3.2 | Saved searches + email alerts for new matching offers | The app works while you sleep | M |
 | 3.3 | Hide / "not interested", mark as seen, no duplicates across sources | Never read the same offer twice | S |
 | 3.4 | Minimum fit filter ("show offers ≥ 60% fit") | Focus on realistic applications | S |
 | 3.5 | Spontaneous applications: companies likely to hire (France Travail "La Bonne Boite", available on your account) | Hidden job market | M |
 | 3.6 | Salary and demand by job and region (France Travail "Marché du travail", available on your account) | Negotiate and target regions with data | M |
 | 3.7 | Several CV versions (one per path) and pick which one scores offers | Different roles, different CVs | M |
+| 3.8 | Offer trust check: "⚠ check this offer" when an offer is older than 45 days or reposted, asks to contact on WhatsApp / Telegram or a personal email, mentions fees or paid training, or has no company name (in the browser only) | Fake and stale offers waste applications | S–M |
+| 3.9 | Path market pulse on Home, from your own search results: typical salary range, top 10 requested skills (with your CV gaps), % remote, % with a salary | Know the market for your path at a glance | M |
+| 3.10 | Import from LinkedIn: guide to "Save to PDF" from your profile (the existing CV upload reads it), then read the LinkedIn data export (.zip: Positions, Skills, Education CSV) in the browser to prefill a CV version; nothing is sent | Start from what is already on LinkedIn without retyping | M |
 
 ## Phase 4: learning that leads to a job
 Done (2026-10-29): 4.4 Interview prep page: 55 questions per path on average (14 behavioral, 8 role-specific, plus the
@@ -87,16 +91,19 @@ Done (2026-10-29): 4.3 weekly study plan on the Training page (courses for CV ga
 | 4.2 | Quizzes per course + course progress synced to the account | Check understanding; keep progress across devices | M |
 | 4.3 | Weekly study plan from your hours/week and your missing skills | Turns tracks into a schedule | M |
 | 4.4 | Interview prep per path: question bank, STAR story builder, model answers | Interviews are where offers are won | M |
+| 4.4b | Interview stages and take-home tasks per path (screen → technical → case → final), common take-home exercises, red flags on the employer side (EN + FR content) | Know what each round looks like before it happens | M |
 | 4.5 | Portfolio project briefs per path with evaluation checklist | Proof beats certificates | M |
 | 4.6 | Certifications tracker (planned, booked, passed) | Clear goals | S |
+| 4.7 | Skill check per path: a short placement test built from the course quizzes; passed skills count as known and the study plan skips them | Learn only what you are missing | M |
 
 ## Phase 5: apply faster with AI (Claude API through an Edge Function)
 | # | Item | Why | Effort |
 |---|---|---|---|
-| 5.1 | Cover letter draft tailored to an offer + your CV | Hours saved per week | M |
+| 5.1 | Letters pack: cover letter tailored to an offer + your CV, thank-you email when a card moves to Interview, follow-up email when a reminder is due (prompt to copy first, in-app AI later with the cv-tailor rules) | Hours saved per week | M |
 | 5.2 | CV tailoring suggestions per offer (which skills to put forward, honest rewording) | Better match without lying | M |
 | 5.3 | Mock interview chat for a given offer | Practice anytime | M |
 | 5.4 | Smarter skill extraction (synonyms, seniority, must-have vs nice-to-have) | Better fit scores | M |
+| 5.5 | Professional summary: prompt turning your CV + path into a 3–4 line summary (CV top or LinkedIn "About") | A strong first impression in seconds | S |
 Note: these have a cost per use; add per-user limits (like the search rate limit) before launching them.
 Done (2026-10-29): 5.2, "Tailor my CV" on offers and the CV match: gap analysis + a prompt to copy into your own AI (CV stays local), and "Rewrite with AI" in the app (cv-tailor function, Claude Opus 5.5 at medium effort, signed-in users only, 5 a day per account, notice before every send, nothing stored). Needs the owner's Anthropic API key and the function deployed (CHECKLIST O16).
 
@@ -144,3 +151,9 @@ Done (2026-10-29): 5.2, "Tailor my CV" on offers and the CV match: gap analysis 
   claude-sonnet-5-5 at about half the cost), effort medium, server-side refusal fallback on. Plain-text answer in four
   sections rather than structured output. Daily limit counted before the call (failed calls count) to bound costs.
   Privacy policy (FR + EN) lists Anthropic as a processor; the CV leaves the browser only on that confirmed click.
+- 2026-10-30: Review of jobicy.com added 2.8, 3.8–3.9, 4.4b, 4.7, 5.5 and widened 3.1 and 5.1. Not copied: talent
+  profiles, company directory, cost-of-living guides, employer job posting and ads (outside a path coach that puts
+  privacy first); browser autofill extension (too large for now).
+- 2026-10-30: LinkedIn (3.10): no API connection. "Sign In with LinkedIn" (OpenID) only gives name, email and photo;
+  positions and skills need LinkedIn partner programs, closed to small apps; scraping breaks LinkedIn's terms. Use the
+  user's own "Save to PDF" or data export, read in the browser.

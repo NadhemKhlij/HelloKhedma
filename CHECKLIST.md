@@ -1,7 +1,10 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-30)
-- **Just finished (2026-10-30):** offer checks (ROADMAP 3.1 + 3.8, js/offercheck.js): "Posted N days ago" chip, date
+- **Just finished (2026-10-30):** DevOps Engineer path (seed + interview questions) and fuller courses: 4 new DevOps
+  courses (CI/CD, Kubernetes, Terraform, AWS) and one more lesson, exercise and interview question in each of the 17
+  others, English and French. Seed and setup-all.sql tested on a local PostgreSQL 16 (run twice); app tested as a guest
+  with sample data. **DevOps appears on the live site only after O17.** Earlier the same day: offer checks (ROADMAP 3.1 + 3.8, js/offercheck.js): "Posted N days ago" chip, date
   and level filters, "Most recent" sort by date, "⚠ Check this offer" warnings with reasons and a filter to hide them.
   Before that, the letters pack (5.1, js/letters.js). Both tested as a guest in the local preview with sample offers
   (not with live search results, not signed in). Roadmap gained items from a jobicy.com review.
@@ -9,10 +12,10 @@
   only, 5 a day, notice before every send, privacy policy updated. It needs O16 (API key + deploy); the function code
   was not run by Claude (no Deno/key here), only the app side. Before that: "Tailor my CV" prompt, salary on offers,
   French content, app.js split, "CV sent", CV versions, FR/EN interface. O13–O15 done. Not tested signed in.
-- **Owner, first:** O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). Also check
+- **Owner, first:** O17 (re-run seed.sql for DevOps), O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). Also check
   "Confirm email" is OFF in Supabase and delete the Resend key that was pasted in the chat (O5b).
 - **Next in code (owner's choice):** smoke tests in CI (ROADMAP, Engineering hygiene), accessibility pass (1.9),
-  LinkedIn import (3.10), path market pulse (3.9), networking contacts; also update supabase/setup-all.sql. 2026-10-30:
+  LinkedIn import (3.10), path market pulse (3.9), networking contacts. 2026-10-30:
   ROADMAP gained items from a jobicy.com review (2.8, 3.8–3.10, 4.4b, 4.7, 5.5).
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
   local preview without Node: scripts/preview-cdn.sh + scripts/serve.ps1.
@@ -32,13 +35,15 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | O9 | Legal (before a big launch) | Have the legal notice and privacy policy reviewed | Templates, not legal advice | — |
 | O10 | Your phone | Install the app (Android: "Install the app" link in the footer; iPhone: Safari → Share → Add to Home Screen) and check it opens offline | PWA install was only tested in a desktop browser | — |
 | O16 | console.anthropic.com + Supabase | **1.** Anthropic Console → API keys → create a key named "hellokhedma-cv-tailor"; set a monthly spend limit (Settings → Limits). **2.** Supabase → Edge Functions → Secrets → add `ANTHROPIC_API_KEY` = that key (never paste it in a chat). **3.** Edge Functions → Deploy a new function named `cv-tailor`, paste the file below, keep "Verify JWT" on, Deploy. Optional secrets: `CV_TAILOR_DAILY_LIMIT` (default 5), `CV_TAILOR_MODEL` (default `claude-opus-5-5`, about 8 cents a rewrite; `claude-sonnet-5-5` about half) | "Rewrite with AI" answers "not set up yet" until then; the copy-prompt option works meanwhile | [cv-tailor/index.ts at fdc6405](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/fdc640575f9d687f88d56629550bbad490611933/supabase/functions/cv-tailor/index.ts) |
+| O17 | Supabase → SQL Editor | Open the file below, copy all of it into a new query and **Run**. It is idempotent: it adds the DevOps Engineer path, its tools, tips, keywords and three learning tracks (with French) and keeps everyone’s progress. Then reload the site and pick DevOps | Until then the DevOps path, its tracks and tips do not exist in the database (its courses and interview questions are already live) | [seed.sql at 7a51c7e](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/7a51c7e6654acce124748906e5a44c6b61287948/supabase/seed.sql) |
 | O12 | Live site | Sign in and use the app in French, then press **EN** and back: check nothing is left in the wrong language and the French reads naturally (report odd wording) | Translations were written by Claude and only tested as a guest | js/i18n-fr.js |
-| O11 | Content (before promoting) | Have the 17 courses, interview questions and model answers reviewed by people in each field, in English **and French** | Written and translated by Claude: realistic but unreviewed | content/courses/, content/interview/ (French in fr/ subfolders) |
+| O11 | Content (before promoting) | Have the 21 courses, interview questions and model answers reviewed by people in each field, in English **and French** | Written and translated by Claude: realistic but unreviewed | content/courses/, content/interview/ (French in fr/ subfolders) |
 
 ## ✅ Done
 
 | Date | What |
 |---|---|
+| 2026-10-30 | DevOps Engineer path in code (seed, interview questions, 4 new courses) and every course extended by one lesson, exercise and interview question; setup-all.sql regenerated. Live once O17 is done |
 | 2026-10-30 | Offer checks: posted date chip + filter, level (Junior…Lead) + filter, "⚠ Check this offer" warnings (scam signals, stale, no company) + filter; no setup needed |
 | 2026-10-30 | Letters pack: cover letter prompt on offers and the CV match, thank-you / follow-up emails from tracker cards and Home (EN + FR); no setup needed |
 | 2026-10-29 | Interactive learning: lesson-by-lesson course player, quiz and flashcards from every cheat sheet, self-graded exercises, roadmap of tracks, streak + XP; no setup needed |

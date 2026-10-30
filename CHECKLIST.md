@@ -1,7 +1,9 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-10-30)
-- **Just finished (2026-10-30):** offer checks (ROADMAP 3.1 + 3.8, js/offercheck.js): "Posted N days ago" chip, date
+- **Just finished (2026-10-30):** smoke tests in CI (tests/smoke.spec.mjs, 15 tests, all passing): every deploy now
+  runs them first and stops if one fails. Push a non-main branch to test a change without publishing it.
+  Before that, offer checks (ROADMAP 3.1 + 3.8, js/offercheck.js): "Posted N days ago" chip, date
   and level filters, "Most recent" sort by date, "⚠ Check this offer" warnings with reasons and a filter to hide them.
   Before that, the letters pack (5.1, js/letters.js). Both tested as a guest in the local preview with sample offers
   (not with live search results, not signed in). Roadmap gained items from a jobicy.com review.
@@ -11,7 +13,7 @@
   French content, app.js split, "CV sent", CV versions, FR/EN interface. O13–O15 done. Not tested signed in.
 - **Owner, first:** O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). Also check
   "Confirm email" is OFF in Supabase and delete the Resend key that was pasted in the chat (O5b).
-- **Next in code (owner's choice):** smoke tests in CI (ROADMAP, Engineering hygiene), accessibility pass (1.9),
+- **Next in code (owner's choice):** accessibility pass (1.9),
   LinkedIn import (3.10), path market pulse (3.9), networking contacts; also update supabase/setup-all.sql. 2026-10-30:
   ROADMAP gained items from a jobicy.com review (2.8, 3.8–3.10, 4.4b, 4.7, 5.5).
 - **Source of truth:** github.com/NadhemKhlij/HelloKhedma (`main`). If the local folder is gone, clone it again;
@@ -39,6 +41,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-10-30 | Smoke tests (Playwright) run before every deploy; a failing test stops it; no setup needed |
 | 2026-10-30 | Offer checks: posted date chip + filter, level (Junior…Lead) + filter, "⚠ Check this offer" warnings (scam signals, stale, no company) + filter; no setup needed |
 | 2026-10-30 | Letters pack: cover letter prompt on offers and the CV match, thank-you / follow-up emails from tracker cards and Home (EN + FR); no setup needed |
 | 2026-10-29 | Interactive learning: lesson-by-lesson course player, quiz and flashcards from every cheat sheet, self-graded exercises, roadmap of tracks, streak + XP; no setup needed |

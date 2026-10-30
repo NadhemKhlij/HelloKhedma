@@ -127,7 +127,10 @@ Done (2026-10-29): 5.2, "Tailor my CV" on offers and the CV match: gap analysis 
 | 6.4 | Mentors / referrals / community | Network effects | L |
 
 ## Engineering hygiene (ongoing)
-- Smoke tests (Playwright) in the GitHub workflow before each deploy.
+- Done (2026-10-30): smoke tests (Playwright, 15 tests, ~30 s) in the deploy workflow; a failure stops the deploy.
+  They cover start-up, every page, the guest tracker, CV + letters, offer checks, a course, FR/EN and phone width.
+  Not covered: signed-in flows (would need a test account in Supabase), the job search itself (paid quotas),
+  the Edge Functions.
 - Done (2026-10-29): js/app.js split into one module per page (state, router, home, offers, training, cvpage,
   applications, account); app.js keeps start-up, path selection and sign-in (~200 lines).
 - Sync the data that is still local-only to the account: followed companies, saved searches, hidden/seen offers,

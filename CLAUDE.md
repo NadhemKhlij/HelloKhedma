@@ -19,7 +19,12 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   - `npx supabase link --project-ref <ref>`, then `npx supabase db push` (migrations); seed: run supabase/seed.sql.
   - `npx supabase functions deploy <name> --use-api` for job-search, delete-account and cv-tailor
   - `npx supabase secrets set NAME=value`
-- Deploy: push to `main`; .github/workflows/deploy.yml builds and publishes to GitHub Pages.
+- Smoke tests: `npm test` (Playwright, tests/smoke.spec.mjs) on the assembled site in _site/. CI runs them before
+  every deploy; a failure stops the deploy. Push a branch other than `main` to run build + tests without publishing.
+  Failures show as annotations on the run, readable without signing in:
+  api.github.com/repos/NadhemKhlij/HelloKhedma/check-runs/<job id>/annotations. No Node on the owner's machine:
+  check changes on a branch first.
+- Deploy: push to `main`; .github/workflows/deploy.yml builds, runs the smoke tests and publishes to GitHub Pages.
 
 ## Tech stack
 - Frontend: HTML, Tailwind CSS 3 (css/input.css → css/app.css), vanilla JS ES modules, no bundler; installable PWA.
@@ -68,7 +73,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 Read the header comment of any file before modifying it; update the header if behaviour changes.
 
 ## Definition of done
-- `npm run build` passes.
+- `npm run build` passes, and the smoke tests pass in CI; a new page or main flow gets a test in tests/smoke.spec.mjs.
 - Tested as a guest AND as a signed-in user (persistence and guest import intact).
 - Checked at mobile width.
 - New texts translated in js/i18n-fr.js and checked in French (FR/EN button).
@@ -123,7 +128,8 @@ Read the header comment of any file before modifying it; update the header if be
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)
 - supabase/functions/job-search/, delete-account/, cv-tailor/ — Edge Functions (cv-tailor: AI CV rewrite with Claude)
 - scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node)
-- .github/workflows/deploy.yml — build and publish to GitHub Pages
+- .github/workflows/deploy.yml — build, smoke tests, publish to GitHub Pages (main only)
+- tests/smoke.spec.mjs, playwright.config.mjs — smoke tests (guest flows; no sign-in, no job search)
 - CHECKLIST.md — next-session note, owner tasks, done log; ROADMAP.md — roadmap + decisions log; README.md, GO-LIVE.md — setup guides
 
 ## Owner checklist

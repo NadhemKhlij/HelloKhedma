@@ -1,8 +1,9 @@
-# Updates "minutes" and "lessonCount" of every course in content/courses/index.json from its course file, with the
+# Updates "minutes" and "lessonCount" of every course in content/courses/index.json (or content/ai/index.json) from its course file, with the
 # same formula as js/coursetime.js (keep both in sync; the smoke test "course index matches the course files" fails
 # when they differ). Run after adding or extending a course. No Node needed.
 # Usage (repo root): powershell -File scripts/course-times.ps1 -Root .
-param([string]$Root = ".")
+#   AI engineer track (content/ai/index.json, times from the Arabic-letter files): add -Catalog ai
+param([string]$Root = ".", [string]$Catalog = "courses")
 $ErrorActionPreference = "Stop"
 $READ_WPM = 200; $CODE_LPM = 6; $TRY_EXAMPLE = 5; $PER_EXERCISE = 10; $PER_INTERVIEW = 2; $QUIZ_AND_CARDS = 15
 function Words($s) { if (-not $s) { 0 } else { @(([string]$s) -split '\s+' | Where-Object { $_ }).Count } }
@@ -22,10 +23,12 @@ function CourseMinutes($c) {
   $total
 }
 
-$indexPath = (Resolve-Path "$Root\content\courses\index.json").Path
+$dir = if ($Catalog -eq "ai") { "$Root\content\ai" } else { "$Root\content\courses" }
+$files = if ($Catalog -eq "ai") { "$dir\ar\*.json" } else { "$dir\*.json" }
+$indexPath = (Resolve-Path "$dir\index.json").Path
 $utf8 = [Text.UTF8Encoding]::new($false)
 $values = @{}
-Get-ChildItem "$Root\content\courses\*.json" | Where-Object { $_.Name -ne "index.json" } | ForEach-Object {
+Get-ChildItem $files | Where-Object { $_.Name -ne "index.json" } | ForEach-Object {
   $c = [IO.File]::ReadAllText($_.FullName, $utf8) | ConvertFrom-Json
   $values[$_.BaseName] = @((CourseMinutes $c), (Count $c.lessons))
 }

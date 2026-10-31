@@ -1,0 +1,280 @@
+{
+  "why": "Barcha companies f Tounes w f l'Europe walla t7eb developer ya3ref yebni features b l'AI: chatbot support, extraction mel documents, classification mta3 tickets. El 5edma hedhi ma testa7a9ch doctorat: testa7a9 Python behi w fhem s7i7 lel API. El course hedha y3allmek tebni applications b Claude API kima ta3mel f production: b cost ma7soub, errors m9addma, w JSON tnajem tetheb fih.",
+  "outcome": "tebni b Python app ta7ki m3a Claude: conversation, streaming, JSON valide, tools, caching w batches, errors m9addma, w logs mta3 tokens w cost.",
+  "lessons": [
+    {
+      "title": "El Messages API: awel request mte3ek",
+      "text": [
+        "Kol 7aja f Claude API t3addi men endpoint wa7ed: el Messages API (POST /v1/messages). F Python, el SDK 'anthropic' y5abbih fi client.messages.create. Tools, structured outputs, thinking: el kol features mta3 nafs el API, mouch APIs o5rin.",
+        "El request fih asasan: model (el modèle), max_tokens (el 7add el a9sa mta3 el jweb), messages (list mta3 messages kol wa7ed 3andou role 'user' walla 'assistant' w content), w ken t7eb system: el system prompt, ya3ni el ta3limet el 3amma (chkoun inti, b ena lougha tjaweb, chnoua mamnou3).",
+        "Nou9ta mouhimma barcha: el API stateless. Ya3ni ma tfakkar 7atta 7aja bin request w request. Ken t7eb conversation 3la barcha tours, inti elli t5abbi el history w tab3thou kemel kol marra. Hedha 3lech el cost yetla3 kol ma el conversation ttawel: kol tour tetkhallas 3la el history el kol men jdid (ama fama caching, nchoufouh f lesson 6).",
+        "El jweb (response) mouch string: howa objet Message. response.content list mta3 blocks, kol block 3andou type: 'text', 'thinking', 'tool_use'... Ma ta9rach content[0].text 3al 3amyani: aktheb el blocks elli type mte3hom 'text'. response.usage y9ollek 9addech input_tokens w output_tokens kleet el request, w hedha elli tetkhallas 3lih.",
+        "Ba3d, w 9bal ma testa3mel el content, chouf response.stop_reason: 'end_turn' ya3ni kammel normal, 'max_tokens' ya3ni t9ossa (el jweb ma kmelch), 'tool_use' ya3ni y7eb ya3mel appel l tool, w 'refusal' ya3ni rfadh l'requête 3la sbab sécurité. App behia t3amel kol 7ala b tari9a wa7da."
+      ],
+      "points": [
+        "El API key t9rah el SDK men el variable d'environnement ANTHROPIC_API_KEY: anthropic.Anthropic() bla argument. Ken tekteb el key fel code, ywalli f GitHub nhar el commit, w ay wa7ed yesta3mlou 3la 7sebek.",
+        "Awel message lezem ykoun role 'user'.",
+        "El history: append el message mta3 el user, ba3d append response.content b role 'assistant'.",
+        "Log response._request_id: ki ya9ta3 7aja, hedha elli ystan7a9ouh el support."
+      ],
+      "example": { "lang": "python", "code": "import anthropic\n\n# The SDK reads ANTHROPIC_API_KEY from the environment: never write the key in code\nclient = anthropic.Anthropic()\n\nSYSTEM = \"You are the support assistant of a Tunisian phone shop. Answer briefly, in the customer's language.\"\nhistory = []  # the API keeps no memory: we keep the conversation ourselves\n\n\ndef ask(user_text):\n    history.append({\"role\": \"user\", \"content\": user_text})\n    response = client.messages.create(\n        model=\"claude-opus-5-5\",\n        max_tokens=16000,\n        system=SYSTEM,\n        messages=history,  # resend the whole conversation every time\n    )\n    if response.stop_reason == \"refusal\":\n        history.pop()  # keep the history clean\n        return \"Sorry, I can't help with that.\"\n    # content is a list of blocks: keep only the text blocks\n    text = \"\".join(b.text for b in response.content if b.type == \"text\")\n    history.append({\"role\": \"assistant\", \"content\": response.content})\n    print(\"stop:\", response.stop_reason,\n          \"| in:\", response.usage.input_tokens,\n          \"| out:\", response.usage.output_tokens)\n    return text\n\n\nprint(ask(\"Aslema, 9adeh soum forfait 20 Go?\"))\nprint(ask(\"W ken nzid 10 Go o5rin, 9adeh walla?\"))  # works because history was resent", "note": "El tour el theni yefhem '10 Go o5rin' 5ater el history mta3 el tour el louel tb3athet m3ah." }
+    },
+    {
+      "title": "Ena model w 9addech effort? El cost mta3 kol request",
+      "text": [
+        "Ikhtiyar el model howa awel 9arar fih flous. F octobre 2026 el models el 7aliyin: Claude Opus 5.5 ('claude-opus-5-5') howa el default, 1M tokens context w 128K output, b $4 input w $20 output lel million token. Claude Sonnet 5.5 ('claude-sonnet-5-5') b $2 / $10, behi lel volume el kbir. Claude Haiku 5.5 ('claude-haiku-5-5') b $0.10 / $0.50 (ki el prompt 100K tokens walla a9al), lel 5edma el sghira w el sri3a: classification, routing, extraction. W fama Claude Fable 5.1 ('claude-fable-5-1'), el a9wa, b $10 / $50. Ekteb el ids hedhom kima houma, bla date.",
+        "El 7seb sahel: cost = (input_tokens x prix input + output_tokens x prix output) / 1 000 000. Mithel: request b 2000 tokens input w 500 output 3la Opus 5.5 = (2000 x 4 + 500 x 20) / 1 000 000 = $0.018. Darbha f 10 000 message f nhar w tchouf 3lech lezem t7seb 9bal ma t'déployi.",
+        "El models el jdod y5emmou 9bal ma yjawbou (adaptive thinking). 3la Opus 5.5 el thinking dima ma5doum, ma tnajemch tsakkrou: el contrôle howa output_config={'effort': ...} b 'low', 'medium', 'high', 'xhigh' walla 'max'. El default 3la Opus 5.5 'medium'. Effort a9al = tokens a9al = as3ar w asra3, ama ynajem yen9es el jouda 3al 5edma es3iba. El thinking ya7seb men max_tokens w ytzed 3al output elli tetkhallas 3lih.",
+        "Fama parametres 9dom ma 3adech ye5dmou 3al models el jdod: temperature, top_p, top_k, budget_tokens, w el prefill (ki tebda el jweb b message assistant). Ken tab3athhom, el API yraja3 400. Ken l9it tutorial 9dim fih temperature=0.2, hedha 3lech ma ye5demch.",
+        "Tari9a s7i7a: ebda b Opus 5.5 b el effort el default, a3mel set mta3 examples t3ref el jweb el s7i7 mte3hom, w ba3d jarreb effort a9al walla Sonnet/Haiku. Ken el jouda b9at, khalli el ar5es. Ma tbadalch el model 3al 3amyani."
+      ],
+      "points": [
+        "client.messages.count_tokens(model=..., messages=...) y7seblek el input tokens 9bal ma tab3ath.",
+        "Haiku 5.5 behi lel classification w el routing; Opus 5.5 lel raisonnement w el agents.",
+        "El prix ybaddlou: 5alli el tableau mta3 el prix f config wa7ed w thabbet fih 9bal el production."
+      ],
+      "example": { "lang": "python", "code": "import anthropic\n\nclient = anthropic.Anthropic()\n\n# USD per 1M tokens (input, output) - check the pricing page before you rely on it\nPRICES = {\n    \"claude-opus-5-5\": (4.00, 20.00),\n    \"claude-sonnet-5-5\": (2.00, 10.00),\n    \"claude-haiku-5-5\": (0.10, 0.50),  # for prompts up to 100K tokens\n}\n\n\ndef cost_usd(model, usage):\n    price_in, price_out = PRICES[model]\n    return (usage.input_tokens * price_in + usage.output_tokens * price_out) / 1_000_000\n\n\ndef classify(message, model=\"claude-haiku-5-5\"):\n    response = client.messages.create(\n        model=model,\n        max_tokens=1024,  # thinking also counts toward max_tokens\n        output_config={\"effort\": \"low\"},  # low | medium | high | xhigh | max\n        system=\"Classify the customer message. Answer with one word: billing, network, sales or other.\",\n        messages=[{\"role\": \"user\", \"content\": message}],\n    )\n    label = \"\".join(b.text for b in response.content if b.type == \"text\").strip()\n    return label, cost_usd(model, response.usage)\n\n\nlabel, cost = classify(\"El connexion ta7et men sbe7, w zeda el facture tal3a!\")\nprint(label, f\"${cost:.6f}\")\n\n# Before sending a big document, count its tokens (this call is free of output)\nwith open(\"contract.txt\", encoding=\"utf-8\") as f:\n    count = client.messages.count_tokens(\n        model=\"claude-opus-5-5\",\n        messages=[{\"role\": \"user\", \"content\": f.read()}],\n    )\nprint(\"input tokens:\", count.input_tokens)", "note": "contract.txt fichier mithel; ma tab3athch données personnelles ken ma testa7a9hech." }
+    },
+    {
+      "title": "El streaming: jweb yo5rej kelma b kelma",
+      "text": [
+        "Ken jweb ta5ou 20 seconde, el user ychouf écran fergha w ya7seb el app ta7et. El streaming y5alli el texte yeb3ath 7asb ma yetkteb, kima f chat. El wa9t el kemel ma ytbadelch, ama el user ychouf 7aja f a9al men seconde, w hedha ybaddel el expérience el kol.",
+        "F Python, el helper el recommandé howa client.messages.stream(...) m3a with. Fi wostou, stream.text_stream y3tik el 9ta3 mta3 el texte wa7da wa7da. Ki youfa, stream.get_final_message() yraja3lek el Message el kemel, kima messages.create: content, stop_reason, usage. Ya3ni ma tet3abch tlem el tokens wa7dek.",
+        "3lech mouch dima messages.create? 5ater el jwebet el touwal ynajmou yfoutou el 10 d9aye9. El SDK yrafedh request non-streaming ki y9addar elli bech ta5ou wa9t kbir (ValueError), w el connexions elli tab9a fergha barcha wa9t ta9ta3. Lhné, ki max_tokens kbir (mithel 64000), estaa3mel el streaming. Ken ma t7tejch el texte b kelma b kelma, ynajem testa3mel stream w get_final_message() bark: t5ou el protection mta3 el streaming bla ma tet3ab bel events.",
+        "Ken t7eb tafasil a5ter, ta3mel 'for event in stream' w tchouf el types: message_start, content_block_start, content_block_delta (fih text_delta), content_block_stop, message_delta (fih stop_reason w usage), message_stop.",
+        "F app web (FastAPI, Django...), el fekra nafsha: el serveur y9ra el stream mta3 Claude w yeb3ath kol 9at3a lel navigateur (Server-Sent Events walla WebSocket). Ken el connexion internet mta3 el user d3ifa, kima ysir sa3at, el streaming y5allih ychouf 7aja 9bal ma ya9ta3. W ken el stream ta7 fel wost, 3andek jweb na9es: ma tsajlouch kima jweb kemel."
+      ],
+      "points": [
+        "print(text, end='', flush=True): flush y5alli el texte yo5rej toul.",
+        "Lel async: AsyncAnthropic() w 'async with client.messages.stream(...)' w 'async for text in stream.text_stream'.",
+        "Ba3d el stream, chouf final.stop_reason kima dima 9bal ma tsajjel el jweb fel history.",
+        "Errors fel stream: catch anthropic.APIConnectionError w anthropic.APIStatusError kima fel requests el 3adiyin."
+      ],
+      "example": { "lang": "python", "code": "import anthropic\n\nclient = anthropic.Anthropic()\n\n\ndef stream_answer(history):\n    with client.messages.stream(\n        model=\"claude-opus-5-5\",\n        max_tokens=64000,\n        system=\"You are a patient Python tutor. Answer in Tunisian Derja written in Latin letters.\",\n        messages=history,\n    ) as stream:\n        for text in stream.text_stream:\n            print(text, end=\"\", flush=True)  # show each piece as soon as it arrives\n        final = stream.get_final_message()  # the full Message, like messages.create returns\n    print()\n    print(\"stop:\", final.stop_reason, \"| out tokens:\", final.usage.output_tokens)\n    return final\n\n\nhistory = [{\"role\": \"user\", \"content\": \"Fasserli el list comprehension b mithel sghir.\"}]\nfinal = stream_answer(history)\nif final.stop_reason != \"refusal\":\n    history.append({\"role\": \"assistant\", \"content\": final.content})" }
+    },
+    {
+      "title": "Structured outputs: JSON tnajem tetheb fih",
+      "text": [
+        "Barcha apps ma t7tejch texte, t7tej data: category, urgence, montant, date. Zmen kona nekteb 'jawebni b JSON' fel prompt w nod3iw rabbi: marra yzid phrase 9bal el JSON, marra yensa champ. El structured outputs y7allou el mochkla hedhi: t3ti JSON schema, w el jweb yo5rej dima JSON valide 3la el schema.",
+        "Fama zouz tor9at. El ashel f Python: client.messages.parse(..., output_format=Ticket) b model Pydantic. El SDK y7awel el class l schema, w response.parsed_output yraja3lek instance Ticket validée. El tari9a el theniya: messages.create m3a output_config={'format': {'type': 'json_schema', 'schema': {...}}} w ba3d json.loads 3al texte. El 'format' w el 'effort' y3ichou m3a b3adhhom fi nafs output_config.",
+        "El schema 3andou 7doud: kol object lezem additionalProperties false; enum, anyOf, $ref ye5dmou; ama minimum, maximum, minLength w schemas récursifs ma ye5dmouch. El SDK Python yna7i el contraintes hedhom mel schema elli yeb3athou w y9ayyedhom 3al client side. Awel marra testa3mel schema jdid, fama wa9t compilation, ba3d yet7at f cache 24 se3a.",
+        "Ama rod belek: JSON valide mouch ma3neha JSON s7i7. El schema yadhmen el format, mouch el ma3na. El model ynajem y5tar category ghalta walla y7ot urgence 'high' l message 3adi. Lhné a3mel checks métier (règles mta3ek) w ba3d lel 7alat el ghariba, 5alli insen ychouf.",
+        "W zeda: ken stop_reason 'refusal', el output ynajem ma ykounch 3la el schema; ken 'max_tokens', el JSON ynajem ykoun ma9sous. Dima chouf el stop_reason 9bal ma testa3mel el data. Lel strict tool use (tools b strict: true), nchoufouh f lesson 5."
+      ],
+      "points": [
+        "Literal['low', 'medium', 'high'] f Pydantic ywalli enum fel schema.",
+        "Structured outputs ye5dmou m3a el Batches, el streaming w el token counting; ma ye5dmouch m3a el citations w el prefill.",
+        "Sajjel el exemples elli ghaltet fihom el data: ywalliw tests (eval set) lel prompt mte3ek."
+      ],
+      "example": { "lang": "python", "code": "from typing import Literal\n\nimport anthropic\nfrom pydantic import BaseModel\n\nclient = anthropic.Anthropic()\n\n\nclass Ticket(BaseModel):\n    category: Literal[\"billing\", \"network\", \"sales\", \"other\"]\n    urgency: Literal[\"low\", \"medium\", \"high\"]\n    language: Literal[\"derja\", \"french\", \"arabic\", \"mixed\"]\n    summary_fr: str\n    customer_is_angry: bool\n\n\nresponse = client.messages.parse(\n    model=\"claude-opus-5-5\",\n    max_tokens=16000,\n    system=\"Turn the customer message into a support ticket. summary_fr: one short sentence in French.\",\n    messages=[{\"role\": \"user\", \"content\": \"3 ayem w ana bla internet, el modem yechta3el ama mafamma 7atta connexion!!\"}],\n    output_format=Ticket,\n)\n\nif response.stop_reason == \"refusal\":\n    raise RuntimeError(\"refused: do not trust the output\")\nif response.stop_reason == \"max_tokens\":\n    raise RuntimeError(\"cut off: raise max_tokens\")\n\nticket = response.parsed_output  # a validated Ticket instance\nprint(ticket.category, ticket.urgency, ticket.summary_fr)\n\n# Business checks that a schema cannot express\nif ticket.urgency == \"high\" and ticket.category == \"other\":\n    print(\"send to a human for review\")" }
+    },
+    {
+      "title": "Tool use: 5alli Claude yesta3mel el functions mte3ek",
+      "text": [
+        "Claude ma ya3rafch win wsolt el commande mta3 client: el info hedhi f base de données mte3ek. El tool use y5allik t9oul lel model: 'fama function esmha get_order_status, ta5ou order_id'. Ki y7tejha, Claude ma y5adhamhech wa7dou: yraja3 block tool_use fih esm el tool w el arguments, w stop_reason = 'tool_use'. El code mte3ek howa elli y5addem el function w yraja3 el natija.",
+        "El tool yet3arraf b name, description w input_schema (JSON schema). El description mouhimma barcha: Claude y5tar el tool 3la 7asebha, lhné ekteb wadh7a: chnoua ta3mel, w9tech testa3melha, mithel lel arguments. Zid 'strict': True bech el arguments dima ykounou valides 3la el schema (w lezem additionalProperties false).",
+        "El loop: (1) ab3ath el messages m3a tools; (2) ken stop_reason 'tool_use', zid response.content fel history b role assistant; (3) lkol block tool_use, 5addem el tool w a3mel tool_result b nafs el tool_use_id; (4) ab3ath el results el kol f message user wa7ed; (5) 3awed 7atta stop_reason ma ywallich 'tool_use'. Claude ynajem ytlob barcha tools fi nafs el tour (parallel): el results el kol f nafs el message.",
+        "Ki el tool yfachli (commande ma famech, API ta7et), ma tkhallich el app tet7attem: raja3 tool_result b 'is_error': True w message wadh7a. Claude ya9raha w yfasser lel user walla yjarreb b tari9a o5ra.",
+        "El SDK fih zeda tool runner (beta): ta3mel function Python b @beta_tool, w client.beta.messages.tool_runner(...) y5addem el loop wa7dou. Behi bech tarba7 wa9t; el loop manuel ya3tik contrôle akther. Rod belek: 3la Opus 5.5, tool_choice forcé ('any' walla 'tool') yraja3 400; 5alli 'auto' w 9oul fel prompt chnoua el tool elli lezem yesta3mlou. W el arguments mta3 el tool howa output mta3 model: valid'hom 9bal ma tmes data walla fichiers."
+      ],
+      "points": [
+        "Kol tool_result lezem ykoun 3andou tool_use_id mta3 el block elli y9ablou.",
+        "7ot limite 3al loop (mithel 10 tours) bech ma ydourch lel abad.",
+        "MCP (Model Context Protocol) protocole bech tarbet serveurs mta3 tools jehzin m3a Claude; Claude Code w el Claude Agent SDK produits o5rin fihom tools jehzin."
+      ],
+      "example": { "lang": "python", "code": "import json\n\nimport anthropic\n\nclient = anthropic.Anthropic()\n\nORDERS = {\"TN-1042\": {\"status\": \"shipped\", \"city\": \"Sfax\"}}\n\ntools = [{\n    \"name\": \"get_order_status\",\n    \"description\": \"Get the delivery status of a customer order by its id, for example TN-1042.\",\n    \"strict\": True,  # Claude's arguments always match the schema\n    \"input_schema\": {\n        \"type\": \"object\",\n        \"properties\": {\"order_id\": {\"type\": \"string\"}},\n        \"required\": [\"order_id\"],\n        \"additionalProperties\": False,\n    },\n}]\n\n\ndef run_tool(name, args):\n    \"\"\"Return (content, is_error). Our code runs the tool, not Claude.\"\"\"\n    if name == \"get_order_status\":\n        order = ORDERS.get(args[\"order_id\"])\n        if order is None:\n            return f\"No order with id {args['order_id']}\", True\n        return json.dumps(order), False\n    return f\"Unknown tool {name}\", True\n\n\nmessages = [{\"role\": \"user\", \"content\": \"Win wsolt el commande mte3i TN-1042?\"}]\n\nfor _ in range(10):  # safety cap: never loop forever\n    response = client.messages.create(\n        model=\"claude-opus-5-5\",\n        max_tokens=16000,\n        tools=tools,\n        messages=messages,\n    )\n    if response.stop_reason != \"tool_use\":\n        break  # end_turn, max_tokens or refusal: nothing to run\n    messages.append({\"role\": \"assistant\", \"content\": response.content})\n    results = []\n    for block in response.content:\n        if block.type == \"tool_use\":\n            content, failed = run_tool(block.name, block.input)\n            results.append({\n                \"type\": \"tool_result\",\n                \"tool_use_id\": block.id,  # must match the tool_use block\n                \"content\": content,\n                \"is_error\": failed,\n            })\n    messages.append({\"role\": \"user\", \"content\": results})  # all results in ONE user message\n\nprint(response.stop_reason)\nprint(\"\".join(b.text for b in response.content if b.type == \"text\"))" }
+    },
+    {
+      "title": "Prompt caching w Batches: na99es el cost w el latence",
+      "text": [
+        "Ken kol request tab3ath fiha nafs el FAQ mta3 20 000 token, rak t5alles 3liha kol marra. El prompt caching y5alli el API yesta3mel men jdid el préfixe elli 9rah 9bal. El read men el cache ykallef ta9riban 0.1x mel prix input (3la Opus 5.5: $0.20 lel million, ya3ni 0.05x), w ykoun asra3.",
+        "El caching match 3la el préfixe: el ordre howa tools, ba3d system, ba3d messages. Ay byte yetbaddel fel préfixe y5assar el cache lel kol elli ba3dou. Lhné 7ot el 7ajet el thebta fel awel w el 7ajet elli tetbaddel fel e5er. Ta7ot breakpoint b 'cache_control': {'type': 'ephemeral'} 3la e5er block thebet (max 4 breakpoints). El cache y3ich 5 d9aye9 par défaut (kol read yjadedhom), walla se3a b 'ttl': '1h'. Fama zeda cache_control fel top-level mta3 el request y7ot el breakpoint wa7dou, behi lel conversations.",
+        "El write fel cache ykallef akther: 1.25x lel 5 d9aye9, 2x lel se3a. Ya3ni ma ywalli rbe7 ken ki tet3awed el préfixe. W fama minimum: 3al models el jdod (Opus 5.5, Sonnet 5.5, Haiku 5.5) el préfixe lezem 512 token 3al a9al, sinon ma yetcachach w ma ya3tikch 7atta error.",
+        "Kifech ta3ref ye5dem? Chouf response.usage: cache_creation_input_tokens (tketbou fel cache), cache_read_input_tokens (t9raw mel cache), input_tokens (el ba9i bel prix el kemel). Ken cache_read dima 0, fama 7aja tbaddel el préfixe: datetime.now() fel system prompt, user id, json.dumps bla sort_keys, tools tetbaddel.",
+        "El Batches API 7aja o5ra: tab3ath barcha requests mara wa7da (7atta 100 000 walla 256 MB), y5admouhom asynchrone, w tetkhallas 50% a9al. Akther el batches youfaw f se3a, el max 24 se3a, w el resultats y9a3dou 29 youm. Behi lel 5edma elli ma testanech: classification mta3 el tickets mta3 nhar kemel, traduction mta3 catalogue, evaluation mta3 prompt. Mouch lel chat: el user ma yestannech se3a."
+      ],
+      "points": [
+        "Total el prompt = input_tokens + cache_creation_input_tokens + cache_read_input_tokens.",
+        "Requests parallèles b nafs el préfixe ma ynajmouch y9raw cache mazel yetkteb: ab3ath wa7da, w ba3d el ba9i.",
+        "Batch: client.messages.batches.create, ba3d retrieve 7atta processing_status == 'ended', ba3d results."
+      ],
+      "example": { "lang": "python", "code": "import anthropic\n\nclient = anthropic.Anthropic()\n\n# A long FAQ that stays byte-identical between requests (no date, no user id inside)\nwith open(\"faq_shop.md\", encoding=\"utf-8\") as f:\n    FAQ = f.read()\n\nSYSTEM = [\n    {\"type\": \"text\", \"text\": \"Answer customer questions using only the FAQ below.\"},\n    {\"type\": \"text\", \"text\": FAQ, \"cache_control\": {\"type\": \"ephemeral\"}},  # breakpoint after the stable part\n]\n\n\ndef answer(question):\n    response = client.messages.create(\n        model=\"claude-opus-5-5\",\n        max_tokens=16000,\n        system=SYSTEM,\n        messages=[{\"role\": \"user\", \"content\": question}],  # the varying part comes last\n    )\n    u = response.usage\n    print(f\"cache write={u.cache_creation_input_tokens} \"\n          f\"cache read={u.cache_read_input_tokens} uncached={u.input_tokens}\")\n    return \"\".join(b.text for b in response.content if b.type == \"text\")\n\n\nanswer(\"Kifech nbaddel l'adresse de livraison?\")   # 1st call: writes the cache\nanswer(\"9addeh ta5ou el livraison l Gabes?\")       # within 5 minutes: reads the cache", "note": "Awel call ykteb el cache; el theni, ken ja fi wost 5 d9aye9 w el FAQ akther men 512 token, y9ra mennou." }
+    },
+    {
+      "title": "Errors, retries, rate limits w refusals",
+      "text": [
+        "F production, el API marra marra yraja3 error: 429 ki tfout el rate limit (requests walla tokens fel d9i9a), 500 walla 529 ki el service ta3ban walla overloaded, timeout ki el réseau bta. App behia ma tet7attemch: tfara9 bin elli yestaahel retry w elli la.",
+        "El SDK Python y3awed wa7dou (retry b exponential backoff) 3la errors connexion, 408, 409, 429 w >= 500, zouz marrat par défaut. Tbaddel hedha b max_retries 3al client walla b client.with_options(max_retries=5) l request wa7da. El timeout par défaut 10 d9aye9; tnajem t7ot timeout=60.0, w ki yfout yetla3 anthropic.APITimeoutError.",
+        "El exceptions 3andhom classes: BadRequestError (400, el request ghalta: ma t3awedch, sallah el code), AuthenticationError (401, el key ghalta walla ma famech), PermissionDeniedError (403), NotFoundError (404, souvent model id ghalet), RateLimitError (429), InternalServerError (>= 500), APIConnectionError (réseau). El kol (ken APIConnectionError) ywarthou men APIStatusError. Catch mel a5ass lel a3amm: el specific el louel, w APIStatusError fel e5er.",
+        "Ki RateLimitError yfout ba3d el retries, el header 'retry-after' y9ollek 9addech testanna. Ma ta3melch boucle t3awed bla 7add: t7ot 7add, w ken el traffic kbir, a3mel queue walla na99es el concurrence.",
+        "Refusal mouch error: el request tet3adda (200), ama stop_reason = 'refusal' w response.stop_details ynajem y9ollek el category. Kol modèle 3andou classifiers sécurité. El app lezem tchouf el stop_reason 9bal ma ta9ra el content w t3ti lel user message wadh7a, mouch JSON ma9sous walla écran fergha. W sajjel dima el _request_id: ki tetkallem m3a el support ywalli el dalil mte3ek."
+      ],
+      "points": [
+        "Retry: 429, 500, 529, timeout, réseau. Ma t3awedch: 400, 401, 403, 404.",
+        "max_retries=0 yna7i el retries mta3 el SDK (ken 3andek système retry wa7dek).",
+        "Ma ta3melch string matching 3al messages mta3 el errors: estaa3mel el classes."
+      ],
+      "example": { "lang": "python", "code": "import logging\n\nimport anthropic\n\nlog = logging.getLogger(\"support-bot\")\n\n# The SDK already retries connection errors, 408, 409, 429 and >=500 with backoff\nclient = anthropic.Anthropic(max_retries=4, timeout=60.0)\n\n\ndef safe_reply(messages):\n    try:\n        response = client.messages.create(\n            model=\"claude-opus-5-5\",\n            max_tokens=16000,\n            messages=messages,\n        )\n    except anthropic.BadRequestError as e:      # 400: our request is wrong, retrying will not help\n        log.error(\"bad request: %s\", e.message)\n        raise\n    except anthropic.AuthenticationError:       # 401: missing or wrong ANTHROPIC_API_KEY\n        log.critical(\"check ANTHROPIC_API_KEY\")\n        raise\n    except anthropic.RateLimitError as e:       # 429 still failing after the SDK retries\n        log.warning(\"rate limited, retry-after=%s\", e.response.headers.get(\"retry-after\"))\n        return None\n    except anthropic.APIStatusError as e:       # any other non-2xx: 5xx, 529 overloaded...\n        log.error(\"API error %s\", e.status_code)\n        return None\n    except anthropic.APITimeoutError:           # no answer within the timeout\n        log.warning(\"timeout\")\n        return None\n    except anthropic.APIConnectionError:        # network problem before any response\n        log.warning(\"network error\")\n        return None\n\n    log.info(\"request_id=%s stop=%s\", response._request_id, response.stop_reason)\n    if response.stop_reason == \"refusal\":\n        return \"Sorry, I can't help with this request.\"\n    if response.stop_reason == \"max_tokens\":\n        log.warning(\"answer cut off at max_tokens\")\n    return \"\".join(b.text for b in response.content if b.type == \"text\")" }
+    },
+    {
+      "title": "Projet kemel: API ta3mel tickets men messages b Derja/Français/3arbi",
+      "text": [
+        "Tawa nlemmou kol chay f app wa7da. El cas: boutique en ligne tounsiya t9abel messages men el clients f Messenger walla WhatsApp, b Derja (b 7rouf 3arbi walla latin), b Français, b 3arbi, walla mélange. El 5edma: kol message ywalli ticket structuré (category, urgence, lougha, numéro commande, résumé b français w b 3arbi) bech el équipe support t5addem bih.",
+        "El architecture: endpoint FastAPI POST /tickets. Y9abel el message, yab3athou l Claude b system prompt thebet, structured output b schema, w effort 'low' 5ater extraction sahla. Le5tarna Sonnet 5.5: ar5es men Opus, w behi barcha fel volume. Ken el volume kbir barcha w el tickets bsat, jarreb Haiku 5.5 3la eval set 9bal ma tbaddel.",
+        "El JSON yo5rej valide 3la el schema, ama nzidou Ticket.model_validate_json bech el data tet9ayyed men jiha mte3na zeda. Ki el stop_reason mouch 'end_turn' (refusal walla max_tokens), nraj3ou 422 w ma n5arjouch data ma9sousa. Errors el API ywalliw 502/503 wadh7in lel front.",
+        "Kol request nsajlou: request_id, stop_reason, input/output tokens, cache read, w el cost b dollar. B el logs hedhom ta3ref 9addech ykallef ticket, w tchouf ken el caching ye5dem. El system prompt fih cache_control, ama ma yetcachach ken ki ywalli 512 token walla akther (mithel ki tzid examples).",
+        "Pour aller plus loin: ekteb eval set b 50 message 7a9i9i (ba3d ma tna7i el données personnelles) b el ticket el s7i7 mta3 kol wa7ed, w 3awed t5addmou ba3d kol tabdil fel prompt walla el model. Na7i el numéros téléphone w el CIN 9bal ma tab3ath ken ma testa7a9hech. W 5alli insen ychouf el tickets elli urgence 'high'. Hedha el far9 bin démo w produit."
+      ],
+      "points": [
+        "Lancer: pip install anthropic fastapi uvicorn, ba3d uvicorn app:app.",
+        "Test: curl walla Postman b JSON {'message': '...'} 3la /tickets.",
+        "Optional[str] fel Pydantic w anyOf [string, null] fel schema: nafs el fekra.",
+        "Lel volume el kbir w ma testa3jelch: 3awed nafs el request b el Batches API b 50% a9al."
+      ],
+      "example": { "lang": "python", "code": "# app.py - run with: uvicorn app:app\n# pip install anthropic fastapi uvicorn ; set ANTHROPIC_API_KEY in the environment\nimport logging\nfrom typing import Literal, Optional\n\nimport anthropic\nfrom fastapi import FastAPI, HTTPException\nfrom pydantic import BaseModel, ValidationError\n\nlogging.basicConfig(level=logging.INFO)\nlog = logging.getLogger(\"tickets\")\n\nMODEL = \"claude-sonnet-5-5\"\nPRICE_IN, PRICE_OUT, PRICE_CACHE_READ = 2.00, 10.00, 0.20  # USD per 1M tokens\n\nclient = anthropic.Anthropic(max_retries=3, timeout=60.0)\napp = FastAPI()\n\nSYSTEM = [{\n    \"type\": \"text\",\n    \"text\": (\n        \"You turn customer messages of a Tunisian online shop into support tickets. \"\n        \"Messages can be in Tunisian Derja (Arabic or Latin letters), French, Arabic or a mix. \"\n        \"summary_fr: one sentence in French. summary_ar: one sentence in Modern Standard Arabic. \"\n        \"Never invent an order id: use null when the message has none.\"\n    ),\n    # only cached once the prefix reaches the model minimum (512 tokens), e.g. after adding examples\n    \"cache_control\": {\"type\": \"ephemeral\"},\n}]\n\nTICKET_SCHEMA = {\n    \"type\": \"object\",\n    \"properties\": {\n        \"category\": {\"type\": \"string\", \"enum\": [\"delivery\", \"payment\", \"product\", \"account\", \"other\"]},\n        \"urgency\": {\"type\": \"string\", \"enum\": [\"low\", \"medium\", \"high\"]},\n        \"language\": {\"type\": \"string\", \"enum\": [\"derja\", \"french\", \"arabic\", \"mixed\"]},\n        \"order_id\": {\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"null\"}]},\n        \"summary_fr\": {\"type\": \"string\"},\n        \"summary_ar\": {\"type\": \"string\"},\n    },\n    \"required\": [\"category\", \"urgency\", \"language\", \"order_id\", \"summary_fr\", \"summary_ar\"],\n    \"additionalProperties\": False,\n}\n\n\nclass Ticket(BaseModel):\n    category: Literal[\"delivery\", \"payment\", \"product\", \"account\", \"other\"]\n    urgency: Literal[\"low\", \"medium\", \"high\"]\n    language: Literal[\"derja\", \"french\", \"arabic\", \"mixed\"]\n    order_id: Optional[str]\n    summary_fr: str\n    summary_ar: str\n\n\nclass Incoming(BaseModel):\n    message: str\n\n\n@app.post(\"/tickets\", response_model=Ticket)\ndef create_ticket(body: Incoming):\n    try:\n        response = client.messages.create(\n            model=MODEL,\n            max_tokens=4000,\n            system=SYSTEM,\n            messages=[{\"role\": \"user\", \"content\": body.message}],\n            output_config={\n                \"effort\": \"low\",  # simple extraction: low effort is enough\n                \"format\": {\"type\": \"json_schema\", \"schema\": TICKET_SCHEMA},\n            },\n        )\n    except anthropic.RateLimitError:\n        raise HTTPException(status_code=503, detail=\"Busy, try again in a minute\")\n    except anthropic.APIStatusError as e:\n        log.error(\"anthropic error %s\", e.status_code)\n        raise HTTPException(status_code=502, detail=\"AI service error\")\n    except anthropic.APIConnectionError:\n        raise HTTPException(status_code=502, detail=\"AI service unreachable\")\n\n    u = response.usage\n    cache_read = u.cache_read_input_tokens or 0\n    cache_write = u.cache_creation_input_tokens or 0\n    cost = (u.input_tokens * PRICE_IN + u.output_tokens * PRICE_OUT\n            + cache_read * PRICE_CACHE_READ + cache_write * PRICE_IN * 1.25) / 1_000_000\n    log.info(\"request_id=%s stop=%s in=%s out=%s cache_read=%s cost=$%.5f\",\n             response._request_id, response.stop_reason,\n             u.input_tokens, u.output_tokens, cache_read, cost)\n\n    if response.stop_reason != \"end_turn\":  # refusal or max_tokens: no reliable JSON\n        raise HTTPException(status_code=422, detail=\"Could not build a ticket\")\n    text = next(b.text for b in response.content if b.type == \"text\")\n    try:\n        return Ticket.model_validate_json(text)  # validate again on our side\n    except ValidationError:\n        log.exception(\"invalid ticket JSON\")\n        raise HTTPException(status_code=422, detail=\"Could not build a ticket\")", "note": "El code y5addem 3la Python 3.9+; el key dima men el environnement." }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Client w request",
+      "items": [
+        ["anthropic.Anthropic()", "Client y9ra ANTHROPIC_API_KEY mel environnement"],
+        ["client.messages.create(model=..., max_tokens=..., messages=[...])", "Request lel Messages API"],
+        ["system='...'", "El system prompt: el ta3limet el 3amma"],
+        ["{'role': 'user', 'content': '...'}", "Message fel list; awel wa7ed dima user"],
+        ["[b.text for b in response.content if b.type == 'text']", "T5arrej el texte mel blocks"]
+      ]
+    },
+    {
+      "group": "Response w usage",
+      "items": [
+        ["response.stop_reason", "end_turn, max_tokens, tool_use, refusal..."],
+        ["response.usage.input_tokens / output_tokens", "El tokens elli tetkhallas 3lihom"],
+        ["response._request_id", "Id mta3 el request lel logs w el support"],
+        ["client.messages.count_tokens(model=..., messages=...)", "Y7seb el input tokens 9bal el request"]
+      ]
+    },
+    {
+      "group": "Models w effort",
+      "items": [
+        ["'claude-opus-5-5'", "Default: $4 / $20 lel million token"],
+        ["'claude-sonnet-5-5'", "$2 / $10, behi lel volume"],
+        ["'claude-haiku-5-5'", "$0.10 / $0.50, sri3 w r5is (prompts <= 100K)"],
+        ["output_config={'effort': 'low'}", "Thinking a9al: asra3 w ar5es"],
+        ["thinking={'type': 'adaptive'}", "El model y9arrer 9addech y5emmem (3la Opus 5.5 dima ma5doum)"]
+      ]
+    },
+    {
+      "group": "Streaming w structured outputs",
+      "items": [
+        ["with client.messages.stream(...) as stream:", "Ybda el streaming"],
+        ["stream.text_stream", "El 9ta3 mta3 el texte wa7da wa7da"],
+        ["stream.get_final_message()", "El Message el kemel ba3d el stream"],
+        ["client.messages.parse(..., output_format=Model)", "JSON validé b Pydantic fi response.parsed_output"],
+        ["output_config={'format': {'type': 'json_schema', 'schema': {...}}}", "JSON schema m3a messages.create"]
+      ]
+    },
+    {
+      "group": "Tools",
+      "items": [
+        ["tools=[{'name': ..., 'description': ..., 'input_schema': {...}}]", "Ta3rif tool"],
+        ["'strict': True", "Arguments dima valides 3al schema"],
+        ["{'type': 'tool_result', 'tool_use_id': ..., 'content': ...}", "Natija mta3 tool f message user"],
+        ["'is_error': True", "T9oul l Claude elli el tool fachel"],
+        ["@beta_tool + client.beta.messages.tool_runner(...)", "El SDK y5addem el loop wa7dou"]
+      ]
+    },
+    {
+      "group": "Caching, batches w errors",
+      "items": [
+        ["'cache_control': {'type': 'ephemeral'}", "Breakpoint cache (5 d9aye9 par défaut)"],
+        ["response.usage.cache_read_input_tokens", "Tokens t9raw mel cache: lezem > 0"],
+        ["client.messages.batches.create(requests=[...])", "Batch asynchrone b 50% a9al"],
+        ["anthropic.RateLimitError", "429: testanna w 3awed"],
+        ["anthropic.Anthropic(max_retries=4, timeout=60.0)", "Retries w timeout mta3 el client"]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "Ekteb function text_of(response) traja3 el texte mta3 Message, ama ta3mel raise ken el model rfadh walla el jweb t9ossa.",
+      "hint": "Chouf stop_reason 9bal, w ba3d lem el blocks elli type mte3hom 'text'.",
+      "code": "python",
+      "answer": "def text_of(response):\n    \"\"\"Return the text of a Message, or raise if it should not be used.\"\"\"\n    if response.stop_reason == \"refusal\":\n        raise ValueError(\"refused by the model\")\n    if response.stop_reason == \"max_tokens\":\n        raise ValueError(\"cut off: raise max_tokens or use streaming\")\n    return \"\".join(b.text for b in response.content if b.type == \"text\")"
+    },
+    {
+      "q": "Ena model t5tar w 3lech: (a) classification mta3 50 000 message 9sir kol lila, (b) agent y5addem 3la repo code kbir, (c) chatbot support lel clients b volume mitwasset?",
+      "hint": "Fakker fel cost, el sor3a, w ken el 5edma testanna walla la.",
+      "answer": "(a) Haiku 5.5 b effort 'low' fel Batches API: 5edma sahla, volume kbir, ma testa3jelch, w el batch y9as el prix 50%. (b) Opus 5.5 (walla Fable 5.1 ken el 5edma es3iba barcha): raisonnement twil w tools barcha, w ghalta wa7da tkallef akther mel tokens. (c) Sonnet 5.5 b streaming w caching 3al system prompt: jouda behia b nos prix Opus. W fel 7alat el kol, a9arren 3la eval set 9bal ma t9arrer."
+    },
+    {
+      "q": "Ekteb request_cost(model, usage) t7seb el cost b dollar m3a el cache (write 5 d9aye9 = 1.25x prix input) lel Opus 5.5 w Sonnet 5.5.",
+      "hint": "El cache fields ynajmou ykounou None: estaa3mel 'or 0'.",
+      "code": "python",
+      "answer": "PRICES = {  # USD per 1M tokens: input, output, cache read\n    \"claude-opus-5-5\": (4.00, 20.00, 0.20),\n    \"claude-sonnet-5-5\": (2.00, 10.00, 0.20),\n}\n\n\ndef request_cost(model, usage):\n    p_in, p_out, p_read = PRICES[model]\n    write = (usage.cache_creation_input_tokens or 0) * p_in * 1.25  # 5-minute cache write\n    read = (usage.cache_read_input_tokens or 0) * p_read\n    return (usage.input_tokens * p_in + usage.output_tokens * p_out + write + read) / 1_000_000"
+    },
+    {
+      "q": "3awed ekteb el exemple mta3 get_order_status b el tool runner mta3 el SDK fi blasset el loop manuel.",
+      "hint": "@beta_tool y5arrej el schema mel signature w el docstring.",
+      "code": "python",
+      "answer": "import anthropic\nfrom anthropic import beta_tool\n\nclient = anthropic.Anthropic()\nORDERS = {\"TN-1042\": \"shipped\", \"TN-2077\": \"preparing\"}\n\n\n@beta_tool\ndef get_order_status(order_id: str) -> str:\n    \"\"\"Get the delivery status of a customer order.\n\n    Args:\n        order_id: Order id such as TN-1042.\n    \"\"\"\n    status = ORDERS.get(order_id)\n    if status is None:\n        return f\"Error: no order with id {order_id}\"\n    return status\n\n\nrunner = client.beta.messages.tool_runner(\n    model=\"claude-opus-5-5\",\n    max_tokens=16000,\n    tools=[get_order_status],\n    messages=[{\"role\": \"user\", \"content\": \"Chnoua a7wel el commande TN-2077?\"}],\n)\nlast = None\nfor message in runner:  # the SDK runs the tool loop for us\n    last = message\nprint(\"\".join(b.text for b in last.content if b.type == \"text\"))"
+    },
+    {
+      "q": "Cache_read_input_tokens dima 0 3andek, ma3a enno el FAQ kbira w tab3athha kol marra. A3ti 4 asbab momkna.",
+      "answer": "1) Fama 7aja tetbaddel fel préfixe: datetime.now(), uuid walla user id fel system prompt. 2) json.dumps bla sort_keys walla tools tetbaddel walla ordre mta3hom yetbaddel. 3) El préfixe a9al men 512 token, walla el breakpoint 7atitou ba3d el partie elli tetbaddel (el question) fi blasset 9bal-ha. 4) Fat akther men 5 d9aye9 bin request w request (el TTL), walla baddelt el model walla el effort, walla el requests parallèles b9aw yektbou fel cache fi nafs el wa9t."
+    },
+    {
+      "q": "Ekteb script yab3ath 3 messages clients fi Batch b Haiku 5.5 bech yclassifihom, yestanna, w y5arrej el natija.",
+      "hint": "Request + MessageCreateParamsNonStreaming, ba3d retrieve w results.",
+      "code": "python",
+      "answer": "import time\n\nimport anthropic\nfrom anthropic.types.message_create_params import MessageCreateParamsNonStreaming\nfrom anthropic.types.messages.batch_create_params import Request\n\nclient = anthropic.Anthropic()\ntexts = [\"El commande ma wsletch\", \"Nheb nbaddel el mot de passe\", \"Prix mte3 el casque?\"]\n\nbatch = client.messages.batches.create(requests=[\n    Request(\n        custom_id=f\"msg-{i}\",\n        params=MessageCreateParamsNonStreaming(\n            model=\"claude-haiku-5-5\",\n            max_tokens=1024,\n            output_config={\"effort\": \"low\"},\n            system=\"Answer with one word: delivery, account, sales or other.\",\n            messages=[{\"role\": \"user\", \"content\": text}],\n        ),\n    )\n    for i, text in enumerate(texts)\n])\n\nwhile client.messages.batches.retrieve(batch.id).processing_status != \"ended\":\n    time.sleep(60)  # most batches end within 1 hour, at most 24 hours\n\nfor result in client.messages.batches.results(batch.id):\n    if result.result.type == \"succeeded\":\n        msg = result.result.message\n        print(result.custom_id, next((b.text for b in msg.content if b.type == \"text\"), \"\"))\n    else:\n        print(result.custom_id, \"not done:\", result.result.type)  # errored, canceled, expired"
+    },
+    {
+      "q": "Client yab3ath: 'ena Mohamed, CIN 0xxxxxxx, num 2x xxx xxx, el commande ma wsletch'. Chnoua ta3mel 9bal ma tab3ath el message l API, w 3lech?",
+      "answer": "Na7i walla 5abbi el données personnelles elli el model ma y7tejhech (CIN, téléphone) b regex walla masque 9bal el request, w 5alli bark elli ylezem lel ticket. 3lech: a9al data t5arrej men el système mte3ek = a9al risque (fuite, logs, obligations légales kima la protection des données f Tounes w el RGPD ken 3andek clients f l'Europe). W ma tsajjelch el message el kemel fel logs; sajjel el request_id w el tokens."
+    }
+  ],
+  "pitfalls": [
+    "Tekteb el API key fel code walla f fichier ytcommita: estaa3mel ANTHROPIC_API_KEY fel environnement, w ken ttsarbet, revoke-ha toul.",
+    "Ta9ra response.content[0].text toul: el block el louel ynajem ykoun thinking, w ken stop_reason 'refusal' walla 'max_tokens' el texte mouch kemel. Chouf el stop_reason w filtri 3la type == 'text'.",
+    "Testa3mel tutorial 9dim: temperature, top_p, budget_tokens, prefill walla tool_choice forcé 3la Opus 5.5 yraja3ou 400. Effort w el prompt houma el contrôles tawa.",
+    "T7ot date, heure walla user id fel system prompt: el préfixe yetbaddel kol request w el caching ma ye5dem 7atta marra.",
+    "Tensa elli el API stateless: ma tab3athch el history, walla tab3ath el tool_result fi messages mfarr9in walla b tool_use_id ghalet.",
+    "Tetheb fel JSON 5ater 'valide': el schema yadhmen el format mouch el ma3na. Zid checks métier w eval set.",
+    "max_tokens sghir barcha: el thinking ya7seb mennou, w el jweb yo5rej ma9sous b stop_reason 'max_tokens'."
+  ],
+  "interview": [
+    {
+      "q": "Chnoua ya3ni el Messages API stateless, w kifech tetsarref m3a conversation twila?",
+      "a": "El serveur ma yfakkar chay bin requests: kol marra nab3ath el history el kemel. El cost w el latence ytal3ou m3a toul el conversation, lhné nesta3mel prompt caching (préfixe thebet, breakpoint 3al e5er tour), w ki tetwal barcha, résumé walla compaction (beta) 3al jiha mta3 el serveur. W n5alli el history append-only bech el cache w el thinking ye5dmou."
+    },
+    {
+      "q": "Kifech tna99es el cost mta3 application LLM?",
+      "a": "Louel n9is: nsajjel usage mta3 kol request. Ba3d: prompt caching lel 7ajet el thebta, Batches API (50%) lel 5edma elli ma testa3jelch, effort a9al ken el eval y9oul el jouda b9at, w ba3d model ar5es (Sonnet walla Haiku). Kol tabdil n9isou 3la eval set, mouch b el 7ess."
+    },
+    {
+      "q": "Fasser el loop mta3 tool use.",
+      "a": "N3arref el tools b JSON schema. El model yraja3 tool_use blocks w stop_reason 'tool_use'. El code mte3i y5addem el functions, yraja3 tool_result b nafs el tool_use_id, el kol f message user wa7ed, w n3awed 7atta el model ykammel. Ki tool yfachli nraja3 is_error true. Nesta3mel strict true, limite 3la 3dad el tours, w nvalidi el arguments 9bal ay action 3andha effet."
+    },
+    {
+      "q": "Kifech tjib JSON tnajem tetheb fih?",
+      "a": "Structured outputs: output_config.format b JSON schema walla messages.parse b Pydantic. Ba3d nchouf stop_reason (refusal walla max_tokens ma3neha ma nethebch), w na3mel validation métier, 5ater el schema yadhmen el format mouch el s7a."
+    },
+    {
+      "q": "Ena errors t3awed (retry) w ena la?",
+      "a": "N3awed 429, 500, 529, timeouts w errors réseau b exponential backoff w 7add (el SDK ya3melha par défaut zouz marrat). Ma n3awedch 400, 401, 403, 404: el mochkla fel request walla el key, el retry ma ybaddel chay. W refusal mouch error: request s7i7a, lezem njaweb el user b message wadh7a."
+    },
+    {
+      "q": "Chnoua el prompt caching w kifech ta3ref ye5dem?",
+      "a": "El API ya3awed yesta3mel préfixe 9rah 9bal (tools, system, messages fi nafs el ordre) b prix read a9al barcha. Nhot cache_control 3la e5er block thebet. Nverifi b usage.cache_read_input_tokens: ken dima 0, fama 7aja tetbaddel fel préfixe walla el préfixe sghir barcha. W n7ot test automatique elli request theniya identique lezem t9ra mel cache."
+    },
+    {
+      "q": "W9tech testa3mel el streaming?",
+      "a": "Fel interfaces chat bech el user ychouf el jweb toul, w ki el output twil (max_tokens kbir) bech ma ta9a3ch fel timeouts. B get_final_message() n5ou el Message el kemel b usage w stop_reason."
+    },
+    {
+      "q": "Kifech t3ref elli tabdil fel prompt ma kasserch 7aja?",
+      "a": "B eval set: examples 7a9i9iyin (anonymisés) b el natija el mestanneya, n5addmouhom ba3d kol tabdil (prompt, model, effort) w na9arnou el score w el cost. Lel extraction, na9arnou champ b champ; lel texte 7or, grille walla relecture insen 3la echantillon. Bla eval, kol tabdil yetfaser b el 7ess."
+    }
+  ]
+}

@@ -1,0 +1,280 @@
+{
+  "why": "برشة companies في تونس و في أوروبا ولّات تحب developer يعرف يبني features بالـ AI: chatbot للـ support، extraction من الـ documents، classification متاع الـ tickets. الخدمة هاذي ما تستحقش doctorat: تستحق Python باهي و فهم صحيح للـ API. الـ course هذا يعلّمك تبني applications بالـ Claude API كيما تعمل في الـ production: بـ cost محسوب، errors مقدّمة، و JSON تنجم تثق فيه.",
+  "outcome": "تبني بالـ Python app تحكي مع Claude: conversation، streaming، JSON valide، tools، caching و batches، errors مقدّمة، و logs متاع الـ tokens و الـ cost.",
+  "lessons": [
+    {
+      "title": "الـ Messages API: أوّل request متاعك",
+      "text": [
+        "كل حاجة في الـ Claude API تعدّي من endpoint واحد: الـ Messages API (POST /v1/messages). في Python، الـ SDK 'anthropic' يخبّيه في client.messages.create. الـ tools، الـ structured outputs، الـ thinking: الكل features متاع نفس الـ API، موش APIs أخرين.",
+        "الـ request فيه أساسًا: model (الـ modèle)، max_tokens (الحد الأقصى متاع الجواب)، messages (list متاع messages كل واحد عندو role 'user' ولا 'assistant' و content)، و كان تحب system: الـ system prompt، يعني التعليمات العامّة (شكون إنتي، بأنا لغة تجاوب، شنوّة ممنوع).",
+        "نقطة مهمّة برشة: الـ API هو stateless. يعني ما يتفكّر حتّى حاجة بين request و request. كان تحب conversation على برشة tours، إنتي اللي تخبّي الـ history و تبعثو كامل كل مرّة. هذا علاش الـ cost يطلع كل ما الـ conversation تطوّل: كل tour تتخلّص على الـ history الكل من جديد (أما فمّا caching، نشوفوه في الـ lesson 6).",
+        "الجواب (response) موش string: هو objet Message. الـ response.content هو list متاع blocks، كل block عندو type: 'text'، 'thinking'، 'tool_use'... ما تقراش content[0].text على العمياني: خوذ الـ blocks اللي الـ type متاعهم 'text'. و الـ response.usage يقلّك قدّاش input_tokens و output_tokens كلات الـ request، و هذا اللي تتخلّص عليه.",
+        "بعد، و قبل ما تستعمل الـ content، شوف response.stop_reason: 'end_turn' يعني كمّل normal، 'max_tokens' يعني تقصّ (الجواب ما كملش)، 'tool_use' يعني يحب يعمل appel لـ tool، و 'refusal' يعني رفض الـ requête على سبب sécurité. الـ app الباهية تعامل كل حالة بطريقة واضحة."
+      ],
+      "points": [
+        "الـ API key يقراه الـ SDK من الـ variable d'environnement ANTHROPIC_API_KEY: anthropic.Anthropic() بلا argument. كان تكتب الـ key في الـ code، يولّي في GitHub نهار الـ commit، و أي واحد يستعملو على حسابك.",
+        "أوّل message لازم يكون role 'user'.",
+        "الـ history: append الـ message متاع الـ user، بعد append الـ response.content بـ role 'assistant'.",
+        "سجّل الـ response._request_id في الـ logs: كي يقصّ حاجة، هذا اللي يستحقوه في الـ support."
+      ],
+      "example": { "lang": "python", "code": "import anthropic\n\n# The SDK reads ANTHROPIC_API_KEY from the environment: never write the key in code\nclient = anthropic.Anthropic()\n\nSYSTEM = \"You are the support assistant of a Tunisian phone shop. Answer briefly, in the customer's language.\"\nhistory = []  # the API keeps no memory: we keep the conversation ourselves\n\n\ndef ask(user_text):\n    history.append({\"role\": \"user\", \"content\": user_text})\n    response = client.messages.create(\n        model=\"claude-opus-5-5\",\n        max_tokens=16000,\n        system=SYSTEM,\n        messages=history,  # resend the whole conversation every time\n    )\n    if response.stop_reason == \"refusal\":\n        history.pop()  # keep the history clean\n        return \"Sorry, I can't help with that.\"\n    # content is a list of blocks: keep only the text blocks\n    text = \"\".join(b.text for b in response.content if b.type == \"text\")\n    history.append({\"role\": \"assistant\", \"content\": response.content})\n    print(\"stop:\", response.stop_reason,\n          \"| in:\", response.usage.input_tokens,\n          \"| out:\", response.usage.output_tokens)\n    return text\n\n\nprint(ask(\"Aslema, 9adeh soum forfait 20 Go?\"))\nprint(ask(\"W ken nzid 10 Go o5rin, 9adeh walla?\"))  # works because history was resent", "note": "الـ tour الثاني يفهم '10 Go o5rin' خاطر الـ history متاع الـ tour الأوّل تبعثت معاه." }
+    },
+    {
+      "title": "أنا model و قدّاش effort؟ الـ cost متاع كل request",
+      "text": [
+        "اختيار الـ model هو أوّل قرار فيه فلوس. في أكتوبر 2026 الـ models الحاليين: Claude Opus 5.5 ('claude-opus-5-5') هو الـ default، 1M tokens context و 128K output، بـ $4 input و $20 output للمليون token. Claude Sonnet 5.5 ('claude-sonnet-5-5') بـ $2 / $10، باهي للـ volume الكبير. Claude Haiku 5.5 ('claude-haiku-5-5') بـ $0.10 / $0.50 (كي الـ prompt 100K tokens ولا أقل)، للخدمة الصغيرة و السريعة: classification، routing، extraction. و فمّا Claude Fable 5.1 ('claude-fable-5-1')، الأقوى، بـ $10 / $50. اكتب الـ ids هاذوما كيما هوما، بلا date.",
+        "الحساب ساهل: cost = (input_tokens x prix input + output_tokens x prix output) / 1 000 000. مثال: request بـ 2000 tokens input و 500 output على Opus 5.5 = (2000 x 4 + 500 x 20) / 1 000 000 = $0.018. ضربها في 10 000 message في النهار و تشوف علاش لازم تحسب قبل ما تـ déployi.",
+        "الـ models الجدد يخمّموا قبل ما يجاوبوا (adaptive thinking). على Opus 5.5 الـ thinking ديما مخدوم، ما تنجمش تسكّرو: الـ contrôle هو output_config={'effort': ...} بـ 'low'، 'medium'، 'high'، 'xhigh' ولا 'max'. الـ default على Opus 5.5 هو 'medium'. effort أقل = tokens أقل = أرخص و أسرع، أما ينجم ينقّص الجودة في الخدمة الصعيبة. الـ thinking يحسب من max_tokens و يتزاد على الـ output اللي تتخلّص عليه.",
+        "فمّا paramètres قدم ما عادش يخدموا على الـ models الجدد: temperature، top_p، top_k، budget_tokens، و الـ prefill (كي تبدا الجواب بـ message assistant). كان تبعثهم، الـ API يرجّع 400. كان لقيت tutorial قديم فيه temperature=0.2، هذا علاش ما يخدمش.",
+        "الطريقة الصحيحة: ابدا بـ Opus 5.5 بالـ effort الـ default، اعمل set متاع examples تعرف الجواب الصحيح متاعهم، و بعد جرّب effort أقل ولا Sonnet/Haiku. كان الجودة بقات، خلّي الأرخص. ما تبدّلش الـ model على العمياني."
+      ],
+      "points": [
+        "الـ client.messages.count_tokens(model=..., messages=...) يحسبلك الـ input tokens قبل ما تبعث.",
+        "Haiku 5.5 باهي للـ classification و الـ routing؛ Opus 5.5 للـ raisonnement و الـ agents.",
+        "الأسوام يتبدّلوا: خلّي الـ tableau متاع الـ prix في config واحد و ثبّت فيه قبل الـ production."
+      ],
+      "example": { "lang": "python", "code": "import anthropic\n\nclient = anthropic.Anthropic()\n\n# USD per 1M tokens (input, output) - check the pricing page before you rely on it\nPRICES = {\n    \"claude-opus-5-5\": (4.00, 20.00),\n    \"claude-sonnet-5-5\": (2.00, 10.00),\n    \"claude-haiku-5-5\": (0.10, 0.50),  # for prompts up to 100K tokens\n}\n\n\ndef cost_usd(model, usage):\n    price_in, price_out = PRICES[model]\n    return (usage.input_tokens * price_in + usage.output_tokens * price_out) / 1_000_000\n\n\ndef classify(message, model=\"claude-haiku-5-5\"):\n    response = client.messages.create(\n        model=model,\n        max_tokens=1024,  # thinking also counts toward max_tokens\n        output_config={\"effort\": \"low\"},  # low | medium | high | xhigh | max\n        system=\"Classify the customer message. Answer with one word: billing, network, sales or other.\",\n        messages=[{\"role\": \"user\", \"content\": message}],\n    )\n    label = \"\".join(b.text for b in response.content if b.type == \"text\").strip()\n    return label, cost_usd(model, response.usage)\n\n\nlabel, cost = classify(\"El connexion ta7et men sbe7, w zeda el facture tal3a!\")\nprint(label, f\"${cost:.6f}\")\n\n# Before sending a big document, count its tokens (this call is free of output)\nwith open(\"contract.txt\", encoding=\"utf-8\") as f:\n    count = client.messages.count_tokens(\n        model=\"claude-opus-5-5\",\n        messages=[{\"role\": \"user\", \"content\": f.read()}],\n    )\nprint(\"input tokens:\", count.input_tokens)", "note": "الـ contract.txt fichier مثال؛ ما تبعثش données personnelles كان ما تستحقهاش." }
+    },
+    {
+      "title": "الـ streaming: جواب يخرج كلمة بكلمة",
+      "text": [
+        "كان الجواب ياخو 20 ثانية، الـ user يشوف écran فارغة و يحسب الـ app طاحت. الـ streaming يخلّي الـ texte يتبعث حسب ما يتكتب، كيما في الـ chat. الوقت الكامل ما يتبدّلش، أما الـ user يشوف حاجة في أقل من ثانية، و هذا يبدّل الـ expérience الكل.",
+        "في Python، الـ helper الـ recommandé هو client.messages.stream(...) مع with. في وسطو، الـ stream.text_stream يعطيك القطع متاع الـ texte وحدة وحدة. كي يوفى، الـ stream.get_final_message() يرجّعلك الـ Message الكامل، كيما messages.create: content، stop_reason، usage. يعني ما تتعبش تلمّ الـ tokens وحدك.",
+        "علاش موش ديما messages.create؟ خاطر الأجوبة الطوال ينجموا يفوتوا الـ 10 دقايق. الـ SDK يرفض request non-streaming كي يقدّر اللي باش ياخو وقت كبير (ValueError)، و الـ connexions اللي تبقى فارغة برشة وقت تقصّ. لهنا، كي max_tokens كبير (مثال 64000)، استعمل الـ streaming. كان ما تحتاجش الـ texte كلمة بكلمة، تنجم تستعمل stream و get_final_message() برك: تاخو الـ protection متاع الـ streaming بلا ما تتعب بالـ events.",
+        "كان تحب تفاصيل أكثر، تعمل 'for event in stream' و تشوف الـ types: message_start، content_block_start، content_block_delta (فيه text_delta)، content_block_stop، message_delta (فيه stop_reason و usage)، message_stop.",
+        "في app web (FastAPI، Django...)، الفكرة نفسها: الـ serveur يقرا الـ stream متاع Claude و يبعث كل قطعة للـ navigateur (Server-Sent Events ولا WebSocket). كان الـ connexion internet متاع الـ user ضعيفة، كيما يصير ساعات، الـ streaming يخلّيه يشوف حاجة قبل ما تقصّ. و كان الـ stream طاح في الوسط، عندك جواب ناقص: ما تسجّلوش كيما جواب كامل."
+      ],
+      "points": [
+        "الـ print(text, end='', flush=True): الـ flush يخلّي الـ texte يخرج طول.",
+        "للـ async: AsyncAnthropic() و 'async with client.messages.stream(...)' و 'async for text in stream.text_stream'.",
+        "بعد الـ stream، شوف final.stop_reason كيما ديما قبل ما تسجّل الجواب في الـ history.",
+        "الـ errors في الـ stream: catch anthropic.APIConnectionError و anthropic.APIStatusError كيما في الـ requests العاديين."
+      ],
+      "example": { "lang": "python", "code": "import anthropic\n\nclient = anthropic.Anthropic()\n\n\ndef stream_answer(history):\n    with client.messages.stream(\n        model=\"claude-opus-5-5\",\n        max_tokens=64000,\n        system=\"You are a patient Python tutor. Answer in Tunisian Derja written in Latin letters.\",\n        messages=history,\n    ) as stream:\n        for text in stream.text_stream:\n            print(text, end=\"\", flush=True)  # show each piece as soon as it arrives\n        final = stream.get_final_message()  # the full Message, like messages.create returns\n    print()\n    print(\"stop:\", final.stop_reason, \"| out tokens:\", final.usage.output_tokens)\n    return final\n\n\nhistory = [{\"role\": \"user\", \"content\": \"Fasserli el list comprehension b mithel sghir.\"}]\nfinal = stream_answer(history)\nif final.stop_reason != \"refusal\":\n    history.append({\"role\": \"assistant\", \"content\": final.content})" }
+    },
+    {
+      "title": "الـ structured outputs: JSON تنجم تثق فيه",
+      "text": [
+        "برشة apps ما تحتاجش texte، تحتاج data: category، urgence، montant، date. زمان كنّا نكتبوا 'جاوبني بـ JSON' في الـ prompt و ندعيو ربّي: مرّة يزيد جملة قبل الـ JSON، مرّة ينسى champ. الـ structured outputs يحلّوا المشكلة هاذي: تعطي JSON schema، و الجواب يخرج ديما JSON valide على الـ schema.",
+        "فمّا زوز طرق. الأسهل في Python: client.messages.parse(..., output_format=Ticket) بـ model Pydantic. الـ SDK يحوّل الـ class لـ schema، و الـ response.parsed_output يرجّعلك instance Ticket validée. الطريقة الثانية: messages.create مع output_config={'format': {'type': 'json_schema', 'schema': {...}}} و بعد json.loads على الـ texte. الـ 'format' و الـ 'effort' يعيشوا مع بعضهم في نفس الـ output_config.",
+        "الـ schema عندو حدود: كل object لازم additionalProperties false؛ enum، anyOf، $ref يخدموا؛ أما minimum، maximum، minLength و الـ schemas الـ récursifs ما يخدموش. الـ SDK متاع Python ينحّي الـ contraintes هاذوما من الـ schema اللي يبعثو و يثبّتهم من جيهة الـ client. أوّل مرّة تستعمل schema جديد، فمّا وقت compilation، بعد يتحط في cache 24 ساعة.",
+        "أما رد بالك: JSON valide موش معناها JSON صحيح. الـ schema يضمن الـ format، موش المعنى. الـ model ينجم يختار category غالطة ولا يحط urgence 'high' لـ message عادي. لهنا اعمل checks métier (الـ règles متاعك) و للحالات الغريبة، خلّي إنسان يشوف.",
+        "و زادة: كان stop_reason هو 'refusal'، الـ output ينجم ما يكونش على الـ schema؛ كان 'max_tokens'، الـ JSON ينجم يكون مقصوص. ديما شوف الـ stop_reason قبل ما تستعمل الـ data. للـ strict tool use (tools بـ strict: true)، نشوفوه في الـ lesson 5."
+      ],
+      "points": [
+        "الـ Literal['low', 'medium', 'high'] في Pydantic يولّي enum في الـ schema.",
+        "الـ structured outputs يخدموا مع الـ Batches، الـ streaming و الـ token counting؛ ما يخدموش مع الـ citations و الـ prefill.",
+        "سجّل الـ exemples اللي غلطت فيهم الـ data: يوليّو tests (eval set) للـ prompt متاعك."
+      ],
+      "example": { "lang": "python", "code": "from typing import Literal\n\nimport anthropic\nfrom pydantic import BaseModel\n\nclient = anthropic.Anthropic()\n\n\nclass Ticket(BaseModel):\n    category: Literal[\"billing\", \"network\", \"sales\", \"other\"]\n    urgency: Literal[\"low\", \"medium\", \"high\"]\n    language: Literal[\"derja\", \"french\", \"arabic\", \"mixed\"]\n    summary_fr: str\n    customer_is_angry: bool\n\n\nresponse = client.messages.parse(\n    model=\"claude-opus-5-5\",\n    max_tokens=16000,\n    system=\"Turn the customer message into a support ticket. summary_fr: one short sentence in French.\",\n    messages=[{\"role\": \"user\", \"content\": \"3 ayem w ana bla internet, el modem yechta3el ama mafamma 7atta connexion!!\"}],\n    output_format=Ticket,\n)\n\nif response.stop_reason == \"refusal\":\n    raise RuntimeError(\"refused: do not trust the output\")\nif response.stop_reason == \"max_tokens\":\n    raise RuntimeError(\"cut off: raise max_tokens\")\n\nticket = response.parsed_output  # a validated Ticket instance\nprint(ticket.category, ticket.urgency, ticket.summary_fr)\n\n# Business checks that a schema cannot express\nif ticket.urgency == \"high\" and ticket.category == \"other\":\n    print(\"send to a human for review\")" }
+    },
+    {
+      "title": "الـ tool use: خلّي Claude يستعمل الـ functions متاعك",
+      "text": [
+        "Claude ما يعرفش وين وصلت الـ commande متاع client: الـ info هاذي في الـ base de données متاعك. الـ tool use يخلّيك تقول للـ model: 'فمّا function اسمها get_order_status، تاخو order_id'. كي يحتاجها، Claude ما يخدّمهاش وحدو: يرجّع block tool_use فيه اسم الـ tool و الـ arguments، و stop_reason = 'tool_use'. الـ code متاعك هو اللي يخدّم الـ function و يرجّع النتيجة.",
+        "الـ tool يتعرّف بـ name، description و input_schema (JSON schema). الـ description مهمّة برشة: Claude يختار الـ tool على حسابها، لهنا اكتبها واضحة: شنوّة تعمل، وقتاش تستعملها، مثال للـ arguments. زيد 'strict': True باش الـ arguments ديما يكونوا valides على الـ schema (و لازم additionalProperties false).",
+        "الـ loop: (1) ابعث الـ messages مع الـ tools؛ (2) كان stop_reason هو 'tool_use'، زيد response.content في الـ history بـ role assistant؛ (3) لكل block tool_use، خدّم الـ tool و اعمل tool_result بنفس الـ tool_use_id؛ (4) ابعث الـ results الكل في message user واحد؛ (5) عاود حتّى stop_reason ما يولّيش 'tool_use'. Claude ينجم يطلب برشة tools في نفس الـ tour (parallel): الـ results الكل في نفس الـ message.",
+        "كي الـ tool يفشل (commande ما فماش، API طاحت)، ما تخلّيش الـ app تتحطّم: رجّع tool_result بـ 'is_error': True و message واضح. Claude يقراها و يفسّر للـ user ولا يجرّب بطريقة أخرى.",
+        "الـ SDK فيه زادة tool runner (beta): تعمل function Python بـ @beta_tool، و client.beta.messages.tool_runner(...) يخدّم الـ loop وحدو. باهي باش تربح وقت؛ الـ loop الـ manuel يعطيك contrôle أكثر. رد بالك: على Opus 5.5، الـ tool_choice الـ forcé ('any' ولا 'tool') يرجّع 400؛ خلّي 'auto' و قول في الـ prompt شنوّة الـ tool اللي لازم يستعملو. و الـ arguments متاع الـ tool هوما output متاع model: valid'هم قبل ما تمس data ولا fichiers."
+      ],
+      "points": [
+        "كل tool_result لازم يكون عندو الـ tool_use_id متاع الـ block اللي يقابلو.",
+        "حط limite على الـ loop (مثال 10 tours) باش ما يدورش للأبد.",
+        "الـ MCP (Model Context Protocol) هو protocole باش تربط serveurs متاع tools جاهزين مع Claude؛ Claude Code و الـ Claude Agent SDK هوما produits أخرين فيهم tools جاهزين."
+      ],
+      "example": { "lang": "python", "code": "import json\n\nimport anthropic\n\nclient = anthropic.Anthropic()\n\nORDERS = {\"TN-1042\": {\"status\": \"shipped\", \"city\": \"Sfax\"}}\n\ntools = [{\n    \"name\": \"get_order_status\",\n    \"description\": \"Get the delivery status of a customer order by its id, for example TN-1042.\",\n    \"strict\": True,  # Claude's arguments always match the schema\n    \"input_schema\": {\n        \"type\": \"object\",\n        \"properties\": {\"order_id\": {\"type\": \"string\"}},\n        \"required\": [\"order_id\"],\n        \"additionalProperties\": False,\n    },\n}]\n\n\ndef run_tool(name, args):\n    \"\"\"Return (content, is_error). Our code runs the tool, not Claude.\"\"\"\n    if name == \"get_order_status\":\n        order = ORDERS.get(args[\"order_id\"])\n        if order is None:\n            return f\"No order with id {args['order_id']}\", True\n        return json.dumps(order), False\n    return f\"Unknown tool {name}\", True\n\n\nmessages = [{\"role\": \"user\", \"content\": \"Win wsolt el commande mte3i TN-1042?\"}]\n\nfor _ in range(10):  # safety cap: never loop forever\n    response = client.messages.create(\n        model=\"claude-opus-5-5\",\n        max_tokens=16000,\n        tools=tools,\n        messages=messages,\n    )\n    if response.stop_reason != \"tool_use\":\n        break  # end_turn, max_tokens or refusal: nothing to run\n    messages.append({\"role\": \"assistant\", \"content\": response.content})\n    results = []\n    for block in response.content:\n        if block.type == \"tool_use\":\n            content, failed = run_tool(block.name, block.input)\n            results.append({\n                \"type\": \"tool_result\",\n                \"tool_use_id\": block.id,  # must match the tool_use block\n                \"content\": content,\n                \"is_error\": failed,\n            })\n    messages.append({\"role\": \"user\", \"content\": results})  # all results in ONE user message\n\nprint(response.stop_reason)\nprint(\"\".join(b.text for b in response.content if b.type == \"text\"))" }
+    },
+    {
+      "title": "الـ prompt caching و الـ Batches: نقّص الـ cost و الـ latence",
+      "text": [
+        "كان كل request تبعث فيها نفس الـ FAQ متاع 20 000 token، راك تخلّص عليها كل مرّة. الـ prompt caching يخلّي الـ API يستعمل من جديد الـ préfixe اللي قراه قبل. الـ read من الـ cache يكلّف تقريبًا 0.1x من الـ prix input (على Opus 5.5: $0.20 للمليون، يعني 0.05x)، و يكون أسرع.",
+        "الـ caching هو match على الـ préfixe: الـ ordre هو tools، بعد system، بعد messages. أي byte يتبدّل في الـ préfixe يخسّر الـ cache لكل اللي بعدو. لهنا حط الحاجات الثابتة في الأوّل و الحاجات اللي تتبدّل في الآخر. تحط breakpoint بـ 'cache_control': {'type': 'ephemeral'} على آخر block ثابت (max 4 breakpoints). الـ cache يعيش 5 دقايق par défaut (كل read يجدّدهم)، ولا ساعة بـ 'ttl': '1h'. فمّا زادة cache_control في الـ top-level متاع الـ request يحط الـ breakpoint وحدو، باهي للـ conversations.",
+        "الـ write في الـ cache يكلّف أكثر: 1.25x للـ 5 دقايق، 2x للساعة. يعني ما يولّي ربح كان كي يتعاود الـ préfixe. و فمّا minimum: على الـ models الجدد (Opus 5.5، Sonnet 5.5، Haiku 5.5) الـ préfixe لازم 512 token على الأقل، sinon ما يتكاشاش و ما يعطيكش حتّى error.",
+        "كيفاش تعرف يخدم؟ شوف response.usage: cache_creation_input_tokens (تكتبوا في الـ cache)، cache_read_input_tokens (تقراو من الـ cache)، input_tokens (الباقي بالـ prix الكامل). كان cache_read ديما 0، فمّا حاجة تبدّل الـ préfixe: datetime.now() في الـ system prompt، user id، json.dumps بلا sort_keys، tools تتبدّل.",
+        "الـ Batches API حاجة أخرى: تبعث برشة requests مرّة وحدة (حتّى 100 000 ولا 256 MB)، يخدّموهم asynchrone، و تتخلّص 50% أقل. أكثر الـ batches يوفاو في ساعة، الـ max هو 24 ساعة، و الـ résultats يقعدوا 29 يوم. باهي للخدمة اللي ما تستناش: classification متاع الـ tickets متاع نهار كامل، traduction متاع catalogue، evaluation متاع prompt. موش للـ chat: الـ user ما يستنّاش ساعة."
+      ],
+      "points": [
+        "الـ total متاع الـ prompt = input_tokens + cache_creation_input_tokens + cache_read_input_tokens.",
+        "الـ requests الـ parallèles بنفس الـ préfixe ما ينجموش يقراو cache مازال يتكتب: ابعث وحدة، و بعد الباقي.",
+        "الـ Batch: client.messages.batches.create، بعد retrieve حتّى processing_status == 'ended'، بعد results."
+      ],
+      "example": { "lang": "python", "code": "import anthropic\n\nclient = anthropic.Anthropic()\n\n# A long FAQ that stays byte-identical between requests (no date, no user id inside)\nwith open(\"faq_shop.md\", encoding=\"utf-8\") as f:\n    FAQ = f.read()\n\nSYSTEM = [\n    {\"type\": \"text\", \"text\": \"Answer customer questions using only the FAQ below.\"},\n    {\"type\": \"text\", \"text\": FAQ, \"cache_control\": {\"type\": \"ephemeral\"}},  # breakpoint after the stable part\n]\n\n\ndef answer(question):\n    response = client.messages.create(\n        model=\"claude-opus-5-5\",\n        max_tokens=16000,\n        system=SYSTEM,\n        messages=[{\"role\": \"user\", \"content\": question}],  # the varying part comes last\n    )\n    u = response.usage\n    print(f\"cache write={u.cache_creation_input_tokens} \"\n          f\"cache read={u.cache_read_input_tokens} uncached={u.input_tokens}\")\n    return \"\".join(b.text for b in response.content if b.type == \"text\")\n\n\nanswer(\"Kifech nbaddel l'adresse de livraison?\")   # 1st call: writes the cache\nanswer(\"9addeh ta5ou el livraison l Gabes?\")       # within 5 minutes: reads the cache", "note": "أوّل call يكتب الـ cache؛ الثاني، كان جا في وسط 5 دقايق و الـ FAQ أكثر من 512 token، يقرا منّو." }
+    },
+    {
+      "title": "الـ errors، الـ retries، الـ rate limits و الـ refusals",
+      "text": [
+        "في الـ production، الـ API مرّة مرّة يرجّع error: 429 كي تفوت الـ rate limit (requests ولا tokens في الدقيقة)، 500 ولا 529 كي الـ service تعبان ولا overloaded، timeout كي الـ réseau بطا. الـ app الباهية ما تتحطّمش: تفرّق بين اللي يستاهل retry و اللي لا.",
+        "الـ SDK متاع Python يعاود وحدو (retry بـ exponential backoff) على errors الـ connexion، 408، 409، 429 و >= 500، زوز مرّات par défaut. تبدّل هذا بـ max_retries على الـ client ولا بـ client.with_options(max_retries=5) لـ request وحدة. الـ timeout par défaut 10 دقايق؛ تنجم تحط timeout=60.0، و كي يفوت يطلع anthropic.APITimeoutError.",
+        "الـ exceptions عندهم classes: BadRequestError (400، الـ request غالطة: ما تعاودش، صلّح الـ code)، AuthenticationError (401، الـ key غالطة ولا ما فماش)، PermissionDeniedError (403)، NotFoundError (404، ساعات model id غالط)، RateLimitError (429)، InternalServerError (>= 500)، APIConnectionError (réseau). الكل (كان APIConnectionError) يورثوا من APIStatusError. اعمل catch من الأخص للأعم: الـ specific الأوّل، و APIStatusError في الآخر.",
+        "كي RateLimitError يفوت بعد الـ retries، الـ header 'retry-after' يقلّك قدّاش تستنّى. ما تعملش boucle تعاود بلا حد: حط حد، و كان الـ traffic كبير، اعمل queue ولا نقّص الـ concurrence.",
+        "الـ refusal موش error: الـ request تتعدّى (200)، أما stop_reason = 'refusal' و الـ response.stop_details ينجم يقلّك الـ category. كل modèle عندو classifiers متاع sécurité. الـ app لازم تشوف الـ stop_reason قبل ما تقرا الـ content و تعطي للـ user message واضح، موش JSON مقصوص ولا écran فارغة. و سجّل ديما الـ _request_id: كي تتكلّم مع الـ support يولّي الدليل متاعك."
+      ],
+      "points": [
+        "الـ retry: 429، 500، 529، timeout، réseau. ما تعاودش: 400، 401، 403، 404.",
+        "الـ max_retries=0 ينحّي الـ retries متاع الـ SDK (كان عندك système retry وحدك).",
+        "ما تعملش string matching على الـ messages متاع الـ errors: استعمل الـ classes."
+      ],
+      "example": { "lang": "python", "code": "import logging\n\nimport anthropic\n\nlog = logging.getLogger(\"support-bot\")\n\n# The SDK already retries connection errors, 408, 409, 429 and >=500 with backoff\nclient = anthropic.Anthropic(max_retries=4, timeout=60.0)\n\n\ndef safe_reply(messages):\n    try:\n        response = client.messages.create(\n            model=\"claude-opus-5-5\",\n            max_tokens=16000,\n            messages=messages,\n        )\n    except anthropic.BadRequestError as e:      # 400: our request is wrong, retrying will not help\n        log.error(\"bad request: %s\", e.message)\n        raise\n    except anthropic.AuthenticationError:       # 401: missing or wrong ANTHROPIC_API_KEY\n        log.critical(\"check ANTHROPIC_API_KEY\")\n        raise\n    except anthropic.RateLimitError as e:       # 429 still failing after the SDK retries\n        log.warning(\"rate limited, retry-after=%s\", e.response.headers.get(\"retry-after\"))\n        return None\n    except anthropic.APIStatusError as e:       # any other non-2xx: 5xx, 529 overloaded...\n        log.error(\"API error %s\", e.status_code)\n        return None\n    except anthropic.APITimeoutError:           # no answer within the timeout\n        log.warning(\"timeout\")\n        return None\n    except anthropic.APIConnectionError:        # network problem before any response\n        log.warning(\"network error\")\n        return None\n\n    log.info(\"request_id=%s stop=%s\", response._request_id, response.stop_reason)\n    if response.stop_reason == \"refusal\":\n        return \"Sorry, I can't help with this request.\"\n    if response.stop_reason == \"max_tokens\":\n        log.warning(\"answer cut off at max_tokens\")\n    return \"\".join(b.text for b in response.content if b.type == \"text\")" }
+    },
+    {
+      "title": "Projet كامل: API تعمل tickets من messages بالدارجة/Français/العربي",
+      "text": [
+        "توّة نلمّوا كل شي في app وحدة. الـ cas: boutique en ligne تونسية تقبل messages من الـ clients في Messenger ولا WhatsApp، بالدارجة (بحروف عربي ولا latin)، بالـ Français، بالعربي، ولا mélange. الخدمة: كل message يولّي ticket structuré (category، urgence، لغة، numéro commande، résumé بالـ français و بالعربي) باش الـ équipe support تخدم بيه.",
+        "الـ architecture: endpoint FastAPI POST /tickets. يقبل الـ message، يبعثو لـ Claude بـ system prompt ثابت، structured output بـ schema، و effort 'low' خاطر extraction ساهلة. اخترنا Sonnet 5.5: أرخص من Opus، و باهي برشة في الـ volume. كان الـ volume كبير برشة و الـ tickets بسيطة، جرّب Haiku 5.5 على eval set قبل ما تبدّل.",
+        "الـ JSON يخرج valide على الـ schema، أما نزيدوا Ticket.model_validate_json باش الـ data تتثبّت من جيهتنا زادة. كي الـ stop_reason موش 'end_turn' (refusal ولا max_tokens)، نرجّعوا 422 و ما نخرّجوش data مقصوصة. الـ errors متاع الـ API يوليّو 502/503 واضحين للـ front.",
+        "كل request نسجّلوا: request_id، stop_reason، input/output tokens، cache read، و الـ cost بالـ dollar. بالـ logs هاذوما تعرف قدّاش يكلّف ticket، و تشوف كان الـ caching يخدم. الـ system prompt فيه cache_control، أما ما يتكاشاش كان كي يولّي 512 token ولا أكثر (مثال كي تزيد examples).",
+        "باش تمشي أبعد: اكتب eval set بـ 50 message حقيقي (بعد ما تنحّي الـ données personnelles) بالـ ticket الصحيح متاع كل واحد، و عاود خدّمو بعد كل تبديل في الـ prompt ولا الـ model. نحّي الـ numéros téléphone و الـ CIN قبل ما تبعث كان ما تستحقهاش. و خلّي إنسان يشوف الـ tickets اللي urgence متاعهم 'high'. هذا الفرق بين démo و produit."
+      ],
+      "points": [
+        "الـ lancement: pip install anthropic fastapi uvicorn، بعد uvicorn app:app.",
+        "الـ test: curl ولا Postman بـ JSON {'message': '...'} على /tickets.",
+        "الـ Optional[str] في Pydantic و anyOf [string, null] في الـ schema: نفس الفكرة.",
+        "للـ volume الكبير اللي ما يستعجلش: عاود نفس الـ request بالـ Batches API بـ 50% أقل."
+      ],
+      "example": { "lang": "python", "code": "# app.py - run with: uvicorn app:app\n# pip install anthropic fastapi uvicorn ; set ANTHROPIC_API_KEY in the environment\nimport logging\nfrom typing import Literal, Optional\n\nimport anthropic\nfrom fastapi import FastAPI, HTTPException\nfrom pydantic import BaseModel, ValidationError\n\nlogging.basicConfig(level=logging.INFO)\nlog = logging.getLogger(\"tickets\")\n\nMODEL = \"claude-sonnet-5-5\"\nPRICE_IN, PRICE_OUT, PRICE_CACHE_READ = 2.00, 10.00, 0.20  # USD per 1M tokens\n\nclient = anthropic.Anthropic(max_retries=3, timeout=60.0)\napp = FastAPI()\n\nSYSTEM = [{\n    \"type\": \"text\",\n    \"text\": (\n        \"You turn customer messages of a Tunisian online shop into support tickets. \"\n        \"Messages can be in Tunisian Derja (Arabic or Latin letters), French, Arabic or a mix. \"\n        \"summary_fr: one sentence in French. summary_ar: one sentence in Modern Standard Arabic. \"\n        \"Never invent an order id: use null when the message has none.\"\n    ),\n    # only cached once the prefix reaches the model minimum (512 tokens), e.g. after adding examples\n    \"cache_control\": {\"type\": \"ephemeral\"},\n}]\n\nTICKET_SCHEMA = {\n    \"type\": \"object\",\n    \"properties\": {\n        \"category\": {\"type\": \"string\", \"enum\": [\"delivery\", \"payment\", \"product\", \"account\", \"other\"]},\n        \"urgency\": {\"type\": \"string\", \"enum\": [\"low\", \"medium\", \"high\"]},\n        \"language\": {\"type\": \"string\", \"enum\": [\"derja\", \"french\", \"arabic\", \"mixed\"]},\n        \"order_id\": {\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"null\"}]},\n        \"summary_fr\": {\"type\": \"string\"},\n        \"summary_ar\": {\"type\": \"string\"},\n    },\n    \"required\": [\"category\", \"urgency\", \"language\", \"order_id\", \"summary_fr\", \"summary_ar\"],\n    \"additionalProperties\": False,\n}\n\n\nclass Ticket(BaseModel):\n    category: Literal[\"delivery\", \"payment\", \"product\", \"account\", \"other\"]\n    urgency: Literal[\"low\", \"medium\", \"high\"]\n    language: Literal[\"derja\", \"french\", \"arabic\", \"mixed\"]\n    order_id: Optional[str]\n    summary_fr: str\n    summary_ar: str\n\n\nclass Incoming(BaseModel):\n    message: str\n\n\n@app.post(\"/tickets\", response_model=Ticket)\ndef create_ticket(body: Incoming):\n    try:\n        response = client.messages.create(\n            model=MODEL,\n            max_tokens=4000,\n            system=SYSTEM,\n            messages=[{\"role\": \"user\", \"content\": body.message}],\n            output_config={\n                \"effort\": \"low\",  # simple extraction: low effort is enough\n                \"format\": {\"type\": \"json_schema\", \"schema\": TICKET_SCHEMA},\n            },\n        )\n    except anthropic.RateLimitError:\n        raise HTTPException(status_code=503, detail=\"Busy, try again in a minute\")\n    except anthropic.APIStatusError as e:\n        log.error(\"anthropic error %s\", e.status_code)\n        raise HTTPException(status_code=502, detail=\"AI service error\")\n    except anthropic.APIConnectionError:\n        raise HTTPException(status_code=502, detail=\"AI service unreachable\")\n\n    u = response.usage\n    cache_read = u.cache_read_input_tokens or 0\n    cache_write = u.cache_creation_input_tokens or 0\n    cost = (u.input_tokens * PRICE_IN + u.output_tokens * PRICE_OUT\n            + cache_read * PRICE_CACHE_READ + cache_write * PRICE_IN * 1.25) / 1_000_000\n    log.info(\"request_id=%s stop=%s in=%s out=%s cache_read=%s cost=$%.5f\",\n             response._request_id, response.stop_reason,\n             u.input_tokens, u.output_tokens, cache_read, cost)\n\n    if response.stop_reason != \"end_turn\":  # refusal or max_tokens: no reliable JSON\n        raise HTTPException(status_code=422, detail=\"Could not build a ticket\")\n    text = next(b.text for b in response.content if b.type == \"text\")\n    try:\n        return Ticket.model_validate_json(text)  # validate again on our side\n    except ValidationError:\n        log.exception(\"invalid ticket JSON\")\n        raise HTTPException(status_code=422, detail=\"Could not build a ticket\")", "note": "الـ code يخدم على Python 3.9+؛ الـ key ديما من الـ environnement." }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "الـ client و الـ request",
+      "items": [
+        ["anthropic.Anthropic()", "client يقرا ANTHROPIC_API_KEY من الـ environnement"],
+        ["client.messages.create(model=..., max_tokens=..., messages=[...])", "request للـ Messages API"],
+        ["system='...'", "الـ system prompt: التعليمات العامّة"],
+        ["{'role': 'user', 'content': '...'}", "message في الـ list؛ الأوّل ديما user"],
+        ["[b.text for b in response.content if b.type == 'text']", "تخرّج الـ texte من الـ blocks"]
+      ]
+    },
+    {
+      "group": "الـ response و الـ usage",
+      "items": [
+        ["response.stop_reason", "end_turn، max_tokens، tool_use، refusal..."],
+        ["response.usage.input_tokens / output_tokens", "الـ tokens اللي تتخلّص عليهم"],
+        ["response._request_id", "الـ id متاع الـ request للـ logs و الـ support"],
+        ["client.messages.count_tokens(model=..., messages=...)", "يحسب الـ input tokens قبل الـ request"]
+      ]
+    },
+    {
+      "group": "الـ models و الـ effort",
+      "items": [
+        ["'claude-opus-5-5'", "الـ default: $4 / $20 للمليون token"],
+        ["'claude-sonnet-5-5'", "$2 / $10، باهي للـ volume"],
+        ["'claude-haiku-5-5'", "$0.10 / $0.50، سريع و رخيص (prompts <= 100K)"],
+        ["output_config={'effort': 'low'}", "thinking أقل: أسرع و أرخص"],
+        ["thinking={'type': 'adaptive'}", "الـ model يقرّر قدّاش يخمّم (على Opus 5.5 ديما مخدوم)"]
+      ]
+    },
+    {
+      "group": "الـ streaming و الـ structured outputs",
+      "items": [
+        ["with client.messages.stream(...) as stream:", "يبدا الـ streaming"],
+        ["stream.text_stream", "القطع متاع الـ texte وحدة وحدة"],
+        ["stream.get_final_message()", "الـ Message الكامل بعد الـ stream"],
+        ["client.messages.parse(..., output_format=Model)", "JSON validé بـ Pydantic في response.parsed_output"],
+        ["output_config={'format': {'type': 'json_schema', 'schema': {...}}}", "JSON schema مع messages.create"]
+      ]
+    },
+    {
+      "group": "الـ tools",
+      "items": [
+        ["tools=[{'name': ..., 'description': ..., 'input_schema': {...}}]", "تعريف tool"],
+        ["'strict': True", "الـ arguments ديما valides على الـ schema"],
+        ["{'type': 'tool_result', 'tool_use_id': ..., 'content': ...}", "نتيجة tool في message user"],
+        ["'is_error': True", "تقول لـ Claude اللي الـ tool فشل"],
+        ["@beta_tool + client.beta.messages.tool_runner(...)", "الـ SDK يخدّم الـ loop وحدو"]
+      ]
+    },
+    {
+      "group": "الـ caching، الـ batches و الـ errors",
+      "items": [
+        ["'cache_control': {'type': 'ephemeral'}", "breakpoint متاع cache (5 دقايق par défaut)"],
+        ["response.usage.cache_read_input_tokens", "tokens تقراو من الـ cache: لازم > 0"],
+        ["client.messages.batches.create(requests=[...])", "batch asynchrone بـ 50% أقل"],
+        ["anthropic.RateLimitError", "429: استنّى و عاود"],
+        ["anthropic.Anthropic(max_retries=4, timeout=60.0)", "الـ retries و الـ timeout متاع الـ client"]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "اكتب function text_of(response) ترجّع الـ texte متاع Message، أما تعمل raise كان الـ model رفض ولا الجواب تقصّ.",
+      "hint": "شوف stop_reason قبل، و بعد لمّ الـ blocks اللي الـ type متاعهم 'text'.",
+      "code": "python",
+      "answer": "def text_of(response):\n    \"\"\"Return the text of a Message, or raise if it should not be used.\"\"\"\n    if response.stop_reason == \"refusal\":\n        raise ValueError(\"refused by the model\")\n    if response.stop_reason == \"max_tokens\":\n        raise ValueError(\"cut off: raise max_tokens or use streaming\")\n    return \"\".join(b.text for b in response.content if b.type == \"text\")"
+    },
+    {
+      "q": "أنا model تختار و علاش: (a) classification متاع 50 000 message قصير كل ليلة، (b) agent يخدم على repo code كبير، (c) chatbot support للـ clients بـ volume متوسّط؟",
+      "hint": "فكّر في الـ cost، السرعة، و كان الخدمة تستنّى ولا لا.",
+      "answer": "(a) Haiku 5.5 بـ effort 'low' في الـ Batches API: خدمة ساهلة، volume كبير، ما تستعجلش، و الـ batch يقصّ الـ prix 50%. (b) Opus 5.5 (ولا Fable 5.1 كان الخدمة صعيبة برشة): raisonnement طويل و tools برشة، و غلطة وحدة تكلّف أكثر من الـ tokens. (c) Sonnet 5.5 بـ streaming و caching على الـ system prompt: جودة باهية بنص prix Opus. و في الحالات الكل، قارن على eval set قبل ما تقرّر."
+    },
+    {
+      "q": "اكتب request_cost(model, usage) تحسب الـ cost بالـ dollar مع الـ cache (write 5 دقايق = 1.25x الـ prix input) للـ Opus 5.5 و Sonnet 5.5.",
+      "hint": "الـ cache fields ينجموا يكونوا None: استعمل 'or 0'.",
+      "code": "python",
+      "answer": "PRICES = {  # USD per 1M tokens: input, output, cache read\n    \"claude-opus-5-5\": (4.00, 20.00, 0.20),\n    \"claude-sonnet-5-5\": (2.00, 10.00, 0.20),\n}\n\n\ndef request_cost(model, usage):\n    p_in, p_out, p_read = PRICES[model]\n    write = (usage.cache_creation_input_tokens or 0) * p_in * 1.25  # 5-minute cache write\n    read = (usage.cache_read_input_tokens or 0) * p_read\n    return (usage.input_tokens * p_in + usage.output_tokens * p_out + write + read) / 1_000_000"
+    },
+    {
+      "q": "عاود اكتب الـ exemple متاع get_order_status بالـ tool runner متاع الـ SDK في بلاصة الـ loop الـ manuel.",
+      "hint": "الـ @beta_tool يخرّج الـ schema من الـ signature و الـ docstring.",
+      "code": "python",
+      "answer": "import anthropic\nfrom anthropic import beta_tool\n\nclient = anthropic.Anthropic()\nORDERS = {\"TN-1042\": \"shipped\", \"TN-2077\": \"preparing\"}\n\n\n@beta_tool\ndef get_order_status(order_id: str) -> str:\n    \"\"\"Get the delivery status of a customer order.\n\n    Args:\n        order_id: Order id such as TN-1042.\n    \"\"\"\n    status = ORDERS.get(order_id)\n    if status is None:\n        return f\"Error: no order with id {order_id}\"\n    return status\n\n\nrunner = client.beta.messages.tool_runner(\n    model=\"claude-opus-5-5\",\n    max_tokens=16000,\n    tools=[get_order_status],\n    messages=[{\"role\": \"user\", \"content\": \"Chnoua a7wel el commande TN-2077?\"}],\n)\nlast = None\nfor message in runner:  # the SDK runs the tool loop for us\n    last = message\nprint(\"\".join(b.text for b in last.content if b.type == \"text\"))"
+    },
+    {
+      "q": "الـ cache_read_input_tokens ديما 0 عندك، مع إنّو الـ FAQ كبيرة و تبعثها كل مرّة. أعطي 4 أسباب ممكنة.",
+      "answer": "1) فمّا حاجة تتبدّل في الـ préfixe: datetime.now()، uuid ولا user id في الـ system prompt. 2) json.dumps بلا sort_keys ولا tools تتبدّل ولا الـ ordre متاعهم يتبدّل. 3) الـ préfixe أقل من 512 token، ولا الـ breakpoint حطّيتو بعد الجزء اللي يتبدّل (الـ question) في بلاصة قبلو. 4) فات أكثر من 5 دقايق بين request و request (الـ TTL)، ولا بدّلت الـ model ولا الـ effort، ولا الـ requests الـ parallèles بقاو يكتبوا في الـ cache في نفس الوقت."
+    },
+    {
+      "q": "اكتب script يبعث 3 messages متاع clients في Batch بـ Haiku 5.5 باش يصنّفهم، يستنّى، و يخرّج النتيجة.",
+      "hint": "Request + MessageCreateParamsNonStreaming، بعد retrieve و results.",
+      "code": "python",
+      "answer": "import time\n\nimport anthropic\nfrom anthropic.types.message_create_params import MessageCreateParamsNonStreaming\nfrom anthropic.types.messages.batch_create_params import Request\n\nclient = anthropic.Anthropic()\ntexts = [\"El commande ma wsletch\", \"Nheb nbaddel el mot de passe\", \"Prix mte3 el casque?\"]\n\nbatch = client.messages.batches.create(requests=[\n    Request(\n        custom_id=f\"msg-{i}\",\n        params=MessageCreateParamsNonStreaming(\n            model=\"claude-haiku-5-5\",\n            max_tokens=1024,\n            output_config={\"effort\": \"low\"},\n            system=\"Answer with one word: delivery, account, sales or other.\",\n            messages=[{\"role\": \"user\", \"content\": text}],\n        ),\n    )\n    for i, text in enumerate(texts)\n])\n\nwhile client.messages.batches.retrieve(batch.id).processing_status != \"ended\":\n    time.sleep(60)  # most batches end within 1 hour, at most 24 hours\n\nfor result in client.messages.batches.results(batch.id):\n    if result.result.type == \"succeeded\":\n        msg = result.result.message\n        print(result.custom_id, next((b.text for b in msg.content if b.type == \"text\"), \"\"))\n    else:\n        print(result.custom_id, \"not done:\", result.result.type)  # errored, canceled, expired"
+    },
+    {
+      "q": "client يبعث: 'أنا محمد، CIN 0xxxxxxx، num 2x xxx xxx، الـ commande ما وصلتش'. شنوّة تعمل قبل ما تبعث الـ message للـ API، و علاش؟",
+      "answer": "نحّي ولا خبّي الـ données personnelles اللي الـ model ما يحتاجهاش (CIN، téléphone) بـ regex ولا masque قبل الـ request، و خلّي برك اللي يلزم للـ ticket. علاش: data أقل تخرج من الـ système متاعك = risque أقل (fuite، logs، obligations légales كيما حماية المعطيات الشخصية في تونس و الـ RGPD كان عندك clients في أوروبا). و ما تسجّلش الـ message الكامل في الـ logs؛ سجّل الـ request_id و الـ tokens."
+    }
+  ],
+  "pitfalls": [
+    "تكتب الـ API key في الـ code ولا في fichier يتـ commita: استعمل ANTHROPIC_API_KEY في الـ environnement، و كان تسرّبت، اعملها revoke طول.",
+    "تقرا response.content[0].text طول: الـ block الأوّل ينجم يكون thinking، و كان stop_reason هو 'refusal' ولا 'max_tokens' الـ texte موش كامل. شوف الـ stop_reason و filtri على type == 'text'.",
+    "تستعمل tutorial قديم: temperature، top_p، budget_tokens، prefill ولا tool_choice forcé على Opus 5.5 يرجّعوا 400. الـ effort و الـ prompt هوما الـ contrôles توّة.",
+    "تحط date، heure ولا user id في الـ system prompt: الـ préfixe يتبدّل كل request و الـ caching ما يخدم حتّى مرّة.",
+    "تنسى اللي الـ API stateless: ما تبعثش الـ history، ولا تبعث الـ tool_result في messages مفرّقين ولا بـ tool_use_id غالط.",
+    "تثق في الـ JSON خاطر 'valide': الـ schema يضمن الـ format موش المعنى. زيد checks métier و eval set.",
+    "max_tokens صغير برشة: الـ thinking يحسب منّو، و الجواب يخرج مقصوص بـ stop_reason 'max_tokens'."
+  ],
+  "interview": [
+    {
+      "q": "شنوّة يعني الـ Messages API stateless، و كيفاش تتصرّف مع conversation طويلة؟",
+      "a": "الـ serveur ما يتفكّر شي بين الـ requests: كل مرّة نبعث الـ history الكامل. الـ cost و الـ latence يطلعوا مع طول الـ conversation، لهنا نستعمل prompt caching (préfixe ثابت، breakpoint على آخر tour)، و كي تطوّل برشة، résumé ولا compaction (beta) من جيهة الـ serveur. و نخلّي الـ history append-only باش الـ cache و الـ thinking يخدموا."
+    },
+    {
+      "q": "كيفاش تنقّص الـ cost متاع application LLM؟",
+      "a": "الأوّل نقيس: نسجّل الـ usage متاع كل request. بعد: prompt caching للحاجات الثابتة، Batches API (50%) للخدمة اللي ما تستعجلش، effort أقل كان الـ eval يقول الجودة بقات، و بعد model أرخص (Sonnet ولا Haiku). كل تبديل نقيسو على eval set، موش بالحسّ."
+    },
+    {
+      "q": "فسّر الـ loop متاع الـ tool use.",
+      "a": "نعرّف الـ tools بـ JSON schema. الـ model يرجّع tool_use blocks و stop_reason 'tool_use'. الـ code متاعي يخدّم الـ functions، يرجّع tool_result بنفس الـ tool_use_id، الكل في message user واحد، و نعاود حتّى الـ model يكمّل. كي tool يفشل نرجّع is_error true. نستعمل strict true، limite على عدد الـ tours، و نـ validi الـ arguments قبل أي action عندها effet."
+    },
+    {
+      "q": "كيفاش تجيب JSON تنجم تثق فيه؟",
+      "a": "الـ structured outputs: output_config.format بـ JSON schema ولا messages.parse بـ Pydantic. بعد نشوف stop_reason (refusal ولا max_tokens معناها ما نثقش)، و نعمل validation métier، خاطر الـ schema يضمن الـ format موش الصحّة."
+    },
+    {
+      "q": "أنا errors تعاود (retry) و أنا لا؟",
+      "a": "نعاود 429، 500، 529، الـ timeouts و errors الـ réseau بـ exponential backoff و حد (الـ SDK يعملها par défaut زوز مرّات). ما نعاودش 400، 401، 403، 404: المشكلة في الـ request ولا الـ key، الـ retry ما يبدّل شي. و الـ refusal موش error: request صحيحة، لازم نجاوب الـ user بـ message واضح."
+    },
+    {
+      "q": "شنوّة الـ prompt caching و كيفاش تعرف يخدم؟",
+      "a": "الـ API يعاود يستعمل préfixe قراه قبل (tools، system، messages في نفس الـ ordre) بـ prix read أقل برشة. نحط cache_control على آخر block ثابت. نـ verifi بـ usage.cache_read_input_tokens: كان ديما 0، فمّا حاجة تتبدّل في الـ préfixe ولا الـ préfixe صغير برشة. و نحط test automatique: request ثانية identique لازم تقرا من الـ cache."
+    },
+    {
+      "q": "وقتاش تستعمل الـ streaming؟",
+      "a": "في الـ interfaces متاع الـ chat باش الـ user يشوف الجواب طول، و كي الـ output طويل (max_tokens كبير) باش ما نطيحوش في الـ timeouts. بـ get_final_message() ناخو الـ Message الكامل بالـ usage و الـ stop_reason."
+    },
+    {
+      "q": "كيفاش تعرف اللي تبديل في الـ prompt ما كسّرش حاجة؟",
+      "a": "بـ eval set: examples حقيقيين (anonymisés) بالنتيجة المستنّية، نخدّموهم بعد كل تبديل (prompt، model، effort) و نقارنوا الـ score و الـ cost. للـ extraction، نقارنوا champ بـ champ؛ للـ texte الحر، grille ولا relecture إنسان على échantillon. بلا eval، كل تبديل يتفسّر بالحسّ."
+    }
+  ]
+}

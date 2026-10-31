@@ -58,6 +58,10 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   exist in js/ats.js so missing skills link to the course. Lessons have no hand-written duration. To extend a course,
   append lessons (progress is stored by lesson index).
 - Portfolio projects are static JSON in content/projects/<path id>.json (+ fr/): 3 per path, real URLs checked with curl.
+- AI engineer track in Tunisian ("Tunisian AI Teacher", js/aitrack.js): content/ai/index.json + content/ai/ar/ (Arabic
+  letters, shown right to left) and content/ai/lat/ (3arbizi), same course format, same structure and identical code in
+  both scripts (smoke test). Writer guide: Derja as a Tunisian trainer speaks, technical terms in English/French,
+  3arbizi 3=ع 7=ح 9=ق 5=خ 8=غ ch=ش; Claude API facts only from the official reference. Times: course-times.ps1 -Catalog ai.
 - Never put API keys (RapidAPI, Adzuna, France Travail) or the service_role key in frontend code. The anon key is
   public by design; RLS protects the data.
 - Every user-owned table needs RLS policies scoped to auth.uid(); add schema changes as a new migration file.
@@ -92,6 +96,7 @@ Read the header comment of any file before modifying it; update the header if be
 - `#/training` → training → training.js (My learning, roadmap of tracks, study plan) + courses.js (course list)
 - `#/course/<id>` → course → courses.js
 - `#/project/<id>` → project → projects.js
+- `#/ai` → ai → aitrack.js (AI engineer track in Tunisian; its courses open in `#/course/ai-…`)
 - `#/cv` → cv → cvpage.js + cvs.js, ats.js
 - `#/interview` → interview → interview.js
 - `#/applications` → applications → applications.js + tracker.js, store.js
@@ -132,6 +137,7 @@ Read the header comment of any file before modifying it; update the header if be
 - sw.js, manifest.json, icons/ — installable app and offline cache
 - js/coursetime.js — lesson and course durations computed from the content (reading + practice)
 - js/projects.js — portfolio projects: Training panel and the project page (#/project/<id>)
+- js/aitrack.js — AI engineer track in Tunisian: track page, Arabic / 3arbizi switch, content and RTL for its courses
 - content/courses/, content/interview/, content/projects/ — course, interview and project content (JSON)
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)

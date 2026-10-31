@@ -156,6 +156,33 @@ test("portfolio projects: every path has projects and a project page works", asy
   }
 });
 
+test("AI track in Tunisian: both scripts match, the page and a course work", async ({ page }) => {
+  await open(page, "#/ai");
+  const problems = await page.evaluate(async () => {
+    const { courseTime } = await import("/js/coursetime.js");
+    const get = (u) => fetch(u).then((r) => (r.ok ? r.json() : null));
+    const len = (x) => (x ? x.length : 0), out = [];
+    for (const c of (await get("/content/ai/index.json")).filter((x) => x.status === "ready")) {
+      const [ar, lat] = await Promise.all([get(`/content/ai/ar/${c.id}.json`), get(`/content/ai/lat/${c.id}.json`)]);
+      if (!ar || !lat) { out.push(`${c.id}: a script file is missing`); continue; }
+      if (c.minutes !== courseTime(ar).total || c.lessonCount !== ar.lessons.length) out.push(`${c.id}: index minutes / lessonCount out of date`);
+      for (const k of ["lessons", "cheatsheet", "exercises", "pitfalls", "interview"]) if (len(ar[k]) !== len(lat[k])) out.push(`${c.id}: ${k} count differs`);
+      ar.lessons.forEach((l, i) => { if ((l.example?.code || "") !== (lat.lessons[i]?.example?.code || "")) out.push(`${c.id}: lesson ${i} code differs`); });
+      if (/[؀-ۿ]/.test(JSON.stringify(lat))) out.push(`${c.id}: Arabic letters in the 3arbizi file`);
+    }
+    return out;
+  });
+  expect(problems).toEqual([]);
+  const first = page.locator('#aiBody a[href^="#/course/ai-"]').first();
+  await expect(first).toBeVisible();
+  await first.click();
+  const panel = page.locator('#courseBody [role=tabpanel]');
+  await expect(panel).toHaveAttribute("dir", "rtl");
+  await expect(panel.locator("article")).not.toBeEmpty();
+  await page.locator("#courseBody").getByRole("tab", { name: "3arbizi" }).click();
+  await expect(page.locator('#courseBody [role=tabpanel]')).toHaveAttribute("dir", "ltr");
+});
+
 test("a course opens with its tabs and the quiz", async ({ page }) => {
   await open(page, "#/course/sql");
   const tabs = page.locator('section[data-page="course"] [role=tablist] [role=tab]');

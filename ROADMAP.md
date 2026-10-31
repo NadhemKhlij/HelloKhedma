@@ -133,6 +133,15 @@ in the email app). Still to do: "Write with AI" in the app (same rules as cv-tai
 application (2.7b).
 Done (2026-10-29): 5.2, "Tailor my CV" on offers and the CV match: gap analysis + a prompt to copy into your own AI (CV stays local), and "Rewrite with AI" in the app (cv-tailor function, Claude Opus 5.5 at medium effort, signed-in users only, 5 a day per account, notice before every send, nothing stored). Needs the owner's Anthropic API key and the function deployed (CHECKLIST O16).
 
+## Tunisian AI Teacher (branch `tunisian-ia-teacher`, not on main yet)
+A learning track to become an AI engineer (build apps with Claude and other AI tools, run them in production, maintain
+and improve them), taught only in Tunisian Derja, in Arabic letters and in 3arbizi (switch, remembered). Page #/ai,
+entry card on Training; courses use the normal player (right to left in Arabic letters, code left to right).
+Plan, 9 courses: 1 the job and how LLMs work, 2 prompt engineering, 3 Claude API in Python, 4 tools/MCP/agents, 5 RAG
+and embeddings, 6 AI coding tools, 7 evaluation and tests, 8 production (security, monitoring, cost), 9 maintenance and
+continuous improvement. Done (2026-10-31, pilot): courses 1 and 3 (8 lessons each, both scripts). Next: owner review of
+the Derja (CHECKLIST O18), then the other 7 courses with the same writer guide, then AI portfolio projects, then merge.
+
 ## Phase 6: grow
 | # | Item | Why | Effort |
 |---|---|---|---|

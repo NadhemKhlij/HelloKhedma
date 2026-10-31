@@ -9,10 +9,13 @@
 // French: content/courses/fr/<id>.json (same structure and lesson order: progress is stored by lesson index) and
 // fr/index.json ([{ id, name, summary }], merged over index.json). Missing French files fall back to English.
 // Lesson progress is kept in this browser ("hk.lessons").
+// The AI engineer track in Tunisian ("ai-…" ids, aitrack.js) uses the same player: content from content/ai/<script>/,
+// right-to-left content in Arabic letters, a script switch in the header and a back link to #/ai.
 // Course page: header with progress, then tabs: Lessons (one lesson at a time, lesson list + "Mark as done & continue"),
 // Quiz, Flashcards, Practice, Interview (practice.js) and the printable Cheat sheet. XP and "Resume" via activity.js.
 import { $, h, ls, toast } from "./lib.js";
 import { t, lang, fetchContent } from "./i18n.js";
+import { isAiCourse, aiScript, aiMeta, aiDir, loadAiCourse, scriptSwitch } from "./aitrack.js";
 import { logActivity, setLastCourse, lastCourse } from "./activity.js";
 import { quiz, flashcards, exercises, interviewCards, quizBest, exercisesSolved } from "./practice.js";
 import { lessonTime, courseTime, formatMinutes } from "./coursetime.js";
@@ -85,10 +88,13 @@ export function renderCourseList(root, pathId) {
   );
 }
 
+// AI track courses ("ai-…", aitrack.js) come from content/ai/<script>/, cached per script.
 async function loadCourse(id) {
-  if (cache.has(id)) return cache.get(id);
-  const c = await fetchContent(BASE, `${encodeURIComponent(id)}.json`).catch(() => { throw new Error(t("This course does not exist (yet).")); });
-  cache.set(id, c);
+  const key = isAiCourse(id) ? `${id}@${aiScript()}` : id;
+  if (cache.has(key)) return cache.get(key);
+  const c = isAiCourse(id) ? await loadAiCourse(id)
+    : await fetchContent(BASE, `${encodeURIComponent(id)}.json`).catch(() => { throw new Error(t("This course does not exist (yet).")); });
+  cache.set(key, c);
   return c;
 }
 
@@ -108,7 +114,7 @@ function codeBlock(lang, code) {
       try { await navigator.clipboard.writeText(code); btn.textContent = t("Copied ✓"); } catch { btn.textContent = t("Copy failed"); }
       setTimeout(() => { btn.textContent = t("Copy"); }, 1500);
     } }, t("Copy"));
-  return h("div", { class: "relative" }, h("pre", { class: "codeblock !pr-16", "data-lang": lang || "" }, h("code", {}, code)), btn);
+  return h("div", { class: "relative", dir: "ltr" }, h("pre", { class: "codeblock !pr-16", "data-lang": lang || "" }, h("code", {}, code)), btn); // ltr inside Arabic text too
 }
 
 function printCheatsheet() {
@@ -122,12 +128,13 @@ const TABS = [["lessons", "Lessons"], ["quiz", "Quiz"], ["cards", "Flashcards"],
 export async function renderCourse(id) {
   const root = $("#courseBody");
   root.replaceChildren(h("p", { class: "mute" }, t("Loading course…")));
-  const meta = index.find((x) => x.id === id);
+  const ai = isAiCourse(id), back = ai ? "#/ai" : "#/training";
+  const meta = ai ? await aiMeta(id) : index.find((x) => x.id === id);
   let c;
   try {
     c = { ...(await loadCourse(id)), ...meta, id };
   } catch (e) {
-    root.replaceChildren(h("a", { href: "#/training", class: "mute text-sm underline" }, t("← All courses")),
+    root.replaceChildren(h("a", { href: back, class: "mute text-sm underline" }, t("← All courses")),
       h("p", { class: "panel" }, e.message || t("Could not load this course.")));
     toast(e.message || t("Could not load this course."));
     return;
@@ -154,7 +161,7 @@ export async function renderCourse(id) {
   };
 
   const tabBar = h("div", { role: "tablist", "aria-label": t("Course sections"), "data-print-hide": "" });
-  const body = h("div", { role: "tabpanel" });
+  const body = h("div", { role: "tabpanel", ...(ai ? aiDir() : {}) }); // Tunisian in Arabic letters reads right to left
   const show = (name) => { tab = name; drawTabs(); drawBody(); };
   const drawTabs = () => tabBar.replaceChildren(...TABS.filter(([k]) =>
     (k !== "interview" || c.interview?.length) && (k !== "practice" || c.exercises?.length)).map(([k, label]) =>
@@ -177,7 +184,7 @@ export async function renderCourse(id) {
           style: isDone(i) ? "background:#18a999;color:#fff" : i === cur ? "background:var(--accent);color:#fff" : "background:var(--panel);border:1px solid var(--line)" },
           isDone(i) ? "✓" : String(i + 1)),
         h("span", { class: "min-w-0" }, h("span", { class: "block text-sm font-medium leading-snug" }, x.title),
-          h("span", { class: "mute text-xs" }, `≈ ${formatMinutes(lessonTime(x).total)}`))))));
+          h("span", { class: "mute text-xs", dir: "ltr" }, `≈ ${formatMinutes(lessonTime(x).total)}`))))));
     const isLast = cur === n - 1;
     const nextBtn = done
       ? (isLast ? h("button", { type: "button", class: "btn", onClick: () => show("quiz") }, t("Test yourself: take the quiz →"))
@@ -235,18 +242,19 @@ export async function renderCourse(id) {
   }
 
   root.replaceChildren(
-    h("a", { href: "#/training", class: "mute text-sm underline", "data-print-hide": "" }, t("← All courses")),
+    h("a", { href: back, class: "mute text-sm underline", "data-print-hide": "" }, ai ? t("← AI engineer track") : t("← All courses")),
     h("header", { class: "panel", "data-print-hide": "" },
       h("div", { class: "flex flex-wrap items-center gap-2 mb-2" },
         h("span", { class: "chip !py-0 text-xs" }, c.level ? t(c.level) : ""),
+        ai ? h("span", { class: "ml-auto order-last" }, scriptSwitch(() => renderCourse(id))) : null,
         h("span", { class: "mute text-sm" }, t("{category} · about {total} ({reading} reading, {practice} practice)", {
           category: c.category ? t(c.category) : "", ...Object.fromEntries(Object.entries(courseTime(c)).map(([k, v]) => [k, formatMinutes(v)])) }))),
-      h("h1", { id: "h-course", tabindex: "-1", class: "page-title !mb-1" }, c.name),
-      h("p", { class: "mute" }, c.summary),
+      h("h1", { id: "h-course", tabindex: "-1", class: "page-title !mb-1", ...(ai ? aiDir() : {}) }, c.name),
+      h("p", { class: "mute", ...(ai ? aiDir() : {}) }, c.summary),
       c.why || c.outcome ? h("details", { class: "mt-3 text-sm" },
         h("summary", { class: "cursor-pointer", style: "color:var(--accent)" }, t("Why this course?")),
-        c.why ? h("p", { class: "mt-2" }, h("b", {}, t("Why recruiters care: ")), c.why) : null,
-        c.outcome ? h("p", { class: "mt-1" }, h("b", {}, t("After this course you can: ")), c.outcome) : null) : null,
+        c.why ? h("p", { class: "mt-2" }, h("b", {}, t("Why recruiters care: ")), ai ? h("span", { ...aiDir(), class: "block" }, c.why) : c.why) : null,
+        c.outcome ? h("p", { class: "mt-1" }, h("b", {}, t("After this course you can: ")), ai ? h("span", { ...aiDir(), class: "block" }, c.outcome) : c.outcome) : null) : null,
       progress),
     tabBar, body);
   drawTabs(); drawBody();

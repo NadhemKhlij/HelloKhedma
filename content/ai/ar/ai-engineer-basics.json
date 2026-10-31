@@ -1,0 +1,307 @@
+{
+  "why": "الـ AI engineer ولّى من أكثر البروفيلات اللي تطّلب في تونس وبرّا، خاصّة في الـ remote مع شركات أوروبية. قبل ما تبني applications، لازم تفهم شنوّة يعمل الـ métier هذا وكيفاش يخدم الـ LLM من الداخل: tokens، cost، limites.",
+  "outcome": "تفسّر شنوّة يعمل AI engineer، تفهم الـ tokens والـ context window والـ hallucinations، تحسب الـ cost متاع requête بالأسعار الصحاح، تختار model، وتعمل أوّل appel لـ Claude بـ Python بطريقة safe.",
+  "lessons": [
+    {
+      "title": "شنوّة يعمل الـ AI engineer؟",
+      "text": [
+        "الـ AI engineer هو developer يبني applications فيهم الذكاء الاصطناعي: chatbot يجاوب الـ clients، outil يقرا factures ويخرّج منهم data، assistant يعاون équipe support... هو ما يدرّبش الـ model من الصفر: يستعمل models جاهزين كيما Claude عبر API، ويخمّم في الـ produit كامل: الـ prompt، الـ data اللي يبعثها، الـ code اللي يحوّط الـ model، الـ cost، الـ sécurité، وكيفاش الحاجة تخدم مليح في الـ production وتتحسّن مع الوقت.",
+        "فمّا confusion برشة بين الـ métiers. الـ data scientist يحلّل data ويعمل modèles statistiques باش يجاوب على أسئلة business. الـ ML engineer يدرّب ويـ déployi modèles machine learning (ساعات من الصفر) ويخدم برشة مع pipelines متاع data و GPU. الـ software developer يبني applications عاديين. الـ AI engineer في الوسط: عندو الـ réflexes متاع developer (code نظيف، tests، API، déploiement) ويزيد عليهم فهم متاع الـ LLM: prompts، evaluation، cost و limites.",
+        "الـ skills اللي تطّلب: Python مليح (وشويّة JavaScript ينفعك)، API REST و JSON، Git، شويّة SQL، وفهم متاع الـ LLM. بعد تزيد: tool use و agents، RAG و vector databases، evaluation، monitoring. الـ soft skills زادة مهمّين: تفسّر للـ client شنوّة الـ AI تنجم تعمل وشنوّة ما تنجمش، وتكتب بـ clarté، خاطر حتّى الـ prompt هو كتيبة.",
+        "الـ marché: في تونس فمّا startups و ESN يخدموا في projets AI لـ clients أوروبيين، وفمّا شركات أوروبية تخدم بالـ remote مع juniors توانسة. الـ freelance زادة يمشي (chatbots، automatisation، intégrations)، أما يلزمك portfolio يحرّك. الـ track هذا يمشي خطوة بخطوة: توّة الـ bases، بعد prompt engineering، بعد Claude API بالتفصيل، tool use و agents، RAG، وفي الآخر الـ production: monitoring، cost و evaluation."
+      ],
+      "points": [
+        "AI engineer = developer يبني produits بـ models جاهزين، موش chercheur يدرّب models.",
+        "الـ ML engineer يدرّب ويـ déployi models؛ الـ data scientist يحلّل data؛ الـ AI engineer يـ intégri الـ LLM في produit.",
+        "Python و API و JSON و Git هوما الأساس؛ الفهم متاع الـ LLM يجي فوقهم.",
+        "Portfolio بـ projets صحاح ينفعك أكثر من liste طويلة متاع certificats."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Track: Tunisian AI Teacher (indicative order)\n1. AI engineer basics            <- you are here\n2. Prompt engineering\n3. Claude API in Python\n4. Tool use and agents\n5. RAG and vector databases\n6. Production: monitoring, cost, evaluation",
+        "note": "الـ roadmap متاع الـ track: كل cours يبني على اللي قبلو."
+      }
+    },
+    {
+      "title": "كيفاش يخدم الـ LLM: الـ token والـ next token",
+      "text": [
+        "الـ LLM (Large Language Model) هو model تعلّم على كمّية كبيرة برشة من الـ texte. الفكرة الأساسية بسيطة: تعطيه بداية متاع texte، وهو يقيّم شنوّة البوط اللي بعدو. ما يفهمش كيما الإنسان: يحسب probabilités، يعطي score لكل بوط ممكن، ويختار واحد. بعد يزيد البوط هذا للـ texte ويعاود، بوط ببوط، حتّى يكمّل الجواب.",
+        "البوط هذا اسمو token. الـ token موش ديما كلمة: تنجم تكون كلمة كاملة، نصّ كلمة، شويّة حروف، ولّا ponctuation. الـ model ما يقراش الحروف directement: الـ texte يتكسّر لـ tokens، وكل token عندو numéro. غالب الوقت، الـ texte بلغة غير الـ anglais، كيما الدارجة ولّا العربي، ياخو tokens أكثر لنفس المعنى، وهذا يأثّر على الـ cost وعلى البلاصة في الـ prompt.",
+        "فمّا زوز مراحل. الـ training (entraînement): الشركة اللي تعمل الـ model تفوّت عليه textes كبار وتعدّل milliards متاع paramètres حتّى يقيّم الـ token الجاي مليح، بعد تزيد مرحلة باش يخلّف الـ instructions ويكون utile و safe. هاذي تتكلّف برشة وما تعملهاش إنتي. الـ inference: وقت اللي إنتي تبعث prompt عبر API والـ model يخرّج جواب. الـ model ما يتعلّمش من الـ conversation متاعك: الـ paramètres ما يتبدّلوش.",
+        "من هوني تفهم علاش الـ model ينجم يغلط. هو يختار الـ texte اللي يبان معقول حسب شنوّة تعلّم، موش اللي vérifié. كان المعلومة ما كانتش في الـ training، ولّا قديمة، ولّا السؤال غامض، يعطيك جواب مرتّب وبثقة... وغالط. زيد عليها: الـ model عندو date limite للـ connaissances متاعو (knowledge cutoff)، وما يعرفش شنوّة صار بعدها كان ما عطيتهولوش إنتي في الـ prompt."
+      ],
+      "points": [
+        "الـ LLM يقيّم الـ token الجاي، token بـ token، حتّى يكمّل الجواب.",
+        "Token = بوط متاع texte؛ الـ cost والـ limites الكل بالـ tokens، موش بالكلمات.",
+        "الـ training يعملو الـ fournisseur مرّة؛ الـ inference تعملها إنتي مع كل requête.",
+        "جواب مرتّب وبثقة موش معناه جواب صحيح."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Prompt: \"The capital of Tunisia is\"\n\nScores for the next token (illustration, not real numbers):\n  \" Tunis\"   0.92\n  \" a\"       0.03\n  \" the\"     0.02\n  ...\n\nChosen: \" Tunis\" -> appended to the text,\nthen the model predicts the next token again.",
+        "note": "الـ model ما \"يعرفش\" الجواب: يختار الـ token الأقرب حسب شنوّة تعلّم."
+      }
+    },
+    {
+      "title": "الـ context window، الـ tokens والـ cost",
+      "text": [
+        "الـ context window هي أكبر كمّية tokens اللي الـ model ينجم يشوفها في requête وحدة: الـ system prompt، الـ historique متاع الـ conversation، الـ documents اللي حطّيتهم، والجواب اللي باش يكتبو. في Claude Opus 5.5 و Sonnet 5.5 و Haiku 5.5، الـ context window هي 1M (مليون) token، والـ output يوصل لـ 128K token. أما \"ينجم\" موش معناها \"لازم\": كل token تبعثو تخلّصو.",
+        "الـ API ما تتفكّرش: كل requête لازم تبعث فيها الـ conversation الكل من الأوّل. يعني في chatbot، كل ما تزيد message، الـ input يكبر والـ cost يكبر معاه. الـ facturation بزوز أرقام: input tokens (شنوّة تبعث) و output tokens (شنوّة يخرّج الـ model)، والـ output ديما أغلى. السعر بالدولار لكل مليون token (input / output): Opus 5.5 4$ / 20$، Sonnet 5.5 2$ / 10$، Haiku 5.5 0.10$ / 0.50$ (كان الـ prompt ما يفوتش 100K token؛ فوق هكّا 0.50$ / 2.50$)، و Fable 5.1، الأقوى، 10$ / 50$.",
+        "الحساب بسيط: cost = input_tokens × prix_input / 1 000 000 + output_tokens × prix_output / 1 000 000. مثال: requête فيها 2 000 token input و 500 token output على Opus 5.5: 2 000 × 4 / 1M = 0.008$، و 500 × 20 / 1M = 0.010$، المجموع 0.018$. يبان شي؟ أما كان عندك 10 000 requête في النهار، راهي 180$ في النهار. نفس الخدمة على Haiku 5.5 تخرج 4.50$ في النهار. هذا علاش الاختيار متاع الـ model وطول الـ prompt مهمّين برشة.",
+        "باش تعرف العدد بالضبط، ما تخمّنش: الـ response فيها response.usage.input_tokens و response.usage.output_tokens، وقبل ما تبعث تنجم تستعمل client.messages.count_tokens. ما تستعملش tiktoken: هذا tokenizer متاع OpenAI ويعطيك عدد غالط لـ Claude. زيد اعرف اللي الـ thinking متاع الـ model (التفكير قبل الجواب) جزء من الـ output ويتحسب في max_tokens، وتنجم تكونترولِيه بـ output_config effort. في الـ cours الجايين باش نشوفو prompt caching و Batches API (50% أرخص) باش تنقّص الـ facture."
+      ],
+      "points": [
+        "Context window = input + output في requête وحدة؛ 1M token في الـ models الجدد.",
+        "الـ API هي stateless: كل requête تعاود تبعث الـ historique الكل.",
+        "في Claude، الـ output token أغلى بـ 5 مرّات من الـ input token.",
+        "قيس بـ usage و count_tokens، ما تخمّنش، وما تستعملش tiktoken."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# Prices in USD per million tokens (input, output)\nPRICES = {\n    \"claude-opus-5-5\": (4.00, 20.00),\n    \"claude-sonnet-5-5\": (2.00, 10.00),\n    \"claude-haiku-5-5\": (0.10, 0.50),  # prompts up to 100K tokens\n}\n\ndef cost_usd(model, input_tokens, output_tokens):\n    price_in, price_out = PRICES[model]\n    return (input_tokens * price_in + output_tokens * price_out) / 1_000_000\n\n# A support chatbot: 2,000 tokens in, 500 tokens out, 10,000 requests per day\nfor model in PRICES:\n    per_day = cost_usd(model, 2_000, 500) * 10_000\n    print(f\"{model}: {per_day:.2f} USD per day\")",
+        "note": "النتيجة: Opus 5.5 180.00، Sonnet 5.5 90.00، Haiku 5.5 4.50 دولار في النهار."
+      }
+    },
+    {
+      "title": "عائلات الـ models: كيفاش تختار model",
+      "text": [
+        "Anthropic تعمل Claude على niveaux. Opus 5.5 (claude-opus-5-5) هو الـ model الـ par défaut: قوي برشة في الـ code والـ raisonnement والخدمة الطويلة. Sonnet 5.5 (claude-sonnet-5-5) qualité مليحة بنصّ السوم. Haiku 5.5 (claude-haiku-5-5) الأسرع والأرخص، مريڨل لـ volume كبير: classification، extraction، routage. و Fable 5.1 (claude-fable-5-1) هو الأقوى، لأكثر المهمّات صعوبية، أما أغلى. استعمل الـ ids هاذوما كيف ما هوما، بلا date في الآخر.",
+        "فمّا fournisseurs أخرين: OpenAI (GPT)، Google (Gemini)، Mistral (شركة فرنسية)، و models \"open weights\" كيما Llama ولّا Mistral تنجم تحطّها على machine متاعك ولّا serveur متاعك، مثلاً بـ Ollama. الـ open models ينفعوا كي الـ data ما لازمهاش تخرج من عندك ولّا كي تحبّ تكونترولي كل شي، أما يلزمك GPU وخدمة في الـ hébergement، وغالب الوقت الـ qualité أقلّ من الـ models الكبار.",
+        "الاختيار ديما compromis بين 5 حاجات: qualité (يفهم ويـ raisonni مليح؟)، vitesse (latence، مهمّة لـ chatbot)، cost (سعر الـ token وقدّاش من token يستعمل)، privacy (وين تمشي الـ data وشكون ينجم يشوفها)، و hébergement (API cloud ولّا serveur متاعك). ما فمّاش \"أحسن model\" في المطلق: فمّا أحسن model لمهمّة معيّنة بـ budget معيّن.",
+        "طريقة عملية: ابدا بـ model قوي (Opus 5.5) باش تشوف الـ plafond متاع الـ qualité. بعد اعمل jeu de tests صغير من أمثلة صحاح (20 ولّا 50 cas) وجرّب عليهم Sonnet 5.5 و Haiku 5.5. كان الـ model الرخيص يجيب نفس النتيجة على الـ cas متاعك، خوذ الرخيص. وتنجم تخلّط: Haiku يـ classi الـ tickets و Opus يجاوب على الصعاب. فكّر زادة اللي الـ cost الصحيح هو cost المهمّة الكاملة: model رخيص يغلط وتعاود 3 مرّات ينجم يكون أغلى."
+      ],
+      "points": [
+        "Opus 5.5 = الـ par défaut؛ Sonnet 5.5 = الوسط؛ Haiku 5.5 = رخيص وسريع؛ Fable 5.1 = الأقوى.",
+        "Open models = كونترول و privacy، أما GPU و maintenance.",
+        "جرّب على أمثلة متاعك، موش على classements متاع الـ internet.",
+        "قيس cost المهمّة الكاملة، موش سعر الـ token وحدو."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# Pick the model per task: start strong, then test cheaper models on your own examples\nMODEL_FOR_TASK = {\n    \"classify_ticket\": \"claude-haiku-5-5\",   # high volume, simple task: cheap and fast\n    \"answer_customer\": \"claude-sonnet-5-5\",  # good quality at a mid price\n    \"review_contract\": \"claude-opus-5-5\",    # long documents, hard reasoning\n}\n\ndef pick_model(task: str) -> str:\n    # Unknown task: fall back to the default, strongest general model\n    return MODEL_FOR_TASK.get(task, \"claude-opus-5-5\")\n\nprint(pick_model(\"classify_ticket\"))  # claude-haiku-5-5",
+        "note": "Routage صغير: كل مهمّة عندها الـ model اللي يكفيها، والاختيار يتقرّر بالـ tests."
+      }
+    },
+    {
+      "title": "الـ hallucinations: علاش الـ model يغلط وكيفاش تنقّص",
+      "text": [
+        "الـ hallucination هي كي الـ model يعطيك معلومة غالطة بثقة كاملة: référence موش موجودة، fonction ما فمّاش منها في librairie، أرقام مخترعين، قانون موش صحيح. سبابها في الطريقة اللي يخدم بيها: يقيّم texte معقول، موش يـ vérifi في base de données. كان المعلومة ناقصة، الـ model غالب الوقت يكمّل بحاجة تبان صحيحة عوض ما يقول \"ما نعرفش\".",
+        "أكثر الحالات اللي تصير فيهم: أسئلة على حاجات صغار وموش معروفين (شركة صغيرة تونسية، قانون جديد)، أرقام و dates بالضبط، sources و références، والمعلومات اللي جات بعد الـ knowledge cutoff. زيد عليها الـ prompt الغامض: كان ما قلتلوش شنوّة يستعمل وشنوّة لا، يكمّل من عندو.",
+        "كيفاش تنقّص: أوّلاً الـ grounding: حطّ الـ documents الصحاح في الـ prompt وقلّو يجاوب كان من الـ documents هاذوما. هاذي الفكرة متاع RAG اللي باش نشوفوها بعد. ثانياً: اعطيه الـ permission باش يقول \"ما نعرفش\" وقلّو شنوّة يقول بالضبط. ثالثاً: اطلب منّو يجيب الجملة اللي اعتمد عليها من الـ document، باش تنجم تـ vérifi. رابعاً: كي تنجم، vérifi بالـ code: الـ JSON valide؟ الـ fonction موجودة؟ الحساب صحيح؟",
+        "القاعدة الذهبية: ما تعمّلش على الجواب على العمى، خاصّة في حاجات فيهم فلوس، صحّة، قانون ولّا décisions على العباد. الـ AI engineer الباهي يبني system فيه vérification: tests، evaluation على أمثلة، وإنسان يعاود يشوف كي الـ risque كبير. وقول للـ users الصحيح: الـ AI ينجم يغلط."
+      ],
+      "points": [
+        "Hallucination = جواب غالط بثقة؛ حاجة normale في الـ LLM، موش bug نادر.",
+        "Grounding: اعطيه الـ source وقلّو يجاوب منها كان.",
+        "Permission بـ \"ما نعرفش\" + citation متاع الـ source = vérification أسهل.",
+        "Vérifi بالـ code وبإنسان حسب الـ risque."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "System:\nYou answer questions about our company's leave policy.\nUse ONLY the document between <policy> tags.\nIf the answer is not in the document, say exactly:\n\"I don't know, please ask HR.\"\nQuote the sentence of the document you used.\n\n<policy>\n...the current HR policy text...\n</policy>\n\nUser:\nHow many days of annual leave do I get after 3 years?",
+        "note": "Grounding + permission بـ \"I don't know\" + citation: ثلاثة techniques في prompt واحد."
+      }
+    },
+    {
+      "title": "أوّل appel لـ Claude بـ Python",
+      "text": [
+        "الـ installation: pip install anthropic (أحسن في environnement virtuel). بعد يلزمك API key من الـ Console متاع Anthropic. باش تخلّص، الـ compte يطلب carte de paiement internationale؛ في تونس برشة يستعملوا الـ carte technologique internationale ولّا carte متاع الشركة. الـ key هاذي secret كيما mot de passe: اللي ياخذها ينجم يستعمل الـ compte متاعك على حسابك.",
+        "علاش environment variable؟ خاطر الـ code يمشي لـ Git، للـ collègues، لـ GitHub، و key مكتوبة في الـ code تتسرّق فيسع. الـ SDK يقرا وحدو ANTHROPIC_API_KEY من الـ environnement. في Linux ولّا macOS: export ANTHROPIC_API_KEY=... ؛ في PowerShell: $env:ANTHROPIC_API_KEY = \"...\" ؛ ولّا fichier .env اللي تزيدو في .gitignore.",
+        "الـ appel: client = anthropic.Anthropic()، بعد client.messages.create بـ model، max_tokens (الحدّ الأقصى متاع الـ output) و messages: liste فيها dictionnaires {role, content}، والأوّل ديما \"user\". تنجم تزيد system باش تعطي الدور والقواعد. الـ API ما تتفكّرش: باش تعمل conversation، تزيد الجواب بـ role \"assistant\" وتبعث كل شي مرّة أخرى. ما تحطّش temperature ولّا prefill كوبيي من tutorials قدم: الـ models الجدد يرفضوهم بـ erreur 400. باش تكونترولي العمق والـ cost، فمّا output_config={\"effort\": ...} (في Opus 5.5 الـ par défaut medium).",
+        "الجواب: response.content هي liste متاع blocks (text، thinking، tool_use...)، إذن شوف block.type قبل ما تقرا .text. response.usage فيه input_tokens و output_tokens. وقبل كل شي شوف response.stop_reason: \"end_turn\" كمّل normal، \"max_tokens\" الجواب تقصّ (كبّر max_tokens)، \"tool_use\" يحبّ يستعمل outil، \"refusal\" رفض. الـ SDK يعاود وحدو كي يكون 429 ولّا 5xx، وتنجم تشدّ erreurs كيما anthropic.AuthenticationError ولّا anthropic.RateLimitError."
+      ],
+      "points": [
+        "pip install anthropic، والـ key في ANTHROPIC_API_KEY، عمرها في الـ code.",
+        "messages.create = model + max_tokens + messages (+ system).",
+        "شوف stop_reason قبل ما تقرا الـ content، و block.type قبل .text.",
+        "الـ usage يقلّك قدّاش تخلّص: سجّلو من الأوّل."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# pip install anthropic\n# The key is read from the ANTHROPIC_API_KEY environment variable (never hard-code it).\nimport anthropic\n\nclient = anthropic.Anthropic()\n\nresponse = client.messages.create(\n    model=\"claude-opus-5-5\",\n    max_tokens=4096,\n    system=\"You are a patient teacher. Answer in Tunisian Derja.\",\n    messages=[\n        {\"role\": \"user\", \"content\": \"Explain what a token is in two sentences.\"}\n    ],\n)\n\nif response.stop_reason == \"refusal\":\n    print(\"The model refused this request.\")\nelse:\n    for block in response.content:\n        if block.type == \"text\":\n            print(block.text)\n    if response.stop_reason == \"max_tokens\":\n        print(\"Warning: the answer was cut, increase max_tokens.\")\n\nprint(\"input tokens:\", response.usage.input_tokens)\nprint(\"output tokens:\", response.usage.output_tokens)",
+        "note": "Appel كامل: system، message، vérification متاع stop_reason، وقراية الـ texte والـ usage."
+      }
+    },
+    {
+      "title": "الـ data، الـ privacy والمسؤولية",
+      "text": [
+        "كل شي تبعثو لـ API يخرج من عندك ويمشي لـ serveurs متاع fournisseur. قبل ما تبعث، اسأل: الـ data هاذي لازم الـ model يشوفها؟ Données personnelles (أسامي، نومروات، adresses، numéro CIN، données santé ولّا bancaires)، secrets (API keys، mots de passe)، و code ولّا documents confidentiels متاع الشركة: ما يتبعثوش كان ما فمّاش حاجة و permission.",
+        "الشركات عندهم قواعد: بعضهم ما يسمحوش بأيّ outil AI، بعضهم يسمحوا بـ fournisseur واحد بـ contrat، بعضهم يطلبوا model open في الـ serveurs متاعهم. في أوروبا فمّا RGPD، وفي تونس فمّا قانون حماية الـ données personnelles والـ INPDP. إنتي كـ junior، ما تحطّش data متاع client في outil AI \"باش تجرّب\" بلا ما تسأل. اسأل قبل، ديما.",
+        "طريقة عملية: نقّص الـ data (ابعث كان اللي لازم)، خبّي الـ données personnelles بـ placeholders كيما [EMAIL] و [PHONE] قبل الـ appel، ما تخلّيش الـ logs فيهم textes كاملين متاع users بلا سبب، واعرف شنوّة الـ fournisseur يعمل بالـ data (rétention، contrat). الـ masking بـ regex بداية مليحة أما موش كاملة: الأسامي مثلاً صعيب باش تلقاهم بـ regex.",
+        "المسؤولية زادة: الـ models ينجموا يعاودوا biais اللي في الـ data متاع الـ training (على جنس، أصل، لغة...). ما تخلّيش model ياخو وحدو décision تطلع على العباد (recrutement، crédit) بلا contrôle إنسان. وكون واضح مع الـ users: قلّهم اللي هوما يهدروا مع AI، موش مع إنسان، واللي الجواب ينجم يغلط. الـ transparence هاذي تبني الثقة، وفي بلايص برشة ولّات obligation."
+      ],
+      "points": [
+        "ابعث الـ minimum؛ خبّي الـ données personnelles قبل الـ API.",
+        "اسأل على قواعد الشركة قبل ما تستعمل أيّ outil AI.",
+        "الـ biais موجود: الـ décisions الـ sensibles يلزمهم إنسان.",
+        "قول للـ users اللي هوما يهدروا مع AI."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import re\n\ndef mask_personal_data(text: str) -> str:\n    # Replace e-mails and Tunisian phone numbers before sending text to an external API\n    text = re.sub(r\"[\\w.+-]+@[\\w-]+\\.[\\w.]+\", \"[EMAIL]\", text)\n    text = re.sub(r\"(\\+216\\s?)?\\b\\d{2}\\s?\\d{3}\\s?\\d{3}\\b\", \"[PHONE]\", text)\n    return text\n\nticket = \"Client Sami, sami.benali@example.com, tel +216 22 123 456, cannot log in.\"\nprint(mask_personal_data(ticket))\n# Client Sami, [EMAIL], tel [PHONE], cannot log in.",
+        "note": "الاسم \"Sami\" باقي: الـ regex بداية، موش protection كاملة."
+      }
+    },
+    {
+      "title": "كيفاش تتعلّم وتتحسّن: projets و portfolio",
+      "text": [
+        "الـ AI يتبدّل بسرعة: models جدد، fonctionnalités جدد، و tutorials يوليّوا قدم في أشهر. إذن الـ skill الأكبر هو تتعلّم وحدك. اقرا الـ documentation الرسمية متاع الـ fournisseur قبل الـ articles والـ vidéos، خاطر هي اللي تتبدّل مع الـ API. كي تلقى tutorial يستعمل paramètre ما عادش يمشي (كيما temperature على Claude الجديد)، تعرف علاش.",
+        "الـ practice: projets صغار وكاملين أحسن من projet كبير ما يكملش. أمثلة: classificateur متاع tickets support (دارجة، فرنساوي، عربي)، outil يخرّج معلومات من factures PDF لـ JSON، chatbot يجاوب من documentation متاع produit، script يقارن الـ cost متاع 3 models على نفس المهمّة. كل projet يورّي skill: prompt، API، evaluation، cost.",
+        "الـ portfolio: كل projet على GitHub بـ README واضح: المشكلة، كيفاش يخدم، النتائج (قدّاش صحيح على قدّاش من مثال، قدّاش يكلّف)، الـ limites، وكيفاش تلانسيه. ما تحطّش الـ API key في الـ repo: .env في .gitignore. Recruteur في أوروبا يفضّل projet صغير مقيّس بالأرقام على 10 projets chatbot ما فيهم حتّى test.",
+        "Organisation: 5 لـ 7 سوايع في الجمعة على الـ track هذا تخلّيك تتقدّم مليح. كل cours: اقرا الـ lessons، اعمل الـ exercises بيدّيك، وزيد حاجة صغيرة من عندك. الـ internet تقطع؟ حضّر الـ code والـ prompts offline وجرّب الـ appels كي يرجع. وباش ما تخلّصش برشة وإنتي تتعلّم: Haiku 5.5 للتجارب، max_tokens صغير، وشوف الـ usage. وما تنساش الـ community: meetups و groupes tech تونسية ينجموا يعاونوك تلقى mentor، feedback على الـ projets متاعك و opportunités."
+      ],
+      "points": [
+        "Documentation رسمية قبل أيّ tutorial.",
+        "Projets صغار كاملين، كل واحد فيه skill واضح.",
+        "README بنتائج مقيّسة و limites = portfolio يحرّك.",
+        "تجارب بـ Haiku 5.5 و max_tokens صغير باش تنقّص الـ cost."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# Support ticket classifier (Claude API)\n\n## Problem\nClassify customer tickets written in Derja, French or Arabic into 5 categories.\n\n## How it works\nPython + anthropic SDK, model claude-haiku-5-5, prompt in prompts/classify.txt.\nPersonal data is masked before each API call.\n\n## Results\nTested on 100 labelled tickets: accuracy, cost per 1,000 tickets, average latency.\n\n## Limits\nTickets mixing languages and slang are harder to classify.\n\n## Run it\npip install -r requirements.txt\nSet ANTHROPIC_API_KEY in your environment, then run: python classify.py",
+        "note": "Squelette متاع README: الـ recruteur يقرا المشكلة والنتائج والـ limites في دقيقة."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "الـ métier",
+      "items": [
+        ["AI engineer", "يبني produits بـ LLM جاهزين: prompt، API، evaluation، cost، production"],
+        ["ML engineer", "يدرّب ويـ déployi models machine learning"],
+        ["Data scientist", "يحلّل data ويعمل models statistiques لأسئلة business"],
+        ["Portfolio", "Projets صغار على GitHub بـ README، نتائج و limites"]
+      ]
+    },
+    {
+      "group": "الـ LLM: الـ bases",
+      "items": [
+        ["LLM", "Model يقيّم الـ token الجاي، token بـ token"],
+        ["Token", "بوط متاع texte: كلمة، نصّ كلمة ولّا ponctuation"],
+        ["Training", "الـ fournisseur يعلّم الـ model على textes كبار، مرّة"],
+        ["Inference", "الـ model يخرّج جواب لـ requête متاعك"],
+        ["Knowledge cutoff", "Date بعدها الـ model ما يعرف شي كان ما عطيتهولوش"]
+      ]
+    },
+    {
+      "group": "الـ tokens والـ cost",
+      "items": [
+        ["Context window", "الـ tokens الكل في requête وحدة: system + historique + documents + output"],
+        ["input_tokens / output_tokens", "الزوز أرقام اللي تتفاكتورا بيهم"],
+        ["cost = in × p_in / 1M + out × p_out / 1M", "Formule الـ cost بالدولار"],
+        ["client.messages.count_tokens(...)", "تعرف عدد الـ tokens قبل ما تبعث"],
+        ["Batches API", "Asynchrone، 50% أرخص"]
+      ]
+    },
+    {
+      "group": "Models Claude (سعر input / output لكل 1M token)",
+      "items": [
+        ["claude-opus-5-5", "Opus 5.5، الـ par défaut: 4$ / 20$"],
+        ["claude-sonnet-5-5", "Sonnet 5.5، الوسط: 2$ / 10$"],
+        ["claude-haiku-5-5", "Haiku 5.5، رخيص وسريع: 0.10$ / 0.50$ (prompt ≤ 100K)"],
+        ["claude-fable-5-1", "Fable 5.1، الأقوى: 10$ / 50$"]
+      ]
+    },
+    {
+      "group": "Claude API بـ Python",
+      "items": [
+        ["pip install anthropic", "Installation متاع الـ SDK"],
+        ["ANTHROPIC_API_KEY", "Environment variable اللي يقراها الـ SDK؛ الـ key عمرها في الـ code"],
+        ["client.messages.create(model, max_tokens, messages)", "الـ appel الأساسي"],
+        ["response.stop_reason", "end_turn، max_tokens، tool_use، refusal..."],
+        ["response.usage", "input_tokens و output_tokens متاع الـ requête"],
+        ["output_config={\"effort\": \"low\"}", "تفكير أقلّ = أسرع وأرخص (Opus 5.5: medium par défaut)"]
+      ]
+    },
+    {
+      "group": "الـ limites والمسؤولية",
+      "items": [
+        ["Hallucination", "جواب غالط بثقة"],
+        ["Grounding", "تعطيه الـ documents وتقلّو يجاوب منهم كان"],
+        ["Masking", "تخبّي الـ données personnelles قبل الـ API"],
+        ["Transparence", "تقول للـ user اللي يحكي مع AI"]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "Requête فيها 3 000 token input و 800 token output على claude-sonnet-5-5. قدّاش تكلّف؟ وقدّاش كان عندك 5 000 requête في النهار؟",
+      "hint": "Sonnet 5.5: 2$ input و 10$ output لكل مليون token.",
+      "answer": "Input: 3 000 × 2 / 1 000 000 = 0.006$. Output: 800 × 10 / 1 000 000 = 0.008$. Requête وحدة = 0.014$. 5 000 requête = 70$ في النهار، يعني تقريباً 2 100$ في الشهر (30 نهار)."
+    },
+    {
+      "q": "اكتب fonction read_answer(response) ترجّع الـ texte متاع الجواب، ترجّع None كي يكون refusal، وتخرّج avertissement كي الجواب تقصّ.",
+      "hint": "شوف stop_reason، واجمع كان الـ blocks اللي الـ type متاعهم \"text\".",
+      "code": "python",
+      "answer": "def read_answer(response):\n    # Check why the model stopped before reading the content\n    if response.stop_reason == \"refusal\":\n        return None\n    if response.stop_reason == \"max_tokens\":\n        print(\"Warning: the answer was cut, increase max_tokens\")\n    return \"\".join(b.text for b in response.content if b.type == \"text\")"
+    },
+    {
+      "q": "فسّر في 3 جمل الفرق بين AI engineer و ML engineer، كيما تفسّرها في entretien.",
+      "answer": "الـ ML engineer يدرّب models (ساعات من الصفر) ويـ déployihom، ويخدم على data و features و GPU. الـ AI engineer يستعمل models جاهزين كيما Claude عبر API ويبني بيهم produit: prompts، intégration، evaluation، cost و production. الزوز developers، أما الـ AI engineer يخمّم أكثر في الـ produit وفي الـ comportement متاع الـ LLM، موش في الـ training."
+    },
+    {
+      "q": "اختار model لكل cas وعلّل: (a) classification متاع 200 000 email في النهار، (b) assistant يراجع contrats طوال، (c) chatbot support عادي.",
+      "hint": "فكّر في الـ volume، في الصعوبية وفي الـ cost.",
+      "answer": "(a) claude-haiku-5-5: volume كبير ومهمّة بسيطة، الـ cost والـ vitesse هوما المهمّين. (b) claude-opus-5-5: documents طوال و raisonnement صعيب؛ claude-fable-5-1 كان الـ qualité ما كفاتش. (c) claude-sonnet-5-5 كبداية، بعد تجرّب Haiku 5.5 على أمثلة متاعك. في كل cas، احكم بـ tests على الـ data متاعك موش بالحسّ."
+    },
+    {
+      "q": "الـ prompt هذا يخرّج hallucinations: \"اعطيني السعر متاع الـ abonnement Pro متاع شركتنا.\" عاود اكتب الـ prompt باش تنقّص الـ risque.",
+      "hint": "Grounding، permission باش يقول ما نعرفش، و citation.",
+      "code": "text",
+      "answer": "System:\nYou answer questions about our products using ONLY the price list below.\nIf the answer is not in the price list, say exactly: \"I don't have this information.\"\nQuote the line of the price list you used.\n\n<price_list>\n...paste the current official price list here...\n</price_list>\n\nUser:\nWhat is the price of the Pro subscription?"
+    },
+    {
+      "q": "اكتب code يحسب الـ tokens متاع fichier report.txt قبل ما تبعثو، ويقيّم الـ cost متاع الـ input على Opus 5.5.",
+      "hint": "client.messages.count_tokens بنفس الـ model، و 4$ لكل مليون token input.",
+      "code": "python",
+      "answer": "import anthropic\n\nclient = anthropic.Anthropic()\n\nwith open(\"report.txt\", encoding=\"utf-8\") as f:\n    text = f.read()\n\ncount = client.messages.count_tokens(\n    model=\"claude-opus-5-5\",\n    messages=[{\"role\": \"user\", \"content\": text}],\n)\ninput_cost = count.input_tokens * 4 / 1_000_000  # Opus 5.5: 4 USD per million input tokens\nprint(count.input_tokens, \"tokens, about\", round(input_cost, 4), \"USD of input\")"
+    },
+    {
+      "q": "Ticket support فيه: اسم الـ client، email، numéro de téléphone، numéro de carte bancaire، ووصف المشكلة. شنوّة تبعث لـ API باش تـ classih؟",
+      "answer": "كان وصف المشكلة، بعد ما تخبّي فيه أيّ donnée personnelle (email، téléphone، اسم) بـ placeholders. Numéro الـ carte bancaire عمرو ما يتبعث. الاسم والـ email والـ téléphone ما يلزمهمش للـ classification: تخلّيهم عندك وتربطهم بالنتيجة بـ identifiant متاع الـ ticket."
+    }
+  ],
+  "pitfalls": [
+    "تكتب الـ API key في الـ code ولّا تحطّها في GitHub: الـ key تتسرّق والـ facture عليك. ديما environment variable و .env في .gitignore.",
+    "تقرا response.content[0].text directement: الـ block الأوّل موش ديما texte، وكان stop_reason هو \"refusal\" ولّا \"max_tokens\" الجواب موش كامل.",
+    "تعمّل على الجواب على العمى: الأرقام والـ références والـ fonctions يلزمهم vérification، خاصّة في الحاجات الـ sensibles.",
+    "تبعث document كامل ولّا historique طويل مع كل requête بلا ما تقيس: الـ cost يطلع بسرعة. شوف الـ usage من النهار الأوّل.",
+    "تبعث données personnelles ولّا code confidentiel لـ API بلا حاجة وبلا permission متاع الشركة.",
+    "تكوبي code من tutorial قديم (temperature، prefill، model id بـ date): الـ models الجدد يرفضوه بـ erreur 400.",
+    "تحسب الـ tokens متاع Claude بـ tiktoken: العدد غالط؛ استعمل usage ولّا count_tokens."
+  ],
+  "interview": [
+    {
+      "q": "شنوّة الفرق بين AI engineer و ML engineer؟",
+      "a": "الـ ML engineer يدرّب ويـ déployi models، ويخدم على الـ data والـ training. الـ AI engineer يبني produits بـ models جاهزين عبر API: prompts، intégration في الـ application، evaluation، cost و monitoring. في الـ junior، الـ AI engineer يلزمو réflexes متاع software engineer أكثر من maths متاع training."
+    },
+    {
+      "q": "شنوّة هو الـ token وعلاش يهمّنا؟",
+      "a": "الـ token بوط متاع texte (كلمة، نصّ كلمة، ponctuation) اللي الـ model يقراه ويكتب بيه. الـ context window والـ max_tokens والـ facturation الكل بالـ tokens، إذن طول الـ prompt والجواب يأثّروا direct على الـ cost وعلى الـ latence. الـ texte بلغة غير الـ anglais غالب الوقت ياخو tokens أكثر."
+    },
+    {
+      "q": "علاش الـ LLM يـ hallucini، وكيفاش تنقّص الـ risque؟",
+      "a": "خاطر يقيّم الـ texte الأقرب لشنوّة تعلّم، موش يـ vérifi في source. ننقّص بالـ grounding (نحطّ الـ documents في الـ prompt ونقلّو يجاوب منهم كان)، نعطيه الـ permission يقول \"ما نعرفش\"، نطلب citation متاع الـ source، ونـ vérifi بالـ code ولّا بإنسان حسب الـ risque. ونعمل evaluation على أمثلة قبل الـ production."
+    },
+    {
+      "q": "كيفاش تقيّم الـ cost الشهري متاع chatbot؟",
+      "a": "نقيس الـ moyenne متاع input و output tokens لكل requête (بـ usage في prototype، ولّا count_tokens)، نضربهم في سعر الـ model (مثلاً Opus 5.5 4$ / 20$ لكل مليون)، ونضرب في عدد الـ requêtes في الشهر. ما ننساش اللي الـ historique يكبر مع كل message. بعد نشوف الـ leviers: model أرخص لبعض المهمّات، prompt أقصر، caching، batch."
+    },
+    {
+      "q": "كيفاش تختار بين model كبير و model صغير؟",
+      "a": "نبدا بـ model قوي باش نعرف الـ plafond متاع الـ qualité، نعمل jeu de tests من cas صحاح، ونجرّب الـ models الأرخص عليه. ناخو الأرخص اللي يوصل للـ niveau المطلوب. نحسب cost المهمّة الكاملة: model رخيص يغلط ويعاود ينجم يكون أغلى."
+    },
+    {
+      "q": "شنوّة هي الـ context window، وشنوّة يصير كي الـ conversation تطول برشة؟",
+      "a": "هي العدد الأقصى متاع الـ tokens في requête وحدة: system، historique، documents و output. كي الـ conversation تطول، الـ cost والـ latence يكبروا، وكان نفوتوا الحدّ الـ requête ما تتقبلش. ندبّروا روسنا: نقصّوا ولّا نلخّصوا الـ historique القديم، ونبعثوا كان الـ documents اللي لازمين."
+    },
+    {
+      "q": "كيفاش تحمي الـ API key والـ data متاع الـ users؟",
+      "a": "الـ key في environment variable ولّا secret manager، عمرها في الـ code ولّا في الـ repo، و key لكل environnement. للـ data: نبعث الـ minimum، نخبّي الـ données personnelles قبل الـ appel، ما نسجّلش textes كاملين في الـ logs بلا سبب، ونحترم قواعد الشركة والقوانين كيما RGPD."
+    },
+    {
+      "q": "الـ API متاع Claude تتفكّر الـ conversation؟ كيفاش تعمل chatbot ببرشة messages؟",
+      "a": "لا، الـ Messages API هي stateless. الـ application هي اللي تخبّي الـ historique وتبعثو كامل مع كل requête: messages بـ role \"user\" و \"assistant\" بالترتيب. معناها الـ input يكبر مع كل tour، وهذا لازم نخمّموا فيه في الـ cost."
+    }
+  ]
+}

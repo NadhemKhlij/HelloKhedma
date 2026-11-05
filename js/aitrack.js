@@ -4,12 +4,13 @@
 //   name: { ar, lat }, summary: { ar, lat } }]; course files content/ai/ar/<id>.json (Arabic letters) and
 //   content/ai/lat/<id>.json (Latin letters, "3arbizi"), same format and structure as content/courses/.
 // - Script choice ("hk.aiScript": "ar" | "lat", Arabic by default) is shared by the track page and its course pages.
-// - renderAiTrack(): the track page (#/ai). Courses open in the normal course player (#/course/ai-…, courses.js),
+// - renderAiTrack(): the track page (#/ai), with its portfolio projects below the courses (projects.js, "ai" catalog). Courses open in the normal course player (#/course/ai-…, courses.js),
 //   which asks this module for the file, the metadata and the text direction (RTL for Arabic letters).
 // Progress is stored by course id and lesson index, so it is the same in both scripts.
 import { $, h, ls } from "./lib.js";
 import { t } from "./i18n.js";
 import { formatMinutes } from "./coursetime.js";
+import { renderProjectList } from "./projects.js";
 
 const BASE = "content/ai/", SCRIPT_KEY = "hk.aiScript";
 export const isAiCourse = (id) => String(id).startsWith("ai-");
@@ -45,14 +46,17 @@ export function scriptSwitch(onChange) {
 const TEXT = {
   ar: { title: "ولّي AI engineer، بالتونسي",
     intro: "كورسات بالدارجة باش تتعلّم تبني applications بالـ AI (Claude و غيرو)، تحطّها في الـ production، تحافظ عليها و تحسّنها ديما.",
-    soon: "قريب", start: "ابدا", lessons: "دروس" },
+    soon: "قريب", start: "ابدا", lessons: "دروس",
+    projects: "مشاريع للـ portfolio", projectsIntro: "بعد الكورسات، ابني مشروع حقيقي و حطّو على GitHub: هذا اللي يحب يشوفو الـ recruiter." },
   lat: { title: "Walli AI engineer, bel tounsi",
     intro: "Courset bel derja bech tet3allem tabni applications bel AI (Claude w 8irou), t7ottha fel production, t7afedh 3liha w t7assenha dima.",
-    soon: "9rib", start: "Ebda", lessons: "drous" },
+    soon: "9rib", start: "Ebda", lessons: "drous",
+    projects: "Machari3 lel portfolio", projectsIntro: "Ba3d el courset, ebni machrou3 7a9i9i w 7ottou 3la GitHub: hedha elli y7eb ychoufou el recruiter." },
 };
 
 export async function renderAiTrack() {
   const root = $("#aiBody"), s = aiScript(), tx = TEXT[s];
+  const projects = h("div", { id: "aiProjects" }); // portfolio projects of the track (projects.js), in the same script
   const list = await loadAiIndex();
   const done = (() => { try { return new Set(JSON.parse(ls.get("hk.lessons") || "[]")); } catch { return new Set(); } })();
   const card = (c, i) => {
@@ -79,5 +83,8 @@ export async function renderAiTrack() {
       scriptSwitch(renderAiTrack)),
     list.length ? h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3", ...aiDir(s) }, list.map(card))
       : h("p", { class: "mute" }, t("Courses could not be loaded.")),
+    h("section", { class: "grid gap-3 mt-2" }, // cards keep the interface direction; their Derja text is RTL (projects.js)
+      h("h2", { class: "!mb-0", ...aiDir(s) }, tx.projects), h("p", { class: "mute text-sm", ...aiDir(s) }, tx.projectsIntro), projects),
   );
+  renderProjectList(projects, "ai");
 }

@@ -183,6 +183,36 @@ test("AI track in Tunisian: both scripts match, the page and a course work", asy
   await expect(page.locator('#courseBody [role=tabpanel]')).toHaveAttribute("dir", "ltr");
 });
 
+test("AI track projects: both scripts match and a project page works", async ({ page }) => {
+  await open(page, "#/ai");
+  const problems = await page.evaluate(async () => {
+    const get = (u) => fetch(u).then((r) => (r.ok ? r.json() : null));
+    const [ar, lat] = await Promise.all([get("/content/ai/ar/projects.json"), get("/content/ai/lat/projects.json")]);
+    if (!ar || !lat) return ["a projects file is missing"];
+    const out = [], len = (x) => (x ? x.length : 0);
+    if (ar.projects.length < 3 || ar.projects.length !== lat.projects.length) out.push("project count");
+    ar.projects.forEach((p, i) => {
+      const q = lat.projects[i] || {};
+      if (p.id !== q.id || !p.id.startsWith("ai-")) out.push(`project ${i} id`);
+      for (const k of ["data", "steps", "deliverables", "checklist", "stretch"]) if (len(p[k]) !== len(q[k])) out.push(`${p.id}: ${k} count differs`);
+      p.data.forEach((d, j) => { if (d.url !== q.data?.[j]?.url) out.push(`${p.id}: link ${j} differs`); });
+    });
+    if (/[؀-ۿ]/.test(JSON.stringify(lat))) out.push("Arabic letters in the 3arbizi projects");
+    return out;
+  });
+  expect(problems).toEqual([]);
+  const card = page.locator('#aiProjects a[href^="#/project/ai-"]').first();
+  await expect(card).toBeVisible();
+  await card.click();
+  const project = page.locator('section[data-page="project"]');
+  await expect(project.locator("h1")).toHaveAttribute("dir", "rtl");
+  await project.locator("ol input[type=checkbox]").first().check();
+  await expect(project).toContainText("1/");
+  await project.getByRole("tab", { name: "3arbizi" }).click();
+  await expect(page.locator('section[data-page="project"] h1')).toHaveAttribute("dir", "ltr");
+  await expect(page.locator('section[data-page="project"]')).toContainText("1/"); // progress is shared by both scripts
+});
+
 test("a course opens with its tabs and the quiz", async ({ page }) => {
   await open(page, "#/course/sql");
   const tabs = page.locator('section[data-page="course"] [role=tablist] [role=tab]');

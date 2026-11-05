@@ -696,6 +696,7 @@ export default {
   "✓ All steps done": "✓ Toutes les étapes faites",
   "{d}/{n} steps": "{d}/{n} étapes",
   "← Learning tracks": "← Parcours de formation",
+  "← AI engineer track": "← Parcours AI engineer",
   "This project could not be found.": "Ce projet est introuvable.",
   "{d}/{n} steps done": "{d}/{n} étapes faites",
   "What it proves: ": "Ce que cela prouve : ",

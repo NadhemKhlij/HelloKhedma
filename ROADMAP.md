@@ -133,7 +133,7 @@ in the email app). Still to do: "Write with AI" in the app (same rules as cv-tai
 application (2.7b).
 Done (2026-10-29): 5.2, "Tailor my CV" on offers and the CV match: gap analysis + a prompt to copy into your own AI (CV stays local), and "Rewrite with AI" in the app (cv-tailor function, Claude Opus 5.5 at medium effort, signed-in users only, 5 a day per account, notice before every send, nothing stored). Needs the owner's Anthropic API key and the function deployed (CHECKLIST O16).
 
-## Tunisian AI Teacher (branch `tunisian-ia-teacher`, not on main yet)
+## Tunisian AI Teacher (live on main since 2026-11-05)
 A learning track to become an AI engineer (build apps with Claude and other AI tools, run them in production, maintain
 and improve them), taught only in Tunisian Derja, in Arabic letters and in 3arbizi (switch, remembered). Page #/ai,
 entry card on Training; courses use the normal player (right to left in Arabic letters, code left to right).
@@ -141,8 +141,10 @@ Plan, 9 courses: 1 the job and how LLMs work, 2 prompt engineering, 3 Claude API
 and embeddings, 6 AI coding tools, 7 evaluation and tests, 8 production (security, monitoring, cost), 9 maintenance and
 continuous improvement. Done (2026-10-31, pilot): courses 1 and 3. Done (2026-11-05, at the owner's request before the
 Derja review): the other 7 courses. All 9 have 8 lessons in both scripts (about 3-4 h of reading and practice each);
-Claude API details checked against the official reference. Next: owner review of the Derja (CHECKLIST O18), then
-AI portfolio projects, then merge into main (and remove the branch from PREVIEW_BRANCHES).
+Claude API details checked against the official reference. Merged into main and published on 2026-11-05 (preview
+branch removed from PREVIEW_BRANCHES). Done (2026-11-05): 3 AI portfolio projects in both scripts on #/ai (documentation
+assistant with RAG and citations, document-to-JSON extraction, support agent with tools in production), opened in the
+normal project page. Next: owner review of the Derja of the courses and projects (CHECKLIST O18).
 
 ## Phase 6: grow
 | # | Item | Why | Effort |

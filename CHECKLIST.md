@@ -1,6 +1,11 @@
 # HelloKhedma: launch checklist
 
-## 👉 Next session (written 2026-10-30)
+## 👉 Next session (written 2026-11-05)
+- **Just finished (2026-11-05):** Tunisian AI track finished on main: 3 portfolio projects in Arabic letters and 3arbizi on
+  #/ai (RAG documentation assistant, document-to-JSON extraction, support agent with tools in production), opened in the
+  project page (right to left in Arabic letters, script switch, progress shared by both scripts), new smoke test.
+  Preview branch `tunisian-ia-teacher` removed from PREVIEW_BRANCHES (the track is live on main). Project links checked:
+  platform.claude.com docs, anthropic-sdk-python, claude-cookbooks, FastAPI docs. Derja written by Claude: part of O18.
 - **Just finished (2026-10-30):** learning content (ROADMAP Phase 4): honest times computed from the content, 4 new
   courses (Spark, Kafka, cloud warehouses, Tableau/Looker + storytelling), SQL/Python/Power BI/Docker/Kubernetes/
   monitoring deepened, 15 portfolio projects (3 per path) on Training and #/project/<id>. Then the 15 other courses
@@ -47,12 +52,13 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | O16 | console.anthropic.com + Supabase | **1.** Anthropic Console → API keys → create a key named "hellokhedma-cv-tailor"; set a monthly spend limit (Settings → Limits). **2.** Supabase → Edge Functions → Secrets → add `ANTHROPIC_API_KEY` = that key (never paste it in a chat). **3.** Edge Functions → Deploy a new function named `cv-tailor`, paste the file below, keep "Verify JWT" on, Deploy. Optional secrets: `CV_TAILOR_DAILY_LIMIT` (default 5), `CV_TAILOR_MODEL` (default `claude-opus-5-5`, about 8 cents a rewrite; `claude-sonnet-5-5` about half) | "Rewrite with AI" answers "not set up yet" until then; the copy-prompt option works meanwhile | [cv-tailor/index.ts at fdc6405](https://raw.githubusercontent.com/NadhemKhlij/HelloKhedma/fdc640575f9d687f88d56629550bbad490611933/supabase/functions/cv-tailor/index.ts) |
 | O12 | Live site | Sign in and use the app in French, then press **EN** and back: check nothing is left in the wrong language and the French reads naturally (report odd wording) | Translations were written by Claude and only tested as a guest | js/i18n-fr.js |
 | O11 | Content (before promoting) | Have the 25 courses, 15 portfolio projects, interview questions and model answers reviewed by people in each field, in English **and French** | Written and translated by Claude: realistic but unreviewed | content/courses/, content/interview/ (French in fr/ subfolders) |
-| O18 | Test version: https://nadhemkhlij.github.io/HelloKhedma/preview/tunisian-ia-teacher/#/ai (branch `tunisian-ia-teacher`) | Read the 9 courses of the Tunisian AI track (#/ai, start with courses 1 and 3) in both scripts and say: is the Derja natural? Is the 3arbizi spelling the one you want (8 for غ or gh, 9 for ق)? Mix of French/English terms OK? Words flagged by the writers: mrigel, تتفاكتورا, kontrol, s8ar, ena model, t9ossa, ما يتكاشاش, valid'hom. Also the Tunisian facts: international technology card for API payments, INPDP / personal-data law | All 9 courses are written (owner asked to continue before the review): style fixes now apply to every file, so list them and Claude applies them everywhere | content/ai/ar/, content/ai/lat/ |
+| O18 | Live site: https://nadhemkhlij.github.io/HelloKhedma/#/ai (merged into main on 2026-11-05; the preview address is gone) | Read the 9 courses and the 3 portfolio projects of the Tunisian AI track (#/ai, start with courses 1 and 3) in both scripts and say: is the Derja natural? Is the 3arbizi spelling the one you want (8 for غ or gh, 9 for ق)? Mix of French/English terms OK? Words flagged by the writers: mrigel, تتفاكتورا, kontrol, s8ar, ena model, t9ossa, ما يتكاشاش, valid'hom. Also the Tunisian facts: international technology card for API payments, INPDP / personal-data law | All 9 courses are written (owner asked to continue before the review): style fixes now apply to every file, so list them and Claude applies them everywhere | content/ai/ar/, content/ai/lat/ |
 
 ## ✅ Done
 
 | Date | What |
 |---|---|
+| 2026-11-05 | Tunisian AI track: 3 portfolio projects (Arabic letters + 3arbizi), preview branch retired, docs updated |
 | 2026-10-30 | Learning content: honest course times, 4 new courses, all 25 courses at 7-10 lessons, 15 portfolio projects (EN + FR); no setup needed |
 | 2026-10-30 | O17 done: seed re-run by owner. Verified in the live database (DevOps path with French name, 3 tracks, 15 steps, 5 tools, 3 tips) and on the live site (path card, selection, tracks and courses on Training) |
 | 2026-10-30 | Path market pulse on Home ("Your market": salary, remote, top skills, levels from the offers you looked at); no setup needed |

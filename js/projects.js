@@ -6,10 +6,14 @@
 // - renderProject(id): the project page (#/project/<id>): data links, steps to tick, deliverables, self-check, the CV
 //   bullet to copy and how to talk about it, stretch ideas.
 // Progress is kept in this browser ("hk.projects": "<id>:s<i>" for steps, "<id>:c<i>" for checklist items). XP via activity.js.
+// AI track projects (ids "ai-…") are in Tunisian, like its courses: content/ai/ar/projects.json and
+// content/ai/lat/projects.json (same structure), in the script chosen on #/ai. Their content reads right to left in
+// Arabic letters (aiDir); the interface labels stay in the interface language. Progress is shared by both scripts.
 import { $, h, ls, safeUrl, copyText } from "./lib.js";
 import { t, fetchContent } from "./i18n.js";
 import { state, skillChip } from "./state.js";
 import { logActivity } from "./activity.js";
+import { aiScript, aiDir, scriptSwitch } from "./aitrack.js";
 
 const BASE = "content/projects/", KEY = "hk.projects";
 const cache = new Map();
@@ -19,9 +23,13 @@ const pathOf = (id) => String(id).split("-")[0];
 
 export async function loadProjects(pathId) {
   if (!pathId) return [];
-  if (!cache.has(pathId)) cache.set(pathId, fetchContent(BASE, `${pathId}.json`).then((d) => d.projects || []).catch(() => []));
-  return cache.get(pathId);
+  const ai = pathId === "ai", key = ai ? `ai@${aiScript()}` : pathId;
+  if (!cache.has(key)) cache.set(key, (ai ? fetch(`content/ai/${aiScript()}/projects.json`).then((r) => (r.ok ? r.json() : {}))
+    : fetchContent(BASE, `${pathId}.json`)).then((d) => d.projects || []).catch(() => []));
+  return cache.get(key);
 }
+// Props for a piece of project content: right to left for the AI track in Arabic letters.
+const dirOf = (p) => (pathOf(p.id) === "ai" ? aiDir() : {});
 
 const stepsDone = (p, s = marks()) => p.steps.filter((_, i) => s.has(`${p.id}:s${i}`)).length;
 const bar = (done, all) => h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
@@ -37,8 +45,8 @@ export async function renderProjectList(root, pathId) {
     return h("a", { href: `#/project/${p.id}`, class: "panel flex flex-col gap-2 !p-4" },
       h("div", { class: "flex items-center gap-2" },
         h("span", { class: "chip !py-0 text-xs" }, p.level), h("span", { class: "mute text-xs ml-auto" }, t("≈ {n} h hands-on", { n: p.hours }))),
-      h("b", {}, p.title),
-      h("p", { class: "mute text-sm flex-1" }, p.summary),
+      h("b", dirOf(p), p.title),
+      h("p", { class: "mute text-sm flex-1", ...dirOf(p) }, p.summary),
       h("div", { class: "flex flex-wrap gap-1" }, p.skills.slice(0, 5).map((x) => h("span", { class: `chip !py-0 text-xs ${state.cv.names.has(x) ? "chip-ok" : "mute"}` }, x))),
       bar(d, n),
       h("span", { class: "text-xs font-medium", style: d === n ? "color:#18a999" : d ? "color:var(--accent)" : "" },
@@ -50,10 +58,13 @@ const section = (title, ...kids) => h("section", { class: "panel grid gap-3" }, 
 
 export async function renderProject(id) {
   const root = $("#projectBody");
+  const ai = pathOf(id) === "ai";
   const p = (await loadProjects(pathOf(id))).find((x) => x.id === id);
-  const back = h("a", { href: "#/training", class: "mute text-sm underline" }, t("← Learning tracks"));
+  const back = ai ? h("a", { href: "#/ai", class: "mute text-sm underline" }, t("← AI engineer track"))
+    : h("a", { href: "#/training", class: "mute text-sm underline" }, t("← Learning tracks"));
   if (!p) { root.replaceChildren(back, h("p", { class: "panel" }, t("This project could not be found."))); return; }
 
+  const D = dirOf(p); // Tunisian content in Arabic letters reads right to left
   const progress = h("div", { class: "grid gap-1" });
   const drawProgress = () => {
     const d = stepsDone(p), n = p.steps.length;
@@ -67,37 +78,38 @@ export async function renderProject(id) {
       if (e.target.checked) { s.add(k); logActivity(key.startsWith("s") ? 15 : 5); } else s.delete(k);
       saveMarks(s); drawProgress();
     } });
-    return h("li", {}, h("label", { class: "flex gap-3 items-start cursor-pointer" }, box, h("span", { class: "grid gap-1" }, label, extra)));
+    return h("li", {}, h("label", { class: "flex gap-3 items-start cursor-pointer" }, box, h("span", { class: "grid gap-1", ...D }, label, extra)));
   };
 
-  const cvArea = h("p", { class: "rounded-xl p-3 text-sm", style: "background:var(--soft)" }, p.cv.bullet);
+  const cvArea = h("p", { class: "rounded-xl p-3 text-sm", style: "background:var(--soft)", dir: "ltr" }, p.cv.bullet); // the CV line is English
   root.replaceChildren(...[ // filter: replaceChildren would print null
     back,
     h("header", { class: "panel grid gap-2" },
       h("div", { class: "flex flex-wrap items-center gap-2" },
-        h("span", { class: "chip !py-0 text-xs" }, p.level), h("span", { class: "mute text-sm" }, t("≈ {n} h hands-on", { n: p.hours }))),
-      h("h1", { id: "h-project", tabindex: "-1", class: "page-title !mb-0" }, p.title),
-      h("p", { class: "mute" }, p.summary),
-      h("p", { class: "text-sm" }, h("b", {}, t("What it proves: ")), p.why),
+        h("span", { class: "chip !py-0 text-xs" }, p.level), h("span", { class: "mute text-sm" }, t("≈ {n} h hands-on", { n: p.hours })),
+        ai ? h("span", { class: "ml-auto" }, scriptSwitch(() => renderProject(id))) : null),
+      h("h1", { id: "h-project", tabindex: "-1", class: "page-title !mb-0", ...D }, p.title),
+      h("p", { class: "mute", ...D }, p.summary),
+      h("p", { class: "text-sm" }, h("b", {}, t("What it proves: ")), ai ? h("span", { class: "block", ...D }, p.why) : p.why),
       h("div", { class: "flex flex-wrap gap-1.5" }, p.skills.map((x) => skillChip(x, state.cv.names.has(x)))),
       progress),
     p.data?.length ? section(t("Data and tools"),
       h("ul", { class: "grid gap-2 text-sm" }, p.data.map((d) => {
         const url = safeUrl(d.url);
         return h("li", {}, url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "underline font-medium", style: "color:var(--accent)" }, `${d.name} ↗`)
-          : h("b", {}, d.name), d.note ? h("span", { class: "mute" }, ` · ${d.note}`) : null);
+          : h("b", {}, d.name), d.note ? h("span", { class: "mute", ...D }, ` · ${d.note}`) : null);
       }))) : null,
     section(t("Steps"), h("ol", { class: "grid gap-3" }, p.steps.map((s, i) =>
       tick(`s${i}`, h("b", {}, `${i + 1}. ${s.title}`), h("span", { class: "text-sm leading-relaxed" }, s.text))))),
-    section(t("What to publish"), h("ul", { class: "grid gap-1.5 text-sm list-disc pl-5" }, p.deliverables.map((x) => h("li", {}, x)))),
+    section(t("What to publish"), h("ul", { class: "grid gap-1.5 text-sm list-disc pl-5", ...D }, p.deliverables.map((x) => h("li", {}, x)))),
     section(t("Check your work"), h("p", { class: "mute text-sm" }, t("Answer honestly, as a reviewer would. Fix what is not a clear yes before you publish.")),
       h("ul", { class: "grid gap-2 text-sm" }, p.checklist.map((x, i) => tick(`c${i}`, h("span", {}, x))))),
     section(t("Put it on your CV"),
       h("p", { class: "mute text-sm" }, t("Replace the [brackets] with your real numbers. Present it as a personal project: that is what it is, and recruiters value it.")),
       cvArea,
       h("button", { type: "button", class: "btn-ghost justify-self-start", onClick: () => copyText(p.cv.bullet, null, t("CV line copied.")) }, t("📋 Copy the CV line")),
-      h("p", { class: "text-sm" }, h("b", {}, t("In the interview: ")), p.cv.talk)),
-    p.stretch?.length ? section(t("Go further"), h("ul", { class: "grid gap-1.5 text-sm list-disc pl-5" }, p.stretch.map((x) => h("li", {}, x)))) : null,
+      h("p", { class: "text-sm" }, h("b", {}, t("In the interview: ")), ai ? h("span", { class: "block", ...D }, p.cv.talk) : p.cv.talk)),
+    p.stretch?.length ? section(t("Go further"), h("ul", { class: "grid gap-1.5 text-sm list-disc pl-5", ...D }, p.stretch.map((x) => h("li", {}, x)))) : null,
   ].filter(Boolean));
   drawProgress();
 }

@@ -28,7 +28,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   check changes on a branch first.
 - Deploy: push to `main`; .github/workflows/deploy.yml builds, runs the smoke tests and publishes to GitHub Pages.
 - Preview branches: a branch listed in PREVIEW_BRANCHES (deploy.yml) is published with main under
-  `preview/<branch>/` (e.g. nadhemkhlij.github.io/HelloKhedma/preview/tunisian-ia-teacher/). Pushing it runs its tests,
+  `preview/<branch>/` (e.g. nadhemkhlij.github.io/HelloKhedma/preview/<branch>/). Pushing it runs its tests,
   then a publish run on main. A preview build keeps its own browser data ("preview:hk.*", js/lib.js), registers no
   service worker and shows a banner. Remove the branch from PREVIEW_BRANCHES once merged.
 
@@ -66,6 +66,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   letters, shown right to left) and content/ai/lat/ (3arbizi), same course format, same structure and identical code in
   both scripts (smoke test). Writer guide: Derja as a Tunisian trainer speaks, technical terms in English/French,
   3arbizi 3=ع 7=ح 9=ق 5=خ 8=غ ch=ش; Claude API facts only from the official reference. Times: course-times.ps1 -Catalog ai.
+  Its portfolio projects: content/ai/ar/projects.json + content/ai/lat/projects.json (project format, ids "ai-…", same
+  structure and links in both scripts, CV line in English), listed on #/ai and opened in #/project/<id> (smoke test).
 - Never put API keys (RapidAPI, Adzuna, France Travail) or the service_role key in frontend code. The anon key is
   public by design; RLS protects the data.
 - Every user-owned table needs RLS policies scoped to auth.uid(); add schema changes as a new migration file.
@@ -140,7 +142,7 @@ Read the header comment of any file before modifying it; update the header if be
 - js/interview.js — interview prep page
 - sw.js, manifest.json, icons/ — installable app and offline cache
 - js/coursetime.js — lesson and course durations computed from the content (reading + practice)
-- js/projects.js — portfolio projects: Training panel and the project page (#/project/<id>)
+- js/projects.js — portfolio projects: Training panel, AI track projects (#/ai) and the project page (#/project/<id>)
 - js/aitrack.js — AI engineer track in Tunisian: track page, Arabic / 3arbizi switch, content and RTL for its courses
 - content/courses/, content/interview/, content/projects/ — course, interview and project content (JSON)
 - supabase/migrations/ — schema and RLS

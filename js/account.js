@@ -21,9 +21,9 @@ export function renderStatus() {
   $("#deleteData").textContent = u ? t("Delete my account") : t("Delete data on this device");
 }
 
-const localData = () => Object.fromEntries(
-  Object.keys(localStorage).filter((k) => k.startsWith("hk.")).map((k) => [k, ls.get(k)]));
-const clearLocalData = () => Object.keys(localStorage).filter((k) => k.startsWith("hk.")).forEach((k) => ls.del(k));
+// ls.keys(): this build's "hk.*" entries only (a preview build keeps its own, see lib.js).
+const localData = () => Object.fromEntries(ls.keys().map((k) => [k, ls.get(k)]));
+const clearLocalData = () => ls.keys().forEach((k) => ls.del(k));
 
 async function onExport() {
   const out = { exported_at: new Date().toISOString(), app: "HelloKhedma", this_device: localData() };

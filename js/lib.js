@@ -25,10 +25,19 @@ export const safeUrl = (u) => {
 
 export const safeColor = (c) => (/^#[0-9a-f]{6}$/i.test(c || "") ? c : "#7c5cff");
 
+// Preview builds are served under preview/<branch>/ next to the live site (same origin, see deploy.yml). They keep
+// their own browser data, stored as "preview:hk.…", so testing never touches the live site's data. Theme and language
+// stay shared (index.html reads them before the app loads).
+export const PREVIEW = (location.pathname.match(/\/preview\/([^/]+)\//) || [])[1] || null;
+const NS = PREVIEW ? "preview:" : "", SHARED = new Set(["hk.theme", "hk.lang"]);
+const key = (k) => (NS && !SHARED.has(k) ? NS + k : k);
+
 export const ls = {
-  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } },
-  del(k) { try { localStorage.removeItem(k); } catch { /* ignore */ } },
+  get(k) { try { return localStorage.getItem(key(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(key(k), v); } catch { /* storage unavailable */ } },
+  del(k) { try { localStorage.removeItem(key(k)); } catch { /* ignore */ } },
+  // App keys ("hk.…") of this build, without the preview prefix (export and delete on the Account page).
+  keys() { try { return Object.keys(localStorage).filter((k) => k.startsWith(`${NS}hk.`)).map((k) => k.slice(NS.length)); } catch { return []; } },
 };
 
 // Offer a text file (JSON, CSV, .ics) to the user as a download.

@@ -677,6 +677,8 @@ export default {
   "Script": "Écriture",
   "← AI engineer track": "← Parcours AI engineer",
   "AI engineer in Tunisian": "AI engineer en tunisien",
+  "Test version (branch {b}): its data is kept apart from the live site. ": "Version de test (branche {b}) : ses données sont séparées de celles du vrai site. ",
+  "Open the live site": "Ouvrir le vrai site",
   "AI": "IA",
   "AI & LLM": "IA et LLM",
   "Become an AI engineer, in Tunisian": "Devenez AI engineer, en tunisien",

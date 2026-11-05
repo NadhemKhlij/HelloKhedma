@@ -10,7 +10,7 @@
 // - Every user-facing text goes through t() / tn(). i18n.js is imported first so the static page is translated
 //   before anything renders; the FR / EN button reloads the page in the other language.
 import { t, tn, lang, setLang, localize } from "./i18n.js";
-import { $, h, safeColor, ls, toast } from "./lib.js";
+import { $, h, safeColor, ls, toast, PREVIEW } from "./lib.js";
 import { sb, configured, CONFIG } from "./supabase.js";
 import { LocalStore, CloudStore, importLocalToCloud } from "./store.js";
 import { addKeywords } from "./ats.js";
@@ -149,6 +149,14 @@ function initMonitoring() {
 
 /* ---------- installable app (PWA): service worker + "Install the app" link ---------- */
 function initPwa() {
+  // A preview build (lib.js PREVIEW) shows a banner and registers no service worker: its cache would compete with the
+  // live site's on the same origin, and a test version does not need to work offline.
+  if (PREVIEW) {
+    document.body.prepend(h("div", { role: "note", class: "text-sm text-center px-4 py-2", style: "background:var(--accent);color:#fff" },
+      t("Test version (branch {b}): its data is kept apart from the live site. ", { b: PREVIEW }),
+      h("a", { href: "../../", class: "underline font-medium" }, t("Open the live site"))));
+    return;
+  }
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     navigator.serviceWorker.register("sw.js").catch((e) => console.warn("Service worker not registered:", e));
   }

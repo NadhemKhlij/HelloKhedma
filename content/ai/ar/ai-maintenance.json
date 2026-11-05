@@ -1,0 +1,283 @@
+{
+  "why": "الـ app متاع الـ AI ما توفاش نهار الـ launch. الـ models يتبدّلوا و يتنحّاو، الـ users يكتبوا بطرق جديدة، الـ data تتبدّل، و الفاتورة تكبر بلا ما تحسّ. الـ companies في تونس و في أوروبا تحب AI engineer يعرف يخلّي feature تخدم ستّة أشهر و عام بعد الـ démo: يبدّل الـ model بلا ما يكسّر شي، يحسّن بالأرقام موش بالحسّ، و يعرف يتصرّف كي تصير مشكلة. هذا آخر course في الـ track: الـ métier اللي يبدا بعد الـ launch.",
+  "outcome": "تخطّط migration متاع model و SDK بالأمان (eval، canary، rollback)، تحط الـ prompts في git بـ versions و audit، تحوّل الـ feedback متاع الـ users لـ eval cases، تحسّن الجودة و الـ cost بـ hill-climbing، تتصرّف في incident و تكتب post-mortem و runbook، و تبني portfolio يورّي اللي تعرف تـ maintenir app AI.",
+  "lessons": [
+    {
+      "title": "علاش الـ app متاع الـ AI تتبدّل وحدها؟ الـ drift و الـ maintenance",
+      "text": [
+        "في app عادية، كان ما تمسّش الـ code، الـ app تقعد تخدم كيما هي. في app فيها LLM، لا. نهار الـ launch الـ eval يعطي 93%، و بعد ستّة أشهر الـ équipe support تشكي اللي الـ tickets ولّات تمشي للـ queue الغالطة، و حتّى حد ما بدّل حتّى سطر. هذا اسمو الـ drift: الـ app تبعد شويّة بشويّة على الـ comportement اللي تحبّو. الـ course هذا يعلّمك كيفاش تشدّها و تحسّنها مع الوقت.",
+        "الـ drift يجي من ثلاثة بلايص. الأوّل: الـ models يتبدّلوا. يخرج model جديد، القديم يولّي deprecated، و نهار يتنحّى (retired) و يرجّع 404. مثال: claude-3-5-sonnet-20241022 تنحّى في أكتوبر 2025. و حتّى بين جيلين، الـ defaults يتبدّلوا: على Claude Opus 5 الـ effort الـ default هو 'high'، على Opus 5.5 هو 'medium'. كان ما حطّيتش الـ effort explicite، الـ comportement و الـ cost يتبدّلوا نهار تبدّل الـ id.",
+        "الثاني: الـ users يتبدّلوا. تبدا بـ clients يكتبوا بالفرنساوي، بعد يجيو برشة يكتبوا بالدارجة بحروف latin، ولا يسألوا على حاجات ما كانتش في الـ prompt (produit جديد، promo متاع رمضان). الـ eval set متاعك يقعد يقيس العالم القديم. الثالث: الـ data تتبدّل: الأسوام، الـ FAQ، الـ catalogue، الـ documents متاع الـ RAG، القوانين. prompt فيه 'الـ livraison بـ 7 دينارات' يولّي يكذب نهار الـ prix يتبدّل.",
+        "إذن الـ maintenance في الـ AI موش برك 'نصلّحوا الـ bugs'. هي routine: تراقب (الـ monitoring شفناه في course الـ production)، تقرا الـ release notes متاع الـ fournisseur، تعاود الـ eval (شفناه في course الـ evals) بعد كل تبديل، تلمّ الـ feedback، و تحسّن خطوة بخطوة. و الشرط الأوّل: كل حاجة تنجم تتبدّل (model id، effort، prompt version، eval set) تكون مكتوبة في بلاصة وحدة، في git، موش مفرّقة في عشرة fichiers.",
+        "فكّر فيها كيما الكرهبة: ما تستنّاش الموتور يطيح باش تعمل vidange. خلّي calendrier: كل جمعة triage متاع الـ feedback، كل model جديد قراية الـ migration notes و eval، كل trimestre prompt audit. و كل حاجة عندها owner و backup، باش كي يمشي واحد في congé ولا يبدّل خدمة، الـ app ما تقعدش يتيمة."
+      ],
+      "points": [
+        "الـ drift = الـ app تتبدّل من غير ما تبدّل الـ code: الـ model، الـ users، الـ data.",
+        "الـ model id يكون pinned (مثال 'claude-opus-5-5' بلا date) و يتبدّل كان بـ PR مراجَع.",
+        "حط الـ effort explicite: الـ default يختلف من model لـ model.",
+        "الـ maintenance = calendrier + owner + eval، موش ردّة فعل كي يطيح شي."
+      ],
+      "example": { "lang": "yaml", "code": "# ai_config.yaml - everything that can drift lives in one reviewed file\napp: support-tickets\nmodel:\n  id: claude-opus-5-5        # pinned id, changed only through a reviewed PR\n  effort: medium             # set explicitly: the default differs between models\n  max_tokens: 16000\nprompt:\n  file: prompts/ticket_system.md\n  version: \"2026-10-30.1\"    # logged with every request\neval:\n  set: evals/tickets_v4.jsonl  # anonymised real messages with the expected ticket\n  min_accuracy: 0.92           # a release below this score is blocked\n  last_run: \"2026-11-02\"\nroutine:\n  feedback_triage: weekly\n  migration_notes: every model release\n  prompt_audit: every model release and every quarter\nowners:\n  primary: ines\n  backup: karim", "note": "الـ format هذا موش standard: هو مثال. المهم اللي الـ app تقرا الـ model و الـ prompt version من fichier واحد مراجَع، و اللي كل تبديل فيه يعدّي بـ eval." }
+    },
+    {
+      "title": "الـ model migration: تبدّل الـ model بلا ما تكسّر شي",
+      "text": [
+        "علاش تبدّل الـ model؟ ساعات خاطر الجديد خير و أرخص: Claude Opus 5.5 بـ $4 / $20 للمليون token في بلاصة $5 / $25 متاع Opus 5، و يكمّل نفس الخدمة بـ tokens أقل. و ساعات خاطر القديم باش يتنحّى. أما الـ migration هي تبديل في الـ production كيما أي تبديل: الـ model الجديد ينجم يرفض حاجة كان القديم يقبلها، يجاوب أطول، ولا يرجّع 400 على paramètres كانت تمشي.",
+        "الخطوة الأولى: اقرا الـ migration notes متاع الـ fournisseur. Anthropic تقسم التبديلات لزوز: [BLOCKS] كان تنساها تاخو 400 ولا loop مكسّرة، و [TUNE] تمسّ الجودة ولا الـ cost. مثال Opus 5 -> Opus 5.5: thinking={'type': 'disabled'} و budget_tokens يرجّعوا 400 (الـ thinking ديما مخدوم، الـ contrôle هو الـ effort)؛ tool_choice 'any' ولا 'tool' يرجّع 400 (استعمل 'auto' + strict: true + قول في الـ prompt أنا tool، و ثبّت اللي الـ call صار)؛ الـ effort الـ default ولّى 'medium'؛ تزاد classifier متاع sécurité (bio) لهنا عامل الـ refusal؛ و تبديل الـ model يخسّر الـ cache (أوّل request يكتبو من جديد).",
+        "الخطوة الثانية: الـ code في branch، و تعاود الـ eval على الزوز models بنفس الـ cases: الـ score، الـ cost per task، الـ latence، نسبة الـ refusals. رد بالك من التبديلات اللي ما تعطيش error: مثال Haiku 4.5 -> Haiku 5.5، نفس الـ texte يولّي تقريبًا 30% tokens أكثر (tokenizer جديد). عاود الـ count_tokens على الـ model الجديد، شوف الـ max_tokens، و بدّل الـ baseline متاع الـ dashboards قبل ما تخاف. و زيد temperature و الـ prefill يرجّعوا 400 على Haiku 5.5.",
+        "الخطوة الثالثة: déploiement بالشويّة. الـ shadow: الـ model الجديد ياخو copie من الـ traffic الحقيقي في الخلفية، الـ user يشوف كان جواب القديم، و إنتي تقارن. الـ canary: 5% من الـ requests تاخو جواب الجديد بالحق، تتبّع الأرقام، بعد 25%، 50%، 100%. في الـ conversations، خلّي نفس الـ model من الأوّل للآخر: الـ cache per model، و الـ thinking blocks متاع model موش ديما يقراهم model آخر.",
+        "الخطوة الرابعة: rollback جاهز. الـ model القديم يقعد في الـ config حتّى تتأكّد، و رجوع = تبديل flag (CANARY_SHARE = 0) بلا redeploy. و في الـ logs سجّل response.model: يقلّك شكون جاوب بالحق، موش شنوّة كتبت في الـ config. كي توفى الـ migration، اعمل prompt audit (lesson 4) و effort sweep (lesson 6) على الـ model الجديد: كل واحد في PR وحدو."
+      ],
+      "points": [
+        "[BLOCKS] لازم يتصلّحوا قبل الـ deploy؛ [TUNE] يتجرّبوا على الـ eval.",
+        "بدّل حاجة وحدة في المرّة: الـ model أوّلًا، الـ prompt tuning بعد في PR وحدو.",
+        "سجّل response.model في الـ logs باش تقارن الـ groupes متاع الـ canary.",
+        "الـ shadow يضاعف الـ cost وقت ما يخدم: حدّد مدّة و budget من الأوّل."
+      ],
+      "example": { "lang": "python", "code": "import random\n\nimport anthropic\n\nclient = anthropic.Anthropic()\n\nSTABLE = {\"model\": \"claude-opus-5\", \"effort\": \"high\"}\nCANDIDATE = {\"model\": \"claude-opus-5-5\", \"effort\": \"medium\"}  # set effort explicitly, then sweep it\nCANARY_SHARE = 0.05  # 5% of requests; set it to 0.0 to roll back without a deploy\n\n\ndef pick_config():\n    # Fine for one-shot requests; a conversation must stay on one model from start to end\n    return CANDIDATE if random.random() < CANARY_SHARE else STABLE\n\n\ndef classify(message):\n    cfg = pick_config()\n    response = client.messages.create(\n        model=cfg[\"model\"],\n        max_tokens=16000,  # thinking counts toward max_tokens\n        output_config={\"effort\": cfg[\"effort\"]},\n        # Removed during the migration (both return 400 on claude-opus-5-5):\n        #   thinking={\"type\": \"disabled\"}\n        #   tool_choice={\"type\": \"tool\", \"name\": \"...\"}\n        system=\"Classify the customer message: billing, network, sales or other. Answer with one word.\",\n        messages=[{\"role\": \"user\", \"content\": message}],\n    )\n    # Log which model really answered, to compare the two groups on the dashboard\n    print(\"served_by\", response.model, \"stop\", response.stop_reason,\n          \"out_tokens\", response.usage.output_tokens)\n    if response.stop_reason == \"refusal\":\n        return None  # handle refusals before reading the content\n    return \"\".join(b.text for b in response.content if b.type == \"text\").strip()", "note": "الـ random per request يمشي لـ classification. لـ chatbot، اختار الـ groupe per user ولا per conversation و خلّيه ثابت." }
+    },
+    {
+      "title": "الـ SDK و الـ API version: upgrades بلا مفاجآت",
+      "text": [
+        "فمّا ثلاثة حاجات عندهم version كل واحد وحدو: الـ model، الـ SDK (الـ package 'anthropic' اللي تعملو pip install)، و الـ API version (الـ header 'anthropic-version' اللي الـ SDK يبعثو مع كل request). كل upgrade عندو breaking changes متاعو. ما تخلّطهمش في نفس الـ PR: كان حاجة تكسّرت، تعرف شكون السبب.",
+        "الـ SDK: pin الـ version في requirements.txt (مثال 'anthropic>=1,<2') و في الـ lockfile، و upgrade بالقصد في branch بعد ما تقرا الـ changelog ولا الـ MIGRATION.md متاع الـ SDK. مثال حقيقي: Python SDK من 0.x لـ 1.x. يحتاج Python 3.10 ولا أكثر. الـ HTTP layer ولّى httpx2 (يمسّك كان كي تعدّي objets httpx للـ SDK، مثال transport custom، و الـ mocks كيما respx ينجموا ما عادش يشوفوا الـ traffic). client.completions.create (الـ Text Completions القديم) تنحّى: لازم messages.create. temperature، top_p و top_k ما عادش يتقبلوا (TypeError). و output_format={...} كـ dict ولّى output_config={'format': {...}}؛ أما output_format=Model مع parse يقعد.",
+        "الـ API version هو date في الـ header. Anthropic تخرّج الـ breaking changes متاع الـ API في version جديدة، و الـ code يتنقّل كي يكون حاضر. الـ version '2026-10-21': temperature، top_p و top_k يرجّعوا 400 على كل الـ models حتّى بالـ valeur الـ default؛ block 'document' مباشرة في message 'assistant' يرجّع 400؛ و block 'text' فيه 'citations' في message 'user' يرجّع 400. و رد بالك: الـ Python SDK 2.0.0 يبعث '2026-10-21' par défaut، يعني الـ upgrade للـ 2.x يبدّل زادة الـ API version. الـ batches اللي تعملوا قبل يكمّلوا بالـ version القديمة.",
+        "الطريقة: inventaire بـ grep (temperature، completions.create، output_format، httpx)، تصنّف كل نتيجة (ساعات 'temperature' هو variable متاع capteur، ما تمسّوش)، تصلّح، تعدّي type checker (pyright ولا mypy يلقى أغلب الـ call sites)، تعدّي الـ tests، و في الآخر request حقيقية صغيرة (max_tokens صغير، خاطر تتخلّص). كان الـ serveur في الخدمة مازال على Python 3.9، هذا قرار للـ équipe: pip يقعد يركّب آخر 0.x بلا ما يقلّك حتّى شي.",
+        "باش ما يتراكمش الـ retard: خلّي outil كيما Dependabot ولا Renovate يحلّ PRs للـ upgrades، أما ما تعملش auto-merge لـ major version أبدًا. upgrade صغير كل شهر أخف برشة من قفزة متاع عامين في نهار واحد كي الـ model القديم يتنحّى و إنتي مضغوط."
+      ],
+      "points": [
+        "Model، SDK، API version: ثلاثة upgrades مختلفين، كل واحد في PR وحدو.",
+        "pip index versions anthropic يورّيك الـ versions المنشورين قبل ما تكتب الـ pin.",
+        "ثبّت الـ Python version في الـ CI: على 3.9 الـ pip يقعد على 0.x بالسكات.",
+        "بعد الـ upgrade، smoke test: response.model و stop_reason و parsing متاع الـ output."
+      ],
+      "example": { "lang": "python", "code": "# requirements.txt - pin the major version and upgrade on purpose, in a branch:\n#   anthropic>=1,<2\nimport anthropic\n\nclient = anthropic.Anthropic()\nprint(\"anthropic SDK\", anthropic.__version__)\n\nSCHEMA = {\n    \"type\": \"object\",\n    \"properties\": {\"category\": {\"type\": \"string\", \"enum\": [\"billing\", \"network\", \"sales\", \"other\"]}},\n    \"required\": [\"category\"],\n    \"additionalProperties\": False,\n}\n\n# Before (SDK 0.x, older model):\n# client.beta.messages.create(\n#     model=\"claude-sonnet-4-6\", max_tokens=1024, temperature=0.2,\n#     output_format={\"type\": \"json_schema\", \"schema\": SCHEMA},\n#     messages=[...],\n# )\n\n# After (SDK 1.x): no sampling parameters, the schema moves into output_config\nresponse = client.messages.create(\n    model=\"claude-sonnet-5-5\",\n    max_tokens=2048,\n    output_config={\"effort\": \"low\", \"format\": {\"type\": \"json_schema\", \"schema\": SCHEMA}},\n    messages=[{\"role\": \"user\", \"content\": \"El facture mte3i ghalta, 5allast zouz marrat\"}],\n)\n\n# Smoke test after the upgrade: the right model answered and the output is usable\nassert response.model.startswith(\"claude-sonnet-5-5\"), response.model\nassert response.stop_reason == \"end_turn\", response.stop_reason\nprint(next(b.text for b in response.content if b.type == \"text\"))", "note": "الـ message في الـ example مكتوب بالدارجة latin كيما يكتبوا الـ clients. الـ smoke test يتخلّص: خلّيه صغير و ما تخدّموش في كل commit." }
+    },
+    {
+      "title": "الـ prompts في git: versioning، review و prompt audit",
+      "text": [
+        "الـ prompt هو code: يبدّل الـ comportement متاع الـ produit قد ما تبدّلو function. أما برشة équipes يخلّوه string في وسط fichier Python، ولا في panneau admin كل واحد يبدّل فيه في الـ production. النتيجة: حتّى حد ما يعرف أنا prompt عطى أنا جواب، و الـ bug يولّي مستحيل تفسّرو.",
+        "القواعد: كل prompt في fichier وحدو (prompts/ticket_system.md) في git. كل تبديل يعدّي بـ PR، يراجعو واحد آخر، و في الـ description متاع الـ PR نتيجة الـ eval. كل version عندها id (date + numéro) و تتسجّل مع كل request (prompt_version، model، request_id): كي يجيك جواب غالط، تلقى الـ prompt بالضبط. و CHANGELOG يقول علاش تبدّل و شنوّة صار للـ score. الـ rollback يولّي ساهل: ترجع للـ version اللي قبل في الـ config.",
+        "الـ prompt audit: الـ prompts يلمّوا تعليمات مكتوبة لـ models قدم. الـ models الحاليين يتبعوا التعليمات بالحرف أكثر، لهنا الـ béquilles القدم تضرّ. شنوّة تلوّج عليه: الـ pressure language ('CRITICAL'، 'MUST'، 'NEVER' بالـ majuscules، '!!!') اللي تخلّي الـ model يبالغ (over-triggering): قولها عادي، مرّة وحدة، مع السبب. الـ scaffolds اللي عوّضتهم features: 'think step by step' ولا '<scratchpad>' تولّي adaptive thinking + effort؛ 'جاوب كان JSON' + prefill + retry تولّي structured outputs. الـ fossiles: workarounds لـ model تنحّى، 'reminder' يتعاود كل tour، و limites كيما 'maximum 50 كلمة' اللي تخنق الـ raisonnement.",
+        "شنوّة تخلّي: الـ context اللي إنتي برك تعرفو: الجمهور، الـ produit، الـ règles métier مع السبب متاعهم (plafond remboursement، règles متاع data)، و الـ contrat متاع الـ tools. السؤال لكل سطر: 'الـ model ينجم يعرف هذا وحدو؟' كان لا، خلّيه. و النحّي هو hypothèse موش conclusion: نحّي سطر ولا بلوك، عاود الـ eval، كان الـ score طاح رجّعو بصيغة أبسط. قبل ما تنحّي، اعمل grep على النص الكامل: ساعات tests ولا log parsers يقارنوا عليه.",
+        "شكون يراجع؟ developer + واحد من الـ métier (responsable support مثلًا) للـ wording و الـ règles. في تونس الـ équipes صغار، و ساعات تكون وحدك: حتّى هكّا، اعمل PR لروحك و خلّي الـ CI يخدّم الـ eval. و عاود الـ prompt audit مع كل model جديد: الـ prompts هوما artefacts per-model، اللي يلزم لـ generation ينجم يكون زايد على اللي بعدها."
+      ],
+      "points": [
+        "سجّل prompt_version مع كل request: بلاه ما تنجمش تفسّر حتّى bug.",
+        "Prompt audit عند كل model جديد و كل trimestre.",
+        "نحّي حاجة وحدة في المرّة و قيس؛ كان الـ score طاح، رجّعها أبسط.",
+        "الـ CHANGELOG يقول علاش، موش برك شنوّة تبدّل."
+      ],
+      "example": { "lang": "markdown", "code": "# prompts/CHANGELOG.md\n\n## 2026-10-30.1 - ticket_system.md (PR #212, reviewed by Karim)\nWhy: prompt audit after the move to claude-opus-5-5.\n- Removed: \"CRITICAL: You MUST ALWAYS answer in valid JSON!!!\"\n  -> the JSON shape is enforced by output_config.format (structured outputs).\n- Removed: \"Think step by step before answering.\"\n  -> thinking is always on; its depth is set with effort, not with prose.\n- Rewritten: \"NEVER invent an order id\" -> \"Use null when the message has no order id:\n  agents search orders by this field, and a wrong id opens another customer's order.\"\n- Kept: refunds above 50 TND go to a human (business rule, with its reason).\nEval (test split): accuracy 0.93 -> 0.94, cost per ticket -6%.\n\n## 2026-09-12.2 - ticket_system.md (PR #188, reviewed by Ines)\nWhy: weekly triage found 14 Derja messages in Latin letters sent to 'other'.\n- Added three varied examples in Latin-letter Derja, labelled as illustrative.\nEval (test split): accuracy 0.90 -> 0.93.", "note": "كل entry فيها السبب، الـ PR، شكون راجع، و الأثر على الـ eval. قاعدة الـ refund تقعد خاطر هي règle métier موش béquille متاع model." }
+    },
+    {
+      "title": "الـ feedback متاع الـ users و الـ logs: من غلطة لـ eval case",
+      "text": [
+        "أحسن eval cases يجيو من الـ production: messages حقيقيين، غلطات حقيقيين. الـ eval set اللي كتبتو نهار الـ launch يقيس اللي تخيّلتو؛ الـ production تورّيك شنوّة يعملوا الـ users بالحق. الخدمة: تشدّ الغلطات، تفهمها، و تحوّلها لـ tests باش ما ترجعش.",
+        "الـ sources: feedback explicite (thumbs up / thumbs down حذا الجواب، bouton 'signaler')، و feedback implicite: الـ agent متاع الـ support يصلّح الـ category (هذا أقوى signal خاطر فيه الجواب الصحيح)، الـ user يعاود نفس السؤال، يطلب إنسان، ولا يخرج من الـ conversation. و الـ logs: stop_reason 'refusal' ولا 'max_tokens'، JSON ما تقبلش في الـ validation، retries برشة، latence عالية، request cost-ها غريب. سجّل request_id، prompt_version، model و الـ tokens؛ الـ texte الكامل متاع الـ user كان كي تستحقّو بالحق.",
+        "الـ triage كل جمعة: خوذ échantillon: الـ thumbs-down الكل + 50 conversation random (أغلب الـ users ما يقولوا شي كي الجواب غالط). اقرا، و حط لكل غلطة failure category: category غالطة، numéro commande مخترع، لغة غالطة، refusal لـ demande عادية، جواب طويل برشة، info قديمة (FAQ ما تبدّلتش). احسب قدّاش من غلطة في كل category: الأكبر هي الخدمة الجاية. خلّي الـ liste متاع الـ categories ثابتة باش تقارن جمعة بجمعة، و زيد category جديدة كان بالحق تستحقها.",
+        "من غلطة لـ eval case: anonymisation (الـ numéros متاع التليفون و الـ CIN في تونس 8 أرقام الزوز، و الـ emails)، الجواب الصحيح من الـ correction متاع الإنسان، tags (failure type، لغة)، و source. الـ regex موش كامل: خلّي إنسان يشوف الـ cases الجداد قبل ما يدخلوا للـ eval set. و الـ cases الجداد يتقسموا random بين الـ train و الـ test (lesson 6)، موش الكل في جيهة وحدة.",
+        "الـ privacy: الـ messages متاع الـ users هي données personnelles. قول في الـ politique de confidentialité اللي الـ feedback ينجم يستعمل باش تحسّن الـ service، خلّي الـ data الخام أقل وقت ممكن، و فسّخها بعد الـ anonymisation. هذا مطلوب بالقانون التونسي متاع حماية المعطيات الشخصية، و بالـ RGPD كان عندك users في أوروبا. و eval set ما فيهش data شخصية تنجم تشاركو مع الـ équipe و تحطّو في git بلا خوف."
+      ],
+      "points": [
+        "الـ correction متاع إنسان = أحسن label: فيها الجواب الصحيح.",
+        "خوذ échantillon random زادة، موش برك الـ thumbs-down.",
+        "Failure categories ثابتة تخلّيك تقارن جمعة بجمعة.",
+        "ما تحطّش data شخصية في الـ eval set: يتشارك، يتـ commita، و يتبعث للـ API."
+      ],
+      "example": { "lang": "python", "code": "import json\nimport re\n\n# Tunisian phone numbers and CIN numbers both have 8 digits: mask any 8-digit number\nEIGHT_DIGITS = re.compile(r\"(?<!\\d)(?:\\+216\\s?)?\\d{2}\\s?\\d{3}\\s?\\d{3}(?!\\d)\")\nEMAIL = re.compile(r\"[\\w.+-]+@[\\w-]+\\.[\\w.]+\")\n\n\ndef anonymize(text):\n    text = EMAIL.sub(\"<email>\", text)\n    return EIGHT_DIGITS.sub(\"<number>\", text)\n\n\ndef feedback_to_cases(feedback_path, eval_path):\n    \"\"\"Turn answers corrected by the support team into new eval cases.\"\"\"\n    added = 0\n    with open(feedback_path, encoding=\"utf-8\") as src, \\\n            open(eval_path, \"a\", encoding=\"utf-8\") as out:\n        for line in src:\n            fb = json.loads(line)\n            # Keep only the cases where a human gave the right answer\n            if fb[\"rating\"] != \"down\" or not fb.get(\"corrected_category\"):\n                continue\n            case = {\n                \"id\": f\"fb-{fb['request_id']}\",\n                \"input\": anonymize(fb[\"message\"]),\n                \"expected\": {\"category\": fb[\"corrected_category\"]},\n                \"tags\": [fb.get(\"failure_type\", \"untriaged\"), fb[\"language\"]],\n                \"source\": \"user_feedback\",\n            }\n            out.write(json.dumps(case, ensure_ascii=False) + \"\\n\")\n            added += 1\n    return added\n\n\nprint(feedback_to_cases(\"feedback_2026-11-03.jsonl\", \"evals/new_cases.jsonl\"), \"new cases to review\")", "note": "الـ script يكتب في new_cases.jsonl موش مباشرة في الـ eval set: إنسان يراجع الـ anonymisation و الجواب، و بعد يدخلهم." }
+    },
+    {
+      "title": "حلقة التحسين: hill-climbing، الـ cost و الـ performance",
+      "text": [
+        "تحسين بلا eval هو تبديل و دعاء. الـ hill-climbing: تخدّم الـ eval، تقرا الغلطات، تبدّل حاجة وحدة، تعاود، تخلّيها كان خير و ترجّعها كان لا، و تعاود حتّى الـ score يوقف ولا الـ budget يوفى. الهدف ينجم يكون الجودة لفوق، ولا الـ cost ولا الـ latence للوطة و الجودة ثابتة.",
+        "الـ split: train (تقرا الـ transcripts متاعو) و test (عمرك ما تقراه، تقيسو برك). الـ split random، مقسوم بالـ tags (لغة، category)، و عمرو ما يكون حسب الـ score. علاش؟ كي تقرا غلطات، تصلّح بالضبط الـ cases هاذوما، و الـ score عليهم يطلع بلا ما الـ app تتحسّن بالحق. الرقم اللي تعلنو هو الفرق على الـ test بين الـ baseline و الآخر. و عمّم: وصف الـ comportement الغالط، ما تلصقش كلمات من الـ cases متاع الـ train في الـ prompt.",
+        "الـ noise: لـ pass rate، الـ marge (95%) تقريبًا 1/sqrt(n x reps): 25 test case بـ 2 reps تقريبًا ±14 نقطة، 50 بـ 2 تقريبًا ±10. يعني +2 نقاط على 25 case حظ. لهنا: تبديلات كبار بالقدر اللي يبانوا (section كاملة، règle جديدة، موش كلمة)، cases ولا reps أكثر، و plateau = 3 rounds بلا ربح. كل round: تبديل واحد، تخدّم الـ set الكامل، و تسجّل في tableau (round، التبديل، test، train، cost/task). و ثبّت response.model: لازم الـ model اللي تحسب عليه هو اللي جاوب.",
+        "الـ cost: قيسو per completed task، موش per token: model رخيص يغلط يخلّص الـ retry و الإنسان اللي يصلّح. الـ levers بالترتيب. الأوّلين ما ينقّصوش الجودة: caching (يقعد ديما مخدوم؛ شوف cache_read_input_tokens، كيما في course الـ Claude API)، input أنظف (prompt audit، documents كبار وراء tool)، output (الـ max_tokens حماية موش أداة tuning؛ نقّص الطول بـ format واضح)، و Batches API للخدمة اللي حد ما يستنّاها (50%، و يتزاد على الـ caching). بعدهم الـ tradeoffs: effort sweep قبل ما تمسّ الـ model، و الـ model في الآخر. و قبل ما تهبط لـ model أصغر، شوف كان فمّا model أجدد في نفس الـ tier بـ effort أقل: ساعات هو الأرخص per task.",
+        "كل lever في diff وحدو: كان وفّر فلوس و نقّص الـ accuracy، موش optimisation، رجّعو. قيس الـ tail زادة: أصعب 10% من الـ cases هوما وين يمشيو الفلوس و وين الـ model الرخيص يغلط. و بعد كل migration، عاود الـ effort sweep من الـ default متاع الـ model الجديد، ما تهزّش الـ level القديم."
+      ],
+      "points": [
+        "Train = تقرا؛ test = تقيس. الـ score اللي تعلنو ديما من الـ test.",
+        "تبديل واحد في كل round، باش تعرف شكون عمل الفرق.",
+        "Caching، input، output، batch قبل؛ effort بعد؛ الـ model في الآخر.",
+        "الـ max_tokens حماية من جواب ما يوفاش، موش أداة باش تنقّص الـ cost."
+      ],
+      "example": { "lang": "python", "code": "import json\nimport random\n\nimport anthropic\n\nclient = anthropic.Anthropic()\nPRICES = {\"claude-opus-5-5\": (4.00, 20.00), \"claude-sonnet-5-5\": (2.00, 10.00)}  # USD per 1M tokens\n\nwith open(\"evals/tickets_v4.jsonl\", encoding=\"utf-8\") as f:\n    cases = [json.loads(line) for line in f]\n\n# Fixed seed: the same random split every round. You read train failures, you report test.\nrng = random.Random(42)\nrng.shuffle(cases)\ncut = len(cases) // 2\ntrain, test = cases[:cut], cases[cut:]\n\n\ndef run(cases, system, model, effort):\n    passed, cost = 0, 0.0\n    for case in cases:\n        r = client.messages.create(\n            model=model,\n            max_tokens=4000,\n            system=system,\n            output_config={\"effort\": effort},\n            messages=[{\"role\": \"user\", \"content\": case[\"input\"]}],\n        )\n        if r.stop_reason == \"end_turn\":  # a refusal or a cut-off answer counts as a failure\n            answer = \"\".join(b.text for b in r.content if b.type == \"text\").strip()\n            passed += answer == case[\"expected\"][\"category\"]\n        p_in, p_out = PRICES[model]\n        cost += (r.usage.input_tokens * p_in + r.usage.output_tokens * p_out) / 1_000_000\n    return passed / len(cases), cost / len(cases)\n\n\nwith open(\"prompts/ticket_system.md\", encoding=\"utf-8\") as f:\n    SYSTEM = f.read()\n\n# One change per round: here only effort moves, the prompt and the model stay frozen\nfor effort in [\"medium\", \"low\"]:\n    acc_train, _ = run(train, SYSTEM, \"claude-opus-5-5\", effort)\n    acc_test, cost = run(test, SYSTEM, \"claude-opus-5-5\", effort)\n    print(f\"{effort}: train={acc_train:.2f} test={acc_test:.2f} cost/task=${cost:.5f}\")", "note": "الـ cost هنا بلا cache باش يبقى قصير. كل run يتخلّص: احسب الـ budget قبل (عدد الـ cases x الـ configs x الـ cost per task) و للـ sweeps الكبار استعمل الـ Batches API." }
+    },
+    {
+      "title": "الـ incidents، الـ post-mortem و الـ documentation",
+      "text": [
+        "الـ incident في feature AI ساعات ما فيهوش حتّى error 500: الكل يرجّع 200، أما الأجوبة غالطة. الأنواع: outputs خايبين (hallucinations أكثر، لغة غالطة، الـ tickets الكل يمشيو لـ 'other')، panne ولا overload (5xx، 529، timeouts)، refusals كثروا بعد تبديل model، cost طلع فجأة (loop ما توقفش، cache تكسّر)، و sécurité (الـ prompt injection، شفناه في course الـ production).",
+        "باش تكتشف: alerts على signals متاع الجودة موش برك على الـ errors: الـ distribution متاع الـ categories، نسبة الـ refusals، نسبة الـ JSON اللي ما يتقبلش، نسبة الـ thumbs-down، الـ cost في الساعة، الـ latence p95. و برشة مرّات إنسان في الـ support يلاحظ قبل الـ dashboard: أعطيه channel واضح باش يبلّغ.",
+        "كي يصير: mitigation قبل، الفهم بعد. الـ levers لازم يكونوا حاضرين قبل الـ incident: rollback للـ prompt ولا الـ model بـ flag في الـ config؛ kill switch يطفي الـ feature و يعطي fallback (message 'agent باش يجاوبك'، ولا queue لإنسان)؛ و للـ pannes، retries و model ثاني كان خطّطتلو. تواصل: قول للـ équipe support شنوّة صاير. و بعد صلّح الـ data (مثال: عاود صنّف الـ tickets الغالطين بـ batch).",
+        "الـ post-mortem blameless: timeline، impact، root cause، شنوّة مشى مليح و شنوّة لا، و actions كل وحدة بـ owner و date. موش تلوّج على شكون غلط: تلوّج على الثقبة في الـ process. في الـ AI أهم action: الـ incident يولّي eval cases و alert، باش نفس الغلطة ما تعدّيش مرّة أخرى في PR.",
+        "الـ documentation و الـ handover: RUNBOOK.md فيه الـ architecture، وين الـ prompts، الـ model ids و علاش اخترتهم، كيفاش تخدّم الـ eval، الـ dashboards و الـ alerts، كيفاش تعمل rollback، أسامي الـ secrets (أبدًا الـ valeurs)، الـ cost و الـ limites، و الـ owners. و decisions log ('علاش Sonnet موش Opus للـ tickets' مع أرقام الـ eval). في الـ handover، الشخص الجديد يعمل rollback تجريبي بيدّيه. و كان تخدم freelance، تسليم runbook مع الـ projet يخلّي الـ client يثق فيك و يرجعلك."
+      ],
+      "points": [
+        "Mitigation قبل الـ root cause: رجّع الـ version اللي تخدم، بعد افهم.",
+        "Rollback عمرك ما جرّبتو موش rollback: جرّبو مرّة في الـ trimestre.",
+        "كل incident يخلّي وراه eval cases و alert.",
+        "الـ runbook فيه أسامي الـ secrets، أبدًا الـ valeurs متاعهم."
+      ],
+      "example": { "lang": "markdown", "code": "# Post-mortem: wrong ticket categories after a prompt change (2026-10-14)\n\nSeverity: medium - no data leak, about 900 tickets sent to the wrong queue\nDuration: 09:40 -> 11:05 (85 minutes)\n\n## Timeline\n- 09:10 Prompt 2026-10-14.1 deployed (PR #201: \"shorter system prompt\")\n- 09:40 Support lead: \"everything goes to 'other'\"; dashboard: 'other' 6% -> 41%\n- 09:52 Rollback: PROMPT_VERSION=2026-10-02.3 (config flag, no redeploy)\n- 10:05 'other' back to 7%; misrouted tickets re-classified with a batch job\n- 11:05 Incident closed\n\n## Root cause\nThe PR removed the definitions of the categories, judged \"too long\".\nThe eval still passed: tickets_v3 had only 4 'payment' cases.\n\n## What went well / what went badly\n- Rollback in 12 minutes thanks to the version flag.\n- No alert on the category distribution: a human noticed first.\n\n## Actions (owner, date)\n- [ ] Add 40 anonymised 'payment' cases to the eval (Ines, 2026-10-21)\n- [ ] Alert when one category moves more than 15 points in an hour (Karim, 2026-10-24)\n- [ ] Prompt PRs show the eval score per category, not only the total (Ines, 2026-10-28)", "note": "ما فماش اسم شخص في الـ root cause: المشكلة كانت eval فيه 4 cases برك لـ 'payment' و ما فماش alert." }
+    },
+    {
+      "title": "الطريق متاعك كـ AI engineer: portfolio، veille و تعلّم ديما",
+      "text": [
+        "وصلت لآخر الـ track: من الـ tokens و أوّل call، للـ prompts، الـ API، الـ agents، الـ RAG، الـ evals، الـ production، و توّة الـ maintenance. الفرق بين junior يتقبل و junior لا ماهوش عدد الـ démos: هو اللي يورّي اللي يعرف يقيس، يـ maintenir و يحسّن. الـ recruteurs في تونس و في أوروبا يسألوا 'كيفاش تعرف اللي يخدم؟' و 'شنوّة تعمل كي يتبدّل الـ model؟'. توّة عندك جواب.",
+        "الـ portfolio: 2 ولا 3 projets كاملين، في كل واحد: eval set و أرقام، cost per task، CHANGELOG يورّي الـ iterations (v1 -> v4)، README فيه الـ limites، و section 'كيفاش يتـ maintenir'. projet صغير خدمت عليه أشهر (بدّلت الـ model، زدت cases من الـ feedback، نقّصت الـ cost) يسوى أكثر من 10 démos. و الـ multilingue دارجة/فرنساوي/عربي هو نقطة قوّة حقيقية: شركات أوروبا نادرًا ما عندهم الـ data و الفهم هذا.",
+        "الـ veille: الـ AI يتبدّل كل شهر. الـ sources الأولى: الـ documentation الرسمية، الـ release notes و الـ migration guides متاع الـ fournisseurs (Anthropic، OpenAI، Google، Mistral...)، و الـ changelog متاع الـ SDKs. الطريقة: كي يخرج model جديد، خدّم الـ eval متاعك على الـ projets متاعك قبل ما تصدّق الـ benchmarks و الـ hype. نص ساعة قراية في الجمعة و تجربة وحدة في الشهر تكفي باش تقعد à jour. و رد بالك من الـ tutorials القدم: temperature و prefill ما عادش يمشيو على الـ models الجدد.",
+        "الـ chemins: AI engineer في équipe produit، LLMOps ولا plateforme، freelance (automatisation، intégrations، chatbots)، conseil لـ PME تونسية، ولا remote مع شركة أوروبية. عمّق الأساس: Python و software engineering (tests، CI)، SQL، cloud، evaluation، sécurité. و الـ soft skills: تفسّر الـ limites للـ client، تكتب بـ clarté، تقدّر cost قبل ما تبدا. في الـ entretien، حضّر حكاية غلطة حقيقية و كيفاش قستها و صلّحتها: هاذي تقنع أكثر من 'كل شي مشى مليح'.",
+        "التعلّم ما يوفاش. شارك اللي تتعلّم: article بالدارجة ولا بالفرنساوي ولا بالإنجليزي، talk صغير في meetup، contribution في open source (documentation، fix صغير)، و عاون الـ juniors اللي بعدك: تفسير حاجة لغيرك هو أحسن طريقة تفهمها. Plan متاع 90 يوم: الشهر الأوّل projet + eval؛ الثاني deploy + logs + feedback loop؛ الثالث migration ولا optimisation cost موثّقة في الـ CHANGELOG + article. مبروك عليك الـ track، و توّة ابدا."
+      ],
+      "points": [
+        "Portfolio = projets مقيّسين: score، cost، limites، و تاريخ تحسين.",
+        "Model جديد خرج؟ خدّم الـ eval متاعك قبل ما تصدّق الـ benchmarks.",
+        "الـ documentation الرسمية و الـ release notes قبل الـ vidéos.",
+        "تعلّم بالـ partage: article، talk، contribution open source، mentoring."
+      ],
+      "example": { "lang": "markdown", "code": "# derja-ticket-router\n\nRoutes customer messages (Tunisian Derja in Arabic or Latin letters, French, Arabic)\nto the right support queue with the Claude API.\n\n## Results (eval: 200 anonymised messages, scores on the 100-case test split)\n| Version | Model / effort | Accuracy | Cost per 1000 messages |\n|---|---|---|---|\n| v1 | claude-opus-5-5 / medium | 0.88 | $2.10 |\n| v3 | claude-opus-5-5 / medium + Derja examples | 0.94 | $2.30 |\n| v4 | claude-haiku-5-5 / low | 0.93 | $0.09 |\n\n## How it is maintained\n- Model id, effort and prompt version live in config.yaml; every change is a PR with an eval run\n- Every week, answers flagged by users become new eval cases (personal data masked)\n- CHANGELOG.md lists every prompt change and its effect on the score\n\n## Limits\n- Messages mixing Derja and French slang are still the weakest group (0.86)\n- No message text is stored: logs keep request ids, versions and token counts\n\n## Run it\npip install -r requirements.txt, set ANTHROPIC_API_KEY in the environment, then: python -m router.eval", "note": "الأرقام في الـ README هذا مثال. في الـ projet متاعك، كل رقم لازم يجي من run حقيقي تنجم تعاودو." }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "الـ drift و الـ config",
+      "items": [
+        ["model='claude-opus-5-5'", "id pinned بلا date، يتبدّل كان بـ PR مراجَع"],
+        ["output_config={'effort': 'medium'}", "حطّو explicite: الـ default يختلف بين الـ models"],
+        ["response.model", "الـ model اللي جاوب بالحق، للـ logs"],
+        ["ai_config.yaml", "الـ model، الـ prompt version و الـ eval في بلاصة وحدة"]
+      ]
+    },
+    {
+      "group": "الـ model migration",
+      "items": [
+        ["[BLOCKS] / [TUNE]", "تبديل يعطي 400 ولا loop مكسّرة / تبديل جودة ولا cost"],
+        ["thinking={'type': 'disabled'} على Opus 5.5", "يرجّع 400: نحّيه و تحكّم بالـ effort"],
+        ["tool_choice 'any' / 'tool' على Opus 5.5", "يرجّع 400: 'auto' + strict: true + تعليمة في الـ prompt"],
+        ["shadow", "الـ model الجديد يخدم بالتوازي، الـ user ما يشوفش جوابو"],
+        ["canary 5% -> 25% -> 100%", "جزء من الـ traffic ياخو الـ model الجديد بالشويّة"],
+        ["CANARY_SHARE = 0.0", "rollback بـ flag بلا redeploy"]
+      ]
+    },
+    {
+      "group": "الـ SDK و الـ API version",
+      "items": [
+        ["anthropic>=1,<2", "pin الـ major version في requirements.txt"],
+        ["anthropic.__version__", "الـ version متاع الـ SDK المركّب"],
+        ["anthropic-version: 2026-10-21", "API version جديدة: temperature، top_p، top_k يرجّعوا 400"],
+        ["output_format={...} -> output_config={'format': {...}}", "SDK 1.x: الـ schema في output_config"],
+        ["client.completions.create", "تنحّى في SDK 1.x: استعمل messages.create"]
+      ]
+    },
+    {
+      "group": "الـ prompts",
+      "items": [
+        ["prompts/*.md في git", "كل prompt fichier، كل تبديل PR"],
+        ["prompt_version في الـ logs", "تلقى الـ prompt اللي عطى الجواب"],
+        ["CHANGELOG.md", "علاش تبدّل و أثرو على الـ eval"],
+        ["prompt audit", "نحّي CRITICAL/MUST، 'think step by step'، prefill، fossiles"]
+      ]
+    },
+    {
+      "group": "الـ feedback و حلقة التحسين",
+      "items": [
+        ["thumbs down + correction", "أحسن eval case: فيه الجواب الصحيح"],
+        ["failure categories", "تصنيف ثابت للغلطات: تعرف وين تخدم"],
+        ["train / test split", "train تقراه، test تقيسو برك"],
+        ["1/sqrt(n x reps)", "الـ marge تقريبًا متاع pass rate (95%)"],
+        ["تبديل واحد في كل round", "تعرف شكون عمل الفرق"]
+      ]
+    },
+    {
+      "group": "الـ cost، الـ incidents و الـ docs",
+      "items": [
+        ["cost per completed task", "موش cost per token"],
+        ["caching -> input -> output -> batch -> effort -> model", "ترتيب الـ levers"],
+        ["kill switch + fallback", "تطفي الـ feature و تعطي بديل"],
+        ["post-mortem blameless", "timeline، root cause، actions بـ owner"],
+        ["RUNBOOK.md", "architecture، eval، rollback، أسامي الـ secrets، owners"]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "عندك code يخدم على claude-opus-5 فيه: thinking={'type': 'disabled'}، tool_choice={'type': 'tool', 'name': 'create_ticket'}، ما فيهوش effort، و system prompt فيه 'CRITICAL: you MUST use the tool'. باش تنقلو لـ claude-opus-5-5. صنّف كل حاجة [BLOCKS] ولا [TUNE] و قول شنوّة تعمل.",
+      "hint": "شنوّة يرجّع 400 على Opus 5.5، و شنوّة يبدّل الجودة ولا الـ cost برك؟",
+      "answer": "[BLOCKS] الـ model id -> 'claude-opus-5-5'. [BLOCKS] thinking disabled يرجّع 400: نحّيه، و الـ contrôle يولّي output_config.effort (ابدا بـ 'low' كان الـ latence مهمّة، و قيس). [BLOCKS] tool_choice 'tool' يرجّع 400: 'auto' + 'strict': True على الـ tool + 'Use the create_ticket tool' في الـ prompt، و ثبّت في الـ code اللي فمّا tool_use و عاود كان لا. [BLOCKS] عامل stop_reason 'refusal' قبل ما تقرا الـ content. [TUNE] حط الـ effort explicite (الـ default ولّى 'medium' في بلاصة 'high') و اعمل sweep. [TUNE] الـ 'CRITICAL: you MUST' يولّي 'Use the create_ticket tool when...': الـ models الجدد يتبعوا التعليمات بالحرف. [TUNE] شوف الـ max_tokens (الـ thinking يحسب منّو) و الـ rate limits متاع الـ pool الجديد."
+    },
+    {
+      "q": "اكتب function served_by(response, expected, newer=()) ترجّع True كان الـ model المنتظر هو اللي جاوب، و ما تغلطش بين 'claude-opus-5' و 'claude-opus-5-5'.",
+      "hint": "'claude-opus-5-5'.startswith('claude-opus-5') يرجّع True.",
+      "code": "python",
+      "answer": "def served_by(response, expected, newer=()):\n    \"\"\"True when the expected model answered.\n\n    response.model is checked with startswith, so list the longer ids that share\n    the prefix: \"claude-opus-5-5\" also starts with \"claude-opus-5\".\n    \"\"\"\n    model = response.model\n    return model.startswith(expected) and not any(model.startswith(n) for n in newer)\n\n\n# Usage during a canary on claude-opus-5 -> claude-opus-5-5:\n# served_by(r, \"claude-opus-5\", newer=[\"claude-opus-5-5\"])   # stable group\n# served_by(r, \"claude-opus-5-5\")                            # candidate group"
+    },
+    {
+      "q": "الـ triage متاع الجمعة فيه 40 thumbs-down. 18 category غالطة على messages بالدارجة latin، 9 numéro commande مخترع، 7 الـ FAQ قديمة (prix livraison تبدّل)، 6 الـ user كان متغشّش برك و الجواب صحيح. شنوّة تعمل بالترتيب؟",
+      "hint": "موش الكل يتصلّح في الـ prompt، و موش الكل غلطة متاع الـ model.",
+      "answer": "1) الـ 7 متاع الـ FAQ: هاذي data موش model: صلّح الـ FAQ (و زيد check على تاريخ آخر update)، بلا eval round. 2) الـ 18 (أكبر category): anonymise، زيد الـ cases للـ eval مع الجواب الصحيح، قسّمهم random بين train و test، و بعد round تحسين واحد (مثال examples متنوّعين بالدارجة latin) و قيس على الـ test. 3) الـ 9: eval cases + règle واضحة 'null كان ما فماش numéro' مع السبب، ولا check في الـ code اللي الـ numéro موجود في الـ base. 4) الـ 6: ما تبدّل شي في الـ model؛ سجّلهم 'not a model failure'. و زيد 50 conversation random للـ triage الجاي باش ما تشوفش كان اللي يشكيو."
+    },
+    {
+      "q": "اكتب function should_rollback(stable, canary) ترجّع liste متاع الأسباب كان الـ canary لازم يتوقّف: accuracy نقصت أكثر من 2 نقاط، refusals أكثر من max(1%، ضعف الـ stable)، ولا cost per task أكثر من 1.5 مرّة.",
+      "hint": "liste فارغة = كمّل الـ rollout.",
+      "code": "python",
+      "answer": "def should_rollback(stable, canary, max_drop=0.02, max_refusal_rate=0.01):\n    \"\"\"stable / canary: accuracy, refusal_rate and cost_per_task measured over the same period.\"\"\"\n    reasons = []\n    if canary[\"accuracy\"] < stable[\"accuracy\"] - max_drop:\n        reasons.append(\"accuracy dropped\")\n    if canary[\"refusal_rate\"] > max(max_refusal_rate, 2 * stable[\"refusal_rate\"]):\n        reasons.append(\"more refusals\")\n    if canary[\"cost_per_task\"] > 1.5 * stable[\"cost_per_task\"]:\n        reasons.append(\"cost per task +50%\")\n    return reasons  # empty: continue the rollout; otherwise set CANARY_SHARE = 0.0\n\n\nprint(should_rollback(\n    {\"accuracy\": 0.93, \"refusal_rate\": 0.002, \"cost_per_task\": 0.004},\n    {\"accuracy\": 0.90, \"refusal_rate\": 0.003, \"cost_per_task\": 0.003},\n))  # ['accuracy dropped']"
+    },
+    {
+      "q": "زميلك يقلّك: 'قريت الـ 60 case الكل، صلّحت الـ prompt 12 مرّة، و الـ score طلع من 0.86 لـ 0.95 على نفس الـ 60'. علاش ما تثقش في الرقم، و شنوّة تقترح؟",
+      "answer": "خاطر قرا الـ cases اللي يقيس عليهم: التبديلات صلّحت الـ 60 هاذوما بالضبط (overfit)، و ما نعرفوش كان الـ app تحسّنت على messages جداد. و 12 تبديل مع بعض ما يقولوش شكون عمل الفرق، و على 60 case الـ marge تقريبًا ±13 نقطة (1/sqrt(60)). الاقتراح: split random (stratifié بالـ tags) لـ train و test، يقرا الـ train برك، تبديل واحد في كل round، يعاود الـ set الكامل، و الرقم المعلن هو الفرق على الـ test بين الـ baseline و الآخر. و كان يلزم، زيد cases ولا reps."
+    },
+    {
+      "q": "بعد migration من Haiku 4.5 لـ Haiku 5.5، الـ dashboard يورّي +30% tokens و شويّة أجوبة مقصوصة. الـ manager خاف. فسّرلو و قول شنوّة تعمل.",
+      "hint": "فكّر في الـ tokenizer و الـ thinking.",
+      "answer": "Haiku 5.5 عندو tokenizer جديد: نفس الـ texte يولّي تقريبًا 30% tokens أكثر، يعني الـ usage يطلع حتّى كان الخدمة نفسها. أما الـ prix per token متاع Haiku 5.5 ($0.10 / $0.50 كي الـ prompt 100K ولا أقل) أقل برشة من Haiku 4.5 ($1 / $5)، لهنا لازم نقارنوا الـ cost per task بالدولار، موش الـ tokens. الأجوبة المقصوصة: الـ thinking ولّى مخدوم par défaut و يحسب من max_tokens، و max_tokens كان محسوب للـ tokenizer القديم: نكبّروه و نشوفوا stop_reason 'max_tokens'. نعاودوا count_tokens على claude-haiku-5-5، نجرّبوا effort 'low' على الـ eval، و نبدّلوا الـ baseline متاع الـ dashboards."
+    },
+    {
+      "q": "باش تخلّي projet AI لـ developer جديد و إنتي ماشي. اكتب الـ liste متاع الحاجات اللي لازم يكونوا في الـ RUNBOOK.md (على الأقل 7).",
+      "answer": "1) الـ architecture: شكون يعيّط لـ API، وين، و شنوّة الـ flows. 2) الـ model ids و الـ effort و علاش اخترناهم (decisions log بأرقام الـ eval). 3) وين الـ prompts، كيفاش تتبدّل الـ versions، و الـ CHANGELOG. 4) كيفاش تخدّم الـ eval (commande، الـ set، الـ seuil). 5) الـ dashboards و الـ alerts، و شنوّة الـ valeurs العاديين. 6) الـ rollback و الـ kill switch: الـ flags و الـ commandes، مع آخر مرّة تجرّبوا. 7) أسامي الـ secrets و وين يتحطّوا (أبدًا الـ valeurs). 8) الـ cost: قدّاش في الشهر، الـ limites و الـ alerts متاع الـ budget. 9) الـ routine: triage الجمعة، migration notes، prompt audit. 10) الـ owners و كيفاش تتواصل في incident. و في الآخر: session handover فيها الجديد يعمل rollback تجريبي بيدّيه."
+    }
+  ],
+  "pitfalls": [
+    "الـ model id مكتوب في عشرة بلايص في الـ code، و الـ effort مخلّي على الـ default: نهار الـ migration تنسى بلاصة، و الـ comportement يتبدّل بلا ما تعرف علاش.",
+    "تبدّل الـ model، الـ prompt و الـ SDK في نفس الـ PR: كي حاجة تتكسّر، ما تعرفش شكون السبب، و الـ rollback يرجّع حتّى الحاجات الباهية.",
+    "تحسّن الـ prompt و إنتي تقرا الـ cases اللي تقيس عليهم، ولا تقرّر على فرق 2 نقاط في 25 case: هذا overfit و noise، موش تحسين.",
+    "تزيد 'CRITICAL: MUST' لكل bug و ما تنحّي حتّى شي: الـ prompt يولّي متاهة متاع حالات خاصّة، و الـ model الجديد يبالغ فيها.",
+    "تحط messages الـ users الخام (CIN، تليفون، emails) في الـ eval set و في git: الـ eval يتشارك و يتبعث للـ API.",
+    "Rollback ما تجرّبش و kill switch ما فماش: نهار الـ incident تكتب code تحت الضغط في بلاصة ما تبدّل flag.",
+    "تقارن الـ models بالـ prix per token و تهبط لـ model أصغر قبل ما تجرّب الـ caching و الـ effort: الـ cost per completed task هو اللي يهم، و الـ model اللي يغلط يخلّص الـ retry و الإنسان."
+  ],
+  "interview": [
+    {
+      "q": "علاش app فيها LLM تتبدّل حتّى كان ما بدّلناش الـ code؟",
+      "a": "خاطر فمّا drift من ثلاثة بلايص: الـ models (versions جداد، deprecations، retirements، defaults يتبدّلوا كيما الـ effort)، الـ users (لغات و أسئلة جداد)، و الـ data (FAQ، أسوام، documents). نكتشفوه بـ monitoring على signals متاع الجودة، triage متاع الـ feedback كل جمعة، و eval نعاودوه بعد كل تبديل. و نثبّتوا كل حاجة تتبدّل في config واحد في git."
+    },
+    {
+      "q": "كيفاش تعمل migration لـ model جديد في الـ production؟",
+      "a": "نقرا الـ migration notes و نفرّق [BLOCKS] (400 ولا loops) و [TUNE] (جودة و cost). نصلّح الـ BLOCKS في branch، نخدّم الـ eval على الزوز models: score، cost per task، latence، refusals. بعد shadow ولا canary بالشويّة، نسجّل response.model، و rollback بـ flag. كي يثبت، prompt audit و effort sweep على الـ model الجديد، كل واحد في PR وحدو."
+    },
+    {
+      "q": "كيفاش تـ versioni الـ prompts؟",
+      "a": "كل prompt fichier في git، كل تبديل PR بـ review و نتيجة الـ eval، version id نسجّلوه مع كل request (مع الـ model و الـ request_id)، و CHANGELOG فيه علاش و الأثر. الـ rollback = نرجعوا للـ version اللي قبل في الـ config. و prompt audit عند كل model جديد باش ننحّيو التعليمات اللي ما عادش تلزم."
+    },
+    {
+      "q": "كيفاش تحوّل الـ feedback متاع الـ users لتحسين حقيقي؟",
+      "a": "نلمّوا feedback explicite (thumbs) و implicite (corrections متاع الـ support، escalations)، و signals من الـ logs (refusals، max_tokens، JSON ما يتقبلش). كل جمعة triage على الـ thumbs-down و échantillon random، نصنّفوا بـ failure categories ثابتة. الـ category الأكبر تولّي eval cases anonymisés بالجواب الصحيح، و بعد round تحسين نقيسوه على الـ test split."
+    },
+    {
+      "q": "علاش تعمل train / test split كي تحسّن prompt؟",
+      "a": "خاطر كي نقرا الغلطات نصلّح الـ cases هاذوما بالضبط، و الـ score عليهم يكذب. الـ train نقراوه، الـ test نقيسوه برك، random و stratifié، موش حسب الـ score. الرقم المعلن هو الفرق على الـ test. و نحسبوا الـ noise: تقريبًا 1/sqrt(n x reps)، باش ما نصدّقوش فرق صغير."
+    },
+    {
+      "q": "الـ facture متاع الـ API طلعت 40% الشهر هذا. شنوّة تعمل؟",
+      "a": "نقيس قبل: الـ usage per traffic class (chat، batch الليل...). نشوف كان cache_read_input_tokens هبط (حاجة dynamique دخلت في الـ prefix، model تبدّل)، كان فمّا migration (tokenizer، default effort)، loop ما توقفش، max_tokens، ولا traffic زاد. بعد الـ levers بالترتيب: caching، input، output، batch، بعد effort، و الـ model في الآخر، كل واحد في diff وحدو مع eval، و نقيسوا cost per completed task."
+    },
+    {
+      "q": "حكيلي على incident في feature AI و كيفاش تصرّفت.",
+      "a": "نحكي بـ structure واضحة: شنوّة صار (مثال الـ tickets الكل يمشيو لـ 'other' بعد prompt جديد)، كيفاش تكتشف، الـ mitigation (rollback بالـ flag في 12 دقيقة)، الـ réparation (re-classification بـ batch)، و الـ post-mortem blameless: root cause (eval فيه 4 cases برك لـ 'payment')، و الـ actions: eval cases جداد، alert على الـ distribution، score per category في الـ PRs."
+    },
+    {
+      "q": "كيفاش تقعد à jour في الـ AI؟",
+      "a": "الـ documentation الرسمية، الـ release notes و الـ migration guides متاع الـ fournisseurs، و الـ changelog متاع الـ SDKs. كي يخرج model جديد نخدّم الـ eval متاعي عليه قبل ما نصدّق الـ benchmarks. و نتعلّم بالتجربة و الـ partage: projet صغير في الشهر، article، meetup."
+    }
+  ]
+}

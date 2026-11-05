@@ -139,8 +139,10 @@ and improve them), taught only in Tunisian Derja, in Arabic letters and in 3arbi
 entry card on Training; courses use the normal player (right to left in Arabic letters, code left to right).
 Plan, 9 courses: 1 the job and how LLMs work, 2 prompt engineering, 3 Claude API in Python, 4 tools/MCP/agents, 5 RAG
 and embeddings, 6 AI coding tools, 7 evaluation and tests, 8 production (security, monitoring, cost), 9 maintenance and
-continuous improvement. Done (2026-10-31, pilot): courses 1 and 3 (8 lessons each, both scripts). Next: owner review of
-the Derja (CHECKLIST O18), then the other 7 courses with the same writer guide, then AI portfolio projects, then merge.
+continuous improvement. Done (2026-10-31, pilot): courses 1 and 3. Done (2026-11-05, at the owner's request before the
+Derja review): the other 7 courses. All 9 have 8 lessons in both scripts (about 3-4 h of reading and practice each);
+Claude API details checked against the official reference. Next: owner review of the Derja (CHECKLIST O18), then
+AI portfolio projects, then merge into main (and remove the branch from PREVIEW_BRANCHES).
 
 ## Phase 6: grow
 | # | Item | Why | Effort |

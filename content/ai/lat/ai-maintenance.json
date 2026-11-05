@@ -1,0 +1,283 @@
+{
+  "why": "El app mta3 el AI ma toufech nhar el launch. El models ytbadlou w yetna7aw, el users yektbou b tor9at jdod, el data tetbaddel, w el facture tekber bla ma t7ess. El companies f Tounes w f l'Europe t7eb AI engineer ya3ref y5alli feature te5dem setta ach-hor w 3am ba3d el démo: ybaddel el model bla ma ykasser chay, y7assen bel ar9am mouch bel 7ess, w ya3ref yetsarref ki ysir mochkel. Hedha e5er course fel track: el métier elli yebda ba3d el launch.",
+  "outcome": "T5attet migration mta3 model w SDK bel aman (eval, canary, rollback), t7ot el prompts f git b versions w audit, t7awel el feedback mta3 el users l eval cases, t7assen el jouda w el cost b hill-climbing, tetsarref f incident w tekteb post-mortem w runbook, w tebni portfolio ywarri elli ta3ref t'maintenir app AI.",
+  "lessons": [
+    {
+      "title": "3lech el app mta3 el AI tetbaddel wa7dha? El drift w el maintenance",
+      "text": [
+        "F app 3adiya, ken ma tmessech el code, el app to9a3ed te5dem kima hiya. F app fiha LLM, la. Nhar el launch el eval ya3ti 93%, w ba3d setta ach-hor el équipe support techki elli el tickets walla tetmchi lel queue el ghalta, w 7atta 7ad ma baddel 7atta star. Hedha esmou el drift: el app tob3ed chwaya b chwaya 3al comportement elli t7ebbou. El course hedha y3allmek kifech tched-ha w t7assenha m3a el wa9t.",
+        "El drift yji men thletha blayes. El louel: el models ytbadlou. Yo5rej model jdid, el 9dim ywalli deprecated, w nhar yetna7a (retired) w yraja3 404. Mithel: claude-3-5-sonnet-20241022 tna7a f octobre 2025. W 7atta bin jilin, el defaults ytbadlou: 3la Claude Opus 5 el effort el default howa 'high', 3la Opus 5.5 howa 'medium'. Ken ma 7atitech el effort explicite, el comportement w el cost ytbadlou nhar tbaddel el id.",
+        "El theni: el users ytbadlou. Tebda b clients yektbou bel fransawi, ba3d yjiw barcha yektbou bel derja b 7rouf latin, walla yes2lou 3la 7ajet ma kenetech fel prompt (produit jdid, promo mta3 Ramadhan). El eval set mte3ek yo9a3ed y9is el 3alam el 9dim. El theleth: el data tetbaddel: el as3ar, el FAQ, el catalogue, el documents mta3 el RAG, el 9awanin. Prompt fih 'el livraison b 7 dinars' ywalli ykedheb nhar el prix yetbaddel.",
+        "Donc el maintenance fel AI mouch bark 'nsall7ou el bugs'. Hiya routine: trakeb (el monitoring chefnah f course el production), ta9ra el release notes mta3 el fournisseur, t3awed el eval (chefnah f course el evals) ba3d kol tabdil, tlem el feedback, w t7assen 5atwa b 5atwa. W ech-chart el louel: kol 7aja tnajem tetbaddel (model id, effort, prompt version, eval set) tkoun mektouba f blasa wa7da, f git, mouch mfarr9a f 3achra fichiers.",
+        "Fakker fiha kima el karhba: ma testannech el moteur yti7 bech ta3mel vidange. 5alli calendrier: kol jem3a triage mta3 el feedback, kol model jdid 9raya mta3 el migration notes w eval, kol trimestre prompt audit. W kol 7aja 3andha owner w backup, bech ki yemchi wa7ed f congé walla ybaddel 5edma, el app ma to9a3edch yatima."
+      ],
+      "points": [
+        "Drift = el app tetbaddel men ghir ma tbaddel el code: el model, el users, el data.",
+        "El model id ykoun pinned (mithel 'claude-opus-5-5' bla date) w yetbaddel ken b PR mraja3.",
+        "7ot el effort explicite: el default yo5tlef men model l model.",
+        "Maintenance = calendrier + owner + eval, mouch radet fe3l ki yti7 chay."
+      ],
+      "example": { "lang": "yaml", "code": "# ai_config.yaml - everything that can drift lives in one reviewed file\napp: support-tickets\nmodel:\n  id: claude-opus-5-5        # pinned id, changed only through a reviewed PR\n  effort: medium             # set explicitly: the default differs between models\n  max_tokens: 16000\nprompt:\n  file: prompts/ticket_system.md\n  version: \"2026-10-30.1\"    # logged with every request\neval:\n  set: evals/tickets_v4.jsonl  # anonymised real messages with the expected ticket\n  min_accuracy: 0.92           # a release below this score is blocked\n  last_run: \"2026-11-02\"\nroutine:\n  feedback_triage: weekly\n  migration_notes: every model release\n  prompt_audit: every model release and every quarter\nowners:\n  primary: ines\n  backup: karim", "note": "El format hedha mouch standard: howa mithel. El mouhem elli el app ta9ra el model w el prompt version men fichier wa7ed mraja3, w elli kol tabdil fih y3addi b eval." }
+    },
+    {
+      "title": "Model migration: tbaddel el model bla ma tkasser chay",
+      "text": [
+        "3lech tbaddel el model? Sa3at 5ater el jdid 5ir w ar5es: Claude Opus 5.5 b $4 / $20 lel million token fi blasset $5 / $25 mta3 Opus 5, w ykammel nafs el 5edma b tokens a9al. W sa3at 5ater el 9dim bech yetna7a. Ama el migration hiya tabdil fel production kima ay tabdil: el model el jdid ynajem yrafedh 7aja ken el 9dim y9abbelha, yjaweb atwel, walla yraja3 400 3la paramètres kenet temchi.",
+        "El 5atwa el loula: a9ra el migration notes mta3 el fournisseur. Anthropic t9assem el tabdilet l zouz: [BLOCKS] ken tensehom t5ou 400 walla loop mkassra, w [TUNE] tmess el jouda walla el cost. Mithel Opus 5 -> Opus 5.5: thinking={'type': 'disabled'} w budget_tokens yraj3ou 400 (el thinking dima ma5doum, el contrôle howa el effort); tool_choice 'any' walla 'tool' yraja3 400 (estaa3mel 'auto' + strict: true + 9oul fel prompt ena tool, w thabbet elli el call sar); el effort el default walla 'medium'; tzed classifier mta3 sécurité (bio) lhné 3amel el refusal; w tabdil el model y5assar el cache (awel request yekteb men jdid).",
+        "El 5atwa el theniya: el code f branch, w t3awed el eval 3al zouz models b nafs el cases: el score, el cost per task, el latence, nesbet el refusals. Rod belek mel tabdilet elli ma ta3tich error: mithel Haiku 4.5 -> Haiku 5.5, nafs el texte ywalli ta9riban 30% tokens akther (tokenizer jdid). 3awed el count_tokens 3al model el jdid, chouf el max_tokens, w baddel el baseline mta3 el dashboards 9bal ma t5af. W zid temperature w el prefill yraj3ou 400 3la Haiku 5.5.",
+        "El 5atwa el theltha: déploiement bel chwaya. El shadow: el model el jdid ya5ou copie mel traffic el 7a9i9i fel 5alfiya, el user ychouf ken jweb el 9dim, w inti t9aren. El canary: 5% mel requests ta5ou jweb el jdid bel 7a9, tetabba3 el ar9am, ba3d 25%, 50%, 100%. Fel conversations, 5alli nafs el model mel louel lel e5er: el cache per model, w el thinking blocks mta3 model mouch dima y9rahom model e5er.",
+        "El 5atwa er-rab3a: rollback 7adher. El model el 9dim yo9a3ed fel config 7atta tet2akked, w rjou3 = tabdil flag (CANARY_SHARE = 0) bla redeploy. W fel logs sajjel response.model: y9ollek chkoun jaweb bel 7a9, mouch chnoua ktebt fel config. Ki toufa el migration, a3mel prompt audit (lesson 4) w effort sweep (lesson 6) 3al model el jdid: kol wa7ed f PR wa7dou."
+      ],
+      "points": [
+        "[BLOCKS] lezem yetsall7ou 9bal el deploy; [TUNE] yetjarrbou 3al eval.",
+        "Baddel 7aja wa7da fel marra: el model louel, el prompt tuning ba3d f PR wa7dou.",
+        "Sajjel response.model fel logs bech t9aren el groupes mta3 el canary.",
+        "El shadow ydha3ef el cost wa9t ma ye5dem: 7added modda w budget mel louel."
+      ],
+      "example": { "lang": "python", "code": "import random\n\nimport anthropic\n\nclient = anthropic.Anthropic()\n\nSTABLE = {\"model\": \"claude-opus-5\", \"effort\": \"high\"}\nCANDIDATE = {\"model\": \"claude-opus-5-5\", \"effort\": \"medium\"}  # set effort explicitly, then sweep it\nCANARY_SHARE = 0.05  # 5% of requests; set it to 0.0 to roll back without a deploy\n\n\ndef pick_config():\n    # Fine for one-shot requests; a conversation must stay on one model from start to end\n    return CANDIDATE if random.random() < CANARY_SHARE else STABLE\n\n\ndef classify(message):\n    cfg = pick_config()\n    response = client.messages.create(\n        model=cfg[\"model\"],\n        max_tokens=16000,  # thinking counts toward max_tokens\n        output_config={\"effort\": cfg[\"effort\"]},\n        # Removed during the migration (both return 400 on claude-opus-5-5):\n        #   thinking={\"type\": \"disabled\"}\n        #   tool_choice={\"type\": \"tool\", \"name\": \"...\"}\n        system=\"Classify the customer message: billing, network, sales or other. Answer with one word.\",\n        messages=[{\"role\": \"user\", \"content\": message}],\n    )\n    # Log which model really answered, to compare the two groups on the dashboard\n    print(\"served_by\", response.model, \"stop\", response.stop_reason,\n          \"out_tokens\", response.usage.output_tokens)\n    if response.stop_reason == \"refusal\":\n        return None  # handle refusals before reading the content\n    return \"\".join(b.text for b in response.content if b.type == \"text\").strip()", "note": "El random per request yemchi l classification. L chatbot, 5tar el groupe per user walla per conversation w 5allih thabet." }
+    },
+    {
+      "title": "El SDK w el API version: upgrades bla mfaj2at",
+      "text": [
+        "Fama thletha 7ajet 3andhom version kol wa7ed wa7dou: el model, el SDK (el package 'anthropic' elli ta3mlou pip install), w el API version (el header 'anthropic-version' elli el SDK yab3athou m3a kol request). Kol upgrade 3andou breaking changes mte3ou. Ma t5allathomch fi nafs el PR: ken 7aja tkassret, ta3ref chkoun es-sbab.",
+        "El SDK: pin el version fi requirements.txt (mithel 'anthropic>=1,<2') w fel lockfile, w upgrade bel 9asd f branch ba3d ma ta9ra el changelog walla el MIGRATION.md mta3 el SDK. Mithel 7a9i9i: Python SDK men 0.x l 1.x. Y7tej Python 3.10 walla akther. El HTTP layer walla httpx2 (ymessek ken ki t3addi objets httpx lel SDK, mithel transport custom, w el mocks kima respx ynajmou ma 3adech ychoufou el traffic). client.completions.create (el Text Completions el 9dim) tna7a: lezem messages.create. temperature, top_p w top_k ma 3adech yet9eblou (TypeError). W output_format={...} kima dict walla output_config={'format': {...}}; ama output_format=Model m3a parse yo9a3ed.",
+        "El API version hiya date fel header. Anthropic t5arrej el breaking changes mta3 el API f version jdida, w el code yetna9el ki ykoun 7adher. El version '2026-10-21': temperature, top_p w top_k yraj3ou 400 3la el models el kol 7atta bel valeur el default; block 'document' direct f message 'assistant' yraja3 400; w block 'text' fih 'citations' f message 'user' yraja3 400. W rod belek: el Python SDK 2.0.0 yab3ath '2026-10-21' par défaut, ya3ni el upgrade lel 2.x ybaddel zeda el API version. El batches elli t3amlou 9bal ykammlou bel version el 9dima.",
+        "Et-tari9a: inventaire b grep (temperature, completions.create, output_format, httpx), tsannef kol natija (sa3at 'temperature' howa variable mta3 capteur, ma tmessouch), tsalla7, t3addi type checker (pyright walla mypy yal9a a8leb el call sites), t3addi el tests, w fel e5er request 7a9i9iya sghira (max_tokens sghir, 5ater tetkhallas). Ken el serveur fel 5edma mazel 3la Python 3.9, hedha 9arar lel équipe: pip yo9a3ed yrakkeb e5er 0.x bla ma y9ollek 7atta chay.",
+        "Bech ma yetrakemch el retard: 5alli outil kima Dependabot walla Renovate y7el PRs lel upgrades, ama ma ta3melch auto-merge l major version abadan. Upgrade sghir kol chhar a5af barcha men 9afza mta3 3amin f nhar wa7ed ki el model el 9dim yetna7a w inti madh8out."
+      ],
+      "points": [
+        "Model, SDK, API version: thletha upgrades m5talfin, kol wa7ed f PR wa7dou.",
+        "pip index versions anthropic ywarrik el versions el manchourin 9bal ma tekteb el pin.",
+        "Thabbet el Python version fel CI: 3la 3.9 el pip yo9a3ed 3la 0.x bes-skat.",
+        "Ba3d el upgrade, smoke test: response.model w stop_reason w parsing mta3 el output."
+      ],
+      "example": { "lang": "python", "code": "# requirements.txt - pin the major version and upgrade on purpose, in a branch:\n#   anthropic>=1,<2\nimport anthropic\n\nclient = anthropic.Anthropic()\nprint(\"anthropic SDK\", anthropic.__version__)\n\nSCHEMA = {\n    \"type\": \"object\",\n    \"properties\": {\"category\": {\"type\": \"string\", \"enum\": [\"billing\", \"network\", \"sales\", \"other\"]}},\n    \"required\": [\"category\"],\n    \"additionalProperties\": False,\n}\n\n# Before (SDK 0.x, older model):\n# client.beta.messages.create(\n#     model=\"claude-sonnet-4-6\", max_tokens=1024, temperature=0.2,\n#     output_format={\"type\": \"json_schema\", \"schema\": SCHEMA},\n#     messages=[...],\n# )\n\n# After (SDK 1.x): no sampling parameters, the schema moves into output_config\nresponse = client.messages.create(\n    model=\"claude-sonnet-5-5\",\n    max_tokens=2048,\n    output_config={\"effort\": \"low\", \"format\": {\"type\": \"json_schema\", \"schema\": SCHEMA}},\n    messages=[{\"role\": \"user\", \"content\": \"El facture mte3i ghalta, 5allast zouz marrat\"}],\n)\n\n# Smoke test after the upgrade: the right model answered and the output is usable\nassert response.model.startswith(\"claude-sonnet-5-5\"), response.model\nassert response.stop_reason == \"end_turn\", response.stop_reason\nprint(next(b.text for b in response.content if b.type == \"text\"))", "note": "El message fel example mektoub bel derja latin kima yektbou el clients. El smoke test yetkhallas: 5allih sghir w ma t5addmouch f kol commit." }
+    },
+    {
+      "title": "El prompts f git: versioning, review w prompt audit",
+      "text": [
+        "El prompt howa code: ybaddel el comportement mta3 el produit 9ad ma tbaddlou function. Ama barcha équipes y5allouh string fi wost fichier Python, walla f panneau admin kol wa7ed ybaddel fih fel production. En-natija: 7atta 7ad ma ya3ref ena prompt 3ta ena jweb, w el bug ywalli mosta7il tfassrou.",
+        "El 9awa3ed: kol prompt f fichier wa7dou (prompts/ticket_system.md) f git. Kol tabdil y3addi b PR, yraj3ou wa7ed e5er, w fel description mta3 el PR natijet el eval. Kol version 3andha id (date + numéro) w tetsajjel m3a kol request (prompt_version, model, request_id): ki yjik jweb ghalet, tal9a el prompt bedh-dhabt. W CHANGELOG y9oul 3lech tbaddel w chnoua sar lel score. El rollback ywalli sahel: traja3 lel version elli 9bal fel config.",
+        "El prompt audit: el prompts ylemmou ta3limet mektouba l models 9dom. El models el 7aliyin yetb3ou et-ta3limet bel 7arf akther, lhné el béquilles el 9dom tdhorr. Chnoua tlawwej 3lih: el pressure language ('CRITICAL', 'MUST', 'NEVER' bel majuscules, '!!!') elli t5alli el model ybalegh (over-triggering): 9oulha 3adi, marra wa7da, m3a es-sbab. El scaffolds elli 3awwdhethom features: 'think step by step' walla '<scratchpad>' ywalliw adaptive thinking + effort; 'jaweb ken JSON' + prefill + retry ywalliw structured outputs. El fossiles: workarounds l model tna7a, 'reminder' yet3awed kol tour, w limites kima 'maximum 50 kelma' elli t5ann9 el raisonnement.",
+        "Chnoua t5alli: el context elli inti bark ta3rfou: el jomhour, el produit, el règles métier m3a es-sbab mte3hom (plafond remboursement, règles mta3 data), w el contrat mta3 el tools. Es-so2el l kol star: 'el model ynajem ya3ref hedha wa7dou?' Ken la, 5allih. W en-na7i howa hypothèse mouch conclusion: na77i star walla bloc, 3awed el eval, ken el score ta7 raj3ou b sigha absat. 9bal ma tna77i, a3mel grep 3al texte el kemel: sa3at tests walla log parsers y9arnou 3lih.",
+        "Chkoun yraja3? Developer + wa7ed mel métier (responsable support mathalan) lel wording w el règles. F Tounes el équipes sghar, w sa3at tkoun wa7dek: 7atta hakka, a3mel PR l rou7ek w 5alli el CI y5addem el eval. W 3awed el prompt audit m3a kol model jdid: el prompts houma artefacts per-model, elli ylezem l génération ynajem ykoun zeyed 3al elli ba3dha."
+      ],
+      "points": [
+        "Sajjel prompt_version m3a kol request: blech ma tnajemch tfasser 7atta bug.",
+        "Prompt audit 3and kol model jdid w kol trimestre.",
+        "Na77i 7aja wa7da fel marra w 9is; ken el score ta7, raj3ha absat.",
+        "El CHANGELOG y9oul 3lech, mouch bark chnoua tbaddel."
+      ],
+      "example": { "lang": "markdown", "code": "# prompts/CHANGELOG.md\n\n## 2026-10-30.1 - ticket_system.md (PR #212, reviewed by Karim)\nWhy: prompt audit after the move to claude-opus-5-5.\n- Removed: \"CRITICAL: You MUST ALWAYS answer in valid JSON!!!\"\n  -> the JSON shape is enforced by output_config.format (structured outputs).\n- Removed: \"Think step by step before answering.\"\n  -> thinking is always on; its depth is set with effort, not with prose.\n- Rewritten: \"NEVER invent an order id\" -> \"Use null when the message has no order id:\n  agents search orders by this field, and a wrong id opens another customer's order.\"\n- Kept: refunds above 50 TND go to a human (business rule, with its reason).\nEval (test split): accuracy 0.93 -> 0.94, cost per ticket -6%.\n\n## 2026-09-12.2 - ticket_system.md (PR #188, reviewed by Ines)\nWhy: weekly triage found 14 Derja messages in Latin letters sent to 'other'.\n- Added three varied examples in Latin-letter Derja, labelled as illustrative.\nEval (test split): accuracy 0.90 -> 0.93.", "note": "Kol entry fiha es-sbab, el PR, chkoun raja3, w el athar 3al eval. 9a3det el refund to9a3ed 5ater hiya règle métier mouch béquille mta3 model." }
+    },
+    {
+      "title": "El feedback mta3 el users w el logs: men ghalta l eval case",
+      "text": [
+        "A7sen eval cases yjiw mel production: messages 7a9i9iyin, ghaltat 7a9i9iyin. El eval set elli ktebtou nhar el launch y9is elli t5ayyaltou; el production twarrik chnoua ya3mlou el users bel 7a9. El 5edma: tched el ghaltat, tefhemhom, w t7awelhom l tests bech ma yerj3ouch.",
+        "El sources: feedback explicite (thumbs up / thumbs down 7dha el jweb, bouton 'signaler'), w feedback implicite: el agent mta3 el support ysalla7 el category (hedha a9wa signal 5ater fih el jweb es-s7i7), el user y3awed nafs es-so2al, ytlob insen, walla yo5rej mel conversation. W el logs: stop_reason 'refusal' walla 'max_tokens', JSON ma tet9ebelch fel validation, retries barcha, latence 3alya, request cost-ha gharib. Sajjel request_id, prompt_version, model w el tokens; el texte el kemel mta3 el user ken ki testa7a9ou bel 7a9.",
+        "El triage kol jem3a: 5ou échantillon: el thumbs-down el kol + 50 conversation random (a8leb el users ma y9oulou chay ki el jweb ghalet). A9ra, w 7ot l kol ghalta failure category: category ghalta, numéro commande m5tara3, lougha ghalta, refusal l demande 3adiya, jweb twil barcha, info 9dima (FAQ ma tbadletch). A7seb 9addech men ghalta f kol category: el akbar hiya el 5edma ej-jeya. 5alli el liste mta3 el categories thebta bech t9aren jem3a b jem3a, w zid category jdida ken bel 7a9 testa7a9ha.",
+        "Men ghalta l eval case: anonymisation (el numérowet mta3 et-telifoun w el CIN f Tounes 8 ar9am ez-zouz, w el emails), el jweb es-s7i7 mel correction mta3 el insen, tags (failure type, lougha), w source. El regex mouch kemel: 5alli insen ychouf el cases ej-jdod 9bal ma yod5lou lel eval set. W el cases ej-jdod yet9asmou random bin el train w el test (lesson 6), mouch el kol f jiha wa7da.",
+        "El privacy: el messages mta3 el users houma données personnelles. 9oul fel politique de confidentialité elli el feedback ynajem yesta3mel bech t7assen el service, 5alli el data el 5am a9al wa9t momken, w fasa5ha ba3d el anonymisation. Hedha matloub bel 9anoun et-tounsi mta3 7imayet el ma3tayet ech-chakhsiya, w bel RGPD ken 3andek users f l'Europe. W eval set ma fihech data chakhsiya tnajem tcharkou m3a el équipe w t7ottou f git bla 5ouf."
+      ],
+      "points": [
+        "El correction mta3 insen = a7sen label: fiha el jweb es-s7i7.",
+        "5ou échantillon random zeda, mouch bark el thumbs-down.",
+        "Failure categories thebta t5allik t9aren jem3a b jem3a.",
+        "Ma t7otech data chakhsiya fel eval set: yetcharek, yet'commita, w yetb3ath lel API."
+      ],
+      "example": { "lang": "python", "code": "import json\nimport re\n\n# Tunisian phone numbers and CIN numbers both have 8 digits: mask any 8-digit number\nEIGHT_DIGITS = re.compile(r\"(?<!\\d)(?:\\+216\\s?)?\\d{2}\\s?\\d{3}\\s?\\d{3}(?!\\d)\")\nEMAIL = re.compile(r\"[\\w.+-]+@[\\w-]+\\.[\\w.]+\")\n\n\ndef anonymize(text):\n    text = EMAIL.sub(\"<email>\", text)\n    return EIGHT_DIGITS.sub(\"<number>\", text)\n\n\ndef feedback_to_cases(feedback_path, eval_path):\n    \"\"\"Turn answers corrected by the support team into new eval cases.\"\"\"\n    added = 0\n    with open(feedback_path, encoding=\"utf-8\") as src, \\\n            open(eval_path, \"a\", encoding=\"utf-8\") as out:\n        for line in src:\n            fb = json.loads(line)\n            # Keep only the cases where a human gave the right answer\n            if fb[\"rating\"] != \"down\" or not fb.get(\"corrected_category\"):\n                continue\n            case = {\n                \"id\": f\"fb-{fb['request_id']}\",\n                \"input\": anonymize(fb[\"message\"]),\n                \"expected\": {\"category\": fb[\"corrected_category\"]},\n                \"tags\": [fb.get(\"failure_type\", \"untriaged\"), fb[\"language\"]],\n                \"source\": \"user_feedback\",\n            }\n            out.write(json.dumps(case, ensure_ascii=False) + \"\\n\")\n            added += 1\n    return added\n\n\nprint(feedback_to_cases(\"feedback_2026-11-03.jsonl\", \"evals/new_cases.jsonl\"), \"new cases to review\")", "note": "El script yekteb f new_cases.jsonl mouch direct fel eval set: insen yraja3 el anonymisation w el jweb, w ba3d yda55elhom." }
+    },
+    {
+      "title": "7al9et et-ta7sin: hill-climbing, el cost w el performance",
+      "text": [
+        "Ta7sin bla eval howa tabdil w do3a. El hill-climbing: t5addem el eval, ta9ra el ghaltat, tbaddel 7aja wa7da, t3awed, t5alliha ken 5ir w traja3ha ken la, w t3awed 7atta el score yo9ef walla el budget youfa. El hadaf ynajem ykoun el jouda lfou9, walla el cost walla el latence lel louta w el jouda thebta.",
+        "El split: train (ta9ra el transcripts mte3ou) w test (3omrek ma ta9rah, t9isou bark). El split random, m9assem bel tags (lougha, category), w 3omrou ma ykoun 7asb el score. 3lech? Ki ta9ra ghaltat, tsalla7 bedh-dhabt el cases hedhom, w el score 3lihom yetla3 bla ma el app tet7assen bel 7a9. El ra9m elli t3almou howa el far9 3al test bin el baseline w el e5er. W 3ammem: wassef el comportement el ghalet, ma tlassa9ch kelmet mel cases mta3 el train fel prompt.",
+        "El noise: l pass rate, el marge (95%) ta9riban 1/sqrt(n x reps): 25 test case b 2 reps ta9riban ±14 nou9ta, 50 b 2 ta9riban ±10. Ya3ni +2 nou9at 3la 25 case 7dh. Lhné: tabdilet kbar bel 9adr elli ybanou (section kemla, règle jdida, mouch kelma), cases walla reps akther, w plateau = 3 rounds bla rbe7. Kol round: tabdil wa7ed, t5addem el set el kemel, w tsajjel f tableau (round, et-tabdil, test, train, cost/task). W thabbet response.model: lezem el model elli ta7seb 3lih howa elli jaweb.",
+        "El cost: 9isou per completed task, mouch per token: model r5is yghlot y5alles el retry w el insen elli ysalla7. El levers bet-tartib. El louelin ma yna9souch el jouda: caching (yo9a3ed dima ma5doum; chouf cache_read_input_tokens, kima f course el Claude API), input andhef (prompt audit, documents kbar wra tool), output (el max_tokens 7imaya mouch adet tuning; na99es et-toul b format wadhe7), w Batches API lel 5edma elli 7ad ma yestannaha (50%, w yetzed 3al caching). Ba3dhom el tradeoffs: effort sweep 9bal ma tmess el model, w el model fel e5er. W 9bal ma tahbet l model asghar, chouf ken fama model ajdad fi nafs el tier b effort a9al: sa3at howa el ar5es per task.",
+        "Kol lever f diff wa7dou: ken waffar flous w na99es el accuracy, mouch optimisation, raj3ou. 9is el tail zeda: as3eb 10% mel cases houma win yemchiw el flous w win el model er-r5is yghlot. W ba3d kol migration, 3awed el effort sweep mel default mta3 el model el jdid, ma thezzech el level el 9dim."
+      ],
+      "points": [
+        "Train = ta9ra; test = t9is. El score elli t3almou dima mel test.",
+        "Tabdil wa7ed f kol round, bech ta3ref chkoun 3mel el far9.",
+        "Caching, input, output, batch 9bal; effort ba3d; el model fel e5er.",
+        "El max_tokens 7imaya men jweb ma youfech, mouch adet bech tna99es el cost."
+      ],
+      "example": { "lang": "python", "code": "import json\nimport random\n\nimport anthropic\n\nclient = anthropic.Anthropic()\nPRICES = {\"claude-opus-5-5\": (4.00, 20.00), \"claude-sonnet-5-5\": (2.00, 10.00)}  # USD per 1M tokens\n\nwith open(\"evals/tickets_v4.jsonl\", encoding=\"utf-8\") as f:\n    cases = [json.loads(line) for line in f]\n\n# Fixed seed: the same random split every round. You read train failures, you report test.\nrng = random.Random(42)\nrng.shuffle(cases)\ncut = len(cases) // 2\ntrain, test = cases[:cut], cases[cut:]\n\n\ndef run(cases, system, model, effort):\n    passed, cost = 0, 0.0\n    for case in cases:\n        r = client.messages.create(\n            model=model,\n            max_tokens=4000,\n            system=system,\n            output_config={\"effort\": effort},\n            messages=[{\"role\": \"user\", \"content\": case[\"input\"]}],\n        )\n        if r.stop_reason == \"end_turn\":  # a refusal or a cut-off answer counts as a failure\n            answer = \"\".join(b.text for b in r.content if b.type == \"text\").strip()\n            passed += answer == case[\"expected\"][\"category\"]\n        p_in, p_out = PRICES[model]\n        cost += (r.usage.input_tokens * p_in + r.usage.output_tokens * p_out) / 1_000_000\n    return passed / len(cases), cost / len(cases)\n\n\nwith open(\"prompts/ticket_system.md\", encoding=\"utf-8\") as f:\n    SYSTEM = f.read()\n\n# One change per round: here only effort moves, the prompt and the model stay frozen\nfor effort in [\"medium\", \"low\"]:\n    acc_train, _ = run(train, SYSTEM, \"claude-opus-5-5\", effort)\n    acc_test, cost = run(test, SYSTEM, \"claude-opus-5-5\", effort)\n    print(f\"{effort}: train={acc_train:.2f} test={acc_test:.2f} cost/task=${cost:.5f}\")", "note": "El cost houni bla cache bech yab9a 9sir. Kol run yetkhallas: a7seb el budget 9bal (3dad el cases x el configs x el cost per task) w lel sweeps el kbar estaa3mel el Batches API." }
+    },
+    {
+      "title": "El incidents, el post-mortem w el documentation",
+      "text": [
+        "El incident f feature AI sa3at ma fihech 7atta error 500: el kol yraja3 200, ama el ajwiba ghaltin. El anwe3: outputs 5aybin (hallucinations akther, lougha ghalta, el tickets el kol yemchiw l 'other'), panne walla overload (5xx, 529, timeouts), refusals kthrou ba3d tabdil model, cost tla3 fej2a (loop ma to9efch, cache tkassar), w sécurité (el prompt injection, chefnah f course el production).",
+        "Bech tektachef: alerts 3la signals mta3 el jouda mouch bark 3al errors: el distribution mta3 el categories, nesbet el refusals, nesbet el JSON elli ma yet9ebelch, nesbet el thumbs-down, el cost fel se3a, el latence p95. W barcha marrat insen fel support ylahedh 9bal el dashboard: a3tih channel wadhe7 bech yballagh.",
+        "Ki ysir: mitigation 9bal, el fehm ba3d. El levers lezem ykounou 7adhrin 9bal el incident: rollback lel prompt walla el model b flag fel config; kill switch yetfi el feature w ya3ti fallback (message 'agent bech yjawbek', walla queue l insen); w lel pannes, retries w model theni ken 5attatlou. Tewasel: 9oul lel équipe support chnoua sayer. W ba3d salla7 el data (mithel: 3awed sannef el tickets el ghaltin b batch).",
+        "El post-mortem blameless: timeline, impact, root cause, chnoua mcha mli7 w chnoua la, w actions kol wa7da b owner w date. Mouch tlawwej 3la chkoun ghlet: tlawwej 3al thoghra fel process. Fel AI ahamm action: el incident ywalli eval cases w alert, bech nafs el ghalta ma t3addich marra o5ra f PR.",
+        "El documentation w el handover: RUNBOOK.md fih el architecture, win el prompts, el model ids w 3lech 5tarthom, kifech t5addem el eval, el dashboards w el alerts, kifech ta3mel rollback, asemi el secrets (abadan el valeurs), el cost w el limites, w el owners. W decisions log ('3lech Sonnet mouch Opus lel tickets' m3a ar9am el eval). Fel handover, ech-chakhs ej-jdid ya3mel rollback tajribi b yeddih. W ken te5dem freelance, teslim runbook m3a el projet y5alli el client yetheb fik w yerja3lek."
+      ],
+      "points": [
+        "Mitigation 9bal el root cause: raja3 el version elli te5dem, ba3d efhem.",
+        "Rollback 3omrek ma jarrabtou mouch rollback: jarrbou marra fel trimestre.",
+        "Kol incident y5alli wrah eval cases w alert.",
+        "El runbook fih asemi el secrets, abadan el valeurs mte3hom."
+      ],
+      "example": { "lang": "markdown", "code": "# Post-mortem: wrong ticket categories after a prompt change (2026-10-14)\n\nSeverity: medium - no data leak, about 900 tickets sent to the wrong queue\nDuration: 09:40 -> 11:05 (85 minutes)\n\n## Timeline\n- 09:10 Prompt 2026-10-14.1 deployed (PR #201: \"shorter system prompt\")\n- 09:40 Support lead: \"everything goes to 'other'\"; dashboard: 'other' 6% -> 41%\n- 09:52 Rollback: PROMPT_VERSION=2026-10-02.3 (config flag, no redeploy)\n- 10:05 'other' back to 7%; misrouted tickets re-classified with a batch job\n- 11:05 Incident closed\n\n## Root cause\nThe PR removed the definitions of the categories, judged \"too long\".\nThe eval still passed: tickets_v3 had only 4 'payment' cases.\n\n## What went well / what went badly\n- Rollback in 12 minutes thanks to the version flag.\n- No alert on the category distribution: a human noticed first.\n\n## Actions (owner, date)\n- [ ] Add 40 anonymised 'payment' cases to the eval (Ines, 2026-10-21)\n- [ ] Alert when one category moves more than 15 points in an hour (Karim, 2026-10-24)\n- [ ] Prompt PRs show the eval score per category, not only the total (Ines, 2026-10-28)", "note": "Ma famech esm chakhs fel root cause: el mochkla kenet eval fih 4 cases bark l 'payment' w ma famech alert." }
+    },
+    {
+      "title": "Et-tri9 mte3ek k AI engineer: portfolio, veille w ta3allom dima",
+      "text": [
+        "Wsolt l e5er el track: mel tokens w awel call, lel prompts, el API, el agents, el RAG, el evals, el production, w tawa el maintenance. El far9 bin junior yet9bel w junior la mahouch 3dad el démos: howa elli ywarri elli ya3ref y9is, y'maintenir w y7assen. El recruteurs f Tounes w f l'Europe yes2lou 'kifech ta3ref elli ye5dem?' w 'chnoua ta3mel ki yetbaddel el model?'. Tawa 3andek jweb.",
+        "El portfolio: 2 walla 3 projets kamlin, f kol wa7ed: eval set w ar9am, cost per task, CHANGELOG ywarri el iterations (v1 -> v4), README fih el limites, w section 'kifech yet'maintenir'. Projet sghir 5demt 3lih ach-hor (baddelt el model, zedt cases mel feedback, na99est el cost) ysawi akther men 10 démos. W el multilingue derja/fransawi/3arbi howa nou9tet 9owwa 7a9i9iya: charikat l'Europe nadran ma 3andhom el data w el fehm hedha.",
+        "El veille: el AI yetbaddel kol chhar. El sources el louel: el documentation er-rasmiya, el release notes w el migration guides mta3 el fournisseurs (Anthropic, OpenAI, Google, Mistral...), w el changelog mta3 el SDKs. Et-tari9a: ki yo5rej model jdid, 5addem el eval mte3ek 3al projets mte3ek 9bal ma tsadde9 el benchmarks w el hype. Nos se3a 9raya fel jem3a w tajriba wa7da fel chhar yekfiw bech to9a3ed à jour. W rod belek mel tutorials el 9dom: temperature w prefill ma 3adech yemchiw 3al models ej-jdod.",
+        "El chemins: AI engineer f équipe produit, LLMOps walla plateforme, freelance (automatisation, intégrations, chatbots), conseil l PME tounsiya, walla remote m3a charika ourobiya. 3ammo9 el asas: Python w software engineering (tests, CI), SQL, cloud, evaluation, sécurité. W el soft skills: tfasser el limites lel client, tekteb b clarté, t9adder cost 9bal ma tebda. Fel entretien, 7adher 7kaya mta3 ghalta 7a9i9iya w kifech 9ostha w sall7tha: hedhi t9anna3 akther men 'kol chay mcha mli7'.",
+        "Et-ta3allom ma youfech. Charek elli tet3allmou: article bel derja walla bel fransawi walla bel inglizi, talk sghir f meetup, contribution f open source (documentation, fix sghir), w 3awen el juniors elli ba3dek: tafsir 7aja l ghirek howa a7sen tari9a tefhemha. Plan mta3 90 youm: ech-chhar el louel projet + eval; et-theni deploy + logs + feedback loop; et-theleth migration walla optimisation cost mwath9a fel CHANGELOG + article. Mabrouk 3lik el track, w tawa ebda."
+      ],
+      "points": [
+        "Portfolio = projets m9ayysin: score, cost, limites, w tarikh ta7sin.",
+        "Model jdid 5raj? 5addem el eval mte3ek 9bal ma tsadde9 el benchmarks.",
+        "El documentation er-rasmiya w el release notes 9bal el vidéos.",
+        "Et3allem bel partage: article, talk, contribution open source, mentoring."
+      ],
+      "example": { "lang": "markdown", "code": "# derja-ticket-router\n\nRoutes customer messages (Tunisian Derja in Arabic or Latin letters, French, Arabic)\nto the right support queue with the Claude API.\n\n## Results (eval: 200 anonymised messages, scores on the 100-case test split)\n| Version | Model / effort | Accuracy | Cost per 1000 messages |\n|---|---|---|---|\n| v1 | claude-opus-5-5 / medium | 0.88 | $2.10 |\n| v3 | claude-opus-5-5 / medium + Derja examples | 0.94 | $2.30 |\n| v4 | claude-haiku-5-5 / low | 0.93 | $0.09 |\n\n## How it is maintained\n- Model id, effort and prompt version live in config.yaml; every change is a PR with an eval run\n- Every week, answers flagged by users become new eval cases (personal data masked)\n- CHANGELOG.md lists every prompt change and its effect on the score\n\n## Limits\n- Messages mixing Derja and French slang are still the weakest group (0.86)\n- No message text is stored: logs keep request ids, versions and token counts\n\n## Run it\npip install -r requirements.txt, set ANTHROPIC_API_KEY in the environment, then: python -m router.eval", "note": "El ar9am fel README hedha mithel. Fel projet mte3ek, kol ra9m lezem yji men run 7a9i9i tnajem t3awdou." }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "El drift w el config",
+      "items": [
+        ["model='claude-opus-5-5'", "Id pinned bla date, yetbaddel ken b PR mraja3"],
+        ["output_config={'effort': 'medium'}", "7ottou explicite: el default yo5tlef bin el models"],
+        ["response.model", "El model elli jaweb bel 7a9, lel logs"],
+        ["ai_config.yaml", "El model, el prompt version w el eval f blasa wa7da"]
+      ]
+    },
+    {
+      "group": "Model migration",
+      "items": [
+        ["[BLOCKS] / [TUNE]", "Tabdil ya3ti 400 walla loop mkassra / tabdil jouda walla cost"],
+        ["thinking={'type': 'disabled'} 3la Opus 5.5", "Yraja3 400: na77ih w t7akkem bel effort"],
+        ["tool_choice 'any' / 'tool' 3la Opus 5.5", "Yraja3 400: 'auto' + strict: true + ta3lima fel prompt"],
+        ["shadow", "El model el jdid ye5dem bet-tawazi, el user ma ychoufch jwebou"],
+        ["canary 5% -> 25% -> 100%", "Jez2 mel traffic ya5ou el model el jdid bel chwaya"],
+        ["CANARY_SHARE = 0.0", "Rollback b flag bla redeploy"]
+      ]
+    },
+    {
+      "group": "El SDK w el API version",
+      "items": [
+        ["anthropic>=1,<2", "Pin el major version fi requirements.txt"],
+        ["anthropic.__version__", "El version mta3 el SDK el mrakkeb"],
+        ["anthropic-version: 2026-10-21", "API version jdida: temperature, top_p, top_k yraj3ou 400"],
+        ["output_format={...} -> output_config={'format': {...}}", "SDK 1.x: el schema f output_config"],
+        ["client.completions.create", "Tna7a f SDK 1.x: estaa3mel messages.create"]
+      ]
+    },
+    {
+      "group": "El prompts",
+      "items": [
+        ["prompts/*.md f git", "Kol prompt fichier, kol tabdil PR"],
+        ["prompt_version fel logs", "Tal9a el prompt elli 3ta el jweb"],
+        ["CHANGELOG.md", "3lech tbaddel w atharou 3al eval"],
+        ["prompt audit", "Na77i CRITICAL/MUST, 'think step by step', prefill, fossiles"]
+      ]
+    },
+    {
+      "group": "El feedback w 7al9et et-ta7sin",
+      "items": [
+        ["thumbs down + correction", "A7sen eval case: fih el jweb es-s7i7"],
+        ["failure categories", "Tasnif thebet lel ghaltat: ta3ref win te5dem"],
+        ["train / test split", "Train ta9rah, test t9isou bark"],
+        ["1/sqrt(n x reps)", "El marge ta9riban mta3 pass rate (95%)"],
+        ["Tabdil wa7ed f kol round", "Ta3ref chkoun 3mel el far9"]
+      ]
+    },
+    {
+      "group": "El cost, el incidents w el docs",
+      "items": [
+        ["cost per completed task", "Mouch cost per token"],
+        ["caching -> input -> output -> batch -> effort -> model", "Tartib el levers"],
+        ["kill switch + fallback", "Tetfi el feature w ta3ti badil"],
+        ["post-mortem blameless", "Timeline, root cause, actions b owner"],
+        ["RUNBOOK.md", "Architecture, eval, rollback, asemi el secrets, owners"]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "3andek code ye5dem 3la claude-opus-5 fih: thinking={'type': 'disabled'}, tool_choice={'type': 'tool', 'name': 'create_ticket'}, ma fihech effort, w system prompt fih 'CRITICAL: you MUST use the tool'. Bech tna9lou l claude-opus-5-5. Sannef kol 7aja [BLOCKS] walla [TUNE] w 9oul chnoua ta3mel.",
+      "hint": "Chnoua yraja3 400 3la Opus 5.5, w chnoua ybaddel el jouda walla el cost bark?",
+      "answer": "[BLOCKS] El model id -> 'claude-opus-5-5'. [BLOCKS] thinking disabled yraja3 400: na77ih, w el contrôle ywalli output_config.effort (ebda b 'low' ken el latence mouhimma, w 9is). [BLOCKS] tool_choice 'tool' yraja3 400: 'auto' + 'strict': True 3al tool + 'Use the create_ticket tool' fel prompt, w thabbet fel code elli fama tool_use w 3awed ken la. [BLOCKS] 3amel stop_reason 'refusal' 9bal ma ta9ra el content. [TUNE] 7ot el effort explicite (el default walla 'medium' fi blasset 'high') w a3mel sweep. [TUNE] el 'CRITICAL: you MUST' ywalli 'Use the create_ticket tool when...': el models ej-jdod yetb3ou et-ta3limet bel 7arf. [TUNE] chouf el max_tokens (el thinking ya7seb mennou) w el rate limits mta3 el pool ej-jdid."
+    },
+    {
+      "q": "Ekteb function served_by(response, expected, newer=()) traja3 True ken el model el mestanni howa elli jaweb, w ma tghlotch bin 'claude-opus-5' w 'claude-opus-5-5'.",
+      "hint": "'claude-opus-5-5'.startswith('claude-opus-5') yraja3 True.",
+      "code": "python",
+      "answer": "def served_by(response, expected, newer=()):\n    \"\"\"True when the expected model answered.\n\n    response.model is checked with startswith, so list the longer ids that share\n    the prefix: \"claude-opus-5-5\" also starts with \"claude-opus-5\".\n    \"\"\"\n    model = response.model\n    return model.startswith(expected) and not any(model.startswith(n) for n in newer)\n\n\n# Usage during a canary on claude-opus-5 -> claude-opus-5-5:\n# served_by(r, \"claude-opus-5\", newer=[\"claude-opus-5-5\"])   # stable group\n# served_by(r, \"claude-opus-5-5\")                            # candidate group"
+    },
+    {
+      "q": "El triage mta3 el jem3a fih 40 thumbs-down. 18 category ghalta 3la messages bel derja latin, 9 numéro commande m5tara3, 7 el FAQ 9dima (prix livraison tbaddel), 6 el user ken mtghachech bark w el jweb s7i7. Chnoua ta3mel bet-tartib?",
+      "hint": "Mouch el kol yetsalla7 fel prompt, w mouch el kol ghalta mta3 el model.",
+      "answer": "1) El 7 mta3 el FAQ: hedhi data mouch model: salla7 el FAQ (w zid check 3la tarikh e5er update), bla eval round. 2) El 18 (akbar category): anonymise, zid el cases lel eval m3a el jweb es-s7i7, 9assemhom random bin train w test, w ba3d round ta7sin wa7ed (mithel examples mtnaw3in bel derja latin) w 9is 3al test. 3) El 9: eval cases + règle wadh7a 'null ken ma famech numéro' m3a es-sbab, walla check fel code elli el numéro mawjoud fel base. 4) El 6: ma tbaddel chay fel model; sajjelhom 'not a model failure'. W zid 50 conversation random lel triage ej-jey bech ma tchoufech ken elli yechkiw."
+    },
+    {
+      "q": "Ekteb function should_rollback(stable, canary) traja3 liste mta3 el asbab ken el canary lezem yo9ef: accuracy n9set akther men 2 nou9at, refusals akther men max(1%, dha3f el stable), walla cost per task akther men 1.5 marra.",
+      "hint": "Liste fergha = kammel el rollout.",
+      "code": "python",
+      "answer": "def should_rollback(stable, canary, max_drop=0.02, max_refusal_rate=0.01):\n    \"\"\"stable / canary: accuracy, refusal_rate and cost_per_task measured over the same period.\"\"\"\n    reasons = []\n    if canary[\"accuracy\"] < stable[\"accuracy\"] - max_drop:\n        reasons.append(\"accuracy dropped\")\n    if canary[\"refusal_rate\"] > max(max_refusal_rate, 2 * stable[\"refusal_rate\"]):\n        reasons.append(\"more refusals\")\n    if canary[\"cost_per_task\"] > 1.5 * stable[\"cost_per_task\"]:\n        reasons.append(\"cost per task +50%\")\n    return reasons  # empty: continue the rollout; otherwise set CANARY_SHARE = 0.0\n\n\nprint(should_rollback(\n    {\"accuracy\": 0.93, \"refusal_rate\": 0.002, \"cost_per_task\": 0.004},\n    {\"accuracy\": 0.90, \"refusal_rate\": 0.003, \"cost_per_task\": 0.003},\n))  # ['accuracy dropped']"
+    },
+    {
+      "q": "Zmilek y9ollek: '9rit el 60 case el kol, salla7t el prompt 12 marra, w el score tla3 men 0.86 l 0.95 3la nafs el 60'. 3lech ma tethebch fel ra9m, w chnoua te9tra7?",
+      "answer": "5ater 9ra el cases elli y9is 3lihom: et-tabdilet sall7ou el 60 hedhom bedh-dhabt (overfit), w ma na3rfouch ken el app tet7assnet 3la messages jdod. W 12 tabdil m3a b3adhhom ma y9oulouch chkoun 3mel el far9, w 3la 60 case el marge ta9riban ±13 nou9ta (1/sqrt(60)). El e9tira7: split random (stratifié bel tags) l train w test, ya9ra el train bark, tabdil wa7ed f kol round, y3awed el set el kemel, w el ra9m el m3allen howa el far9 3al test bin el baseline w el e5er. W ken ylezem, zid cases walla reps."
+    },
+    {
+      "q": "Ba3d migration men Haiku 4.5 l Haiku 5.5, el dashboard ywarri +30% tokens w chwaya ajwiba ma9sousa. El manager 5af. Fasserlou w 9oul chnoua ta3mel.",
+      "hint": "Fakker fel tokenizer w el thinking.",
+      "answer": "Haiku 5.5 3andou tokenizer jdid: nafs el texte ywalli ta9riban 30% tokens akther, ya3ni el usage yetla3 7atta ken el 5edma nafsha. Ama el prix per token mta3 Haiku 5.5 ($0.10 / $0.50 ki el prompt 100K walla a9al) a9al barcha men Haiku 4.5 ($1 / $5), lhné lezem n9arnou el cost per task bel dollar, mouch el tokens. El ajwiba el ma9sousa: el thinking walla ma5doum par défaut w ya7seb men max_tokens, w max_tokens ken ma7soub lel tokenizer el 9dim: nkabbrouh w nchoufou stop_reason 'max_tokens'. N3awdou count_tokens 3la claude-haiku-5-5, njarrbou effort 'low' 3al eval, w nbaddlou el baseline mta3 el dashboards."
+    },
+    {
+      "q": "Bech t5alli projet AI l developer jdid w inti mechi. Ekteb el liste mta3 el 7ajet elli lezem ykounou fel RUNBOOK.md (3al a9al 7).",
+      "answer": "1) El architecture: chkoun y3ayyet lel API, win, w chnoua el flows. 2) El model ids w el effort w 3lech 5tarnehom (decisions log b ar9am el eval). 3) Win el prompts, kifech tetbaddel el versions, w el CHANGELOG. 4) Kifech t5addem el eval (commande, el set, el seuil). 5) El dashboards w el alerts, w chnoua el valeurs el 3adiyin. 6) El rollback w el kill switch: el flags w el commandes, m3a e5er marra tjarrbou. 7) Asemi el secrets w win yet7attou (abadan el valeurs). 8) El cost: 9addech fel chhar, el limites w el alerts mta3 el budget. 9) El routine: triage el jem3a, migration notes, prompt audit. 10) El owners w kifech tetwasel f incident. W fel e5er: session handover fiha ej-jdid ya3mel rollback tajribi b yeddih."
+    }
+  ],
+  "pitfalls": [
+    "El model id mektoub f 3achra blayes fel code, w el effort m5alli 3al default: nhar el migration tensa blasa, w el comportement yetbaddel bla ma ta3ref 3lech.",
+    "Tbaddel el model, el prompt w el SDK fi nafs el PR: ki 7aja tetkassar, ma ta3refch chkoun es-sbab, w el rollback yraja3 7atta el 7ajet el behya.",
+    "T7assen el prompt w inti ta9ra el cases elli t9is 3lihom, walla t9arrer 3la far9 2 nou9at f 25 case: hedha overfit w noise, mouch ta7sin.",
+    "Tzid 'CRITICAL: MUST' l kol bug w ma tna77i 7atta chay: el prompt ywalli metaha mta3 7alat 5assa, w el model ej-jdid ybalegh fiha.",
+    "T7ot messages el users el 5am (CIN, telifoun, emails) fel eval set w f git: el eval yetcharek w yetb3ath lel API.",
+    "Rollback ma tjarrabch w kill switch ma famech: nhar el incident tekteb code ta7t ed-dhaght fi blasset ma tbaddel flag.",
+    "T9aren el models bel prix per token w tahbet l model asghar 9bal ma tjarreb el caching w el effort: el cost per completed task howa elli yhem, w el model elli yghlot y5alles el retry w el insen."
+  ],
+  "interview": [
+    {
+      "q": "3lech app fiha LLM tetbaddel 7atta ken ma baddalnech el code?",
+      "a": "5ater fama drift men thletha blayes: el models (versions jdod, deprecations, retirements, defaults ytbadlou kima el effort), el users (loughat w as2la jdod), w el data (FAQ, as3ar, documents). Nektachfouh b monitoring 3la signals mta3 el jouda, triage mta3 el feedback kol jem3a, w eval n3awdouh ba3d kol tabdil. W nthabtou kol 7aja tetbaddel f config wa7ed f git."
+    },
+    {
+      "q": "Kifech ta3mel migration l model jdid fel production?",
+      "a": "N9ra el migration notes w nfarre9 [BLOCKS] (400 walla loops) w [TUNE] (jouda w cost). Nsalla7 el BLOCKS f branch, n5addem el eval 3al zouz models: score, cost per task, latence, refusals. Ba3d shadow walla canary bel chwaya, nsajjel response.model, w rollback b flag. Ki yethbet, prompt audit w effort sweep 3al model el jdid, kol wa7ed f PR wa7dou."
+    },
+    {
+      "q": "Kifech t'versioni el prompts?",
+      "a": "Kol prompt fichier f git, kol tabdil PR b review w natijet el eval, version id nsajlouh m3a kol request (m3a el model w el request_id), w CHANGELOG fih 3lech w el athar. El rollback = nraj3ou lel version elli 9bal fel config. W prompt audit 3and kol model jdid bech nna77iw et-ta3limet elli ma 3adech ylezmou."
+    },
+    {
+      "q": "Kifech t7awel el feedback mta3 el users l ta7sin 7a9i9i?",
+      "a": "Nlemmou feedback explicite (thumbs) w implicite (corrections mta3 el support, escalations), w signals mel logs (refusals, max_tokens, JSON ma yet9ebelch). Kol jem3a triage 3al thumbs-down w échantillon random, nsanfou b failure categories thebta. El category el akbar twalli eval cases anonymisés bel jweb es-s7i7, w ba3d round ta7sin n9isouh 3al test split."
+    },
+    {
+      "q": "3lech ta3mel train / test split ki t7assen prompt?",
+      "a": "5ater ki na9raw el ghaltat nsall7ou el cases hedhom bedh-dhabt, w el score 3lihom ykedheb. El train na9rawh, el test n9isouh bark, random w stratifié, mouch 7asb el score. El ra9m el m3allen howa el far9 3al test. W na7sbou el noise: ta9riban 1/sqrt(n x reps), bech ma nsadd9ouch far9 sghir."
+    },
+    {
+      "q": "El facture mta3 el API tel3et 40% ech-chhar hedha. Chnoua ta3mel?",
+      "a": "N9is 9bal: el usage per traffic class (chat, batch el lil...). Nchouf ken cache_read_input_tokens hbat (7aja dynamique d5let fel prefix, model tbaddel), ken fama migration (tokenizer, default effort), loop ma to9efch, max_tokens, walla traffic zed. Ba3d el levers bet-tartib: caching, input, output, batch, ba3d effort, w el model fel e5er, kol wa7ed f diff wa7dou m3a eval, w n9isou cost per completed task."
+    },
+    {
+      "q": "7kili 3la incident f feature AI w kifech tsarraft.",
+      "a": "N7ki b structure wadh7a: chnoua sar (mithel el tickets el kol yemchiw l 'other' ba3d prompt jdid), kifech tektachef, el mitigation (rollback bel flag f 12 d9i9a), el réparation (re-classification b batch), w el post-mortem blameless: root cause (eval fih 4 cases bark l 'payment'), w el actions: eval cases jdod, alert 3al distribution, score per category fel PRs."
+    },
+    {
+      "q": "Kifech to9a3ed à jour fel AI?",
+      "a": "El documentation er-rasmiya, el release notes w el migration guides mta3 el fournisseurs, w el changelog mta3 el SDKs. Ki yo5rej model jdid n5addem el eval mte3i 3lih 9bal ma nsadde9 el benchmarks. W net3allem bet-tajriba w el partage: projet sghir fel chhar, article, meetup."
+    }
+  ]
+}

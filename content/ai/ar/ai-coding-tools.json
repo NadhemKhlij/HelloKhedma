@@ -1,0 +1,313 @@
+{
+  "why": "اليوم برشة developers يخدموا بالـ AI coding tools كل نهار: Copilot في الـ IDE، Cursor، Claude Code في الـ terminal. الـ recruteurs في تونس وفي أوروبا ولّاو يسألوا عليهم في الـ entretien. أما الـ outil هذا ينجم يخلّيك تخدم أسرع... ولّا يخلّيك تدخّل bugs و failles بالسرعة. الـ course هذا يعلّمك تستعمل الـ outils هاذوما بطريقة professionnelle: context، plan، tests، review، sécurité، وكيفاش تتعلّم بيهم موش كان تكوبي.",
+  "outcome": "تفرّق بين autocomplete و chat و agent وتختار الـ outil المناسب، تكتب CLAUDE.md باهي، تخدّم agent بـ plan و diffs صغار، تحطّ tests باش تحمي الـ code، تعمل review لـ code كتبو AI، تحمي الـ secrets متاعك، وتفسّر الـ workflow متاعك في الـ entretien.",
+  "lessons": [
+    {
+      "title": "الـ landscape: autocomplete، chat و agents",
+      "text": [
+        "كي نقولوا \"AI coding tools\"، راهو نحكيو على 3 familles. الأولى: الـ autocomplete (complétion). تكتب في الـ IDE والـ outil يقترح السطر الجاي ولّا function كاملة بالـ gris، وإنتي تنزل Tab كان عجبك. GitHub Copilot هو اللي عمّم الفكرة هاذي، وتوّة برشة éditeurs عندهم كيفها. الـ autocomplete سريع وما يقصّش الـ flow متاعك، أما يشوف كان شويّة context: الـ fichier اللي حالّو وشويّة fichiers قراب.",
+        "الـ famille الثانية: الـ chat في الـ IDE. تـ sélectionni code وتسأل \"شنوّة يعمل هذا؟\" ولّا \"اكتب test لـ function هاذي\"، والجواب يجي في panneau على الجنب. Copilot Chat، Cursor (éditeur مبني على VS Code والـ AI في قلبو) و extensions أخرين يعملوا هكّا. هذا باهي باش تفهم code، تسأل على erreur، ولّا تحضّر بوط صغير. أما إنتي اللي تكوبي، إنتي اللي تخدّم، وإنتي اللي تقرّر.",
+        "الـ famille الثالثة: الـ agents (agentic coding tools). هوني ما تسألش على بوط code: تعطي mission (\"زيد pagination للـ endpoint /orders وتستيها\"). الـ agent يقرا الـ repo، يفتّش في الـ fichiers، يبدّل برشة fichiers، يخدّم commandes (tests، linter، build)، يشوف النتيجة ويعاود حتّى يكمّل. Claude Code، الـ outil متاع Anthropic، من الـ famille هاذي: تلانسيه في الـ terminal (CLI)، في الـ desktop app، في الـ web، ولّا عبر extensions لـ IDE كيما VS Code و JetBrains. Cursor و Copilot زادة زادوا modes agent. كيما شفنا في course الـ Claude API، الـ agent = model + tools + loop؛ هوني الـ tools هوما متاع الـ developer: اقرا fichier، اكتب fichier، خدّم commande.",
+        "وقتاش كل واحد؟ الـ autocomplete للـ code اللي إنتي تعرفو وتحب تكتبو أسرع: boilerplate، tests يشبهوا لبعضهم، mapping. الـ chat كي تحب تفهم ولّا تسأل على بوط précis. الـ agent كي الـ mission تمسّ برشة fichiers ولازمها تخدّم commandes: refactoring، feature صغيرة مع tests، migration، investigation متاع bug. أما الـ agent موش magie: كي الـ mission غامضة ولّا الـ repo ما فيهش tests، ينجم يبني حاجة كبيرة وغالطة بثقة كبيرة.",
+        "القاعدة العامّة: كل ما الـ outil ياخو autonomie أكثر، كل ما يلزمك context و contrôle أكثر. وما تنساش اللي برشة حاجات ما تستحقّش AI: الـ rename والـ refactor متاع الـ IDE ما يغلطوش. للأسوام والـ abonnements، شوف الـ pages الرسمية متاع كل outil: يتبدّلوا برشة، والشركة متاعك ينجم يكون عندها choix déjà (lesson 6)."
+      ],
+      "points": [
+        "Autocomplete: سريع، context صغير، إنتي تكمّل وتقرّر.",
+        "Chat في الـ IDE: تفهم وتسأل؛ إنتي تكوبي وتخدّم.",
+        "Agent: يقرا، يبدّل ويخدّم commandes وحدو في loop.",
+        "Autonomie أكثر = context و tests و review أكثر."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Need                                   Best fit\n-------------------------------------  ----------------------------------\nFinish the line, boilerplate           Autocomplete (Copilot, Cursor...)\n\"What does this function do?\"          Chat in the IDE\nFix a failing test across 4 files      Agent (Claude Code, agent modes)\nExplore an unknown repository          Agent or chat, read-only first\nRename a variable in one file          The IDE's own refactor, no AI",
+        "note": "موش كل حاجة تستحقّ AI: الـ refactor متاع الـ IDE déterministe وما يغلطش."
+      }
+    },
+    {
+      "title": "تخدّم agent: context، plan، steps صغار و review",
+      "text": [
+        "الـ agent ما يعرفش الـ projet متاعك كيفك. ما يعرفش علاش الـ table هاذي فيها زوز colonnes date، ولّا شكون يستعمل الـ endpoint القديم. كان تعطيه mission بجملة وحدة، يعبّي الفراغ بـ hypothèses. لهنا القاعدة الأولى: الـ context. قلّو شنوّة الهدف (موش كان الـ tâche)، أنا fichiers مهمّين، شنوّة الـ contraintes (ما تبدّلش الـ API publique، ما تزيدش dépendance)، وكيفاش يعرف اللي كمّل (أنا tests لازم يخدموا).",
+        "القاعدة الثانية: plan قبل الـ code. اطلب منّو يقرا ويقترح plan، بلا ما يبدّل شي. في Claude Code فمّا plan mode للحاجة هاذي: الـ agent يفتّش ويقرا برك، ويقدّملك plan تقراه وتصلّحو. Plan غالط تصلّحو في دقيقة؛ 400 سطر غالطين تصلّحهم في ساعة. وكي تقرا الـ plan، برشة مرّات تكتشف اللي إنتي زادة ما كنتش واضح في الحاجة اللي تحبها.",
+        "القاعدة الثالثة: steps صغار. Mission كبيرة (\"عاود اكتب الـ module متاع الـ paiement\") قسّمها: أوّل حاجة الـ tests، بعد الـ refactoring، بعد الـ feature. كل step = diff صغير تقراه، tests تخدّمهم، و commit. كي step يخرج غالط، ترجع للـ commit اللي قبل، موش تفتّش في 30 fichier تبدّلوا. الـ Git هو الـ ceinture de sécurité متاعك: branch لكل mission، و commits صغار.",
+        "القاعدة الرابعة: review لكل diff. الـ agent ينجم يبدّل حاجة ما طلبتهاش: يفسخ test خاطر يـ fachi، يزيد try/except يبلع الـ erreur، ولّا يبدّل fichier ما عندو حتّى علاقة. Claude Code يخلّيك تشوف الـ diff ويطلب permission قبل ما يبدّل fichier ولّا يخدّم commande (حسب الـ réglages متاعك). ما تقولش \"yes\" كل مرّة بلا ما تقرا: الـ \"yes\" على العمى هي اللي تدخّل الـ bugs.",
+        "وكي الـ agent يتخبّط (يعاود نفس الغلطة، ولّا الـ conversation طوّلت برشة)، ما تخلّيهش يدور: وقّفو، قلّو شنوّة الغلطة، ولّا ابدا session جديدة بـ context نظيف و résumé صغير. الـ context window كبيرة أما موش infinie، و conversation مليانة بـ tentatives غالطين تخلّي الـ model يتخبّط أكثر."
+      ],
+      "points": [
+        "Context: الهدف، الـ fichiers، الـ contraintes و critère متاع \"كمّل\".",
+        "Plan قبل الـ code؛ plan mode كي ينجم.",
+        "Step صغير = diff صغير = review ساهلة = commit.",
+        "تقرا كل diff؛ ما تقولش \"yes\" على العمى.",
+        "كي يتخبّط: وقّفو، وضّحلو، ولّا session جديدة."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Goal: customers must be able to page through their orders\n(the mobile app loads 2,000 orders at once today).\n\nTask: add pagination to GET /orders in api/orders.py.\n- Query params: page (default 1) and page_size (default 20, max 100).\n- Keep the response backward compatible: add \"page\" and \"total\", do not rename fields.\n- Do not add new dependencies.\n\nDone when: the existing tests pass and new tests cover page 1,\nthe last page and page_size > 100.\n\nFirst read the relevant files and propose a short plan.\nDo not edit anything until I approve the plan.",
+        "note": "الـ prompt فيه العلاش، الشنوّة، الـ contraintes والـ critère، ويطلب plan قبل أيّ تبديل."
+      }
+    },
+    {
+      "title": "CLAUDE.md: التعليمات متاع الـ projet",
+      "text": [
+        "كل session جديدة، الـ agent يبدا من الصفر: ما يتفكّرش شنوّة قلتلو البارح. الحلّ: fichier تعليمات يقراه وحدو في البداية. في Claude Code، هو CLAUDE.md: fichier markdown في الـ racine متاع الـ repo، و Claude Code يحطّو في الـ context automatiquement في كل session. تنجم زادة تحطّ CLAUDE.md في sous-dossier (تعليمات خاصّة بـ partie من الـ code)، وواحد personnel في الـ dossier متاع الـ user للـ préférences متاعك في الـ projets الكل. الـ commande /init تحضّر أوّل version من الـ repo، وإنتي تصلّحها.",
+        "شنوّة تحطّ فيه؟ أوّلًا الـ commandes: كيفاش تـ installi، تلانسي الـ tests، الـ linter، الـ build. هاذي أكثر حاجة تنفعك: بلا بيها الـ agent يخمّن (\"npm test؟ pytest؟ make؟\") ويضيّع الوقت. ثانيًا الـ conventions: الـ style، الـ structure متاع الـ dossiers، الـ libraries اللي تستعملهم (واللي ما تستعملهمش)، كيفاش تسمّي الـ fichiers. ثالثًا القواعد: \"ما تمسّش الـ migrations القدم\"، \"كل endpoint جديد يلزمو test\"، \"ما تـ commitيش direct على main\".",
+        "اكتب قصير و précis. الـ CLAUDE.md يدخل في الـ context في كل session: كل سطر يتكلّف tokens وياخو شويّة من الـ attention متاع الـ model. \"اكتب code نظيف\" ما تنفعش: الـ model يعرفها. \"استعمل httpx موش requests\" تنفع. وما تعبّيش الـ fichier بـ \"IMPORTANT\" في كل سطر: كي كل شي important، ما عادش حتّى شي important.",
+        "الـ CLAUDE.md fichier حيّ. كي تشوف الـ agent يعاود نفس الغلطة (يستعمل library غالطة، ينسى يـ activi الـ venv)، زيد سطر. Commitيه في الـ repo باش الـ équipe الكل تستفاد، واعمل review للتبديلات متاعو كيما الـ code. وما تحطّ فيه حتّى secret: الـ fichier في الـ Git، يتقرا من الـ équipe الكل ومن الـ model.",
+        "الـ outils الأخرين عندهم نفس الفكرة بأسامي أخرين: Copilot يقرا fichier instructions متاع الـ repo، Cursor عندو rules متاع الـ projet، وبرشة outils ولّاو يقراو AGENTS.md. الاسم يتبدّل، الـ principe نفسو: المعلومات اللي الـ agent ما ينجمش يخمّنها، بكتيبة قصيرة و précise."
+      ],
+      "points": [
+        "CLAUDE.md في الـ racine يتقرا في كل session؛ /init يحضّر أوّل version.",
+        "Commandes، conventions وقواعد: الحاجات اللي الـ agent ما ينجمش يخمّنها.",
+        "قصير و précis: كل سطر ياخو بلاصة في الـ context.",
+        "Commitيه، اعملّو review، زيد عليه كي غلطة تتعاود، وحتّى secret فيه."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# CLAUDE.md\n\n## Project\nDjango API for a Tunisian delivery startup. Python 3.12, PostgreSQL.\n\n## Commands\n- Install: pip install -r requirements-dev.txt\n- Run tests: pytest -q\n- Lint and format: ruff check . && ruff format .\n- Run locally: python manage.py runserver\n\n## Conventions\n- Business logic goes in services/, not in views.\n- Use httpx for HTTP calls, not requests.\n- Money is stored in millimes (integer), never as float.\n- Every new endpoint needs tests in tests/api/.\n\n## Rules\n- Never edit existing files in migrations/; create a new migration.\n- Never read or print .env files.\n- Run pytest and ruff before saying a task is done.",
+        "note": "الحاجات هاذوما الـ agent ما ينجمش يخمّنهم وحدو: الـ millimes، httpx، الـ migrations."
+      }
+    },
+    {
+      "title": "الـ tests: الـ filet de sécurité متاعك",
+      "text": [
+        "Code كتبو AI ينجم يبان صحيح وهو غالط. الـ review بعينيك تلقّف برشة، أما ما تلقّفش كل شي: cas limites، arrondi، date في fuseau horaire... الـ tests هوما الدليل اللي الـ code يعمل شنوّة تحب، وزادة اللي تبديل غدوة ما كسّر شي. مع agent، الـ tests يزيدوا أهمّية: الـ agent ينجم يخدّم الـ tests وحدو، يشوف شنوّة fachel ويصلّح، كان الـ tests موجودين والـ commande مكتوبة في CLAUDE.md.",
+        "اطلب الـ tests بالضبط. موش \"زيد tests\"، أما: \"اكتب tests pytest لـ apply_discount: cas normal، code inconnu، code expiré، و arrondi للمليم\". بعد اقرا الـ tests قبل الـ code: test ما يشوف شي (assert result is not None) ما يحمي شي. Test باهي يشوف نتيجة précise.",
+        "الـ TDD مع AI: الـ ordre اللي يخدم مليح. (1) إنتي (ولّا الـ agent) تكتب tests يقولوا شنوّة تحب. (2) تخدّمهم وتشوفهم يـ fachiw: كان ما fachlouch، الـ test ما يشوف شي ولّا الـ feature déjà موجودة. (3) Commit للـ tests. (4) تقول للـ agent: \"implémenti باش الـ tests يخدموا، وما تبدّلش الـ tests\". هكّا الـ tests يوليّوا الـ spécification، والـ agent عندو critère واضح باش يعرف اللي كمّل.",
+        "ما تخلّيش الـ agent \"يصلّح\" test بتبديل الـ test. هاذي من أكثر الغلطات: test يـ fachi، الـ agent يبدّل الـ assertion ولّا يحطّ skip، وكل شي يولّي أخضر. كي تقرا الـ diff، أيّ تبديل في test كان موجود يلزمو سبب واضح. وزيد: الـ tests اللي يكتبهم الـ agent لـ code كتبو هو ينجموا يعاودوا نفس الفهم الغالط. لهنا test واحد على الأقل للـ cas المهمّ، اكتبو ولّا راقبو بعينيك.",
+        "الـ CI (GitHub Actions ولّا غيرو) يكمّل الحكاية: كل pull request تخدّم الـ tests، وما تـ mergiش code AI ما عدّاش على الـ tests. وفي الـ applications متاع الـ AI (prompts، models)، الـ tests يتسمّاو evals: هاذوما في course الـ evaluation (ai-evals)."
+      ],
+      "points": [
+        "الـ tests هوما الدليل، موش الـ impression متاعك كي تقرا الـ code.",
+        "اطلب cas précis، واقرا الـ tests قبل الـ code.",
+        "TDD: tests يـ fachiw، commit، بعد implémentation بلا تبديل الـ tests.",
+        "Test تبدّل ولّا تحطّ skip في diff = alerte."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# tests/test_discount.py - written and committed BEFORE asking the agent for the code\nimport pytest\n\nfrom shop.pricing import apply_discount\n\n\ndef test_percentage_discount():\n    assert apply_discount(total_millimes=50_000, code=\"PROMO10\") == 45_000\n\n\ndef test_unknown_code_keeps_price():\n    assert apply_discount(total_millimes=50_000, code=\"NOPE\") == 50_000\n\n\ndef test_expired_code_is_rejected():\n    with pytest.raises(ValueError, match=\"expired\"):\n        apply_discount(total_millimes=50_000, code=\"SUMMER2023\")\n\n\ndef test_result_is_rounded_to_whole_millimes():\n    # 10% of 12,345 millimes is 1,234.5: the customer pays 11,111 (rounded half up)\n    assert apply_discount(total_millimes=12_345, code=\"PROMO10\") == 11_111",
+        "note": "بعد الـ commit، الـ prompt: \"Implement apply_discount so these tests pass. Do not modify the tests.\""
+      }
+    },
+    {
+      "title": "الـ review متاع code AI: على شنوّة تفتّش",
+      "text": [
+        "Code الـ AI يخرج نظيف، مرتّب، بـ commentaires... وهذا اللي يخلّيك تثق فيه أكثر من اللازم. الـ review متاع code AI لازمها تكون بنفس الـ sérieux (ولّا أكثر) متاع review لـ code collègue. فمّا 4 حاجات تفتّش عليهم ديما.",
+        "أوّلًا، الـ sécurité. Requête SQL بـ f-string (SQL injection)، input من الـ user ما يتـ validaش، fichier يتحلّ بـ chemin جاي من الـ user، secret مكتوب في الـ code، CORS محلول للكل، verify=False في requête HTTPS باش \"تمشي\". الـ model تعلّم من code public، والـ code الـ public فيه الغلطات هاذوما برشة. كل endpoint، كل requête، كل حاجة تمسّ الـ auth: اقراها بعينيك.",
+        "ثانيًا، الـ APIs اللي موش موجودين (hallucinated APIs). الـ model ينجم يستعمل function موش موجودة في الـ library، paramètre من version أخرى، ولّا package باسم قريب من اسم صحيح. الحالة الأخيرة خطيرة: كان package بالاسم هذا موجود في PyPI ولّا npm وكتبو حدّ بنيّة خايبة، تـ installih بيدّيك. قبل ما تزيد dépendance: ثبّت اللي الـ package موجود، معروف، وهو اللي تحبّو. الـ tests والـ linter يلقّفوا برشة functions غالطين؛ الـ packages يلزمهم عينك.",
+        "ثالثًا، الـ licences. بوط code طويل ينجم يكون قريب برشة من code موجود بـ licence (GPL مثلًا). فمّا outils فيهم filtre للحالة هاذي، والشركات عندهم politiques. قاعدة عملية: ما تقبلش بوط code طويل ما تفهموش وما تعرفش منين جا، وكي تزيد library، شوف الـ licence متاعها مع الـ politique متاع الشركة.",
+        "رابعًا، الـ over-engineering. طلبت function، جاك module بـ 3 classes، interface، factory و config. ولّا الـ agent زاد error handling، retries و logs في كل بلاصة. Code أكثر = bugs أكثر و review أقل. اسأل: \"شنوّة الـ version الأصغر اللي تعدّي الـ tests؟\" وافسخ الـ code الميّت، الـ fichiers اللي ما عندهم حتّى علاقة، والـ commentaires اللي يعاودوا الـ code. القاعدة العامّة: كان ما تنجمش تفسّر كل سطر في الـ diff، ما تـ mergihش."
+      ],
+      "points": [
+        "Sécurité: SQL، input، auth، secrets، TLS: اقرا بعينيك.",
+        "ثبّت من الـ functions والـ packages قبل ما تـ installi.",
+        "Licences: بوط طويل ما تفهموش = لا.",
+        "الـ solution الأصغر اللي تعدّي الـ tests؛ ما تـ mergiش سطر ما تنجمش تفسّرو."
+      ],
+      "example": {
+        "lang": "diff",
+        "code": "--- a/api/orders.py\n+++ b/api/orders.py\n@@ -12,2 +12,3 @@ def search_orders(db, customer_name):\n-    query = f\"SELECT * FROM orders WHERE customer_name = '{customer_name}'\"\n-    return db.execute(query).fetchall()\n+    # Parameterized query: the driver escapes the value (no SQL injection)\n+    query = \"SELECT id, total_millimes, status FROM orders WHERE customer_name = %s\"\n+    return db.execute(query, (customer_name,)).fetchall()",
+        "note": "الـ version الأولى (كتبها الـ AI) تخدم في الـ démo وتحلّ SQL injection؛ الـ review لقّفتها."
+      }
+    },
+    {
+      "title": "الـ sécurité والـ secrets: شنوّة يخرج من الـ machine متاعك",
+      "text": [
+        "كي تستعمل AI coding tool، الـ code والـ context يتبعثوا لـ serveurs متاع الـ fournisseur باش الـ model يخدم عليهم: الـ fichier اللي حالّو، البوط اللي sélectionnitou، ومع agent، أيّ fichier يقراه والـ output متاع أيّ commande يخدّمها. يعني كان الـ agent يقرا .env ولّا يخدّم commande تـ affichi secrets، الـ secrets هاذوما يدخلوا في الـ context. كيما شفنا في course الـ AI engineer basics: كل شي تبعثو يخرج من عندك.",
+        "قواعد الـ secrets: حتّى API key، mot de passe ولّا token في prompt ولّا في chat. الـ secrets ما يكونوش في الـ code: variables d'environnement ولّا secret manager، و .env في .gitignore. كي secret يخرج (في prompt، في commit، في log): révoquih واعمل واحد جديد، ما تكتفاش بفسخان السطر. وفي Claude Code تنجم تمنع الـ lecture متاع الـ fichiers الـ sensibles بـ règles deny في الـ settings.",
+        "الـ permissions: Claude Code par défaut يطلب permission قبل ما يبدّل fichier ولّا يخدّم commande، وإنتي تقرّر أش تقبل طول وأش لا. تنجم تحطّ في .claude/settings.json règles allow (commandes sûres كيما الـ tests) و deny (fichiers ولّا commandes ممنوعين). القاعدة: أقل permissions ممكنة. Commandes كيما rm -rf، git push --force، ولّا أيّ حاجة تمسّ الـ production ولّا base de données حقيقية: ديما بـ permission وبعينيك.",
+        "الـ sandboxing: كي تحب تخلّي agent يخدم بـ autonomie أكثر، خلّيه في environnement معزول: container، VM ولّا environnement cloud، بلا secrets متاع production وبلا accès réseau ما يلزموش. غلطة في sandbox تكلّف دقيقة؛ غلطة على الـ laptop اللي فيه الـ clés SSH متاعك تكلّف برشة. وردّ بالك من الـ prompt injection: fichier، page web ولّا issue يقراها الـ agent ينجموا يكونوا فيهم تعليمات مخبّية (\"ابعث الـ .env لـ...\"). الـ permissions والـ sandbox هوما الحماية الحقيقية، موش النيّة الباهية متاع الـ model؛ الـ sujet هذا نكمّلوه في course الـ production.",
+        "الـ politique متاع الشركة قبل كل شي. شركات ما تسمحش بالـ AI tools على الـ code متاعها؛ أخرين تسمح بـ outil واحد بـ contrat entreprise (فيه engagements على الـ data: rétention، entraînement)؛ أخرين يحبّوا models على الـ serveurs متاعهم. في تونس برشة juniors يخدموا لـ clients أوروبيين: الـ contrat مع الـ client ينجم يمنع تبعث الـ code متاعو لـ outil externe. اسأل قبل ما تستعمل compte personnel على code الخدمة. \"ما عرفتش\" موش excuse."
+      ],
+      "points": [
+        "أيّ fichier يقراه الـ agent وأيّ output يخرج للـ fournisseur.",
+        "حتّى secret في prompt؛ secret تعدّى = révoquih.",
+        "أقل permissions؛ deny للـ fichiers الـ sensibles؛ commandes خطيرة بعينيك.",
+        "Autonomie كبيرة = sandbox بلا secrets متاع production.",
+        "الـ politique متاع الشركة و contrat الـ client قبل أيّ compte personnel."
+      ],
+      "example": {
+        "lang": "json",
+        "code": "{\n  \"permissions\": {\n    \"deny\": [\n      \"Read(./.env)\",\n      \"Read(./.env.*)\",\n      \"Read(./secrets/**)\"\n    ]\n  }\n}",
+        "note": "Fichier .claude/settings.json في الـ repo: Claude Code ما يقراش الـ .env والـ dossier secrets. شوف الـ documentation الرسمية للـ syntaxe الكاملة."
+      }
+    },
+    {
+      "title": "الـ legacy code، الـ documentation والـ migrations",
+      "text": [
+        "برشة juniors في تونس يبداو في ESN ولّا شركة فيها code قديم: application PHP عندها 10 سنين، procédures stockées، module Java حتّى حدّ ما يعرف شكون كتبو. هوني الـ AI tools ينفعوا برشة، خاطر الخدمة الكبيرة هي القراية، موش الكتيبة. Agent ينجم يفتّش في الـ repo الكل، يتبّع الـ appels، ويفسّرلك شنوّة يصير كي الـ client يعدّي commande.",
+        "ابدا بالقراية برك (read-only). اسأل: \"فسّرلي الـ flow متاع الـ paiement من الـ controller للـ base de données، واعطيني أسامي الـ fichiers والـ functions.\" وثبّت: حلّ الـ fichiers اللي قالّك عليهم. الـ agent ينجم يغلط في التحليل كيما في الـ code: function بنفس الاسم في زوز بلايص، config تبدّل الـ comportement... تفسير الـ agent hypothèse، موش vérité.",
+        "الـ documentation: الـ AI باهي في كتيبة docstrings، README، schémas متاع الـ architecture (بـ texte ولّا Mermaid) و notes d'onboarding. أما doc غالطة أخيب من بلا doc. راقب كل حاجة، وخصوصًا الـ \"علاش\" (علاش الـ code مكتوب هكّا): هذا الـ model ما ينجمش يعرفو كان ما هوش مكتوب في بلاصة. اسأل الـ équipe وزيد العلاش بيدّيك.",
+        "الـ migrations (Python 2 لـ 3، AngularJS لـ Angular، Java 8 لـ 17، upgrade متاع framework): الطريقة اللي تخدم: (1) tests على الـ comportement الحالي قبل أيّ تبديل (characterization tests: يشوفوا شنوّة يعمل الـ code توّة، حتّى كان فيه bug)؛ (2) plan بـ étapes صغار؛ (3) migration module بـ module، كل step tests خضر و commit؛ (4) review كي الـ agent يستعمل API جديدة: هوني بلاصة الـ hallucinations، خاطر الـ model ينجم يخلّط بين versions.",
+        "هذا يبان طويل، أما يمشي مليح مع agent: الـ agent ينجم يكتب الـ characterization tests، وإنتي تـ vérifi اللي هوما يعكسوا الـ comportement الحقيقي. وفي كل étape، الـ diff يبقى صغير ويتقرا. هكّا الـ migration اللي كانت \"projet متاع 6 شهر ما حدّ يحب يمسّو\" تولّي steps صغار تنجم تقدّمهم في الـ sprint."
+      ],
+      "points": [
+        "Legacy: الـ AI ينفع أكثر في القراية والفهم.",
+        "ابدا read-only؛ تفسير الـ agent hypothèse لازم تـ vérifiها.",
+        "Doc غالطة أخيب من بلا doc؛ الـ \"علاش\" يعطيه الإنسان.",
+        "Migration: characterization tests، plan، module بـ module، commit كل step."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Read-only task: do not edit any file.\n\nExplain how an order is paid in this repository:\n1. Entry point (route or controller) and the main functions called, in order.\n2. Where the payment status is written to the database.\n3. Anything surprising: duplicated logic, dead code, hard-coded values.\n\nFor each point, give the file path and function name so I can check it myself.\nIf you are not sure about something, say so instead of guessing.",
+        "note": "اسم الـ fichier والـ function مع كل claim: تنجم تـ vérifi بروحك."
+      }
+    },
+    {
+      "title": "الـ carrière متاعك: تتعلّم بالـ AI، موش تكوبي برك",
+      "text": [
+        "الخطر الكبير على الـ junior موش اللي الـ AI ياخو بلاصتو: هو اللي يولّي ما يعرفش يخدم كان بالـ AI، وما يفهمش الـ code اللي يـ mergih. في الـ entretien، في الـ debugging كي الـ production طاحت، ولّا كي الـ outil غلط، الفهم متاعك هو اللي يفرّق. Recruteur ينجم يسألك على سطر في projet من الـ portfolio متاعك: كان ما تنجمش تفسّرو، الـ projet يولّي ضدّك.",
+        "كيفاش تتعلّم بيه: اسأل \"علاش\" موش كان \"كيفاش\". كي الـ agent يصلّح bug، اطلب منّو يفسّر الـ cause. حاول إنتي قبل (15-20 دقيقة)، بعد قارن مع الحلّ متاع الـ AI. اطلب منّو review لـ code متاعك في بلاصة ما يكتبو هو. اكتب وحدك مرّات (kata، exercice) بلا AI، كيما الـ sportif اللي يتمرّن بلا machine. وكي يستعمل حاجة ما تعرفهاش (decorator، generator، index SQL)، اقرا الـ documentation الرسمية.",
+        "اكتب journal صغير: كل semaine، 3 حاجات تعلّمتهم من sessions الـ AI (bug، pattern، commande). هذا ينفعك في الفهم وفي الـ entretien زادة. وفي الـ projets متاعك ولّا في الـ open source، الـ commits والـ descriptions متاع الـ PR لازم يكونوا مكتوبين بفهم: شنوّة بدّلت وعلاش، موش résumé générique كتبو الـ AI.",
+        "في الـ entretien: كون sincère. برشة شركات توّة يسألوا \"تستعمل AI tools؟ كيفاش؟\". الجواب الباهي موش \"لا، عمري\" وموش \"الـ AI يكتب كل شي\". الجواب الباهي: workflow واضح (context و CLAUDE.md، plan، steps صغار، tests، review، sécurité) ومثال حقيقي: \"الـ agent اقترح package موش موجود، لقّفتو في الـ review\". فمّا شركات يعملوا exercices live بلا AI، وأخرين مع AI: حضّر روحك للزوز.",
+        "في الـ marché، الـ remote مع شركات أوروبية والـ freelance يطلبوا productivité، أما زادة qualité و confiance. Developer يعرف يخدم بـ agent بطريقة safe (tests، review، secrets) يولّي أقوى برشة من اللي يخدم بلا AI، ومن اللي يخدم بالـ AI على العمى. هذا هو الـ skill اللي تحطّو في الـ CV: \"AI-assisted development with tests and code review\"، موش اسم outil برك."
+      ],
+      "points": [
+        "الفهم هو اللي يفرّق: ما تـ mergiش سطر ما تنجمش تفسّرو.",
+        "حاول قبل، قارن بعد؛ اطلب review وتفسير.",
+        "Journal صغير: 3 حاجات تعلّمتهم كل semaine.",
+        "في الـ entretien: workflow واضح + مثال حقيقي."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Learning log - week 12\n\n1. Bug: duplicate orders on double click.\n   The agent's first fix added a sleep(); I rejected it.\n   Real cause: no unique constraint. Fix: unique (customer_id, cart_id) + a test.\n2. Learned: pytest fixtures with yield (setup + teardown).\n3. Caught in review: the agent imported a package that does not exist on PyPI.\n\nInterview version (30 seconds):\n\"I use an agent for multi-file changes, but I plan first, keep diffs small,\nrun the tests and review every line before I merge.\"",
+        "note": "الـ journal هذا يعاونك تتعلّم ويعطيك أمثلة حقيقية للـ entretien."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Familles متاع الـ outils",
+      "items": [
+        ["Autocomplete", "يقترح السطر ولّا الـ function الجاية؛ إنتي تنزل Tab"],
+        ["Chat في الـ IDE", "تسأل على code sélectionné؛ إنتي تكوبي وتخدّم"],
+        ["Agent (agentic coding tool)", "يقرا الـ repo، يبدّل fichiers ويخدّم commandes في loop"],
+        ["GitHub Copilot", "Assistant متاع GitHub في الـ IDE: complétion، chat و mode agent"],
+        ["Cursor", "Éditeur مبني على VS Code بالـ AI في قلبو: chat، complétion، agent"]
+      ]
+    },
+    {
+      "group": "Claude Code",
+      "items": [
+        ["Claude Code", "الـ agent متاع Anthropic: CLI، desktop app، web و extensions IDE"],
+        ["CLAUDE.md", "تعليمات الـ projet، يتقرا في كل session"],
+        ["/init", "يحضّر أوّل CLAUDE.md من الـ repo"],
+        ["Plan mode", "الـ agent يقرا ويقترح plan بلا ما يبدّل شي"],
+        ["MCP", "Protocole يربط الـ agent بـ tools و sources de données أخرين"],
+        ["Subagents, hooks, skills", "Agents spécialisés، commandes automatiques عند événements، workflows بـ /اسم"]
+      ]
+    },
+    {
+      "group": "Workflow مع agent",
+      "items": [
+        ["Context", "الهدف، الـ fichiers، الـ contraintes و critère \"كمّل\""],
+        ["Plan قبل الـ code", "Plan غالط تصلّحو في دقيقة، code غالط في ساعة"],
+        ["Steps صغار", "Diff صغير، review ساهلة، commit لكل step"],
+        ["Review كل diff", "حتّى \"yes\" على العمى"],
+        ["Session جديدة", "كي الـ agent يتخبّط: context نظيف و résumé"]
+      ]
+    },
+    {
+      "group": "Tests",
+      "items": [
+        ["TDD مع AI", "Tests يـ fachiw، commit، بعد implémentation"],
+        ["'Do not modify the tests'", "الـ agent يصلّح الـ code، موش الـ assertion"],
+        ["Characterization test", "يشوف شنوّة يعمل الـ code القديم توّة، قبل أيّ migration"],
+        ["CI", "كل pull request تخدّم الـ tests قبل الـ merge"]
+      ]
+    },
+    {
+      "group": "Review متاع code AI",
+      "items": [
+        ["f-string في requête SQL", "SQL injection: استعمل paramètres"],
+        ["Hallucinated API", "Function ولّا paramètre موش موجود في الـ version متاعك"],
+        ["Package inconnu", "ثبّت في PyPI/npm قبل ما تـ installi"],
+        ["Over-engineering", "اطلب الـ version الأصغر اللي تعدّي الـ tests"]
+      ]
+    },
+    {
+      "group": "Sécurité و secrets",
+      "items": [
+        ["Secret في prompt ولّا commit", "Révoquih طول واعمل واحد جديد"],
+        ["Règles deny في .claude/settings.json", "تمنع fichiers كيما .env و commandes خطيرة"],
+        ["Sandbox", "Container ولّا VM بلا secrets production للـ agent الـ autonome"],
+        ["Politique الشركة", "أنا outil مسموح وأنا code يخرج، قبل كل شي"]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "أنا outil (autocomplete، chat في الـ IDE، agent، ولّا بلا AI) تستعمل وعلاش: (a) تكتب 15 champ mapping DTO يشبهوا لبعضهم، (b) bug يـ fachi test في module ما تعرفوش، (c) تسمّي variable في fichier واحد، (d) upgrade متاع library في 20 fichier مع tests؟",
+      "hint": "فكّر في عدد الـ fichiers، في الـ commandes اللي لازمهم يتخدّموا، وفي الـ risque.",
+      "answer": "(a) Autocomplete: code répétitif إنتي تعرفو، تكمّل بـ Tab وتقرا. (b) Chat ولّا agent بـ read-only الأوّل: يفسّرلك الـ module والـ cause، بعد تصلّح بـ diff صغير و test. (c) بلا AI: الـ rename متاع الـ IDE déterministe. (d) Agent: برشة fichiers ولازم يخدّم الـ tests؛ plan الأوّل، module بـ module، commit لكل step و review لكل diff."
+    },
+    {
+      "q": "الـ prompt هذا متاع agent موش باهي: \"زيد login للـ app\". عاود اكتبو بـ context، contraintes و critère \"كمّل\".",
+      "hint": "الهدف، الـ fichiers، ما تزيدش dépendance، أنا tests، و plan قبل أيّ تبديل.",
+      "code": "text",
+      "answer": "Goal: users of our Flask app must log in with e-mail and password\nbefore they can see /dashboard.\n\nContext: users are in the users table (models/user.py); passwords are not stored yet.\nConstraints:\n- Hash passwords with werkzeug.security (already installed); no new dependencies.\n- Do not change existing routes other than /dashboard.\n- Never log passwords.\n\nDone when: pytest passes, with new tests for a correct login, a wrong password\nand /dashboard without login (redirect to /login).\n\nFirst read the code and propose a plan. Do not edit files until I approve it."
+    },
+    {
+      "q": "اكتب CLAUDE.md قصير لـ projet FastAPI: Python 3.12، tests بـ pytest في tests/، lint بـ ruff، migrations بـ Alembic (ما تمسّش الـ migrations القدم)، الـ dates ديما UTC، والـ agent ما يقراش .env.",
+      "hint": "3 sections: Commands، Conventions، Rules. قصير و précis.",
+      "code": "markdown",
+      "answer": "# CLAUDE.md\n\n## Commands\n- Run tests: pytest -q\n- Lint and format: ruff check . && ruff format .\n- New migration: alembic revision --autogenerate -m \"<message>\"\n\n## Conventions\n- Python 3.12, FastAPI.\n- Store and compare dates in UTC; convert only for display.\n- Tests live in tests/, one file per router.\n\n## Rules\n- Never edit existing files in alembic/versions/; always create a new migration.\n- Never read or print .env files.\n- Run pytest and ruff before saying a task is done."
+    },
+    {
+      "q": "باش تخدّم TDD مع agent، اكتب الـ tests قبل الـ code لـ function normalize_phone(text) ترجّع numéro تونسي بـ format +216XXXXXXXX: \"22 123 456\"، \"+216 98 765 432\"، \"00216 55 000 111\"، و numéro قصير لازم يعمل ValueError.",
+      "hint": "Test لكل cas، و pytest.raises للـ cas الغالط.",
+      "code": "python",
+      "answer": "# tests/test_phone.py - commit these tests first, then ask:\n# \"Implement normalize_phone so these tests pass. Do not modify the tests.\"\nimport pytest\n\nfrom app.phone import normalize_phone\n\n\ndef test_local_number_with_spaces():\n    assert normalize_phone(\"22 123 456\") == \"+21622123456\"\n\n\ndef test_number_with_country_code():\n    assert normalize_phone(\"+216 98 765 432\") == \"+21698765432\"\n\n\ndef test_number_with_00_prefix():\n    assert normalize_phone(\"00216 55 000 111\") == \"+21655000111\"\n\n\ndef test_too_short_number_is_rejected():\n    with pytest.raises(ValueError):\n        normalize_phone(\"22 123\")"
+    },
+    {
+      "q": "الـ agent عطاك code فيه: requests.get(url, verify=False)، import \"fastjsonx\" (library ما سمعتش بيها)، و classe ConfigFactory لـ function تقرا variable وحدة. شنوّة تقول في الـ review؟",
+      "hint": "Sécurité، package، over-engineering.",
+      "answer": "1) verify=False يسكّر الـ vérification متاع الـ certificat TLS: حدّ ينجم يقرا ولّا يبدّل الـ trafic. افسخها؛ كان الـ certificat interne، استعمل الـ CA متاعو. 2) fastjsonx: ثبّت اللي الـ package موجود، معروف وهو اللي تحبّو؛ برشة مرّات اسم مخمّن ولّا قريب من package صحيح، وحدّ ينجم يكون حطّ package خايب بالاسم هذا. كان الـ json متاع Python يكفي، استعملو. 3) ConfigFactory: over-engineering؛ os.environ.get في function وحدة يكفي. اطلب الـ version الأصغر اللي تعدّي الـ tests."
+    },
+    {
+      "q": "Test قديم يـ fachi بعد تبديل عملو الـ agent. في الـ diff تشوف اللي الـ agent بدّل الـ assertion من == 45_000 لـ == 44_999. شنوّة تعمل؟",
+      "answer": "ما تقبلش التبديل. الـ test كان يخدّم قبل: يعني الـ code الجديد بدّل الـ comportement، موش الـ test اللي غالط. ترجّع الـ test كيما كان، وتقول للـ agent: \"This test was passing before your change. Fix the code, do not modify the test, and explain what changed the result.\" كان بعد التحليل الـ test هو اللي غالط فعلًا (règle métier تبدّلت)، تبدّلو إنتي بسبب مكتوب في الـ commit، بعد ما تثبّت مع الـ équipe."
+    },
+    {
+      "q": "بالغلطة، حطّيت API key متاع production في chat مع AI coding tool باش \"يفسّرلك erreur\". شنوّة الـ étapes؟",
+      "answer": "1) Révoqui الـ key طول في الـ console متاع الـ fournisseur واعمل وحدة جديدة؛ الفسخان من الـ chat ما يكفيش، خاطر الـ key خرجت من الـ machine متاعك. 2) بدّل الـ key في البلايص اللي تستعملها (secret manager، variables d'environnement). 3) شوف الـ logs متاع الـ usage كان فمّا usage غريب. 4) قول للـ responsable ولّا الـ équipe sécurité كيما تطلب الـ politique. 5) بعد، زيد règle deny للـ .env واستعمل placeholders كيما <API_KEY> كي تحطّ erreur في الـ chat."
+    }
+  ],
+  "pitfalls": [
+    "تقبل كل diff بـ \"yes\" بلا ما تقرا: الـ agent ينجم يفسخ test، يبلع erreur ولّا يبدّل fichier ما عندو حتّى علاقة.",
+    "تعطي mission كبيرة وغامضة بجملة وحدة: الـ agent يعبّي الفراغ بـ hypothèses ويبني حاجة كبيرة وغالطة. Context، plan، و steps صغار.",
+    "تخلّي الـ agent \"يصلّح\" test بتبديل الـ assertion ولّا بـ skip: الـ CI يولّي أخضر والـ bug يبقى.",
+    "تـ installi package اقترحو الـ AI بلا ما تثبّت اللي موجود ومعروف: ينجم يكون مخمّن ولّا خايب.",
+    "تحطّ API key، mot de passe ولّا data متاع client في prompt، ولّا تخلّي الـ agent يقرا .env: كل شي في الـ context يخرج للـ fournisseur.",
+    "تستعمل compte AI personnel على code الشركة ولّا الـ client بلا ما تسأل على الـ politique والـ contrat.",
+    "تـ mergi code ما تنجمش تفسّرو: في الـ entretien ولّا في الـ incident، هو اللي يفضحك."
+  ],
+  "interview": [
+    {
+      "q": "كيفاش تستعمل الـ AI coding tools في الخدمة متاعك؟",
+      "a": "Autocomplete للـ code الـ répétitif، chat باش نفهم code ولّا erreur، و agent كيما Claude Code للتبديلات اللي تمسّ برشة fichiers. مع الـ agent: context واضح و CLAUDE.md، plan قبل الـ code، steps صغار بـ commit، tests، و review لكل diff قبل الـ merge. وعندي مثال حقيقي: لقّفت في الـ review package موش موجود اقترحو الـ agent."
+    },
+    {
+      "q": "شنوّة الفرق بين autocomplete و chat و agent؟",
+      "a": "الـ autocomplete يقترح السطر الجاي بـ context صغير وإنتي تكمّل. الـ chat يجاوب على سؤال على code sélectionné، وإنتي تكوبي وتخدّم. الـ agent ياخو mission، يقرا الـ repo، يبدّل برشة fichiers ويخدّم commandes في loop حتّى يكمّل. كل ما الـ autonomie تزيد، الـ context والـ tests والـ review لازم يزيدوا."
+    },
+    {
+      "q": "شنوّة تحطّ في CLAUDE.md ولّا fichier instructions متاع projet؟",
+      "a": "الحاجات اللي الـ agent ما ينجمش يخمّنها: الـ commandes (install، tests، lint، build)، الـ conventions (structure، libraries، naming) والقواعد (ما تمسّش الـ migrations القدم، test لكل endpoint). قصير و précis خاطر يتقرا في كل session وياخو بلاصة في الـ context. Commité في الـ repo، review كيما الـ code، وحتّى secret فيه."
+    },
+    {
+      "q": "كيفاش تعرف اللي code كتبو AI صحيح؟",
+      "a": "موش بالـ impression. Tests قبل الـ code (TDD) ولّا على الأقل tests للـ cas المهمّين، الـ CI تخدّمهم على كل PR، و review بعيني: sécurité، APIs و packages موجودين، licences، و over-engineering. ونردّ بالي كان الـ agent بدّل ولّا skippa test: هاذي alerte."
+    },
+    {
+      "q": "شنوّة الـ risques متاع الـ sécurité كي تستعمل agent على الـ repo؟",
+      "a": "الـ code وأيّ fichier يقراه وأيّ output يخرج للـ fournisseur، يعني secrets ينجموا يدخلوا في الـ context. الـ agent ينجم يخدّم commandes خطيرة، وينجم يقرا contenu فيه prompt injection. الحماية: secrets في variables d'environnement، deny على .env، أقل permissions، commandes خطيرة بعيني، sandbox كي الـ autonomie كبيرة، والـ politique متاع الشركة."
+    },
+    {
+      "q": "كيفاش تستعمل الـ AI على legacy code ولّا migration؟",
+      "a": "نبدا read-only: نطلب تفسير للـ flow بأسامي الـ fichiers والـ functions ونـ vérifi بروحي. بعد characterization tests على الـ comportement الحالي، plan بـ étapes، migration module بـ module بـ commit و tests لكل step، و review مزيانة على الـ APIs الجدد خاطر الـ model ينجم يخلّط بين versions."
+    },
+    {
+      "q": "الـ AI tools موش ينقّصوا الـ besoin للـ juniors؟ كيفاش تتعلّم معاهم؟",
+      "a": "يبدّلوا شنوّة يتطلب من الـ junior: review و tests وفهم أكثر، كتيبة باليدّ أقل. أنا نستعملهم باش نتعلّم: نحاول قبل ونقارن، نطلب تفسير و review، نقرا الـ documentation كي تدخل حاجة جديدة، ونكتب journal بشنوّة تعلّمت. وما نـ mergiش سطر ما ننجمش نفسّرو."
+    }
+  ]
+}

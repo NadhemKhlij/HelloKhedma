@@ -1,6 +1,10 @@
 # Builds HelloKhedma (Tailwind CSS + js/config.js), runs the smoke tests on the built site, and publishes it to
-# GitHub Pages on every push to main. Pushes to other branches run the build and the tests only (nothing published),
-# so a change can be checked before it reaches main. A failing test stops the deploy: the live site stays as it was.
+# GitHub Pages. A failing test stops the deploy: the live site stays as it was.
+# - Push to main (or manual run on main): tests main, then publishes main at the site root and every preview branch
+#   (PREVIEW_BRANCHES) under preview/<branch>/, e.g. https://nadhemkhlij.github.io/HelloKhedma/preview/tunisian-ia-teacher/
+#   GitHub Pages hosts one site per repository, so the preview is published together with main by this run.
+# - Push to a preview branch: tests that branch, then asks for a run on main (workflow_dispatch) to republish both.
+# - Push to any other branch: build and tests only, nothing published.
 # Test failures show as annotations on the run (Playwright "github" reporter), readable without signing in.
 # One-time setup in the repo:
 #   Settings → Pages → Build and deployment → Source: "GitHub Actions"
@@ -17,6 +21,10 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write # a preview branch push starts a publish run on main
+
+env:
+  PREVIEW_BRANCHES: tunisian-ia-teacher # space-separated; remove a branch here once it is merged or abandoned
 
 concurrency:
   group: pages-${{ github.ref }}
@@ -54,7 +62,7 @@ jobs:
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
         run: npm run build
 
-      # Publish only the files the browser needs (no supabase/, scripts/, tests/ or node_modules/).
+      # Only the files the browser needs (no supabase/, scripts/, tests/ or node_modules/).
       - name: Assemble site
         run: |
           mkdir _site
@@ -66,6 +74,27 @@ jobs:
       - name: Smoke tests
         run: npx playwright test
 
+      # Main: add each preview branch, built the same way, under preview/<branch>/.
+      - name: Add preview branches
+        if: github.ref == 'refs/heads/main'
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          DEFAULT_COUNTRY: ${{ vars.DEFAULT_COUNTRY || 'fr' }}
+          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+          SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+        run: |
+          for b in $PREVIEW_BRANCHES; do
+            if ! git ls-remote --exit-code --heads "https://github.com/${{ github.repository }}" "$b" > /dev/null; then
+              echo "::warning::Preview branch $b not found, skipped."; continue
+            fi
+            git clone --quiet --depth 1 --branch "$b" "https://github.com/${{ github.repository }}" "/tmp/preview-$b"
+            (cd "/tmp/preview-$b" && npm install --silent && npm run build)
+            mkdir -p "_site/preview/$b"
+            (cd "/tmp/preview-$b" && cp -r index.html manifest.json sw.js icons css js content "$GITHUB_WORKSPACE/_site/preview/$b/")
+            echo "Preview: preview/$b/ from $(git -C /tmp/preview-$b rev-parse --short HEAD)"
+          done
+
       - uses: actions/configure-pages@v5
         if: github.ref == 'refs/heads/main'
       - uses: actions/upload-pages-artifact@v3
@@ -73,10 +102,20 @@ jobs:
         with:
           path: _site
 
+      # Preview branch: tests passed, so republish main with this branch's latest version.
+      - name: Ask for a publish run on main
+        if: github.ref != 'refs/heads/main' && contains(format(' {0} ', env.PREVIEW_BRANCHES), format(' {0} ', github.ref_name))
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --repo "${{ github.repository }}" --ref main
+
   deploy:
     needs: build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages-publish
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

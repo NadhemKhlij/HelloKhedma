@@ -1,6 +1,12 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-11-05)
+- **Just finished (2026-11-05, later):** CV maker and ATS score on the CV page (two tabs). CV maker (#/cv/maker,
+  js/cvmaker.js): form → one-column ATS-friendly preview in EN or FR, print / save as PDF, download .txt, "Use as a CV
+  version" (then it scores offers), live ATS score; draft kept in this browser ("hk.cvmaker"), privacy policy updated.
+  ATS score (js/atsscore.js): /100 from skills and job title of the pasted offer (or path keywords), sections, contact,
+  impact (numbers, action verbs), length and layout, with the fixes to make. New smoke test. Tested as a guest (EN/FR,
+  light/dark, phone) in the local preview with sample data; not signed in (it uses local storage only, like CV versions).
 - **Just finished (2026-11-05):** Tunisian AI track finished on main: 3 portfolio projects in Arabic letters and 3arbizi on
   #/ai (RAG documentation assistant, document-to-JSON extraction, support agent with tools in production), opened in the
   project page (right to left in Arabic letters, script switch, progress shared by both scripts), new smoke test.
@@ -58,6 +64,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-05 | CV maker (ATS-friendly CV, PDF, saved as a CV version) and ATS score with fixes on the CV page; no setup needed |
 | 2026-11-05 | Tunisian AI track: 3 portfolio projects (Arabic letters + 3arbizi), preview branch retired, docs updated |
 | 2026-10-30 | Learning content: honest course times, 4 new courses, all 25 courses at 7-10 lessons, 15 portfolio projects (EN + FR); no setup needed |
 | 2026-10-30 | O17 done: seed re-run by owner. Verified in the live database (DevOps path with French name, 3 tracks, 15 steps, 5 tools, 3 tips) and on the live site (path card, selection, tracks and courses on Training) |

@@ -3,6 +3,8 @@
 // The active version (state.cv) also scores offers (offers.js), feeds the study plan (training.js) and is recorded
 // as "CV sent" on new applications (cvUsed). A version linked to a path becomes active when that path is selected.
 // After a match with a pasted offer, "✍ Tailor my CV for this offer" opens tailor.js and "✉ Cover letter" letters.js.
+// "Calculate my ATS score" adds the full ATS report (atsscore.js) above the skills match. Two tabs: this CV check
+// (#/cv) and the CV maker (#/cv/maker, cvmaker.js), whose "Use as a CV version" refreshes this page.
 import { $, h, toast } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { state, path, pathName, byKind, fitColor, skillChip } from "./state.js";
@@ -12,6 +14,8 @@ import { renderOffers } from "./offers.js";
 import { renderStudyPlan } from "./training.js";
 import { openTailor } from "./tailor.js";
 import { openCoverLetter } from "./letters.js";
+import { atsReport, atsView } from "./atsscore.js";
+import { initCvMaker, renderCvMaker } from "./cvmaker.js";
 
 // Loads the active CV version into state.cv. Skills are re-extracted each time: path keywords may have changed.
 export function loadActiveCv() {
@@ -133,7 +137,13 @@ function onAts() {
   // Path keywords go through the extractor too, so aliases map to the same names as in the CV.
   const required = extractSkills(usedJd ? jd : byKind("keyword").map((k) => k.title).join(" ; ")).map((s) => s.name);
   const r = matchSkills(required, state.cv.names);
-  if (!r.total) { $("#atsOut").replaceChildren(h("p", { class: "mute text-sm" }, t("No known skills found in this job description."))); return; }
+  // Job titles to look for: the path titles named in the offer, else its first short line (usually the title).
+  const titles = path()?.job_titles || [], first = jd.split(/\r?\n/).map((l) => l.trim()).find(Boolean) || "";
+  const jobTitles = usedJd ? (titles.filter((x) => jd.toLowerCase().includes(x.toLowerCase())).slice(0, 1).concat(first.split(/\s+/).length <= 8 ? [first] : []))
+    : titles;
+  const report = h("div", { class: "rounded-xl p-4 mb-4", style: "background:var(--soft)" },
+    atsView(atsReport(state.cv.text, { required, jobTitles: [...new Set(jobTitles)].filter(Boolean) })));
+  if (!r.total) { $("#atsOut").replaceChildren(report, h("p", { class: "mute text-sm" }, t("No known skills found in this job description."))); return; }
   const chips = (list, inCv) => list.map((n) => skillChip(n, inCv));
   const vars = { matched: r.matched.length, total: r.total };
   // Same comparison for every CV version, best first; clicking one makes it the active version.
@@ -141,6 +151,7 @@ function onAts() {
     .map((c) => ({ c, score: matchSkills(required, new Set(extractSkills(c.text).map((s) => s.name))).score }))
     .sort((a, b) => b.score - a.score);
   $("#atsOut").replaceChildren(...[
+    report,
     h("p", { class: "text-lg font-bold", style: `color:${fitColor(r.score)}` }, t("{score}% match", { score: r.score }),
       h("span", { class: "mute text-sm font-normal" }, usedJd
         ? t(" · {matched} of {total} skills from the offer are in your CV", vars)
@@ -162,7 +173,21 @@ function onAts() {
   ].filter(Boolean));
 }
 
+// Tabs: "maker" shows the CV maker, anything else the CV check (router.js passes the #/cv/<param>).
+export function showCvTab(param) {
+  const maker = param === "maker";
+  $("#cvCheckTab").hidden = maker; $("#cvMakerTab").hidden = !maker;
+  for (const [id, on] of [["#cvTabCheck", !maker], ["#cvTabMaker", maker]]) {
+    $(id).className = on ? "btn" : "btn-ghost"; $(id).setAttribute("aria-selected", String(on));
+  }
+  if (maker) renderCvMaker();
+}
+
 export function initCvPage() {
+  $("#cvTabCheck").addEventListener("click", () => { location.hash = "#/cv"; });
+  $("#cvTabMaker").addEventListener("click", () => { location.hash = "#/cv/maker"; });
+  initCvMaker({ onSaved: () => refreshCv({ fillEditor: true }) });
+  showCvTab((location.hash.match(/^#\/cv\/([a-z0-9-]+)/) || [])[1]); // the router ran before the path content loaded
   $("#atsBtn").addEventListener("click", onAts);
   $("#cvFile").addEventListener("change", onCvFile);
   $("#cvSave").addEventListener("click", onCvSave);

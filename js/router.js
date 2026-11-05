@@ -7,6 +7,7 @@ import { state, path } from "./state.js";
 import { loadCourseIndex, renderCourse } from "./courses.js";
 import { renderInterview } from "./interview.js";
 import { renderProject } from "./projects.js";
+import { showCvTab } from "./cvpage.js";
 import { renderAiTrack } from "./aitrack.js";
 import { refreshLearning } from "./training.js";
 import { renderHome } from "./home.js";
@@ -41,6 +42,7 @@ export function showRoute(moveFocus) {
     renderProject(param).then(() => { if (moveFocus) $("#h-project")?.focus({ preventScroll: true }); });
   } else if (moveFocus) $(`#h-${r}`)?.focus({ preventScroll: true });
   if (r === "interview") refreshInterview();
+  if (r === "cv" && path()) showCvTab(param); // #/cv/maker opens the CV maker tab
   if (r === "training" && path()) refreshLearning(); // lessons, quiz scores and XP may have changed on a course page
   if (r === "home" && path()) renderHome(); // streak
 }

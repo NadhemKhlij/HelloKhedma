@@ -246,9 +246,17 @@
   <section data-page="project" aria-labelledby="h-project" hidden id="projectBody" class="grid grid-cols-[minmax(0,1fr)] gap-4 max-w-4xl"></section>
 
   <!-- CV check -->
-  <section data-page="cv" aria-labelledby="h-cv" hidden class="grid gap-4">
+  <section data-page="cv" aria-labelledby="h-cv" hidden class="grid grid-cols-[minmax(0,1fr)] gap-4">
+    <!-- Two tabs (js/cvpage.js): CV check + ATS score, and the CV maker (js/cvmaker.js, #/cv/maker) -->
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <h1 id="h-cv" tabindex="-1" class="page-title !mb-0">CV check</h1>
+      <div role="tablist" aria-label="CV tools">
+        <button id="cvTabCheck" type="button" role="tab" class="btn">CV check &amp; ATS score</button>
+        <button id="cvTabMaker" type="button" role="tab" class="btn-ghost">CV maker</button>
+      </div>
+    </div>
+    <div id="cvCheckTab" class="grid grid-cols-[minmax(0,1fr)] gap-4">
     <div class="panel">
-      <h1 id="h-cv" tabindex="-1" class="page-title">CV check</h1>
       <p class="mute text-sm mb-3">Upload your CV (PDF or .txt) or paste its text. We extract your skills and use them to score every job offer.
         Your CV stays in this browser and is never uploaded.</p>
       <!-- CV versions (js/cvs.js): shown once a first CV is saved -->
@@ -273,11 +281,26 @@
       <div id="cvSkills" class="mt-4" aria-live="polite"></div>
     </div>
     <div class="panel">
-      <h2>Match with an offer</h2>
-      <p class="mute text-sm mb-3">Paste a job description to see which of its skills your CV covers. Leave it empty to compare with the keywords for your path.</p>
+      <h2>ATS score and offer match</h2>
+      <p class="mute text-sm mb-3">Paste a job description to score your CV against it: skills and job title of the offer, sections, contact details, impact, length and layout, with what to fix. Leave it empty to score against the keywords for your path.</p>
       <textarea id="jd" rows="8" class="input w-full" placeholder="Job description" aria-label="Job description"></textarea>
-      <button id="atsBtn" class="btn mt-3" type="button">Check match</button>
+      <button id="atsBtn" class="btn mt-3" type="button">Calculate my ATS score</button>
       <div id="atsOut" class="mt-4" aria-live="polite"></div>
+    </div>
+    </div>
+    <div id="cvMakerTab" hidden class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start">
+      <div class="panel grid gap-4">
+        <div>
+          <h2 class="!mb-1">CV maker</h2>
+          <p class="mute text-sm">Fill in the form: the CV is laid out the way ATS read best (one column, standard headings, plain text). Saved on this device only.</p>
+        </div>
+        <div id="cvmForm" class="grid gap-4"></div>
+      </div>
+      <div class="grid gap-4 lg:sticky lg:top-20">
+        <div id="cvmScore" class="panel grid gap-2" aria-live="polite"></div>
+        <div id="cvmActions" class="flex flex-wrap gap-2"></div>
+        <div id="cvmPreview" class="overflow-x-auto"></div>
+      </div>
     </div>
   </section>
 
@@ -373,7 +396,7 @@
     <p>Nadhem Khlij, éditeur de HelloKhedma, est le responsable du traitement. Contact : <span class="contact-email"></span></p>
     <h2>Données collectées et finalités</h2>
     <ul>
-      <li><b>Sans compte</b> : rien n’est stocké sur nos serveurs. Vos candidatures, votre progression, le texte de votre CV et vos réglages restent dans votre navigateur (stockage local).</li>
+      <li><b>Sans compte</b> : rien n’est stocké sur nos serveurs. Vos candidatures, votre progression, le texte de votre CV (y compris le brouillon du créateur de CV) et vos réglages restent dans votre navigateur (stockage local).</li>
       <li><b>Avec un compte</b> : votre adresse e-mail et votre mot de passe (gérés par Supabase Auth), les candidatures que vous suivez (dont le nom de la version de CV envoyée, jamais son contenu), votre progression et le parcours choisi, pour fournir le service synchronisé que vous avez demandé (exécution du contrat).</li>
       <li><b>Vos CV</b> (toutes les versions) restent dans votre navigateur, même avec un compte : ils sont lus et analysés uniquement sur votre appareil. Seule exception, à votre demande : si, connecté, vous cliquez sur « Envoyer et réécrire » (réécriture par IA), le CV et l’offre concernée sont envoyés à Claude (Anthropic) pour produire les suggestions, après un avertissement affiché à chaque fois. HelloKhedma ne les enregistre pas (base légale : votre demande, exécution du service).</li>
       <li><b>Recherches d’offres</b> : l’intitulé de poste, le lieu et le pays recherchés sont envoyés à notre fonction de recherche et aux fournisseurs d’offres (Adzuna, JSearch). Les recherches identiques sont mises en cache 6 heures, sans aucune donnée personnelle.</li>
@@ -406,7 +429,7 @@
     <p>Nadhem Khlij, publisher of HelloKhedma, is the data controller. Contact: <span class="contact-email"></span></p>
     <h2>What we collect and why</h2>
     <ul>
-      <li><b>Without an account</b>: nothing is stored on our servers. Your applications, training progress, CV text and settings stay in your browser (local storage).</li>
+      <li><b>Without an account</b>: nothing is stored on our servers. Your applications, training progress, CV text (including the CV maker draft) and settings stay in your browser (local storage).</li>
       <li><b>With an account</b>: your email address and password (managed by Supabase Auth), the applications you track (including the name of the CV version you sent, never its content), your training progress and selected career path, to provide the synced service you asked for (performance of a contract).</li>
       <li><b>Your CVs</b> (every version) stay in your browser, even with an account: they are read and scored on your device only. The one exception is at your request: if, signed in, you click "Send and rewrite" (AI rewriting), the CV and that offer are sent to Claude (Anthropic) to produce the suggestions, after a notice shown every time. HelloKhedma does not store them (legal basis: your request, performance of the service).</li>
       <li><b>Job searches</b>: the job title, place and country you search are sent to our search function and to the job providers (Adzuna, JSearch) to fetch offers. Identical searches are cached for 6 hours without any personal data.</li>

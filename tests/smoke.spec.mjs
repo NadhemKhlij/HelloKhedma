@@ -183,6 +183,26 @@ test("AI track in Tunisian: both scripts match, the page and a course work", asy
   await expect(page.locator('#courseBody [role=tabpanel]')).toHaveAttribute("dir", "ltr");
 });
 
+test("CV maker: the form fills the preview, saves a CV version, and the ATS score shows", async ({ page }) => {
+  await open(page, "#/cv/maker");
+  const form = page.locator("#cvmForm");
+  await form.getByLabel("Full name").fill("Test Person");
+  await form.getByLabel("Email").fill("test@example.com");
+  await form.getByLabel("Job title", { exact: true }).first().fill("Data Engineer");
+  await form.getByLabel("Company").first().fill("Acme");
+  await form.getByLabel("Achievements").first().fill("Built 12 pipelines in Python and SQL\nReduced report time by 80%");
+  await expect(page.locator("#cvPreview")).toContainText("Test Person");
+  await expect(page.locator("#cvPreview")).toContainText("Reduced report time by 80%");
+  await expect(page.locator("#cvmScore")).toContainText("ATS score");
+  await page.locator("#cvmActions").getByRole("button", { name: "Use as a CV version" }).click();
+  await page.locator("#cvTabCheck").click();
+  await expect(page.locator("#cv")).toHaveValue(/Test Person/);
+  await page.fill("#jd", "Data Engineer\nSQL, Python, Airflow and dbt.");
+  await page.click("#atsBtn");
+  await expect(page.locator("#atsOut")).toContainText("ATS score");
+  await expect(page.locator("#atsOut")).toContainText("Standard sections");
+});
+
 test("AI track projects: both scripts match and a project page works", async ({ page }) => {
   await open(page, "#/ai");
   const problems = await page.evaluate(async () => {

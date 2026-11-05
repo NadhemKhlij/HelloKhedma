@@ -72,7 +72,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   public by design; RLS protects the data.
 - Every user-owned table needs RLS policies scoped to auth.uid(); add schema changes as a new migration file.
 - Build DOM with the h() helper (textContent), never innerHTML with remote data (course text included).
-- CV texts (every version, "hk.cvs" via js/cvs.js) stay in localStorage only; never send them to Supabase or any API.
+- CV texts (every version, "hk.cvs" via js/cvs.js, and the CV maker draft "hk.cvmaker") stay in localStorage only; never send them to Supabase or any API.
   Single exception: "Rewrite with AI" (js/tailor.js → cv-tailor function → Claude API), signed-in users only, after a
   notice shown before every send; the function stores and logs nothing. Never send the CV anywhere else.
 - Keep the privacy policy (index.html, #/privacy) in sync when adding a provider or any new personal data.
@@ -103,7 +103,7 @@ Read the header comment of any file before modifying it; update the header if be
 - `#/course/<id>` → course → courses.js
 - `#/project/<id>` → project → projects.js
 - `#/ai` → ai → aitrack.js (AI engineer track in Tunisian; its courses open in `#/course/ai-…`)
-- `#/cv` → cv → cvpage.js + cvs.js, ats.js
+- `#/cv` → cv → cvpage.js + cvs.js, ats.js, atsscore.js (tab CV check & ATS score); `#/cv/maker` → CV maker tab (cvmaker.js)
 - `#/interview` → interview → interview.js
 - `#/applications` → applications → applications.js + tracker.js, store.js
 - `#/account` → account → account.js
@@ -129,6 +129,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/remote.js — "Remote jobs" (Jobicy, Remotive)
 - js/cvs.js — CV versions (local only): list, active version, version linked to a path
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
+- js/atsscore.js — ATS score /100 (skills, job title, sections, contact, impact, length, layout) with fixes, EN + FR CVs
+- js/cvmaker.js — CV maker: form, ATS-friendly preview (print to PDF), live ATS score, save as a CV version ("hk.cvmaker")
 - js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
 - js/offercheck.js — age of an offer, level (Junior…Lead) and trust warnings (scam signals, stale, no company)
 - js/pulse.js — path market pulse on Home, from the offers seen on the Offers page (local only, "hk.pulse.<path>")

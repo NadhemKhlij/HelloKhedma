@@ -27,6 +27,10 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   api.github.com/repos/NadhemKhlij/HelloKhedma/check-runs/<job id>/annotations. No Node on the owner's machine:
   check changes on a branch first.
 - Deploy: push to `main`; .github/workflows/deploy.yml builds, runs the smoke tests and publishes to GitHub Pages.
+- Preview branches: a branch listed in PREVIEW_BRANCHES (deploy.yml) is published with main under
+  `preview/<branch>/` (e.g. nadhemkhlij.github.io/HelloKhedma/preview/tunisian-ia-teacher/). Pushing it runs its tests,
+  then a publish run on main. A preview build keeps its own browser data ("preview:hk.*", js/lib.js), registers no
+  service worker and shows a banner. Remove the branch from PREVIEW_BRANCHES once merged.
 
 ## Tech stack
 - Frontend: HTML, Tailwind CSS 3 (css/input.css → css/app.css), vanilla JS ES modules, no bundler; installable PWA.

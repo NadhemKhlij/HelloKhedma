@@ -56,14 +56,27 @@ test("tracker: a guest application survives a reload and gets a follow-up email"
   await expect(page.locator("#letterBody textarea")).toHaveValue(/Smoke Test Engineer position at Acme/);
 });
 
-test("CV: skills are extracted, matched with an offer, and the cover letter prompt contains the CV", async ({ page }) => {
+test("CV: scored without an offer, then matched with an offer, and the cover letter prompt contains the CV", async ({ page }) => {
   await open(page, "#/cv");
+  await expect(page.locator("#cvScore")).toContainText("Add your CV"); // empty state: the three steps
   await page.fill("#cv", "Data Engineer\nBuilt Python and SQL pipelines on Airflow\nDocker and Git every day");
+  await expect(page.locator("#cvDirty")).toBeVisible();
   await page.click("#cvSave");
+  await expect(page.locator("#cvDirty")).toBeHidden();
+  // The CV gets its score at once, with no offer: fixes with the points they add, and the skills found.
+  const score = page.locator("#cvScore");
+  await expect(score).toContainText("ATS score");
+  await expect(score).toContainText("Missing sections");
+  await expect(score.locator(".badge", { hasText: /^\+\d+ pts$/ }).first()).toBeVisible();
   await expect(page.locator("#cvSkills")).toContainText("Python");
+  // Fixing a point and saving again shows the gain.
+  await page.fill("#cv", "Data Engineer\nlea@example.com · +33 6 12 34 56 78 · linkedin.com/in/lea\nSummary\nData engineer, 3 years.\nExperience\n- Built 12 Python and SQL pipelines on Airflow (2022-2025)\nSkills\nDocker, Git\nEducation\nMSc Data, 2022");
+  await page.click("#cvSave");
+  await expect(score).toContainText("points since your last save");
+  // Pasting an offer is enough: the match runs by itself.
   await page.fill("#jd", "Data Engineer: Python, SQL, Spark and AWS. 3 years of experience.");
-  await page.click("#atsBtn");
   await expect(page.locator("#atsOut")).toContainText("Spark");
+  await expect(page.locator("#atsOut")).toContainText("% match");
   // Anonymous statistics are asked once, off until the user says yes; "No thanks" is remembered.
   const ask = page.locator("[data-insights-ask]");
   await expect(ask).toBeVisible();
@@ -71,7 +84,7 @@ test("CV: skills are extracted, matched with an offer, and the cover letter prom
   await expect(ask).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem("hk.insights"))).toBe("no");
   await page.locator("#atsOut").getByRole("button", { name: "✉ Cover letter" }).click();
-  await expect(page.locator("#letterBody textarea")).toHaveValue(/Built Python and SQL pipelines on Airflow/);
+  await expect(page.locator("#letterBody textarea")).toHaveValue(/Built 12 Python and SQL pipelines on Airflow/);
   await page.locator("#letterBody").getByRole("button", { name: "Close" }).click();
   await page.locator("#atsOut").getByRole("button", { name: /Tailor my CV/ }).click();
   await expect(page.locator("#tailorDialog")).toBeVisible();

@@ -1,12 +1,17 @@
-// CV check page (#/cv): CV versions (stored by cvs.js, in this browser only, never sent to Supabase or any API),
-// skill extraction (ats.js) and "Match with an offer" (compares the offer, or the path keywords, with every version).
+// CV check page (#/cv), three panels:
+// 1. "Your CV": CV versions (stored by cvs.js, in this browser only; synced only if the user opted in, cvsync.js),
+//    upload / paste, "Save and score my CV" (an "unsaved changes" hint while the text differs from the saved one);
+// 2. "Your CV score": computed as soon as a CV is saved, no offer needed: ATS score (atsscore.js) against the path's
+//    keywords and job titles, fixes sorted by the points they add, the change since the last score of this version
+//    for this path ("hk.cvscore", this browser only), path keywords found / missing + "Close the gaps", skills found;
+// 3. "Match with a job offer" (optional): the pasted offer compared with every version; runs when an offer is pasted.
 // The active version (state.cv) also scores offers (offers.js), feeds the study plan (training.js) and is recorded
 // as "CV sent" on new applications (cvUsed). A version linked to a path becomes active when that path is selected.
 // After a match with a pasted offer, "✍ Tailor my CV for this offer" opens tailor.js and "✉ Cover letter" letters.js.
 // Under the missing skills, "Close the gaps" (gaps.js) lists the HelloKhedma courses, roadmap steps and projects for them.
-// "Calculate my ATS score" adds the full ATS report (atsscore.js) above the skills match. Two tabs: this CV check
+// The offer's own ATS report is under "Full ATS report for this offer". Two tabs: this CV check
 // (#/cv) and the CV maker (#/cv/maker, cvmaker.js), whose "Use as a CV version" refreshes this page.
-import { $, h, toast } from "./lib.js";
+import { $, h, ls, toast } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { state, path, pathName, byKind, fitColor, skillChip } from "./state.js";
 import { extractSkills, matchSkills, readCvFile } from "./ats.js";
@@ -29,7 +34,8 @@ export function loadActiveCv() {
 function refreshCv({ fillEditor = false } = {}) {
   loadActiveCv();
   if (fillEditor) { $("#cv").value = state.cv.text; $("#atsOut").replaceChildren(); $("#cvFileMsg").textContent = ""; }
-  renderCvVersions(); renderCvSkills(); renderOffers(); renderStudyPlan();
+  renderCvVersions(); renderCvSkills(); renderOffers(); renderStudyPlan(); markDirty();
+  if ($("#jd").value.trim()) onAts({ quiet: true }); // keep the offer match in step with the CV shown
 }
 function switchCv(id) { setActiveCv(id); refreshCv({ fillEditor: true }); }
 // CVs merged from another device ("Save my CVs to my account", cvsync.js).
@@ -44,7 +50,10 @@ export function useCvForPath(pathId) {
   loadActiveCv();
   $("#cv").value = state.cv.text;
   $("#atsOut").replaceChildren();
+  markDirty();
 }
+// "Unsaved changes" while the CV box differs from the saved version.
+function markDirty() { $("#cvDirty").hidden = $("#cv").value.trim() === state.cv.text.trim(); }
 
 export function renderCvVersions() {
   const list = loadCvs(), cur = list.find((c) => c.id === state.cv.id);
@@ -72,21 +81,74 @@ export function cvSwitcher() {
 function saveCv(text) {
   if (state.cv.id) updateCv(state.cv.id, { text }); else addCv({ name: t("My CV"), text });
   refreshCv();
+  // Bring the new score into view (on a phone it is below the CV box).
+  const panel = $("#cvScorePanel");
+  if (panel.getBoundingClientRect().top > window.innerHeight * 0.6) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  logInsight("gaps", state.pathId, pathReport()?.match.missing || []); // anonymous statistics, only if opted in
+}
+
+// The path's keywords, through the extractor so aliases map to the same names as in the CV.
+const pathSkills = () => extractSkills(byKind("keyword").map((k) => k.title).join(" ; ")).map((s) => s.name);
+// ATS report of the active CV for the selected path (no offer needed), or null without a CV.
+function pathReport() {
+  if (!state.cv.text.trim()) return null;
+  return atsReport(state.cv.text, { required: pathSkills(), jobTitles: path()?.job_titles || [], source: "path" });
+}
+// Last score per CV version and path, to show the change after an edit (this browser only, a number per key).
+const SCORES = "hk.cvscore";
+function scoreChange(score) {
+  let all = {};
+  try { all = JSON.parse(ls.get(SCORES) || "{}"); } catch { /* start again */ }
+  const key = `${state.cv.id}:${state.pathId}`, before = all[key];
+  if (before !== score) { all[key] = score; ls.set(SCORES, JSON.stringify(all)); }
+  return typeof before === "number" && before !== score ? score - before : 0;
+}
+
+// Panel 2: score, fixes, path keywords and skills of the active CV.
+function renderCvScore() {
+  const r = pathReport();
+  $("#cvScoreSub").textContent = r
+    ? t("Scored for the {path} path: its keywords and job titles. Fix the points below, save, and watch it go up.", { path: path()?.name || "" })
+    : "";
+  if (!r) {
+    const step = (n, title, text) => h("li", { class: "flex gap-3" },
+      h("span", { class: "w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold", style: "background:var(--soft)" }, String(n)),
+      h("span", { class: "text-sm" }, h("b", {}, title), h("span", { class: "mute block" }, text)));
+    $("#cvScore").replaceChildren(h("ol", { class: "grid gap-3" },
+      step(1, t("Add your CV"), t("Upload a PDF, paste the text, or build one in the CV maker.")),
+      step(2, t("Get your score at once"), t("Out of 100, with the fixes that add the most points first.")),
+      step(3, t("Match it with an offer (optional)"), t("Paste a job description to see what that job asks for and you lack."))));
+    return;
+  }
+  const change = scoreChange(r.score), m = r.match;
+  $("#cvScore").replaceChildren(...[
+    change ? h("p", { class: "text-sm font-medium mb-2", style: `color:${change > 0 ? "#18a999" : "#e0508b"}` },
+      change > 0 ? t("↑ +{n} points since your last save", { n: change }) : t("↓ {n} points since your last save", { n: change })) : null,
+    atsView(r),
+    m.total ? h("div", { class: "mt-4 grid gap-2" },
+      h("p", { class: "font-semibold text-sm" }, t("Keywords of your path: {matched} of {total} in your CV", { matched: m.matched.length, total: m.total })),
+      h("div", { class: "flex flex-wrap gap-2" }, m.matched.map((n) => skillChip(n, true)), m.missing.map((n) => skillChip(n, false))),
+      m.missing.length ? h("p", { class: "mute text-xs" }, t("Without ✓ = missing: add the ones you genuinely have · 📘 = open the HelloKhedma course")) : null,
+      // Folded here (the fixes come first); the offer match below shows its own gaps open.
+      m.missing.length ? h("details", { class: "mt-1" }, h("summary", { class: "cursor-pointer text-sm font-medium", style: "color:var(--accent)" },
+        tn(m.missing.length, "📘 How to learn the missing keyword", "📘 How to learn the {n} missing keywords")), gapTrainings(m.missing)) : null) : null,
+  ].filter(Boolean));
 }
 
 export function renderCvSkills() {
+  renderCvScore();
   const { text, skills } = state.cv;
-  if (!text.trim()) { $("#cvSkills").replaceChildren(h("p", { class: "mute text-sm" }, t("No CV saved yet."))); return; }
+  if (!text.trim()) { $("#cvSkills").replaceChildren(); return; }
   const cats = [...new Set(skills.map((s) => s.cat))];
-  $("#cvSkills").replaceChildren(...[
-    h("p", { class: "font-bold" }, tn(skills.length, "{n} skill found in your CV", "{n} skills found in your CV"),
-      h("span", { class: "mute text-sm font-normal" }, t(" · saved on this device and used to score offers"))),
+  $("#cvSkills").replaceChildren(h("details", { class: "rounded-xl p-3", style: "background:var(--soft)" }, ...[
+    h("summary", { class: "cursor-pointer font-semibold text-sm" }, tn(skills.length, "{n} skill found in your CV", "{n} skills found in your CV"),
+      h("span", { class: "mute font-normal" }, t(" · used to score offers"))),
     skills.length ? null : h("p", { class: "mute text-sm" }, t("No known skills detected. Check the text is readable, or paste it instead.")),
     ...cats.map((c) => h("div", { class: "mt-2" },
       h("p", { class: "mute text-xs mb-1" }, t(c)), // skill categories from ats.js
       h("div", { class: "flex flex-wrap gap-1.5" }, skills.filter((s) => s.cat === c)
         .map((s) => h("span", { class: "chip chip-ok text-xs" }, s.count > 1 ? `${s.name} ×${s.count}` : s.name))))),
-  ].filter(Boolean));
+  ].filter(Boolean)));
 }
 
 async function onCvFile(e) {
@@ -136,51 +198,65 @@ function onCvForPath(e) {
   renderCvVersions();
 }
 
-function onAts() {
-  if (!state.cv.text.trim()) { toast(t("Add your CV first (upload or paste it above).")); return; }
-  const jd = $("#jd").value, usedJd = Boolean(jd.trim());
-  // Path keywords go through the extractor too, so aliases map to the same names as in the CV.
-  const required = extractSkills(usedJd ? jd : byKind("keyword").map((k) => k.title).join(" ; ")).map((s) => s.name);
+// Panel 3: the CV against one pasted offer. quiet: started by typing / pasting or a CV change.
+// Anonymous statistics (insights.js, only if the user opted in: skill names, never the CV or offer text) are sent once
+// per offer text, when the button is pressed or the offer box is left, not while typing.
+let loggedJd = "", jdTimer = null, lastMatch = null;
+function logOffer() {
+  if (!lastMatch || lastMatch.jd !== $("#jd").value || loggedJd === lastMatch.jd) return;
+  loggedJd = lastMatch.jd;
+  logInsight("offer_skills", state.pathId, lastMatch.required); logInsight("gaps", state.pathId, lastMatch.missing);
+}
+function onAts({ quiet = false } = {}) {
+  const jd = $("#jd").value, out = $("#atsOut");
+  $("#jdClear").hidden = !jd.trim();
+  lastMatch = null;
+  if (!jd.trim()) {
+    out.replaceChildren(quiet ? "" : h("p", { class: "mute text-sm" }, t("Paste a job description first. Your CV's own score is shown above.")));
+    if (!quiet) $("#jd").focus();
+    return;
+  }
+  if (!state.cv.text.trim()) { out.replaceChildren(h("p", { class: "text-sm", style: "color:#f08a24" }, t("Add your CV first (upload or paste it above)."))); return; }
+  const required = extractSkills(jd).map((s) => s.name);
   const r = matchSkills(required, state.cv.names);
   // Job titles to look for: the path titles named in the offer, else its first short line (usually the title).
   const titles = path()?.job_titles || [], first = jd.split(/\r?\n/).map((l) => l.trim()).find(Boolean) || "";
-  const jobTitles = usedJd ? (titles.filter((x) => jd.toLowerCase().includes(x.toLowerCase())).slice(0, 1).concat(first.split(/\s+/).length <= 8 ? [first] : []))
-    : titles;
-  const report = h("div", { class: "rounded-xl p-4 mb-4", style: "background:var(--soft)" },
-    atsView(atsReport(state.cv.text, { required, jobTitles: [...new Set(jobTitles)].filter(Boolean) })));
-  if (!r.total) { $("#atsOut").replaceChildren(report, h("p", { class: "mute text-sm" }, t("No known skills found in this job description."))); return; }
+  const shortFirst = first.split(/\s+/).length <= 8 ? first : "";
+  const jobTitles = [...new Set(titles.filter((x) => jd.toLowerCase().includes(x.toLowerCase())).slice(0, 1).concat(shortFirst ? [shortFirst] : []))].filter(Boolean);
+  const report = atsReport(state.cv.text, { required, jobTitles });
+  const offer = { title: shortFirst || t("Pasted job description"), company: "", text: jd };
+  const fullReport = h("details", { class: "rounded-xl p-3 mt-4", style: "background:var(--soft)" },
+    h("summary", { class: "cursor-pointer text-sm font-semibold" }, t("Full ATS report for this offer: {score}/100", { score: report.score })),
+    h("div", { class: "mt-3" }, atsView(report)));
+  if (!r.total) { out.replaceChildren(h("p", { class: "mute text-sm" }, t("No known skills found in this job description.")), fullReport); return; }
   const chips = (list, inCv) => list.map((n) => skillChip(n, inCv));
-  const vars = { matched: r.matched.length, total: r.total };
   // Same comparison for every CV version, best first; clicking one makes it the active version.
   const versions = loadCvs().filter((c) => c.text.trim())
     .map((c) => ({ c, score: matchSkills(required, new Set(extractSkills(c.text).map((s) => s.name))).score }))
     .sort((a, b) => b.score - a.score);
-  $("#atsOut").replaceChildren(...[
-    report,
-    h("p", { class: "text-lg font-bold", style: `color:${fitColor(r.score)}` }, t("{score}% match", { score: r.score }),
-      h("span", { class: "mute text-sm font-normal" }, usedJd
-        ? t(" · {matched} of {total} skills from the offer are in your CV", vars)
-        : t(" · {matched} of {total} path keywords are in your CV", vars))),
+  out.replaceChildren(...[
+    h("div", { class: "flex flex-wrap items-baseline gap-x-3 gap-y-1" },
+      h("p", { class: "text-2xl font-bold serif", style: `color:${fitColor(r.score)}` }, t("{score}% match", { score: r.score })),
+      h("p", { class: "mute text-sm" }, shortFirst ? t("with “{title}” · ", { title: shortFirst }) : "",
+        t("{matched} of {total} skills from the offer are in your CV", { matched: r.matched.length, total: r.total }))),
     versions.length > 1 ? h("p", { class: "text-sm mt-1" }, h("span", { class: "mute" }, t("Your CV versions: ")),
       ...versions.flatMap(({ c, score }, i) => [i ? " · " : "", c.id === state.cv.id
         ? h("b", { style: `color:${fitColor(score)}` }, t("{name} {score}%", { name: c.name, score }))
         : h("button", { type: "button", class: "underline", style: `color:${fitColor(score)}`, title: t("Use this version"),
-            onClick: () => { switchCv(c.id); onAts(); } }, t("{name} {score}%", { name: c.name, score }))])) : null,
-    usedJd ? h("div", { class: "flex flex-wrap gap-2 mt-2" },
-      h("button", { type: "button", class: "btn-ghost", onClick: () => openTailor({ title: t("Pasted job description"), company: "", text: jd }) },
-        t("✍ Tailor my CV for this offer")),
-      h("button", { type: "button", class: "btn-ghost", onClick: () => openCoverLetter({ title: t("Pasted job description"), company: "", text: jd }) },
-        t("✉ Cover letter"))) : null,
-    h("p", { class: "mute text-sm mt-3 mb-1" }, t("In your CV")),
+            onClick: () => switchCv(c.id) }, t("{name} {score}%", { name: c.name, score }))])) : null,
+    h("div", { class: "flex flex-wrap gap-2 mt-3" },
+      h("button", { type: "button", class: "btn", onClick: () => openTailor(offer) }, t("✍ Tailor my CV for this offer")),
+      h("button", { type: "button", class: "btn-ghost", onClick: () => openCoverLetter(offer) }, t("✉ Cover letter"))),
+    h("p", { class: "mute text-sm mt-4 mb-1" }, t("In your CV")),
     h("div", { class: "flex flex-wrap gap-2" }, r.matched.length ? chips(r.matched, true) : h("span", { class: "mute text-sm" }, t("None yet."))),
     h("p", { class: "mute text-sm mt-3 mb-1" }, t("Missing: add the ones you genuinely have · 📘 = open the HelloKhedma course")),
     h("div", { class: "flex flex-wrap gap-2" }, r.missing.length ? chips(r.missing, false) : h("span", { class: "mute text-sm" }, t("Nothing missing."))),
     gapTrainings(r.missing),
+    fullReport,
     insightsAsk(),
   ].filter(Boolean));
-  // Anonymous statistics, only if the user opted in (insights.js): skill names only, never the CV or the offer text.
-  if (usedJd) logInsight("offer_skills", state.pathId, required);
-  logInsight("gaps", state.pathId, r.missing);
+  lastMatch = { jd, required, missing: r.missing };
+  if (!quiet) logOffer();
 }
 
 // Tabs: "maker" shows the CV maker, anything else the CV check (router.js passes the #/cv/<param>).
@@ -198,7 +274,18 @@ export function initCvPage() {
   $("#cvTabMaker").addEventListener("click", () => { location.hash = "#/cv/maker"; });
   initCvMaker({ onSaved: () => refreshCv({ fillEditor: true }) });
   showCvTab((location.hash.match(/^#\/cv\/([a-z0-9-]+)/) || [])[1]); // the router ran before the path content loaded
-  $("#atsBtn").addEventListener("click", onAts);
+  $("#atsBtn").addEventListener("click", () => onAts());
+  // The match updates by itself shortly after an offer is pasted or typed.
+  $("#jd").addEventListener("input", () => { clearTimeout(jdTimer); jdTimer = setTimeout(() => onAts({ quiet: true }), 600); });
+  // Leaving the box: match now if the text changed since the last match (never redraw an up-to-date result, or the
+  // click that moved the focus, e.g. on "Tailor my CV", would land on a replaced button), then send the statistics.
+  $("#jd").addEventListener("change", () => {
+    clearTimeout(jdTimer);
+    if ((lastMatch?.jd ?? "") !== $("#jd").value) onAts({ quiet: true });
+    logOffer();
+  });
+  $("#jdClear").addEventListener("click", () => { $("#jd").value = ""; onAts({ quiet: true }); $("#jd").focus(); });
+  $("#cv").addEventListener("input", markDirty);
   $("#cvFile").addEventListener("change", onCvFile);
   $("#cvSave").addEventListener("click", onCvSave);
   $("#cvClear").addEventListener("click", onCvClear);

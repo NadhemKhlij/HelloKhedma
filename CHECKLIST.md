@@ -50,9 +50,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | # | Where | Task | Why it matters | Links / details |
 |---|---|---|---|---|
-| O4 | GitHub → Settings → Secrets and variables → Actions → Variables | Add **`CONTACT_EMAIL`** (dedicated address), then re-run the deploy | Legal pages show "contact address coming soon" | — |
 | O7 | sentry.io (optional) | Create a project, add **`SENTRY_DSN`** as a GitHub variable | Error monitoring | — |
-| O20 | Live site, signed in | Test **Tailor my CV → 📄 Create my CV for this offer**: the CV maker should open with the CV for the offer and the AI notes | Confirms the new cv-tailor end to end (deployed 2026-11-06 by the GitHub workflow) | — |
 | O9 | Legal (before a big launch) | Have the legal notice and privacy policy reviewed | Templates, not legal advice | — |
 | O10 | Your phone | Install the app (Android: "Install the app" link in the footer; iPhone: Safari → Share → Add to Home Screen) and check it opens offline | PWA install was only tested in a desktop browser | — |
 | O12 | Live site | Sign in and use the app in French, then press **EN** and back: check nothing is left in the wrong language and the French reads naturally (report odd wording) | Translations were written by Claude and only tested as a guest | js/i18n-fr.js |
@@ -63,6 +61,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-06 | O4 done: contact@hellokhedma.io via Cloudflare Email Routing (forwards to the owner's Gmail; MX on the root domain, Resend stays on mail.), CONTACT_EMAIL GitHub variable set, site redeployed. O20 done: "Correct, tailor and create my CV" + Download PDF tested by the owner |
 | 2026-11-06 | CV maker: "Download PDF" builds the PDF in the app (pdf-lib, self-hosted): same file on phone and computer, no browser URL/date lines, exact margins and page breaks. Layout reworked over 4 render-and-review rounds + an independent recruiter/ATS review: Skills after Summary, Certifications before Education (years on the right), bold title + dates right, bold company + grey place, grouped skills, "Volunteering"/"Bénévolat" instead of "Involvement"; a mostly empty last page triggers a compact pass (body text never under 10 pt): the owner's CV fits on 1 page, the 5-job test CV on 2 full pages. ATS text checked with two PDF readers. cv-tailor writes dates as MM/YYYY (redeployed); no setup needed |
 | 2026-11-06 | CV print fixed after the owner's 4-page test: entries may split across pages (no more blank half pages), tighter type (10 pt, smaller margins), contact items never broken; the AI CV now targets 2 pages at most (fewer bullets on older jobs, tools in the context line, grouped skills). Same 5-job CV: 4 pages → 2 |
 | 2026-11-06 | "Correct, tailor and create my CV": one button, one AI call: the CV corrected (spelling, grammar, tense, dates, wording), tailored to the offer and opened in the CV maker in the new layout, with "What was corrected and tailored" and "Gaps and questions". "Rewrite only (text)" kept. cv-tailor redeployed from GitHub |

@@ -1,0 +1,34 @@
+$ kubectl get pods -n shop
+NAME                            READY   STATUS             RESTARTS        AGE
+cart-7d9f8b6c5d-2xkqp           1/1     Running            0               3d4h
+cart-7d9f8b6c5d-9lmzr           1/1     Running            0               3d4h
+checkout-5c6b7f9d84-hx2wt       0/1     CrashLoopBackOff   14 (2m11s ago)  48m
+checkout-5c6b7f9d84-q8vns       0/1     CrashLoopBackOff   13 (4m40s ago)  48m
+catalog-6f5d8c7b9-tm4jd         1/1     Running            2 (26h ago)     5d
+catalog-6f5d8c7b9-zw7rf         1/1     Running            0               5d
+emails-84b6d9c7f-kq5xl          0/1     ImagePullBackOff   0               17m
+redis-0                         1/1     Running            0               12d
+search-79c5f6d8b4-8jgnc         0/1     Pending            0               9m
+
+$ kubectl describe pod checkout-5c6b7f9d84-hx2wt -n shop | tail -12
+Events:
+  Type     Reason     Age                  From     Message
+  ----     ------     ----                 ----     -------
+  Normal   Pulled     12m (x14 over 48m)   kubelet  Container image "registry.example.com/shop/checkout:1.9.0" already present on machine
+  Normal   Created    12m (x14 over 48m)   kubelet  Created container checkout
+  Normal   Started    12m (x14 over 48m)   kubelet  Started container checkout
+  Warning  BackOff    2m (x210 over 47m)   kubelet  Back-off restarting failed container checkout in pod checkout-5c6b7f9d84-hx2wt
+
+$ kubectl logs checkout-5c6b7f9d84-hx2wt -n shop --previous | tail -4
+2027-03-14T09:12:03Z INFO  starting checkout service v1.9.0
+2027-03-14T09:12:03Z INFO  reading config from env
+2027-03-14T09:12:03Z ERROR missing required environment variable PAYMENT_API_URL
+2027-03-14T09:12:03Z FATAL exiting with code 1
+
+$ kubectl describe pod emails-84b6d9c7f-kq5xl -n shop | tail -3
+  Warning  Failed     16m (x4 over 17m)    kubelet  Failed to pull image "registry.example.com/shop/emails:2.0.1": manifest unknown
+  Warning  Failed     16m (x4 over 17m)    kubelet  Error: ErrImagePull
+  Normal   BackOff    2m (x63 over 17m)    kubelet  Back-off pulling image "registry.example.com/shop/emails:2.0.1"
+
+$ kubectl describe pod search-79c5f6d8b4-8jgnc -n shop | tail -2
+  Warning  FailedScheduling  9m  default-scheduler  0/3 nodes are available: 3 Insufficient memory. preemption: 0/3 nodes are available: 3 No preemption victims found for incoming pod.

@@ -333,6 +333,166 @@
     {
       "q": "A developer wants to add a user_id label to http_requests_total. What do you answer?",
       "answer": "No: every user would create new time series, with thousands or millions of series, high memory use and slow queries in Prometheus. Keep labels with small fixed sets of values (route, method, code). Per-user details belong in logs or traces, which are made for high-cardinality data."
+    },
+    {
+      "kind": "fill",
+      "q": "Incident lab (billing-api.log): users reported errors in the late morning. At what time (HH:MM:SS) did the first 5xx error appear?",
+      "hint": "Filter on ERROR, then look for a 5xx status (503, 504) after the request path.",
+      "data": "billing-api.log",
+      "accept": [
+        "10:42:29"
+      ],
+      "pattern": "^(2027-03-14[ T])?10:42:29([,.]318)?$",
+      "verify": {
+        "first": "^\\S+ (\\d{2}:\\d{2}:\\d{2}),\\d+ ERROR .* 5\\d\\d - "
+      },
+      "answer": "10:42:29. The filter ' 50[0-9] - ' (or ERROR) shows the first 504 at 10:42:29, then 503s. The 400 at 10:13 is a single business error (invalid IBAN), not the outage. Write the start time in the incident ticket: it anchors the timeline."
+    },
+    {
+      "kind": "fill",
+      "q": "Same log: which 5xx error message appears most often during the outage?",
+      "data": "billing-api.log",
+      "hint": "Filter on ' 503 - ' then on ' 504 - ' and compare the counts.",
+      "accept": [
+        "DB connection pool exhausted",
+        "connection pool exhausted",
+        "pool exhausted",
+        "db pool exhausted",
+        "database connection pool exhausted"
+      ],
+      "verify": {
+        "top": " 5\\d\\d - (DB connection pool exhausted|upstream timeout)"
+      },
+      "answer": "\"DB connection pool exhausted\" (503): 14 lines, against 10 upstream timeouts (504). The pool exhaustion is the main symptom; the timeouts towards payments-gateway are likely a consequence (requests waiting for a connection)."
+    },
+    {
+      "kind": "fill",
+      "q": "Same log: how many requests failed with a 503?",
+      "data": "billing-api.log",
+      "accept": [
+        "14"
+      ],
+      "verify": {
+        "count": " 503 - "
+      },
+      "answer": "14. A filter like ' 503 - ' counts them; in Splunk: \"503\" | stats count, in a shell: grep -c ' 503 - ' billing-api.log."
+    },
+    {
+      "kind": "fill",
+      "q": "Same log: which event, a few minutes before the first errors, is the most likely trigger? (name it in a few words)",
+      "data": "billing-api.log",
+      "hint": "Look at the INFO and WARN lines that are not requests, just before 10:42.",
+      "accept": [
+        "the deploy of v2.8.0",
+        "deploy of v2.8.0",
+        "v2.8.0",
+        "2.8.0",
+        "the deployment of v2.8.0",
+        "deployment",
+        "deploy",
+        "release v2.8.0"
+      ],
+      "pattern": "2\\.8\\.0|deploy|release|roll ?out",
+      "answer": "The rollout of billing-api v2.8.0 at 10:35:12, followed by a pool warning at 10:39:47 (18/20 connections) and the first errors at 10:42. The rollback to v2.7.3 (done at 11:08:55) ends the errors, which confirms the cause. Next step: compare the database settings and connection handling between 2.7.3 and 2.8.0."
+    },
+    {
+      "kind": "regex",
+      "q": "Extract the HTTP status code of every request in nginx-access.log (one value per line).",
+      "data": "nginx-access.log",
+      "code": "regex",
+      "hint": "The status comes right after the quoted request: \"GET / HTTP/1.1\" 200. Put the 3 digits in a group ( ).",
+      "answer": "\" (\\d{3}) ",
+      "note": "The quote before and the space after anchor the 3 digits to the status field (not the size or the time). With these values you can count the 5xx per minute, as a dashboard would."
+    },
+    {
+      "kind": "scenario",
+      "q": "Scenario: you are on call. At 02:10 an alert fires: 'checkout-api error rate 12% for 5 minutes'.",
+      "steps": [
+        {
+          "text": "What do you do first?",
+          "options": [
+            {
+              "text": "Acknowledge the alert, open the service dashboard and check the impact (error rate, traffic, which endpoints).",
+              "ok": true,
+              "why": "Acknowledging tells the team someone is on it; the impact decides the priority and who to wake up."
+            },
+            {
+              "text": "Restart every checkout-api pod straight away.",
+              "why": "Restarting without looking can hide the cause and even make things worse (cold caches, lost logs). Look first, it takes two minutes."
+            },
+            {
+              "text": "Wait 15 minutes to see if it goes away by itself.",
+              "why": "12% of checkouts failing is lost revenue every minute. A real alert deserves a look now."
+            }
+          ]
+        },
+        {
+          "text": "The dashboard shows the errors started at 02:01, right after an automatic deploy of checkout-api. Logs show 'NullPointerException in PromoService'.",
+          "options": [
+            {
+              "text": "Roll back to the previous version, then confirm the error rate goes down.",
+              "ok": true,
+              "why": "A recent change + new errors: rolling back restores the service fastest. The root cause can be fixed calmly in the morning."
+            },
+            {
+              "text": "Write a hotfix for PromoService and deploy it at night.",
+              "why": "A hotfix written alone at 2 am, without review, can add a second incident. Restore first (rollback), fix later."
+            },
+            {
+              "text": "Open a ticket for the developers and go back to sleep.",
+              "why": "The service is still failing for customers. The on-call job is to restore it, then hand over."
+            }
+          ]
+        },
+        {
+          "text": "After the rollback the error rate is back to 0.2%. What next?",
+          "options": [
+            {
+              "text": "Post an update in the incident channel (impact, time window, rollback), then plan a blameless post-mortem.",
+              "ok": true,
+              "why": "Clear communication closes the incident; the post-mortem finds why the bug passed the tests and how to catch it next time."
+            },
+            {
+              "text": "Nothing: the alert is green, the incident is over.",
+              "why": "Without a written update and a follow-up, the same bug comes back with the next deploy and nobody learns from it."
+            },
+            {
+              "text": "Disable the alert so it doesn't wake anyone again.",
+              "why": "The alert did its job. Disabling it means the next outage goes unnoticed."
+            }
+          ]
+        }
+      ],
+      "answer": "Acknowledge and assess the impact, restore the service (rollback of the recent change), communicate, then a blameless post-mortem. Restore first, find the root cause later."
+    },
+    {
+      "kind": "groups",
+      "q": "Sort each signal into the right type of telemetry.",
+      "groups": [
+        {
+          "name": "Metric",
+          "items": [
+            "http_requests_total counter",
+            "CPU usage at 73%",
+            "queue length gauge"
+          ]
+        },
+        {
+          "name": "Log",
+          "items": [
+            "2027-03-14 10:42:29 ERROR pool exhausted",
+            "JSON line with level, message and request id"
+          ]
+        },
+        {
+          "name": "Trace",
+          "items": [
+            "spans of one request across 4 services",
+            "time spent in each service call for request abc123"
+          ]
+        }
+      ],
+      "answer": "Metrics are numbers over time (cheap, for dashboards and alerts). Logs are events with details (what happened). Traces follow one request across services (where the time goes). The three are used together: the alert comes from a metric, the log explains it, the trace locates it."
     }
   ],
   "interview": [

@@ -333,6 +333,168 @@
     {
       "q": "Un développeur veut ajouter un label user_id à http_requests_total. Que répondez-vous ?",
       "answer": "Non : chaque utilisateur créerait de nouvelles séries temporelles, soit des milliers voire des millions de séries, une forte consommation mémoire et des requêtes lentes dans Prometheus. On garde des labels aux valeurs peu nombreuses et fixes (route, méthode, code). Le détail par utilisateur relève des logs ou des traces, conçus pour les données à forte cardinalité."
+    },
+    {
+      "kind": "fill",
+      "q": "Labo incident (billing-api.log) : des utilisateurs signalent des erreurs en fin de matinée. À quelle heure (HH:MM:SS) apparaît la première erreur 5xx ?",
+      "hint": "Filtrez sur ERROR, puis cherchez un statut 5xx (503, 504) après le chemin de la requête.",
+      "data": "billing-api.log",
+      "accept": [
+        "10:42:29"
+      ],
+      "pattern": "^(2027-03-14[ T])?10:42:29([,.]318)?$",
+      "verify": {
+        "first": "^\\S+ (\\d{2}:\\d{2}:\\d{2}),\\d+ ERROR .* 5\\d\\d - "
+      },
+      "answer": "10:42:29. Le filtre ' 50[0-9] - ' (ou ERROR) montre le premier 504 à 10:42:29, puis des 503. Le 400 de 10:13 est une erreur métier isolée (IBAN invalide), pas la panne. Notez l’heure de début dans le ticket d’incident : elle ancre la chronologie."
+    },
+    {
+      "kind": "fill",
+      "q": "Même log : quel message d’erreur 5xx revient le plus souvent pendant la panne ?",
+      "data": "billing-api.log",
+      "hint": "Filtrez sur ' 503 - ' puis sur ' 504 - ' et comparez les nombres.",
+      "accept": [
+        "DB connection pool exhausted",
+        "connection pool exhausted",
+        "pool exhausted",
+        "db pool exhausted",
+        "database connection pool exhausted",
+        "pool de connexions épuisé"
+      ],
+      "verify": {
+        "top": " 5\\d\\d - (DB connection pool exhausted|upstream timeout)"
+      },
+      "answer": "« DB connection pool exhausted » (503) : 14 lignes, contre 10 timeouts amont (504). L’épuisement du pool est le symptôme principal ; les timeouts vers payments-gateway en sont probablement une conséquence (requêtes en attente d’une connexion)."
+    },
+    {
+      "kind": "fill",
+      "q": "Même log : combien de requêtes ont échoué avec un 503 ?",
+      "data": "billing-api.log",
+      "accept": [
+        "14"
+      ],
+      "verify": {
+        "count": " 503 - "
+      },
+      "answer": "14. Un filtre comme ' 503 - ' les compte ; dans Splunk : \"503\" | stats count, dans un shell : grep -c ' 503 - ' billing-api.log."
+    },
+    {
+      "kind": "fill",
+      "q": "Même log : quel événement, quelques minutes avant les premières erreurs, est le déclencheur le plus probable ? (en quelques mots)",
+      "data": "billing-api.log",
+      "hint": "Regardez les lignes INFO et WARN qui ne sont pas des requêtes, juste avant 10:42.",
+      "accept": [
+        "the deploy of v2.8.0",
+        "deploy of v2.8.0",
+        "v2.8.0",
+        "2.8.0",
+        "le déploiement de la v2.8.0",
+        "déploiement de la v2.8.0",
+        "déploiement",
+        "deploy",
+        "la mise en production de la v2.8.0"
+      ],
+      "pattern": "2\\.8\\.0|d[ée]ploi|deploy|release|roll ?out|mise en prod",
+      "answer": "Le déploiement de billing-api v2.8.0 à 10:35:12, suivi d’un avertissement sur le pool à 10:39:47 (18/20 connexions) et des premières erreurs à 10:42. Le retour arrière vers la v2.7.3 (terminé à 11:08:55) fait cesser les erreurs, ce qui confirme la cause. Étape suivante : comparer les réglages de base de données et la gestion des connexions entre 2.7.3 et 2.8.0."
+    },
+    {
+      "kind": "regex",
+      "q": "Extrayez le code de statut HTTP de chaque requête de nginx-access.log (une valeur par ligne).",
+      "data": "nginx-access.log",
+      "code": "regex",
+      "hint": "Le statut suit la requête entre guillemets : \"GET / HTTP/1.1\" 200. Mettez les 3 chiffres dans un groupe ( ).",
+      "answer": "\" (\\d{3}) ",
+      "note": "Le guillemet avant et l’espace après ancrent les 3 chiffres sur le champ statut (pas la taille ni le temps). Avec ces valeurs, vous pouvez compter les 5xx par minute, comme un tableau de bord."
+    },
+    {
+      "kind": "scenario",
+      "q": "Scénario : vous êtes d’astreinte. À 02:10, une alerte se déclenche : « taux d’erreur checkout-api 12 % depuis 5 minutes ».",
+      "steps": [
+        {
+          "text": "Que faites-vous en premier ?",
+          "options": [
+            {
+              "text": "Prendre l’alerte en charge, ouvrir le tableau de bord du service et mesurer l’impact (taux d’erreur, trafic, quels endpoints).",
+              "ok": true,
+              "why": "Prendre l’alerte indique à l’équipe que quelqu’un s’en occupe ; l’impact décide de la priorité et de qui réveiller."
+            },
+            {
+              "text": "Redémarrer tout de suite tous les pods checkout-api.",
+              "why": "Redémarrer sans regarder peut masquer la cause, voire aggraver (caches froids, logs perdus). Regardez d’abord, cela prend deux minutes."
+            },
+            {
+              "text": "Attendre 15 minutes pour voir si cela passe tout seul.",
+              "why": "12 % des paiements en échec, c’est du chiffre d’affaires perdu chaque minute. Une vraie alerte mérite un coup d’œil maintenant."
+            }
+          ]
+        },
+        {
+          "text": "Le tableau de bord montre que les erreurs ont commencé à 02:01, juste après un déploiement automatique de checkout-api. Les logs affichent « NullPointerException in PromoService ».",
+          "options": [
+            {
+              "text": "Revenir à la version précédente (rollback), puis vérifier que le taux d’erreur baisse.",
+              "ok": true,
+              "why": "Un changement récent + de nouvelles erreurs : le rollback rétablit le service le plus vite. La cause racine se corrige au calme le matin."
+            },
+            {
+              "text": "Écrire un correctif pour PromoService et le déployer dans la nuit.",
+              "why": "Un correctif écrit seul à 2 h, sans relecture, peut créer un second incident. Rétablir d’abord (rollback), corriger ensuite."
+            },
+            {
+              "text": "Ouvrir un ticket pour les développeurs et se rendormir.",
+              "why": "Le service échoue toujours pour les clients. Le rôle de l’astreinte est de le rétablir, puis de passer la main."
+            }
+          ]
+        },
+        {
+          "text": "Après le rollback, le taux d’erreur est revenu à 0,2 %. Et ensuite ?",
+          "options": [
+            {
+              "text": "Publier un point dans le canal d’incident (impact, fenêtre, rollback), puis planifier un post-mortem sans reproche.",
+              "ok": true,
+              "why": "Une communication claire clôt l’incident ; le post-mortem trouve pourquoi le bug a passé les tests et comment le détecter la prochaine fois."
+            },
+            {
+              "text": "Rien : l’alerte est verte, l’incident est terminé.",
+              "why": "Sans point écrit ni suivi, le même bug revient au prochain déploiement et personne n’en tire de leçon."
+            },
+            {
+              "text": "Désactiver l’alerte pour qu’elle ne réveille plus personne.",
+              "why": "L’alerte a fait son travail. La désactiver, c’est laisser passer la prochaine panne."
+            }
+          ]
+        }
+      ],
+      "answer": "Prendre l’alerte et mesurer l’impact, rétablir le service (rollback du changement récent), communiquer, puis un post-mortem sans reproche. Rétablir d’abord, chercher la cause racine ensuite."
+    },
+    {
+      "kind": "groups",
+      "q": "Classez chaque signal dans le bon type de télémétrie.",
+      "groups": [
+        {
+          "name": "Métrique",
+          "items": [
+            "compteur http_requests_total",
+            "CPU à 73 %",
+            "jauge de longueur de file"
+          ]
+        },
+        {
+          "name": "Log",
+          "items": [
+            "2027-03-14 10:42:29 ERROR pool exhausted",
+            "ligne JSON avec niveau, message et id de requête"
+          ]
+        },
+        {
+          "name": "Trace",
+          "items": [
+            "spans d’une requête à travers 4 services",
+            "temps passé dans chaque appel de service pour la requête abc123"
+          ]
+        }
+      ],
+      "answer": "Les métriques sont des nombres dans le temps (peu coûteuses, pour tableaux de bord et alertes). Les logs sont des événements détaillés (ce qui s’est passé). Les traces suivent une requête à travers les services (où passe le temps). Les trois s’utilisent ensemble : l’alerte vient d’une métrique, le log l’explique, la trace la localise."
     }
   ],
   "interview": [

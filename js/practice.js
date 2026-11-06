@@ -7,11 +7,15 @@
 //   Runnable SQL exercises (exercise.run = { db, ordered?, minColumns? }, training step 2): ▶ Run shows the result
 //   table on the practice dataset (sqlrun.js: SQLite in a Web Worker, nothing sent anywhere) and ✓ Check compares it
 //   with the result of the course answer (sqlgrade.js); a correct result marks the exercise solved.
+//   Auto-checked formats (exercise.kind, training steps 2b + 2c, exkinds.js + excheck.js): fill in the blank, predict
+//   the output, put in order, match pairs, sort into groups, spot the bug, scenarios, log / data questions, regex and
+//   cron; a correct try marks the exercise solved and shows the explanation.
 // - interviewCards(): think first, then reveal the model answer.
 // Everything stays in this browser (synced to the account when signed in, learnsync.js); each action adds XP (activity.js).
 import { h, ls } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { logActivity } from "./activity.js";
+import { isAuto, autoExercise, kindLabel } from "./exkinds.js";
 
 const store = (key) => ({
   all() { try { return JSON.parse(ls.get(key) || "{}"); } catch { return {}; } },
@@ -134,22 +138,28 @@ export function exercises(root, c, codeBlock) {
   const upd = () => { count.textContent = t("{d}/{n} solved", { d: solved.size, n: c.exercises.length }); };
   const markSolved = (i, status) => { if (!solved.has(i)) logActivity(3); solved.add(i); EX.set(c.id, [...solved]); status.hidden = false; upd(); };
   const one = (e, i) => {
+    const auto = isAuto(e);
     const status = h("span", { class: "badge", hidden: !solved.has(i) }, t("Solved"));
     const hint = e.hint ? h("p", { class: "mute text-sm", hidden: true }, t("Hint: {hint}", { hint: e.hint })) : null;
-    const grade = h("div", { class: "flex flex-wrap gap-2" },
-      h("button", { type: "button", class: "btn", onClick: () => { if (!solved.has(i)) logActivity(3); solved.add(i); EX.set(c.id, [...solved]); status.hidden = false; upd(); } }, t("✓ I got it")),
+    const grade = auto ? null : h("div", { class: "flex flex-wrap gap-2" },
+      h("button", { type: "button", class: "btn", onClick: () => markSolved(i, status) }, t("✓ I got it")),
       h("button", { type: "button", class: "btn-ghost", onClick: () => { solved.delete(i); EX.set(c.id, [...solved]); status.hidden = true; upd(); } }, t("↻ Not yet")));
     const answer = h("div", { class: "grid gap-3", hidden: true },
       e.code ? codeBlock(e.code, e.answer) : h("p", { class: "text-sm rounded-xl p-3", style: "background:var(--soft)" }, e.answer),
-      h("p", { class: "mute text-xs" }, t("Compare with your attempt. Did you get it?")), grade);
-    const reveal = h("button", { type: "button", class: "btn-ghost", onClick: () => { answer.hidden = false; reveal.hidden = true; } }, t("Reveal the answer"));
-    return h("li", { class: "panel !shadow-none grid gap-3" },
+      e.note ? h("p", { class: "mute text-sm" }, e.note) : null,
+      auto ? null : h("p", { class: "mute text-xs" }, t("Compare with your attempt. Did you get it?")), grade);
+    const reveal = h("button", { type: "button", class: "btn-ghost", onClick: () => { answer.hidden = false; reveal.hidden = true; } },
+      auto ? t("Show the answer") : t("Reveal the answer"));
+    const work = auto ? autoExercise(e, { codeBlock, onSolved: () => { markSolved(i, status); answer.hidden = false; reveal.hidden = true; } })
+      : e.run ? sqlRunner(e, () => markSolved(i, status))
+      : h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
+        placeholder: t("Try it here first (not saved)…") });
+    return h("li", { class: "panel !shadow-none grid gap-3", "data-exercise": String(i) },
       h("div", { class: "flex items-start gap-3" },
         h("span", { class: "w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold", style: "background:var(--soft)" }, String(i + 1)),
-        h("p", { class: "font-medium flex-1" }, e.q), status),
-      hint,
-      e.run ? sqlRunner(e, () => markSolved(i, status)) : h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
-        placeholder: t("Try it here first (not saved)…") }),
+        h("div", { class: "flex-1 grid gap-1" }, auto ? h("span", { class: "eyebrow" }, kindLabel(e.kind)) : null, h("p", { class: "font-medium" }, e.q)),
+        status),
+      hint, work,
       h("div", { class: "flex flex-wrap gap-2" }, reveal,
         hint ? h("button", { type: "button", class: "btn-ghost", onClick: (ev) => { hint.hidden = false; ev.currentTarget.remove(); } }, t("💡 Show a hint")) : null),
       answer);

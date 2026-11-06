@@ -9,6 +9,9 @@
 //   - interview (content/interview): ids unique, model answers present;
 //   - portfolio projects (content/projects): 3 per path, required fields, ids "<path>-…", http(s) data links;
 //   - AI track (content/ai): index entries, Arabic-letter and 3arbizi files with the same structure and identical code;
+//   - auto-checked exercises (exercise.kind, training steps 2b + 2c, js/exkinds.js): fields of each format, data files
+//     present in content/data/, data answers recomputed from the file (verify), regex and cron answers valid and
+//     useful, the same settings in the French copy;
 //   - runnable SQL exercises (exercise.run, training step 2): the dataset exists, the course answer runs on it with
 //     SQLite (sql.js, the same engine as the browser) and returns rows, and the grader (js/sqlgrade.js) accepts it.
 // The same rules as scripts/check-fr-content.ps1 (French) and the course smoke test, plus the structure rules above.
@@ -18,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { SKILLS } from "../js/ats.js";
 import { gradeResult } from "../js/sqlgrade.js";
+import { fillOk, regexValues, makeRegex, parseCron, nextRuns, verifyData } from "../js/excheck.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const C = (...p) => join(ROOT, "content", ...p);
@@ -47,8 +51,74 @@ function checkCourse(where, c) {
     if (!str(g.group)) bad(where, `cheat sheet group ${i + 1}: no name`);
     arr(g.items).forEach((it, j) => { if (!Array.isArray(it) || it.length !== 2 || !it.every(str)) bad(where, `cheat sheet group ${i + 1} item ${j + 1}: must be [syntax, meaning]`); });
   });
-  arr(c.exercises).forEach((e, i) => { if (!str(e.q) || !str(e.answer)) bad(where, `exercise ${i + 1}: needs q and answer`); });
+  arr(c.exercises).forEach((e, i) => { if (!str(e.q) || !str(e.answer)) bad(where, `exercise ${i + 1}: needs q and answer`); if (e.kind) checkKind(`${where} exercise ${i + 1}`, e); });
   arr(c.interview).forEach((q, i) => { if (!str(q.q) || !str(q.a)) bad(where, `interview question ${i + 1}: needs q and a`); });
+}
+
+// Auto-checked exercise formats (js/exkinds.js header).
+const KINDS = new Set(["fill", "predict", "order", "match", "groups", "bug", "scenario", "regex", "cron"]);
+const dataText = (name) => (/^[a-z0-9_.-]+$/i.test(name || "") && existsSync(C("data", name)) ? readFileSync(C("data", name), "utf8") : null);
+let autoCount = 0;
+function checkKind(where, e) {
+  if (!KINDS.has(e.kind)) { bad(where, `unknown kind "${e.kind}"`); return; }
+  autoCount++;
+  if (e.given && (!str(e.given.code) || !str(e.given.lang))) bad(where, "given needs lang and code");
+  let text = null;
+  if (e.data) { text = dataText(e.data); if (text == null) bad(where, `data file "${e.data}" not found in content/data/`); }
+  const uniq = (xs) => new Set(xs).size === xs.length;
+  switch (e.kind) {
+    case "fill": case "predict":
+      if (!arr(e.accept).length && !e.pattern) bad(where, "needs accept (or pattern)");
+      if (!arr(e.accept).every(str)) bad(where, "accept must be a list of texts");
+      if (e.pattern && !makeRegex(e.pattern, "i")) bad(where, "pattern does not compile");
+      if (e.kind === "predict" && !e.given) bad(where, "predict needs given code");
+      if (e.verify) {
+        if (text == null) { bad(where, "verify needs a data file"); break; }
+        try { const v = verifyData(text, e.verify); if (!fillOk(e, v)) bad(where, `the data gives "${v}", which is not accepted`); }
+        catch (err) { bad(where, err.message); }
+      }
+      break;
+    case "order": if (arr(e.steps).length < 3 || !arr(e.steps).every(str) || !uniq(e.steps)) bad(where, "order needs 3+ different steps"); break;
+    case "match": {
+      const p = arr(e.pairs);
+      if (p.length < 3 || !p.every((x) => Array.isArray(x) && x.length === 2 && x.every(str))) bad(where, "match needs 3+ [left, right] pairs");
+      else if (!uniq(p.map((x) => x[0])) || !uniq(p.map((x) => x[1]))) bad(where, "match: lefts and rights must be different");
+      break;
+    }
+    case "groups": {
+      const g = arr(e.groups), all = g.flatMap((x) => arr(x.items));
+      if (g.length < 2 || !g.every((x) => str(x.name) && arr(x.items).length && arr(x.items).every(str))) bad(where, "groups needs 2+ groups with a name and items");
+      else if (!uniq(all) || !uniq(g.map((x) => x.name))) bad(where, "groups: names and items must be different");
+      break;
+    }
+    case "bug": {
+      const n = String(e.given?.code || "").split("\n").length;
+      if (!e.given) bad(where, "bug needs given code");
+      if (!arr(e.bug).length || !arr(e.bug).every((k) => Number.isInteger(k) && k >= 1 && k <= n)) bad(where, `bug lines must be between 1 and ${n}`);
+      break;
+    }
+    case "scenario":
+      if (!arr(e.steps).length) bad(where, "scenario needs steps");
+      arr(e.steps).forEach((s, k) => {
+        if (!str(s.text) || arr(s.options).length < 2) bad(where, `step ${k + 1}: needs text and 2+ options`);
+        if (arr(s.options).filter((o) => o.ok === true).length !== 1) bad(where, `step ${k + 1}: exactly one option must be ok`);
+        if (!arr(s.options).every((o) => str(o.text) && str(o.why))) bad(where, `step ${k + 1}: every option needs text and why`);
+      });
+      break;
+    case "regex": {
+      if (e.code !== "regex") bad(where, 'a regex exercise must have code: "regex"');
+      const lines = e.data ? (text || "").replace(/\n$/, "").split("\n") : arr(e.lines);
+      if (!lines.length) bad(where, "regex needs data or lines");
+      const v = regexValues(e.answer, e.flags, lines);
+      if (!v) bad(where, "the answer regex does not compile");
+      else if (!v.length) bad(where, "the answer regex extracts nothing");
+      break;
+    }
+    case "cron":
+      if (e.code !== "cron") bad(where, 'a cron exercise must have code: "cron"');
+      try { if (!nextRuns(e.answer, 1).length) bad(where, "the answer never runs"); } catch (err) { bad(where, `the answer is not valid cron: ${err.message}`); }
+      break;
+  }
 }
 
 // Two versions of the same content (EN/FR, Arabic letters/3arbizi): same structure, identical code.
@@ -69,6 +139,12 @@ function sameShape(where, a, b, { translated = true } = {}) {
     const f = arr(b.exercises)[i] || {};
     if (e.code && (e.answer !== f.answer || e.code !== f.code)) bad(where, `exercise ${i + 1}: code answer differs`);
     if (JSON.stringify(e.run || null) !== JSON.stringify(f.run || null)) bad(where, `exercise ${i + 1}: run settings differ`);
+    for (const k of ["kind", "given", "data", "verify", "bug", "flags", "lines"]) {
+      if (JSON.stringify(e[k] ?? null) !== JSON.stringify(f[k] ?? null)) bad(where, `exercise ${i + 1}: ${k} differs`);
+    }
+    if (e.kind === "order" || e.kind === "match") { const k = e.kind === "order" ? "steps" : "pairs"; if (arr(e[k]).length !== arr(f[k]).length) bad(where, `exercise ${i + 1}: ${k} count differs`); }
+    if (e.kind === "groups" && JSON.stringify(arr(e.groups).map((g) => arr(g.items).length)) !== JSON.stringify(arr(f.groups).map((g) => arr(g.items).length))) bad(where, `exercise ${i + 1}: group sizes differ`);
+    if (e.kind === "scenario" && JSON.stringify(arr(e.steps).map((s) => arr(s.options).map((o) => !!o.ok))) !== JSON.stringify(arr(f.steps).map((s) => arr(s.options).map((o) => !!o.ok)))) bad(where, `exercise ${i + 1}: scenario options or ok answers differ`);
   });
   if (translated && a.why && a.why === b.why) bad(where, "why is not translated");
 }
@@ -197,7 +273,7 @@ if (runnable.length) {
 }
 
 /* ---------- result ---------- */
-const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${PATHS.size * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises`;
+const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${PATHS.size * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises, ${autoCount} auto-checked exercises`;
 if (problems.length) {
   console.log(`Content check: ${problems.length} problem(s) (${counted})`);
   for (const p of problems) console.log(`  - ${p}`);

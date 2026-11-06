@@ -80,12 +80,12 @@ export function renderCourseList(root, pathId) {
   const done = doneSet();
   const mine = index.filter((c) => c.paths.includes(pathId));
   const others = index.filter((c) => !c.paths.includes(pathId));
-  root.replaceChildren(
+  root.replaceChildren(...[ // filter: replaceChildren() would print null as text
     h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }, mine.map((c) => courseCard(c, done))),
     others.length ? h("details", { class: "mt-3" },
       h("summary", { class: "cursor-pointer mute text-sm" }, t("Other courses ({n})", { n: others.length })),
       h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-3" }, others.map((c) => courseCard(c, done)))) : null,
-  );
+  ].filter(Boolean));
 }
 
 // AI track courses ("ai-…", aitrack.js) come from content/ai/<script>/, cached per script.

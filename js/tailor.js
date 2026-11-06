@@ -123,11 +123,13 @@ function aiSection({ offer, r }) {
         throw Object.assign(new Error(msg), { code });
       }
       const result = h("div", { class: "rounded-lg p-3 text-sm whitespace-pre-wrap", style: "background:var(--bg);border:1px solid var(--line)" }, data.text);
-      out.replaceChildren(
+      // replaceChildren() would print a null argument as the text "null": drop the optional parts first.
+      out.replaceChildren(...[
         h("p", { class: "text-xs", style: "color:#f08a24" }, t("Check every line before using it: the AI can make mistakes, and only you know what is true.")),
         data.truncated ? h("p", { class: "mute text-xs" }, t("The answer was cut short: try again with a shorter offer.")) : null,
         result,
-        h("button", { type: "button", class: "btn-ghost justify-self-start", onClick: () => copy(data.text, null, t("Rewrite copied.")) }, t("📋 Copy the rewrite")));
+        h("button", { type: "button", class: "btn-ghost justify-self-start", onClick: () => copy(data.text, null, t("Rewrite copied.")) }, t("📋 Copy the rewrite")),
+      ].filter(Boolean));
     } catch (e) {
       out.replaceChildren(h("p", { class: "text-sm", style: "color:#e0508b" },
         AI_ERRORS[e.code] ? t(AI_ERRORS[e.code]) : t("AI rewriting failed: {msg}", { msg: e.message })));

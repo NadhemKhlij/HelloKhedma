@@ -60,7 +60,7 @@ export function gapTrainings(missing, { onOpen = () => {} } = {}) {
   };
 
   const projectsBox = h("div", { class: "grid gap-1.5" });
-  const box = h("div", { class: "rounded-xl p-3 grid gap-2 mt-3", style: "border:1px solid var(--accent);background:var(--soft)" },
+  const box = h("div", { class: "rounded-xl p-3 grid gap-2 mt-3", style: "border:1px solid var(--accent);background:var(--soft)", "data-gaps": true },
     h("p", { class: "font-medium" }, t("📘 Close the gaps with HelloKhedma"),
       coveredCount ? h("span", { class: "mute text-sm font-normal" },
         t(" · {covered} of {all} missing skills, ≈ {time}", { covered: coveredCount, all: gaps.length, time: formatMinutes(Math.round(minutes)) })) : null),

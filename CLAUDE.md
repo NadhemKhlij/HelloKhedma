@@ -19,7 +19,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   (raw.githubusercontent.com/<owner>/<repo>/<commit>/…): the branch link is cached for ~5 minutes.
 - Supabase CLI (or the dashboard equivalents):
   - `npx supabase link --project-ref <ref>`, then `npx supabase db push` (migrations); seed: run supabase/seed.sql.
-  - `npx supabase functions deploy <name> --use-api` for job-search, delete-account and cv-tailor
+  - `npx supabase functions deploy <name> --use-api` for job-search, delete-account and cv-tailor; or, from a phone:
+    GitHub → Actions → "Deploy Supabase function" → Run workflow (.github/workflows/deploy-functions.yml, needs the
+    SUPABASE_ACCESS_TOKEN secret). Prefer it to pasting code into the dashboard editor (long files get cut on a phone).
   - `npx supabase secrets set NAME=value`
 - Smoke tests: `npm test` (Playwright, tests/smoke.spec.mjs) on the assembled site in _site/. CI runs them before
   every deploy; a failure stops the deploy. Push a branch other than `main` to run build + tests without publishing.
@@ -44,6 +46,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 | Name | Where |
 |---|---|
 | SUPABASE_URL, SUPABASE_ANON_KEY | GitHub → Actions → Variables (build writes js/config.js); local js/config.js |
+| SUPABASE_ACCESS_TOKEN | GitHub → Actions → Secrets (deploy-functions.yml only); never in code |
 | DEFAULT_COUNTRY, CONTACT_EMAIL, SENTRY_DSN (optional) | GitHub → Actions → Variables; local js/config.js |
 | ADZUNA_APP_ID, ADZUNA_APP_KEY, RAPIDAPI_KEY, FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET | Supabase → Edge Functions → Secrets |
 | DEFAULT_PROVIDER, CACHE_TTL_HOURS, RATE_LIMIT_GUEST, RATE_LIMIT_USER (optional) | Supabase → Edge Functions → Secrets |
@@ -135,8 +138,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
 - js/offercheck.js — age of an offer, level (Junior…Lead) and trust warnings (scam signals, stale, no company)
 - js/pulse.js — path market pulse on Home, from the offers seen on the Offers page (local only, "hk.pulse.<path>")
-- js/tailor.js — "Tailor my CV" dialog: honest gap analysis, prompt to copy for the user's own AI, and "Rewrite with AI"
-  (cv-tailor function, signed-in users, after a notice)
+- js/tailor.js — "Tailor my CV" dialog: honest gap analysis, prompt to copy for the user's own AI, "Rewrite with AI" and
+  "Create my CV for this offer" (cv-tailor function, signed-in users, after a notice; the CV opens in the CV maker)
 - js/letters.js — letters pack: cover letter prompt to copy (offers, CV match), thank-you / follow-up emails from a
   tracker card (templates EN + FR, copy or open in the email app; nothing is sent by HelloKhedma)
 - js/courses.js — course list and course page (tabs: lessons one at a time, quiz, flashcards, practice, interview, cheat sheet)
@@ -153,6 +156,7 @@ Read the header comment of any file before modifying it; update the header if be
 - supabase/functions/job-search/, delete-account/, cv-tailor/ — Edge Functions (cv-tailor: AI CV rewrite with Claude)
 - scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node)
 - .github/workflows/deploy.yml — build, smoke tests, publish to GitHub Pages (main only)
+- .github/workflows/deploy-functions.yml — deploy one Edge Function on demand (Run workflow)
 - tests/smoke.spec.mjs, playwright.config.mjs — smoke tests (guest flows; no sign-in, no job search)
 - CHECKLIST.md — next-session note, owner tasks, done log; ROADMAP.md — roadmap + decisions log; README.md, GO-LIVE.md — setup guides
 

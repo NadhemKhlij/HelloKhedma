@@ -52,6 +52,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 |---|---|---|---|---|
 | O4 | GitHub → Settings → Secrets and variables → Actions → Variables | Add **`CONTACT_EMAIL`** (dedicated address), then re-run the deploy | Legal pages show "contact address coming soon" | — |
 | O7 | sentry.io (optional) | Create a project, add **`SENTRY_DSN`** as a GitHub variable | Error monitoring | — |
+| O20 | supabase.com + GitHub | **1.** supabase.com → your avatar → **Account preferences → Access Tokens → Generate new token**, name `github-deploy`, copy it. **2.** GitHub → repo **Settings → Secrets and variables → Actions → Secrets → New repository secret**: name `SUPABASE_ACCESS_TOKEN`, value = the token (never in a chat). **3.** GitHub → **Actions → Deploy Supabase function → Run workflow** → `cv-tailor` → Run. **4.** Test "Create my CV for this offer" signed in | Deploys the new cv-tailor (needed by "Create my CV for this offer") and every later function update without copying code on a phone | .github/workflows/deploy-functions.yml |
 | O9 | Legal (before a big launch) | Have the legal notice and privacy policy reviewed | Templates, not legal advice | — |
 | O10 | Your phone | Install the app (Android: "Install the app" link in the footer; iPhone: Safari → Share → Add to Home Screen) and check it opens offline | PWA install was only tested in a desktop browser | — |
 | O12 | Live site | Sign in and use the app in French, then press **EN** and back: check nothing is left in the wrong language and the French reads naturally (report odd wording) | Translations were written by Claude and only tested as a guest | js/i18n-fr.js |
@@ -62,6 +63,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-06 | "Create my CV for this offer" (Tailor my CV → the whole CV for the offer, written by AI, opens in the CV maker with notes; saved as a version named after the offer). Needs O20 (cv-tailor redeploy). New workflow to deploy functions from GitHub |
 | 2026-11-06 | PDF CV reading fixed: PDFs that split words into pieces ("L i nux") were read with spaces inside words, so most skills were missed (owner's CV: 1 skill found → 25). Re-upload a PDF CV saved before this fix. Also "REST APIs" now counts as REST API; no setup needed |
 | 2026-11-06 | O16 done: ANTHROPIC_API_KEY set, `cv-tailor` deployed (dashboard editor, same code without the header comments); "Rewrite with AI" tested signed in on hellokhedma.io: full rewrite in French with gaps and questions. Fixed a stray "null" shown above the result |
 | 2026-11-06 | "Confirm email" turned back on in Supabase by the owner (new sign-ups must confirm their address) |

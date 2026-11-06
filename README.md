@@ -16,7 +16,7 @@ plus an **AI engineer track in Tunisian Derja** (Arabic letters or 3arbizi).
 | **Offers** | Live search (France Travail, Adzuna, JSearch), "Companies I follow" (Greenhouse, Lever, Ashby, Workable, SmartRecruiters career pages) and "Remote jobs" (Jobicy, Remotive). CV fit score and skill highlights, salary chip / filter / sort, posted date, level (Junior…Lead), "⚠ Check this offer" scam and stale warnings, cover letter prompt, one-click add to the tracker |
 | **Training** | Roadmap of tracks per path with progress, weekly study plan, 25 courses (7-10 lessons each) with quiz, flashcards, exercises, interview questions and cheat sheet, honest time estimates, 15 portfolio projects, XP and streak |
 | **AI track** (`#/ai`) | "Tunisian AI Teacher": 9 courses and 3 portfolio projects on building with LLMs and the Claude API, in Derja, right to left in Arabic letters or in 3arbizi |
-| **CV** | Several CV versions (one per path), CV keyword check against an offer, **ATS score /100** with the fixes to make, **CV maker** (ATS-friendly one-column CV in EN or FR, print to PDF), "Tailor my CV" (honest gap analysis, prompt for your own AI, or "Rewrite with AI" for signed-in users) |
+| **CV** | Several CV versions (one per path), CV keyword check against an offer, **ATS score /100** with the fixes to make, **CV maker** (ATS-friendly one-column CV in EN or FR, print to PDF), "Tailor my CV" (honest gap analysis, prompt for your own AI, or for signed-in users "Rewrite with AI" and "Create my CV for this offer", which writes the whole CV for the offer into the CV maker) |
 | **Interview** | Questions and model answers per path, STAR stories, checklist |
 | **Applications** | Kanban tracker with details, notes, follow-up dates, contacts, salary, "CV sent", stats, CSV export, calendar files, thank-you / follow-up email templates |
 | **Account** | Sign in (email / magic link), export or delete all data, legal notice and privacy policy |
@@ -92,6 +92,9 @@ npx supabase functions deploy job-search --use-api
 npx supabase functions deploy delete-account --use-api
 npx supabase functions deploy cv-tailor --use-api
 ```
+
+Or without a terminal: add a `SUPABASE_ACCESS_TOKEN` secret (supabase.com → Account → Access Tokens) in GitHub, then
+**Actions → Deploy Supabase function → Run workflow** and pick the function.
 
 `job-search` caches identical searches for 6 hours and rate-limits callers (20/hour per IP for guests, 60/hour per
 user); tune with `CACHE_TTL_HOURS`, `RATE_LIMIT_GUEST`, `RATE_LIMIT_USER`. Without it, the app still shows direct

@@ -131,7 +131,10 @@ to copy with honesty rules, letter language EN/FR, default = offer language); "â
 and "Write the email" on Home follow-ups (thank-you and follow-up templates in EN/FR filled from the card, copy or open
 in the email app). Still to do: "Write with AI" in the app (same rules as cv-tailor), keep the letter sent per
 application (2.7b).
-Done (2026-10-29): 5.2, "Tailor my CV" on offers and the CV match: gap analysis + a prompt to copy into your own AI (CV stays local), and "Rewrite with AI" in the app (cv-tailor function, Claude Opus 5.5 at medium effort, signed-in users only, 5 a day per account, notice before every send, nothing stored). Needs the owner's Anthropic API key and the function deployed (CHECKLIST O16).
+Done (2026-10-29): 5.2, "Tailor my CV" on offers and the CV match: gap analysis + a prompt to copy into your own AI (CV stays local), and "Rewrite with AI" in the app (cv-tailor function, Claude Opus 5.5 at medium effort, signed-in users only, 5 a day per account, notice before every send, nothing stored). Needs the owner's Anthropic API key and the function deployed (CHECKLIST O16, done 2026-11-06).
+Done (2026-11-06): "Create my CV for this offer": the same function (mode "cv", structured output) writes the whole CV for
+the offer in the CV maker's fields, with notes (gaps, [number?] to fill in); it opens in the CV maker to check, print
+or save as a version named after the offer. Same notice and daily limit.
 
 ## Tunisian AI Teacher (live on main since 2026-11-05)
 A learning track to become an AI engineer (build apps with Claude and other AI tools, run them in production, maintain

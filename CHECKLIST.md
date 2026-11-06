@@ -2,7 +2,7 @@
 
 ## 👉 Next session (written 2026-11-06)
 - **Just finished (2026-11-06):** the site is live at **https://hellokhedma.io** (O8 done). Next for the owner: the
-  professional email sender `no-reply@mail.hellokhedma.io` with Resend (O5), then turn "Confirm email" back on.
+  O5 done too (emails sent as no-reply@mail.hellokhedma.io); turn "Confirm email" back on.
 - **Just finished (2026-11-05, later):** CV maker and ATS score on the CV page (two tabs). CV maker (#/cv/maker,
   js/cvmaker.js): form → one-column ATS-friendly preview in EN or FR, print / save as PDF, download .txt, "Use as a CV
   version" (then it scores offers), live ATS score; draft kept in this browser ("hk.cvmaker"), privacy policy updated.
@@ -51,8 +51,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | # | Where | Task | Why it matters | Links / details |
 |---|---|---|---|---|
 | O4 | GitHub → Settings → Secrets and variables → Actions → Variables | Add **`CONTACT_EMAIL`** (dedicated address), then re-run the deploy | Legal pages show "contact address coming soon" | — |
-| O5 | Resend + Supabase → Authentication → SMTP | **Half done.** Resend SMTP works with the test sender `onboarding@resend.dev` (tested 2026-10-29), which only delivers to the owner's Resend email. To finish: verify `mail.hellokhedma.io` in Resend (domain bought, O8 done; Cloudflare can add the DNS records), create a sending-only key for it, set the Supabase sender to `no-reply@mail.hellokhedma.io`. **Until then keep "Confirm email" OFF**, or other people cannot sign up. **Free alternative (no domain):** a dedicated Gmail (e.g. `hellokhedma.app@gmail.com`) with 2-Step Verification + an app password as Supabase SMTP (`smtp.gmail.com`, port 465, ~500 emails/day); it can also be the O4 contact address | Real users need confirmation / magic-link emails | Resend: Domains → Add domain (`mail.<domain>`, EU region) |
-| O5b | resend.com → API Keys | Delete the key that was pasted in the chat on 2026-10-29 (the one used in Supabase was created separately) | An exposed key can send email from the account | — |
+| O5b | resend.com → API Keys | The key created on 2026-11-06 was pasted in the chat: if it was not replaced yet, delete it, create a new Sending-access key and paste it into Supabase → Authentication → Emails → SMTP Settings → Password (then send a magic link to check) | An exposed key can send email from your domain | https://resend.com/api-keys |
 | O7 | sentry.io (optional) | Create a project, add **`SENTRY_DSN`** as a GitHub variable | Error monitoring | — |
 | O9 | Legal (before a big launch) | Have the legal notice and privacy policy reviewed | Templates, not legal advice | — |
 | O10 | Your phone | Install the app (Android: "Install the app" link in the footer; iPhone: Safari → Share → Add to Home Screen) and check it opens offline | PWA install was only tested in a desktop browser | — |
@@ -65,6 +64,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-06 | O5 done: `mail.hellokhedma.io` verified in Resend, Supabase SMTP sends as "HelloKhedma" <no-reply@mail.hellokhedma.io>; a magic link reached the owner's Gmail inbox (not spam). Old Resend keys deleted. Next: "Confirm email" back on |
 | 2026-11-06 | O19 done: Supabase Site URL / Redirect URLs set to https://hellokhedma.io, sign-in tested by the owner. Site added to Google Search Console with sitemap.xml |
 | 2026-11-06 | O8 done: `hellokhedma.io` bought at Cloudflare (1 year; renews Nov 2027, keep auto-renew on), DNS to GitHub Pages ("DNS only"), custom domain + HTTPS, tested by the owner. robots.txt, sitemap.xml, canonical link added; docs point to the new address |
 | 2026-11-05 | CV maker (ATS-friendly CV, PDF, saved as a CV version) and ATS score with fixes on the CV page; no setup needed |

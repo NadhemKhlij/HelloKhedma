@@ -62,6 +62,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-06 | PDF CV reading fixed: PDFs that split words into pieces ("L i nux") were read with spaces inside words, so most skills were missed (owner's CV: 1 skill found → 25). Re-upload a PDF CV saved before this fix. Also "REST APIs" now counts as REST API; no setup needed |
 | 2026-11-06 | O16 done: ANTHROPIC_API_KEY set, `cv-tailor` deployed (dashboard editor, same code without the header comments); "Rewrite with AI" tested signed in on hellokhedma.io: full rewrite in French with gaps and questions. Fixed a stray "null" shown above the result |
 | 2026-11-06 | "Confirm email" turned back on in Supabase by the owner (new sign-ups must confirm their address) |
 | 2026-11-06 | O5b done: the Resend key pasted in the chat was deleted and replaced in Supabase SMTP; sign-in link received again |

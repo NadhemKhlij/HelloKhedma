@@ -5,7 +5,8 @@
 // database are added at runtime (addKeywords), so every path keyword is detectable too.
 // Course index entries (content/courses/index.json) must use these canonical names so missing skills link to a course.
 //
-// CV files: readCvFile() reads PDF (pdf.js 4.4.168 from cdnjs, loaded only when needed) or plain text.
+// CV files: readCvFile() reads PDF (pdf.js 4.4.168 from cdnjs, loaded only when needed; pdfPageText() rebuilds words
+// that the PDF splits into pieces) or plain text.
 // CV texts are stored by js/cvs.js in localStorage ("hk.cvs") only; never send them anywhere except the
 // confirmed "Rewrite with AI" in tailor.js.
 
@@ -88,7 +89,7 @@ export const SKILLS = [
   ["Git", "Cloud & DevOps", ["git", "github", "gitlab", "bitbucket"]],
   ["Linux", "Cloud & DevOps", ["linux", "unix", "red hat", "ubuntu"]],
   ["Windows Server", "Cloud & DevOps", ["windows server", "active directory"]],
-  ["REST API", "Cloud & DevOps", ["rest api", "api rest", "restful", "apis rest", "web services", "webservices"]],
+  ["REST API", "Cloud & DevOps", ["rest api", "rest apis", "api rest", "restful", "apis rest", "web services", "webservices"]],
   ["Postman", "Cloud & DevOps", ["postman"]],
   // Support & IT operations
   ["ITIL", "Support & IT", ["itil"]],
@@ -180,9 +181,25 @@ export async function readCvFile(file) {
   pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
   const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
   const pages = [];
-  for (let p = 1; p <= doc.numPages; p++) {
-    const content = await (await doc.getPage(p)).getTextContent();
-    pages.push(content.items.map((it) => it.str + (it.hasEOL ? "\n" : " ")).join(""));
-  }
+  for (let p = 1; p <= doc.numPages; p++) pages.push(pdfPageText((await (await doc.getPage(p)).getTextContent()).items));
   return pages.join("\n");
+}
+
+// Rebuilds the text of a PDF page from pdf.js items. Many PDFs (Word, Canva exports) split words into small pieces:
+// a space is added only where there is a real gap between two pieces on the same line, a line break where the line
+// changes. Private-use glyphs (icon fonts, odd bullets or brackets) become spaces.
+export function pdfPageText(items) {
+  let out = "", prev = null;
+  for (const it of items) {
+    const [, , c, d, x, y] = it.transform, size = Math.hypot(c, d) || it.height || 10;
+    if (prev && out && !/\s$/.test(out)) {
+      const sameLine = Math.abs(y - prev.y) < size * 0.5, gap = x - prev.end;
+      if (!sameLine) out += "\n";
+      else if (gap > size * 0.15 || gap < -size) out += " ";
+    }
+    out += it.str.replace(/[\uE000-\uF8FF]/g, " ");
+    if (it.hasEOL && !out.endsWith("\n")) out += "\n";
+    prev = { y, end: x + (it.width || 0) };
+  }
+  return out;
 }

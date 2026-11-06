@@ -35,8 +35,8 @@
   only, 5 a day, notice before every send, privacy policy updated. It needs O16 (API key + deploy); the function code
   was not run by Claude (no Deno/key here), only the app side. Before that: "Tailor my CV" prompt, salary on offers,
   French content, app.js split, "CV sent", CV versions, FR/EN interface. O13–O15 done. Not tested signed in.
-- **Owner, first:** O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). Also check
-  "Confirm email" is OFF in Supabase and delete the Resend key that was pasted in the chat (O5b).
+- **Owner, first:** O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). Turn "Confirm email"
+  back ON in Supabase (custom SMTP works since 2026-11-06).
 - **Next in code (owner's choice):** accessibility pass (1.9),
   LinkedIn import (3.10), networking contacts, offer coach (2.8, can reuse the pulse salaries). 2026-10-30:
   ROADMAP gained items from a jobicy.com review (2.8, 3.8–3.10, 4.4b, 4.7, 5.5).

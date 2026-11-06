@@ -63,6 +63,10 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   Supabase on first sign-in (js/store.js).
 - No permanent mock data. Path content lives in the database (career_paths, path_resources, training_tracks,
   training_steps): edit supabase/seed.sql, not the JS.
+- Course playground: `"playground": { "name": "DAX.do", "url": "https://dax.do/", "about" }` in a course file (same url
+  in French) + `"try": true` on lesson examples / written exercises with code that are full queries running there (▶
+  copies the code and opens it; just a link). DAX.do queries build their own table with DATATABLE (no reliance on its
+  sample model). Used by power-bi and dax.
 - Runnable SQL exercises: add `"run": { "db": "shop", "ordered"?: true, "minColumns"?: n }` to an exercise with
   `"code": "sql"` (same in the French copy); the answer must run on content/sql/<db>.sql in SQLite (CI checks it).
   Datasets are fictional, small, and designed so each answer has one unambiguous result (no ties at a LIMIT).

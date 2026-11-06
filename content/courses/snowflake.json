@@ -1,0 +1,597 @@
+{
+  "why": "Snowflake runs behind a large share of Data Engineer and Data Analyst jobs, and interviews go well past SELECT: how pruning and caches work, how to load and ingest continuously, why a query spills, how to design roles and how to keep the bill under control. This course gives you that depth on one consistent example, the ACME warehouse.",
+  "outcome": "explain Snowflake's architecture and caches, build reliable loads and continuous pipelines with COPY, Snowpipe, streams, tasks and dynamic tables, diagnose slow queries, model nested JSON, design roles and policies, protect and share data, and control costs.",
+  "lessons": [
+    {
+      "title": "Architecture in depth: layers, micro-partitions and the three caches",
+      "text": [
+        "The intro course showed that Snowflake separates storage and compute. In practice there are three layers. Storage keeps every table as compressed columnar files in the cloud provider's object storage, which you never touch directly. Compute is your virtual warehouses: LOAD_WH, TRANSFORM_WH and BI_WH read the same tables without competing for CPU. Cloud services is the brain: authentication, access control, the optimizer, transactions and the metadata about every file.",
+        "Tables are split automatically into micro-partitions of 50 to 500 MB of uncompressed data, stored by column and never modified in place: an UPDATE writes new micro-partitions and retires the old ones, which is what makes time travel and clones cheap. For each micro-partition and column, Snowflake records the minimum, the maximum and the number of distinct values and NULLs. Before reading anything, the optimizer compares your WHERE clause with these ranges and skips every micro-partition that cannot match: that is pruning.",
+        "Pruning works when rows queried together were written together. ACME.MARTS.FCT_ORDERS, loaded day after day, is naturally ordered by order_date, so a one-month filter reads a few percent of the table. A filter on customer_id finds that value in almost every micro-partition and scans everything. The Query Profile shows the result as partitions scanned out of partitions total.",
+        "Three caches save time and money. The result cache, in cloud services, returns the stored result of an identical query for 24 hours (renewed on each reuse, up to 31 days) if the data has not changed and no runtime function such as CURRENT_TIMESTAMP() is used: no warehouse runs. The warehouse cache keeps recently read data on the warehouse's local disk and is lost when it suspends. Metadata answers COUNT(*) and many MIN/MAX queries without scanning. Cloud services are billed only beyond 10% of the day's warehouse credits."
+      ],
+      "points": [
+        "Three layers: storage (object storage), compute (virtual warehouses), cloud services (metadata, optimizer, security).",
+        "Micro-partitions: 50–500 MB uncompressed, columnar, immutable, with min/max per column.",
+        "Good pruning = partitions scanned far below partitions total in the Query Profile.",
+        "Filters on columns that follow load order prune well; filters on scattered values do not.",
+        "Result cache: identical query, unchanged data, 24 h, no warehouse; warehouse cache: lost on suspend.",
+        "Cloud services are free up to 10% of daily warehouse credits.",
+        "Practise on a free 30-day trial account ($400 of usage, no card needed). Set AUTO_SUSPEND = 60 and a resource monitor first, and only upgrade to paid if an employer pays: after the trial you pay per credit and per TB stored."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- 1) Metadata only: answered by cloud services, no data scanned\nSELECT COUNT(*) FROM ACME.MARTS.FCT_ORDERS;\n\n-- 2) Measure the real work, not the result cache\nALTER SESSION SET USE_CACHED_RESULT = FALSE;\n\n-- order_date follows load order: most micro-partitions are pruned\nSELECT customer_id, SUM(amount) AS revenue\nFROM ACME.MARTS.FCT_ORDERS\nWHERE order_date >= '2026-10-01' AND order_date < '2026-11-01'\nGROUP BY customer_id;\n\n-- 3) How much was pruned, and how much came from the warehouse cache?\nSELECT query_id, partitions_scanned, partitions_total,\n       percentage_scanned_from_cache, bytes_scanned\nFROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY\nWHERE warehouse_name = 'BI_WH'\n  AND start_time >= DATEADD('hour', -2, CURRENT_TIMESTAMP())\nORDER BY start_time DESC\nLIMIT 20;",
+        "note": "ACCOUNT_USAGE views lag behind (up to about 45 minutes for QUERY_HISTORY): right after a run, read the same figures in the Query Profile. Turn USE_CACHED_RESULT off only to measure; leave it on in production."
+      }
+    },
+    {
+      "title": "Loading for real: stages, integrations and COPY INTO options",
+      "text": [
+        "Every load goes through a stage, a place where files wait. Each user has a user stage (@~) and each table a table stage (@%ORDERS), handy for one-off uploads with PUT. Pipelines use named stages: internal (Snowflake stores the files) or external (your S3 bucket, GCS or Azure container). An external stage should use a storage integration: an administrator creates it once, Snowflake assumes an IAM role you trust, and no key ever appears in SQL or in Git.",
+        "A named file format describes the files once (delimiter, header, NULL markers, or JSON and Parquet) and is reused by stages, COPY and pipes. With Parquet, Avro, ORC or JSON, MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE maps file fields to table columns by name, so a reordered or new field does not break the load.",
+        "Decide what a bad row means before it happens. ON_ERROR = ABORT_STATEMENT, the default of COPY, stops everything; SKIP_FILE skips any file that has errors; CONTINUE loads the good rows and drops the bad ones, which hides data loss unless you check. VALIDATION_MODE = RETURN_ERRORS parses the files and reports errors without loading a row, ideal for a new source, and the VALIDATE table function lists the rows a past COPY rejected.",
+        "COPY is idempotent by design: each table keeps 64 days of load metadata, so running the same COPY again skips files already loaded. FORCE = TRUE reloads them and duplicates rows. When Snowflake cannot tell whether an older file was loaded, COPY skips it unless LOAD_UNCERTAIN_FILES = TRUE. PURGE = TRUE deletes files after a successful load, and COPY_HISTORY (14 days in INFORMATION_SCHEMA, 365 in ACCOUNT_USAGE) shows what was loaded, when and with how many errors."
+      ],
+      "points": [
+        "Stages: user @~, table @%t, named internal, named external with a storage integration.",
+        "DESC INTEGRATION gives the IAM user ARN and external ID that the role must trust.",
+        "ON_ERROR: ABORT_STATEMENT (COPY default), SKIP_FILE, CONTINUE; Snowpipe defaults to SKIP_FILE.",
+        "VALIDATION_MODE = RETURN_ERRORS checks files without loading; VALIDATE() shows a past COPY's rejects.",
+        "64 days of load metadata make COPY idempotent; FORCE = TRUE duplicates rows.",
+        "MATCH_BY_COLUMN_NAME maps fields by name; PURGE = TRUE cleans the stage."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Once, as ACCOUNTADMIN: S3 access without keys in SQL\nCREATE STORAGE INTEGRATION S3_LANDING_INT\n  TYPE = EXTERNAL_STAGE\n  STORAGE_PROVIDER = 'S3'\n  ENABLED = TRUE\n  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::111122223333:role/snowflake-landing'\n  STORAGE_ALLOWED_LOCATIONS = ('s3://acme-landing/');\nDESC INTEGRATION S3_LANDING_INT;  -- IAM user ARN + external ID for the trust policy\nGRANT USAGE ON INTEGRATION S3_LANDING_INT TO ROLE LOADER;\n\n-- Then as LOADER\nCREATE FILE FORMAT ACME.RAW.CSV_FMT TYPE = 'CSV' SKIP_HEADER = 1\n  FIELD_OPTIONALLY_ENCLOSED_BY = '\"' NULL_IF = ('', 'NULL');\nCREATE STAGE ACME.RAW.ORDERS_STAGE\n  URL = 's3://acme-landing/orders/'\n  STORAGE_INTEGRATION = S3_LANDING_INT\n  FILE_FORMAT = ACME.RAW.CSV_FMT;\n\n-- 1) Dry run: report the errors, load nothing\nCOPY INTO ACME.RAW.ORDERS FROM @ACME.RAW.ORDERS_STAGE\n  VALIDATION_MODE = RETURN_ERRORS;\n\n-- 2) Real load: skip broken files, empty the stage\nCOPY INTO ACME.RAW.ORDERS FROM @ACME.RAW.ORDERS_STAGE\n  ON_ERROR = SKIP_FILE\n  PURGE = TRUE;",
+        "note": "PURGE needs delete rights on the bucket (s3:DeleteObject for the IAM role). If the purge fails, COPY returns no error: the files simply stay, and the load metadata still prevents a second load."
+      }
+    },
+    {
+      "title": "Continuous ingestion: Snowpipe, streams, tasks and dynamic tables",
+      "text": [
+        "Batch COPY every hour works, but many teams want data within minutes. Snowpipe runs a COPY for you each time a file lands. With AUTO_INGEST = TRUE the bucket sends an event notification (on AWS, to an SQS queue Snowflake gives you) and the pipe loads the file, usually within a minute or two. It runs on serverless compute, not on your warehouses, and keeps its own load history for 14 days. Snowpipe Streaming goes further: rows arrive through an SDK or the Kafka connector, with no files at all.",
+        "Once raw rows arrive continuously, you want to process only what is new. A stream on a table records the changes since it was last consumed, each row carrying METADATA$ACTION (INSERT or DELETE) and METADATA$ISUPDATE. A plain SELECT does not move a stream; a DML statement that reads it and commits advances its offset. A stream left unconsumed beyond the table's retention (extended up to 14 days by default) becomes stale and must be recreated.",
+        "Tasks run SQL on a schedule, SCHEDULE = '5 MINUTE' or a CRON expression with a time zone, on a warehouse or as serverless tasks. A WHEN SYSTEM$STREAM_HAS_DATA(...) condition is evaluated without starting a warehouse, so an empty run costs nothing. Child tasks declared with AFTER form a task graph that starts from a root task. Tasks are created suspended: nothing runs until ALTER TASK ... RESUME.",
+        "Dynamic tables are the declarative alternative: you write the SELECT and a TARGET_LAG such as '15 minutes', and Snowflake plans the refreshes, incrementally when the query allows it. They replace most stream-plus-task chains for transformations. Keep streams and tasks for procedural work: calling procedures, alerts, MERGE rules with special cases."
+      ],
+      "points": [
+        "CREATE PIPE ... AUTO_INGEST = TRUE AS COPY INTO ...: event-driven, serverless loading.",
+        "Snowpipe Streaming writes rows through an SDK or the Kafka connector, without files.",
+        "Streams expose METADATA$ACTION and METADATA$ISUPDATE; committed DML consumes them.",
+        "Tasks: SCHEDULE or CRON, WHEN SYSTEM$STREAM_HAS_DATA, AFTER for graphs, created suspended.",
+        "Dynamic tables: a SELECT plus TARGET_LAG, refreshed by Snowflake, incrementally when possible."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- 1) Snowpipe: load each new file as soon as S3 announces it\nCREATE PIPE ACME.RAW.ORDERS_PIPE AUTO_INGEST = TRUE AS\n  COPY INTO ACME.RAW.ORDERS_JSON (payload, file_name)\n  FROM (SELECT $1, METADATA$FILENAME FROM @ACME.RAW.ORDERS_JSON_STAGE)\n  FILE_FORMAT = (TYPE = 'JSON');\n\n-- 2) Stream: the rows the task has not processed yet\nCREATE STREAM ACME.RAW.ORDERS_JSON_STREAM\n  ON TABLE ACME.RAW.ORDERS_JSON APPEND_ONLY = TRUE;\n\n-- 3) Task: every 5 minutes, only when the stream has rows\nCREATE TASK ACME.STAGING.MERGE_ORDERS\n  WAREHOUSE = TRANSFORM_WH\n  SCHEDULE = '5 MINUTE'\n  WHEN SYSTEM$STREAM_HAS_DATA('ACME.RAW.ORDERS_JSON_STREAM')\nAS\n  MERGE INTO ACME.STAGING.ORDERS t\n  USING (\n    SELECT payload:order_id::NUMBER       AS order_id,\n           payload:status::STRING         AS status,\n           payload:amount::NUMBER(12,2)   AS amount\n    FROM ACME.RAW.ORDERS_JSON_STREAM\n    QUALIFY ROW_NUMBER() OVER (PARTITION BY payload:order_id\n              ORDER BY payload:updated_at::TIMESTAMP_NTZ DESC) = 1\n  ) s\n  ON t.order_id = s.order_id\n  WHEN MATCHED THEN UPDATE SET t.status = s.status, t.amount = s.amount\n  WHEN NOT MATCHED THEN INSERT (order_id, status, amount)\n    VALUES (s.order_id, s.status, s.amount);\nALTER TASK ACME.STAGING.MERGE_ORDERS RESUME;  -- tasks are created suspended",
+        "note": "Without the QUALIFY, two versions of the same order in one batch either make the MERGE fail with a duplicate row error (order already in the target) or insert it twice (new order). The stream advances only if the MERGE commits."
+      }
+    },
+    {
+      "title": "Query performance: Query Profile, clustering and acceleration features",
+      "text": [
+        "When a query is slow, open its Query Profile before touching the warehouse size. Look at the most expensive nodes, then the statistics. Partitions scanned versus total tells you whether pruning worked. Bytes spilled to local storage, or worse to remote storage, mean the warehouse ran out of memory. A join whose output has far more rows than its inputs is an exploding join, usually a missing join key or duplicates in a dimension.",
+        "Each symptom has its own fix. Poor pruning calls for a better filter or a clustering key. Spilling calls for less data, filtered and aggregated earlier, or a bigger warehouse for that job. An exploding join calls for correct keys and deduplicated dimensions, never for more compute. Many users queuing is a concurrency problem, solved by multi-cluster warehouses (lesson 8).",
+        "A clustering key (ALTER TABLE ... CLUSTER BY (order_date)) asks automatic clustering to keep rows with close values in the same micro-partitions. It is a serverless service billed in credits, so keep it for large tables, typically multi-terabyte, that are queried far more often than they change and filtered on the key. Choose a moderate cardinality: TO_DATE(created_at) rather than a timestamp to the second, and not a yes/no flag. SYSTEM$CLUSTERING_INFORMATION reports the average depth.",
+        "Three Enterprise edition features cover other patterns. The search optimization service speeds up selective lookups (an e-mail, an id, substrings, VARIANT fields) on large tables. Materialized views keep a single-table result up to date in the background, without joins. The query acceleration service lends serverless compute to scan-heavy queries. All three add storage or serverless costs: measure the gain first."
+      ],
+      "points": [
+        "Query Profile: most expensive nodes, partitions scanned/total, bytes spilled, join row counts.",
+        "Remote spilling: reduce data early or size up the warehouse for that job.",
+        "Exploding join: fix the keys or the duplicates; more compute only hides it.",
+        "CLUSTER BY on large, often-filtered, rarely changed tables; automatic clustering costs credits.",
+        "Search optimization, materialized views and query acceleration need Enterprise edition."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- 1) How well is the fact table clustered on the column we filter by?\nSELECT SYSTEM$CLUSTERING_INFORMATION('ACME.MARTS.FCT_ORDERS', '(order_date)');\n\n-- 2) Clustering key: automatic clustering then runs in the background (billed)\nALTER TABLE ACME.MARTS.FCT_ORDERS CLUSTER BY (order_date);\n\n-- 3) Selective lookups on a high-cardinality column (Enterprise edition)\nALTER TABLE ACME.MARTS.DIM_CUSTOMER ADD SEARCH OPTIMIZATION ON EQUALITY(email);\n\n-- 4) Single-table aggregate kept up to date (Enterprise edition)\nCREATE MATERIALIZED VIEW ACME.MARTS.MV_DAILY_REVENUE AS\nSELECT order_date, store_id, SUM(amount) AS revenue, COUNT(*) AS orders\nFROM ACME.MARTS.FCT_ORDERS\nGROUP BY order_date, store_id;\n\n-- 5) Yesterday's slowest queries that spilled or barely pruned\nSELECT query_id, warehouse_name, total_elapsed_time / 1000 AS seconds,\n       partitions_scanned, partitions_total,\n       bytes_spilled_to_local_storage, bytes_spilled_to_remote_storage\nFROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY\nWHERE start_time >= DATEADD('day', -1, CURRENT_TIMESTAMP())\n  AND (bytes_spilled_to_remote_storage > 0\n       OR (partitions_total > 1000 AND partitions_scanned > 0.8 * partitions_total))\nORDER BY total_elapsed_time DESC\nLIMIT 20;",
+        "note": "Clustering on a raw timestamp has too many distinct values and makes reclustering expensive: cluster on an expression such as TO_DATE(created_at). Materialized views and search optimization cost storage and background maintenance even when nobody queries them."
+      }
+    },
+    {
+      "title": "Semi-structured in depth: VARIANT, nested FLATTEN and schema detection",
+      "text": [
+        "The intro showed payload:field::type and one FLATTEN; real feeds are messier. A VARIANT keeps each value with its JSON type, so payload:amount may be a number in one row and the string \"12.50\" in another: TYPEOF() tells you which. Paths are case-sensitive (payload:orderId is not payload:OrderId). A missing key returns SQL NULL while a JSON null is a VARIANT null, and IS_NULL_VALUE() tells them apart.",
+        "FLATTEN returns one row per element with useful columns: VALUE, INDEX (position in the array), KEY (for objects) and PATH. Nested arrays need one FLATTEN per level, each reading the previous one's VALUE: orders, then items, then discounts. By default, an empty or missing array removes the parent row from the result; OUTER => TRUE keeps it with NULLs, which matters when you count orders or sum revenue.",
+        "For Parquet, Avro, ORC, CSV and JSON files, INFER_SCHEMA reads files in a stage and returns column names and types. With CREATE TABLE ... USING TEMPLATE it creates a typed table from the files themselves, and COPY with MATCH_BY_COLUMN_NAME loads them. With ENABLE_SCHEMA_EVOLUTION = TRUE on the table, loads can even add the new columns that files bring.",
+        "The design rule: land raw JSON in RAW.ORDERS_JSON as it arrives, then type it early in STAGING with explicit casts, one column per field the business uses. A failing cast (an \"N/A\" in an amount) breaks the whole query; TRY_TO_NUMBER on the string value returns NULL instead, and a test can count those NULLs. Typed columns are smaller, prune better and simplify every downstream query."
+      ],
+      "points": [
+        "TYPEOF(payload:amount) shows the JSON type of each value.",
+        "Paths are case-sensitive; a missing key is SQL NULL, a JSON null is a VARIANT null.",
+        "Nested arrays: chain FLATTENs, each on the previous VALUE; INDEX gives the position.",
+        "OUTER => TRUE keeps parents whose array is empty or missing.",
+        "INFER_SCHEMA + CREATE TABLE ... USING TEMPLATE builds a typed table from staged files.",
+        "Type early in STAGING; TRY_TO_NUMBER(x::STRING) instead of a cast that can fail."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- payload: {\"order_id\": 1001, \"customer\": {\"id\": \"C42\"},\n--   \"items\": [{\"sku\": \"TSHIRT-M\", \"qty\": 2, \"price\": 15.0,\n--              \"discounts\": [{\"code\": \"WELCOME\", \"pct\": 10}]}]}\nSELECT o.payload:order_id::NUMBER      AS order_id,\n       o.payload:customer.id::STRING   AS customer_id,\n       i.index                         AS line_no,\n       i.value:sku::STRING             AS sku,\n       i.value:qty::INT                AS qty,\n       i.value:price::NUMBER(10,2)     AS unit_price,\n       d.value:code::STRING            AS discount_code,\n       d.value:pct::NUMBER(5,2)        AS discount_pct\nFROM ACME.RAW.ORDERS_JSON o,\n     LATERAL FLATTEN(input => o.payload:items) i,\n     LATERAL FLATTEN(input => i.value:discounts, OUTER => TRUE) d;\n\n-- A typed table created from the Parquet files themselves\n-- (ORDER_ID below is INFER_SCHEMA's column position, not our order id)\nCREATE TABLE ACME.STAGING.CUSTOMERS\n  USING TEMPLATE (\n    SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) WITHIN GROUP (ORDER BY ORDER_ID)\n    FROM TABLE(INFER_SCHEMA(\n      LOCATION => '@ACME.RAW.CUSTOMERS_STAGE',\n      FILE_FORMAT => 'ACME.RAW.PARQUET_FMT')));",
+        "note": "Without OUTER => TRUE on the discounts FLATTEN, every item without a discount disappears from the result and revenue is undercounted. Keep the first FLATTEN inner only if an order without items is truly an error."
+      }
+    },
+    {
+      "title": "Security and governance: RBAC design, policies and secure views",
+      "text": [
+        "Snowflake ships with system roles: ACCOUNTADMIN at the top, SECURITYADMIN to manage grants, USERADMIN to create users and roles, SYSADMIN to own warehouses and databases, and PUBLIC for everyone. Daily work never happens as ACCOUNTADMIN. Every custom role should be granted, directly or through other roles, to SYSADMIN; otherwise the objects it creates are out of the administrators' reach.",
+        "A model that scales separates access roles from functional roles. Access roles hold privileges on one area, such as RAW_RW or MARTS_READ (often database roles). Functional roles match jobs, such as LOADER, TRANSFORMER or ANALYST, and receive access roles plus a warehouse. A new analyst gets one role; a new schema gets one access role. FUTURE grants cover tables created later, and managed access schemas stop object owners from granting rights themselves.",
+        "Enterprise edition adds policies attached to columns and tables. A masking policy decides at query time what a column shows: the real e-mail for PII_READER, a masked one for everybody else. A row access policy returns TRUE for the rows a role may see, often through a mapping table from role to country. Write them with IS_ROLE_IN_SESSION() rather than CURRENT_ROLE(), so role hierarchy and secondary roles count, and reuse one policy on many columns.",
+        "Network policies restrict sign-ins to allowed IP ranges for the account or a single user, such as the dbt service user. Service users authenticate with key pairs, people with SSO or MFA: Snowflake is phasing out password-only sign-in. Secure views hide their definition and block optimizations that could reveal filtered rows; they are required to share views, at a small performance cost."
+      ],
+      "points": [
+        "System roles: ACCOUNTADMIN (rarely), SECURITYADMIN (grants), USERADMIN (users, roles), SYSADMIN (objects).",
+        "Access roles hold privileges, functional roles match jobs; grant the first to the second.",
+        "Grant every custom role up to SYSADMIN; use FUTURE grants and managed access schemas.",
+        "Masking and row access policies (Enterprise edition): use IS_ROLE_IN_SESSION().",
+        "Network policies per account or user; key pairs for service users.",
+        "Secure views: hidden definition, no leaking optimizations, required for sharing views."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "USE ROLE USERADMIN;\nCREATE ROLE MARTS_READ;               -- access role: what can be read\nCREATE ROLE ANALYST;                  -- functional role: a job\nGRANT ROLE MARTS_READ TO ROLE ANALYST;\nGRANT ROLE ANALYST TO ROLE SYSADMIN;  -- keep the hierarchy connected\n\nUSE ROLE SECURITYADMIN;\nGRANT USAGE ON DATABASE ACME TO ROLE MARTS_READ;\nGRANT USAGE ON SCHEMA ACME.MARTS TO ROLE MARTS_READ;\nGRANT SELECT ON ALL TABLES IN SCHEMA ACME.MARTS TO ROLE MARTS_READ;\nGRANT SELECT ON FUTURE TABLES IN SCHEMA ACME.MARTS TO ROLE MARTS_READ;\nGRANT USAGE ON WAREHOUSE BI_WH TO ROLE ANALYST;\n\n-- Enterprise edition, as a governance role allowed to create and apply policies\nUSE ROLE GOVERNANCE_ADMIN;\nCREATE MASKING POLICY ACME.MARTS.EMAIL_MASK AS (val STRING) RETURNS STRING ->\n  CASE WHEN IS_ROLE_IN_SESSION('PII_READER') THEN val\n       ELSE REGEXP_REPLACE(val, '.+@', '*****@') END;\nALTER TABLE ACME.MARTS.DIM_CUSTOMER MODIFY COLUMN email\n  SET MASKING POLICY ACME.MARTS.EMAIL_MASK;",
+        "note": "FUTURE grants only cover objects created after the grant, and ALL TABLES only the existing ones: you need both lines. A future grant at database level is ignored for a schema that has its own future grants on the same object type."
+      }
+    },
+    {
+      "title": "Data protection and sharing: time travel, fail-safe, clones and shares",
+      "text": [
+        "Time travel keeps previous versions of changed or dropped data for the period set by DATA_RETENTION_TIME_IN_DAYS. Standard edition allows 0 or 1 day; Enterprise edition up to 90 days on permanent tables. Transient and temporary tables have at most 1 day. Longer retention means more storage: every UPDATE on FCT_ORDERS keeps the replaced micro-partitions for the whole period.",
+        "Fail-safe follows time travel: 7 more days during which Snowflake can recover permanent table data after a disaster, on request to Support. You cannot query it, yet you pay for its storage. Transient tables have no fail-safe, which suits staging data that dbt rebuilds every night; dbt-snowflake creates tables as transient by default.",
+        "UNDROP restores the latest dropped version of a table, schema or database; if a new object already uses the name, rename it first. A zero-copy clone with time travel (CLONE ... BEFORE(STATEMENT => ...)) recovers a table as it was before a bad statement without touching the original. Cloning ACME into ACME_DEV gives developers real data in seconds, and you pay only for micro-partitions that change afterwards. A clone keeps the privileges on its child objects, not those on the cloned container, and has no load history, so COPY may reload old files into it.",
+        "Secure data sharing gives another Snowflake account read-only access to tables and secure views without copying data: the provider grants objects to a share, the consumer creates a database from it and pays only for its own compute. Within a region it is immediate; across regions or clouds, listings with auto-fulfillment replicate the data for you. The Snowflake Marketplace publishes listings, free or paid, to every customer."
+      ],
+      "points": [
+        "Retention: Standard 0–1 day, Enterprise up to 90 days on permanent tables; transient and temporary 1 day at most.",
+        "Fail-safe: 7 days after time travel, permanent tables only, recovery by Snowflake Support only.",
+        "Transient tables for rebuildable data: no fail-safe, less storage.",
+        "CLONE ... BEFORE(STATEMENT => id) restores safely; UNDROP brings back the latest dropped version.",
+        "Shares: no copy, read-only, the consumer pays compute; the Marketplace lists public datasets."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- More than 1 day of time travel needs Enterprise edition\nALTER TABLE ACME.MARTS.FCT_ORDERS SET DATA_RETENTION_TIME_IN_DAYS = 30;\n\n-- The table just before a bad statement (query id from the query history)\nSELECT COUNT(*) FROM ACME.MARTS.FCT_ORDERS\n  BEFORE(STATEMENT => '01b2c3d4-0000-1a2b-0000-00012345abcd');\n\n-- After an accidental DROP TABLE (rename first if the name was reused)\nUNDROP TABLE ACME.STAGING.ORDERS;\n\n-- A full dev copy of production in seconds\nCREATE DATABASE ACME_DEV CLONE ACME;\n\n-- Rebuildable data: no fail-safe, at most 1 day of time travel\nCREATE TRANSIENT TABLE ACME.STAGING.ORDERS_TMP (order_id NUMBER, status STRING);\n\n-- Share a secure view with a partner account (no data copied)\nCREATE SHARE ACME_PARTNER_SHARE;\nGRANT USAGE ON DATABASE ACME TO SHARE ACME_PARTNER_SHARE;\nGRANT USAGE ON SCHEMA ACME.MARTS TO SHARE ACME_PARTNER_SHARE;\nGRANT SELECT ON VIEW ACME.MARTS.V_PARTNER_SALES TO SHARE ACME_PARTNER_SHARE;\nALTER SHARE ACME_PARTNER_SHARE ADD ACCOUNTS = PARTNERORG.PARTNER_ACCT;",
+        "note": "Only secure views (not ordinary views) can be granted to a share, so V_PARTNER_SALES must be created with CREATE SECURE VIEW. Lowering retention moves versions older than the new period out of time travel (into fail-safe) right away."
+      }
+    },
+    {
+      "title": "Cost control and operations: scaling, monitors, usage views and tooling",
+      "text": [
+        "Warehouse size and cluster count solve different problems. A bigger size gives one query more memory and CPU: the fix for spilling or a heavy dbt model. More clusters serve more queries at once: the fix for dashboards queuing at 9 a.m. A multi-cluster warehouse (Enterprise edition) runs between MIN_CLUSTER_COUNT and MAX_CLUSTER_COUNT clusters; SCALING_POLICY = STANDARD adds one as soon as queries queue, ECONOMY only when it would stay busy for several minutes, accepting some queuing to save credits.",
+        "Guardrails stop surprises. Resource monitors cap warehouse credits per period and notify or suspend; they do not cover serverless features such as Snowpipe, automatic clustering or serverless tasks. Budgets track spending including those features and send alerts. STATEMENT_TIMEOUT_IN_SECONDS on a warehouse cancels runaway queries, and AUTO_SUSPEND stays at about 60 seconds unless a measured cache benefit justifies more.",
+        "To see where credits go, query SNOWFLAKE.ACCOUNT_USAGE (the role needs access to the SNOWFLAKE database; data lags by 45 minutes to a few hours). WAREHOUSE_METERING_HISTORY gives credits per warehouse and hour, idle time included; QUERY_ATTRIBUTION_HISTORY gives compute credits per query, idle time excluded; QUERY_HISTORY gives duration, queuing, spilling and the QUERY_TAG. A tag such as 'dbt:fct_orders' groups costs by job.",
+        "dbt runs on Snowflake through the dbt-snowflake adapter: profiles.yml sets role, warehouse, database and schema, and model configs add snowflake_warehouse, cluster_by, query_tag or the dynamic_table materialization. Airflow orchestrates loads and dbt with the Snowflake provider (SQLExecuteQueryOperator on a Snowflake connection; SnowflakeOperator is deprecated). Snowpark runs Python DataFrame code and UDFs inside Snowflake, and Cortex adds AI functions callable from SQL, billed per token."
+      ],
+      "points": [
+        "Size up for heavy single queries; add clusters (Enterprise edition) for concurrency.",
+        "SCALING_POLICY: STANDARD avoids queuing, ECONOMY saves credits.",
+        "Resource monitors cap warehouses only; budgets also cover serverless features.",
+        "Metering history includes idle time, query attribution does not: the gap is idle cost.",
+        "A QUERY_TAG on every job makes costs attributable.",
+        "dbt-snowflake configs and the Airflow Snowflake provider drive the warehouse; Snowpark runs Python in it."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Concurrency: up to 3 clusters of the same size (Enterprise edition)\nALTER WAREHOUSE BI_WH SET\n  WAREHOUSE_SIZE = 'SMALL'\n  MIN_CLUSTER_COUNT = 1\n  MAX_CLUSTER_COUNT = 3\n  SCALING_POLICY = 'STANDARD'\n  STATEMENT_TIMEOUT_IN_SECONDS = 900;\n\n-- Credits per warehouse over 30 days (idle time included)\nSELECT warehouse_name, SUM(credits_used) AS credits\nFROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY\nWHERE start_time >= DATEADD('day', -30, CURRENT_TIMESTAMP())\nGROUP BY warehouse_name\nORDER BY credits DESC;\n\n-- Which tagged jobs used the most compute (idle time excluded)\nSELECT query_tag, COUNT(*) AS queries,\n       SUM(credits_attributed_compute) AS credits\nFROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_ATTRIBUTION_HISTORY\nWHERE start_time >= DATEADD('day', -7, CURRENT_TIMESTAMP())\nGROUP BY query_tag\nORDER BY credits DESC\nLIMIT 10;",
+        "note": "Reading ACCOUNT_USAGE needs IMPORTED PRIVILEGES on the SNOWFLAKE database or one of its database roles (such as USAGE_VIEWER). Very short queries are not listed in QUERY_ATTRIBUTION_HISTORY."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Architecture and caches",
+      "items": [
+        [
+          "Micro-partition",
+          "50–500 MB uncompressed, columnar, immutable unit with per-column min/max"
+        ],
+        [
+          "Partitions scanned / partitions total",
+          "Query Profile figures showing how much pruning skipped"
+        ],
+        [
+          "Result cache",
+          "Identical query on unchanged data returned for 24 h (up to 31 days) without a warehouse"
+        ],
+        [
+          "Warehouse (local disk) cache",
+          "Recently read data kept on the warehouse, lost on suspend"
+        ],
+        [
+          "ALTER SESSION SET USE_CACHED_RESULT = FALSE",
+          "Disable result reuse to measure real query time"
+        ]
+      ]
+    },
+    {
+      "group": "Loading",
+      "items": [
+        [
+          "CREATE STORAGE INTEGRATION ... STORAGE_AWS_ROLE_ARN",
+          "Cloud access through a trusted IAM role, no keys in SQL"
+        ],
+        [
+          "@~ / @%ORDERS / @ACME.RAW.ORDERS_STAGE",
+          "User stage / table stage / named stage"
+        ],
+        [
+          "ON_ERROR = SKIP_FILE",
+          "Skip any file that contains an error, load the others"
+        ],
+        [
+          "VALIDATION_MODE = RETURN_ERRORS",
+          "Parse the files and report errors without loading"
+        ],
+        [
+          "FORCE = TRUE",
+          "Reload files already loaded (duplicates rows)"
+        ],
+        [
+          "MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE",
+          "Map Parquet or JSON fields to columns by name"
+        ]
+      ]
+    },
+    {
+      "group": "Continuous ingestion",
+      "items": [
+        [
+          "CREATE PIPE p AUTO_INGEST = TRUE AS COPY INTO ...",
+          "Load each new file when the cloud sends an event"
+        ],
+        [
+          "CREATE STREAM s ON TABLE t APPEND_ONLY = TRUE",
+          "Track inserted rows only"
+        ],
+        [
+          "METADATA$ACTION / METADATA$ISUPDATE",
+          "Stream columns: INSERT or DELETE, and part of an update or not"
+        ],
+        [
+          "WHEN SYSTEM$STREAM_HAS_DATA('s')",
+          "Skip a task run, without a warehouse, when the stream is empty"
+        ],
+        [
+          "CREATE TASK child ... AFTER parent",
+          "Chain tasks into a task graph"
+        ],
+        [
+          "CREATE DYNAMIC TABLE ... TARGET_LAG = '15 minutes'",
+          "Declarative pipeline refreshed by Snowflake"
+        ]
+      ]
+    },
+    {
+      "group": "Performance",
+      "items": [
+        [
+          "Bytes spilled to remote storage",
+          "Memory exhausted: reduce data early or use a bigger warehouse"
+        ],
+        [
+          "ALTER TABLE t CLUSTER BY (TO_DATE(created_at))",
+          "Clustering key on an expression of moderate cardinality"
+        ],
+        [
+          "SYSTEM$CLUSTERING_INFORMATION('t', '(col)')",
+          "Average depth and overlaps for a clustering column"
+        ],
+        [
+          "ALTER TABLE t ADD SEARCH OPTIMIZATION ON EQUALITY(email)",
+          "Fast selective lookups on a big table (Enterprise)"
+        ],
+        [
+          "CREATE MATERIALIZED VIEW",
+          "Single-table result kept up to date in the background (Enterprise)"
+        ]
+      ]
+    },
+    {
+      "group": "Semi-structured",
+      "items": [
+        [
+          "TYPEOF(payload:amount)",
+          "JSON type of a VARIANT value (INTEGER, VARCHAR, OBJECT…)"
+        ],
+        [
+          "LATERAL FLATTEN(input => i.value:discounts)",
+          "Second-level FLATTEN on a nested array"
+        ],
+        [
+          "FLATTEN(..., OUTER => TRUE)",
+          "Keep the parent row when the array is empty or missing"
+        ],
+        [
+          "IS_NULL_VALUE(payload:coupon)",
+          "TRUE for a JSON null, unlike a missing key"
+        ],
+        [
+          "TABLE(INFER_SCHEMA(LOCATION => '@stage', FILE_FORMAT => 'fmt'))",
+          "Detect column names and types from staged files"
+        ],
+        [
+          "TRY_TO_NUMBER(payload:amount::STRING, 12, 2)",
+          "NULL instead of an error when the value is not numeric"
+        ]
+      ]
+    },
+    {
+      "group": "Security and governance",
+      "items": [
+        [
+          "SECURITYADMIN / USERADMIN / SYSADMIN",
+          "Grants / users and roles / warehouses and databases"
+        ],
+        [
+          "GRANT ROLE MARTS_READ TO ROLE ANALYST",
+          "Give an access role to a functional role"
+        ],
+        [
+          "CREATE SCHEMA s WITH MANAGED ACCESS",
+          "Only the schema owner or MANAGE GRANTS can grant on its objects"
+        ],
+        [
+          "CREATE MASKING POLICY ... RETURNS STRING ->",
+          "Value shown in a column depends on the role (Enterprise)"
+        ],
+        [
+          "ALTER TABLE t ADD ROW ACCESS POLICY p ON (country)",
+          "Filter rows per role (Enterprise)"
+        ],
+        [
+          "CREATE SECURE VIEW",
+          "Hidden definition, safe optimizations, required for sharing"
+        ]
+      ]
+    },
+    {
+      "group": "Protection and sharing",
+      "items": [
+        [
+          "DATA_RETENTION_TIME_IN_DAYS = 30",
+          "Time travel retention (above 1 day needs Enterprise)"
+        ],
+        [
+          "Fail-safe",
+          "7 days after time travel, recovery by Snowflake Support only"
+        ],
+        [
+          "CREATE TRANSIENT TABLE",
+          "No fail-safe, at most 1 day of time travel"
+        ],
+        [
+          "CREATE TABLE t2 CLONE t BEFORE(STATEMENT => '<query id>')",
+          "Copy of the table just before a statement"
+        ],
+        [
+          "ALTER TABLE a SWAP WITH b",
+          "Exchange two tables in one atomic step"
+        ],
+        [
+          "CREATE DATABASE d FROM SHARE org.acct.share",
+          "Consumer side of a share: read-only, no copy"
+        ]
+      ]
+    },
+    {
+      "group": "Cost and operations",
+      "items": [
+        [
+          "MAX_CLUSTER_COUNT = 3, SCALING_POLICY = 'ECONOMY'",
+          "Multi-cluster that favours credits over zero queuing"
+        ],
+        [
+          "ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY",
+          "Credits per warehouse and hour, idle time included"
+        ],
+        [
+          "ACCOUNT_USAGE.QUERY_ATTRIBUTION_HISTORY",
+          "Compute credits per query, idle time excluded"
+        ],
+        [
+          "ALTER SESSION SET QUERY_TAG = 'dbt:fct_orders'",
+          "Label queries to attribute costs by job"
+        ],
+        [
+          "STATEMENT_TIMEOUT_IN_SECONDS = 900",
+          "Cancel queries running longer than 15 minutes"
+        ],
+        [
+          "Budgets",
+          "Spending alerts that include serverless features"
+        ]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "Load the CSV files under @ACME.RAW.ORDERS_STAGE/2026/11/ into ACME.RAW.ORDERS with the file format ACME.RAW.CSV_FMT. A file with any error must be skipped as a whole, and loaded files must be removed from the stage.",
+      "hint": "ON_ERROR and PURGE.",
+      "code": "sql",
+      "answer": "COPY INTO ACME.RAW.ORDERS\n  FROM @ACME.RAW.ORDERS_STAGE/2026/11/\n  FILE_FORMAT = (FORMAT_NAME = 'ACME.RAW.CSV_FMT')\n  ON_ERROR = SKIP_FILE\n  PURGE = TRUE;"
+    },
+    {
+      "q": "Create an append-only stream on ACME.RAW.CUSTOMERS_JSON (column payload VARIANT) and a task on TRANSFORM_WH that, every 10 minutes and only when there are new rows, inserts customer_id (number) and email (string) into ACME.STAGING.CUSTOMERS. Make sure it actually runs.",
+      "hint": "APPEND_ONLY, SCHEDULE, WHEN SYSTEM$STREAM_HAS_DATA, and tasks are created suspended.",
+      "code": "sql",
+      "answer": "CREATE STREAM ACME.RAW.CUSTOMERS_JSON_STREAM\n  ON TABLE ACME.RAW.CUSTOMERS_JSON APPEND_ONLY = TRUE;\n\nCREATE TASK ACME.STAGING.LOAD_CUSTOMERS\n  WAREHOUSE = TRANSFORM_WH\n  SCHEDULE = '10 MINUTE'\n  WHEN SYSTEM$STREAM_HAS_DATA('ACME.RAW.CUSTOMERS_JSON_STREAM')\nAS\n  INSERT INTO ACME.STAGING.CUSTOMERS (customer_id, email)\n  SELECT payload:customer_id::NUMBER, payload:email::STRING\n  FROM ACME.RAW.CUSTOMERS_JSON_STREAM;\n\nALTER TASK ACME.STAGING.LOAD_CUSTOMERS RESUME;"
+    },
+    {
+      "q": "Each row of ACME.RAW.ORDERS_JSON has payload:order_id and payload:tags, an array of strings that can be empty or missing. Return one row per order and tag (order_id as a number, tag as a string), keeping the orders that have no tag.",
+      "hint": "FLATTEN has an option for empty arrays.",
+      "code": "sql",
+      "answer": "SELECT o.payload:order_id::NUMBER AS order_id,\n       t.value::STRING            AS tag\nFROM ACME.RAW.ORDERS_JSON o,\n     LATERAL FLATTEN(input => o.payload:tags, OUTER => TRUE) t;"
+    },
+    {
+      "q": "Enterprise edition: on ACME.MARTS.FCT_ORDERS (column country), the role SALES_FR must see only French rows (country = 'FR') and SALES_ADMIN every row; other roles see nothing. Write the row access policy and attach it.",
+      "hint": "A row access policy returns a BOOLEAN; prefer IS_ROLE_IN_SESSION().",
+      "code": "sql",
+      "answer": "CREATE ROW ACCESS POLICY ACME.MARTS.COUNTRY_RAP\n  AS (country STRING) RETURNS BOOLEAN ->\n    IS_ROLE_IN_SESSION('SALES_ADMIN')\n    OR (IS_ROLE_IN_SESSION('SALES_FR') AND country = 'FR');\n\nALTER TABLE ACME.MARTS.FCT_ORDERS\n  ADD ROW ACCESS POLICY ACME.MARTS.COUNTRY_RAP ON (country);"
+    },
+    {
+      "q": "Every Monday at 9:00, dashboards on BI_WH (Medium, one cluster) queue for minutes. The same warehouse also runs the nightly dbt build, whose biggest model spills to remote storage. What do you change, and how do you check that it worked?",
+      "hint": "Two different problems: concurrency and memory.",
+      "answer": "1) Separate the workloads: give dbt its own TRANSFORM_WH, so the nightly build and the dashboards never compete, and set a QUERY_TAG per job. 2) Concurrency for BI: make BI_WH multi-cluster (Enterprise edition), for example MIN_CLUSTER_COUNT = 1, MAX_CLUSTER_COUNT = 3, SCALING_POLICY = 'STANDARD', without changing its size: queuing is a concurrency problem, not a size problem. 3) Spilling in dbt: first reduce the data the model handles (incremental model, filter and aggregate earlier), then size TRANSFORM_WH up if it still spills; with per-second billing a faster run can cost about the same. 4) Guardrails: a resource monitor on each warehouse and STATEMENT_TIMEOUT_IN_SECONDS. 5) Check in QUERY_HISTORY the queued time (QUEUED_OVERLOAD_TIME) on BI_WH on Monday morning and the bytes spilled by the dbt model, and compare WAREHOUSE_METERING_HISTORY credits before and after."
+    },
+    {
+      "q": "Predict: what happens at 11:00?",
+      "type": "choice",
+      "lang": "sql",
+      "snippet": "-- 09:00 an analyst runs this on BI_WH (it auto-suspends at 09:02)\nSELECT store_id, SUM(amount) AS revenue\nFROM ACME.MARTS.FCT_ORDERS\nWHERE order_date = '2026-11-05'\nGROUP BY store_id;\n-- 11:00 a colleague with the same role runs exactly the same text;\n-- no row of FCT_ORDERS changed in between",
+      "correct": 2,
+      "options": [
+        "BI_WH resumes and scans the table again from storage",
+        "BI_WH resumes and reads everything from its local disk cache",
+        "The result cache returns the result; BI_WH stays suspended",
+        "The query fails because BI_WH is suspended"
+      ],
+      "answer": "The result cache lives in the cloud services layer: same query text, unchanged data, within 24 hours and a role with privileges on the table, so the stored result comes back without resuming BI_WH. Had the query used CURRENT_TIMESTAMP() or had a row changed, BI_WH would resume (AUTO_RESUME), and its local disk cache would be empty after the suspend."
+    },
+    {
+      "q": "Fill in the blanks: a task that runs every day at 6:00 Paris time, only when the stream has new rows, and that really starts.",
+      "type": "fill",
+      "lang": "sql",
+      "snippet": "CREATE TASK ACME.STAGING.MERGE_ORDERS\n  WAREHOUSE = TRANSFORM_WH\n  ___ = 'USING CRON 0 6 * * * Europe/Paris'\n  WHEN ___('ACME.RAW.ORDERS_JSON_STREAM')\nAS\n  CALL ACME.STAGING.LOAD_ORDERS();\n\nALTER TASK ACME.STAGING.MERGE_ORDERS ___;",
+      "blanks": [
+        [
+          "SCHEDULE"
+        ],
+        [
+          "SYSTEM$STREAM_HAS_DATA"
+        ],
+        [
+          "RESUME"
+        ]
+      ],
+      "answer": "SCHEDULE takes either 'n MINUTE' or 'USING CRON <expression> <time zone>'. The WHEN condition is evaluated without starting a warehouse, so a run with an empty stream costs nothing. A task is created suspended: RESUME starts its schedule (in a task graph, resume the child tasks too, or call SYSTEM$TASK_DEPENDENTS_ENABLE on the root task)."
+    },
+    {
+      "q": "Spot the bug: an analyst using the ANALYST role gets \"Schema 'ACME.MARTS' does not exist or not authorized\". Which line?",
+      "type": "bug",
+      "lang": "sql",
+      "snippet": "USE ROLE SECURITYADMIN;\nGRANT USAGE ON WAREHOUSE BI_WH TO ROLE ANALYST;\nGRANT USAGE ON DATABASE ACME TO ROLE MARTS_READ;\nGRANT USAGE ON SCHEMA ACME.STAGING TO ROLE MARTS_READ;\nGRANT SELECT ON ALL TABLES IN SCHEMA ACME.MARTS TO ROLE MARTS_READ;\nGRANT SELECT ON FUTURE TABLES IN SCHEMA ACME.MARTS TO ROLE MARTS_READ;\nGRANT ROLE MARTS_READ TO ROLE ANALYST;",
+      "line": 4,
+      "fix": "GRANT USAGE ON SCHEMA ACME.MARTS TO ROLE MARTS_READ;",
+      "hint": "Read access needs USAGE on the database, on the schema, and SELECT on the tables.",
+      "answer": "Line 4 grants USAGE on the STAGING schema instead of MARTS. Without USAGE on ACME.MARTS, the SELECT grants on its tables are useless and Snowflake answers as if the schema did not exist. The rest is the right pattern: an access role (MARTS_READ) with USAGE plus SELECT on existing and future tables, granted to the functional role ANALYST, which also gets the warehouse."
+    },
+    {
+      "q": "Put the steps of an auto-ingest Snowpipe from S3 in order.",
+      "type": "order",
+      "steps": [
+        "Create an IAM role that can read s3://acme-landing/orders_json/",
+        "CREATE STORAGE INTEGRATION with that role's ARN and the allowed location",
+        "DESC INTEGRATION, then put its IAM user ARN and external ID in the role's trust policy",
+        "CREATE STAGE ACME.RAW.ORDERS_JSON_STAGE with the integration, and check it with LIST",
+        "CREATE PIPE ... AUTO_INGEST = TRUE AS COPY INTO ACME.RAW.ORDERS_JSON ...",
+        "SHOW PIPES, then add the notification_channel (an SQS ARN) as the bucket's event notification"
+      ],
+      "answer": "The integration needs the role's ARN, and the role must then trust the IAM user and external ID that Snowflake generated, otherwise LIST on the stage fails. The pipe needs a working stage, and its notification_channel exists only once the pipe is created; until the bucket sends events to it, nothing loads (ALTER PIPE ... REFRESH can pick up files staged in the last 7 days)."
+    },
+    {
+      "q": "Scenario: Monday 08:10, production incident. Make each decision.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "At 07:55 a developer ran DELETE FROM ACME.MARTS.FCT_ORDERS without a WHERE clause, on production. Dashboards show zero sales.",
+          "choices": [
+            {
+              "label": "Ask Snowflake Support to restore the table from fail-safe",
+              "feedback": "Fail-safe is for disasters after time travel has ended; it is not self-service and takes time. The rows are still in time travel."
+            },
+            {
+              "label": "Find the DELETE's query id in the query history and check the data with BEFORE(STATEMENT => ...)",
+              "best": true,
+              "feedback": "Time travel (1 day by default) still holds every row, and the query id pins the exact moment before the DELETE."
+            },
+            {
+              "label": "Rerun the full dbt build from RAW",
+              "feedback": "Possible but slow and costly, and RAW may not hold everything any more (purged files). Time travel is faster and exact."
+            }
+          ]
+        },
+        {
+          "text": "SELECT COUNT(*) ... BEFORE(STATEMENT => '<id>') returns the 48 million rows expected. How do you restore?",
+          "choices": [
+            {
+              "label": "CLONE the table BEFORE(STATEMENT => '<id>') into FCT_ORDERS_RESTORED, check it, then ALTER TABLE ... SWAP WITH",
+              "best": true,
+              "feedback": "Instant, no data copied, checked before going live, and the swap is a single atomic step for the dashboards."
+            },
+            {
+              "label": "DROP TABLE ACME.MARTS.FCT_ORDERS, then UNDROP TABLE",
+              "feedback": "UNDROP brings the table back as it was when dropped: already empty."
+            },
+            {
+              "label": "Recreate the table and reload yesterday's CSV exports",
+              "feedback": "Slow, error-prone and it loses today's rows, while time travel has the exact state."
+            }
+          ]
+        },
+        {
+          "text": "The post-mortem asks how to prevent this from happening again.",
+          "choices": [
+            {
+              "label": "Raise time travel to 90 days on every table",
+              "feedback": "It helps recovery, not prevention, and multiplies storage on tables that change often."
+            },
+            {
+              "label": "Forbid DELETE statements in all SQL",
+              "feedback": "Unrealistic: pipelines need DELETE and MERGE. Restrict who can write to production instead."
+            },
+            {
+              "label": "Developers work in a zero-copy clone (ACME_DEV) with roles that cannot write to production",
+              "best": true,
+              "feedback": "Least privilege plus real data to test on: the same mistake can now only hit a clone."
+            }
+          ]
+        }
+      ],
+      "answer": "Time travel first, fail-safe last: find the query id, clone the table as it was before the statement, check it and swap. Then prevent: production write access only for the deployment and pipeline roles, development on clones."
+    }
+  ],
+  "pitfalls": [
+    "Running COPY with FORCE = TRUE to \"fix\" a load: every file already loaded comes in again and rows are duplicated; reload into a clean table or delete the bad rows instead.",
+    "Using ON_ERROR = CONTINUE in production without checking COPY_HISTORY or VALIDATE(): rejected rows disappear silently.",
+    "Leaving a stream unconsumed beyond the table's retention: it becomes stale and its changes are lost; schedule its task and watch the stale_after column of SHOW STREAMS.",
+    "Creating a task graph and forgetting ALTER TASK ... RESUME on the tasks (or SYSTEM$TASK_DEPENDENTS_ENABLE on the root): nothing ever runs.",
+    "Flattening a nested array without OUTER => TRUE, so orders or items with an empty array vanish and totals come out too low.",
+    "Adding a clustering key on a small or constantly updated table, or on a raw timestamp: automatic clustering burns credits for little pruning.",
+    "Sizing up the warehouse to fix an exploding join: it only duplicates rows faster; fix the join keys or deduplicate the dimension.",
+    "Writing masking or row access policies with CURRENT_ROLE(): users who hold the role through the hierarchy are treated wrongly; use IS_ROLE_IN_SESSION()."
+  ],
+  "interview": [
+    {
+      "q": "Describe Snowflake's architecture and what each layer is responsible for.",
+      "a": "Snowflake has three layers. Storage keeps tables as compressed, columnar, immutable micro-partitions in the cloud provider's object storage. Compute is made of virtual warehouses, independent clusters that read the same data, so loading, transformations and BI do not compete. Cloud services handle authentication, access control, parsing and optimization, transactions and all the metadata, including the min/max ranges used for pruning; they are billed only beyond 10% of daily warehouse credits."
+    },
+    {
+      "q": "Which caches does Snowflake use, and how do they affect cost and performance?",
+      "a": "The result cache in cloud services returns the stored result of an identical query for 24 hours, renewed on reuse up to 31 days, when the data has not changed and no runtime function such as CURRENT_TIMESTAMP() is used; no warehouse runs, so it is free. The warehouse cache keeps recently read data on the warehouse's local disk and speeds up similar queries, but it is lost on suspend, which is the trade-off of a very short AUTO_SUSPEND. Metadata answers COUNT(*) and many MIN/MAX queries without a scan. When benchmarking, I turn USE_CACHED_RESULT off so I measure the real work."
+    },
+    {
+      "q": "How do you make Snowflake loads idempotent and safe?",
+      "a": "COPY INTO keeps 64 days of load metadata per table, so rerunning a COPY skips files already loaded, and I never put FORCE = TRUE in a scheduled job. I validate a new source with VALIDATION_MODE = RETURN_ERRORS, choose ON_ERROR deliberately (ABORT_STATEMENT or SKIP_FILE rather than a silent CONTINUE) and monitor COPY_HISTORY. RAW tables keep METADATA$FILENAME and a load timestamp so every row can be traced, and downstream I MERGE on business keys so reprocessing does not create duplicates."
+    },
+    {
+      "q": "Streams and tasks, or dynamic tables: how do you choose?",
+      "a": "Dynamic tables are declarative: I write the SELECT and a TARGET_LAG, and Snowflake schedules the refreshes, incrementally when the query allows it, and handles the dependencies between them. They suit most transformation pipelines and are simpler to maintain. Streams and tasks give procedural control: a MERGE with custom rules, calling procedures, alerts, or steps that are not one query. Both often coexist: Snowpipe loads raw data, dynamic tables build staging and marts, and a task handles the odd procedural step."
+    },
+    {
+      "q": "A dashboard query on a 3 TB table takes two minutes. How do you investigate?",
+      "a": "I open the Query Profile. If partitions scanned is close to partitions total, pruning fails: I check the filter (a function on the column, a subquery instead of constants) and whether a clustering key on the filtered column is justified by the table's size and change rate. If I see remote spilling, I reduce the data earlier or give that job a bigger warehouse; if a join's output explodes, I fix the keys. For selective lookups I consider search optimization, and for a repeated single-table aggregate a materialized view, both Enterprise features whose cost I compare with the gain."
+    },
+    {
+      "q": "How would you design roles for loaders, dbt developers and analysts?",
+      "a": "I separate access roles, which hold privileges on an area (RAW_RW, STAGING_RW, MARTS_READ), from functional roles that match jobs (LOADER, TRANSFORMER, ANALYST); access roles are granted to functional roles and functional roles to users. Each functional role gets its own warehouse, every custom role rolls up to SYSADMIN, future grants cover new tables and managed access schemas keep granting centralized. Nobody works as ACCOUNTADMIN, service users use key pairs, and on Enterprise edition I add masking and row access policies for personal data, written with IS_ROLE_IN_SESSION()."
+    },
+    {
+      "q": "What is the difference between time travel, fail-safe and a clone?",
+      "a": "Time travel lets users query, clone or undrop data as it was within the retention period: 1 day by default, up to 90 days on Enterprise edition for permanent tables. Fail-safe is a further 7 days for permanent tables that only Snowflake Support can use for disaster recovery; it is not a backup you can query. A zero-copy clone is a new object sharing the original micro-partitions; with time travel (CLONE ... BEFORE(STATEMENT => ...)) it restores a table to a precise point without touching the original, and it gives instant dev and test copies."
+    },
+    {
+      "q": "Snowflake credits went up 40% this quarter. How do you find the cause and keep it under control?",
+      "a": "I start with WAREHOUSE_METERING_HISTORY to see which warehouses and hours grew, and compare it with QUERY_ATTRIBUTION_HISTORY: a large gap means idle time, so auto-suspend or cluster settings are wrong. QUERY_HISTORY grouped by QUERY_TAG, user and query hash then shows the expensive or newly frequent jobs, and I check serverless costs too (Snowpipe, automatic clustering, materialized views). Typical fixes are incremental models instead of full rebuilds, saner refresh schedules and right-sized or multi-cluster warehouses. Then guardrails: resource monitors, budgets for serverless features, statement timeouts and a query tag on every job."
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 ## 👉 Next session (written 2026-11-06)
 - **Just finished (2026-11-06):** the site is live at **https://hellokhedma.io** (O8 done). Next for the owner: the
-  O5 done too (emails sent as no-reply@mail.hellokhedma.io); turn "Confirm email" back on.
+  O5 done too (emails sent as no-reply@mail.hellokhedma.io) and "Confirm email" is back on.
 - **Just finished (2026-11-05, later):** CV maker and ATS score on the CV page (two tabs). CV maker (#/cv/maker,
   js/cvmaker.js): form → one-column ATS-friendly preview in EN or FR, print / save as PDF, download .txt, "Use as a CV
   version" (then it scores offers), live ATS score; draft kept in this browser ("hk.cvmaker"), privacy policy updated.
@@ -35,8 +35,8 @@
   only, 5 a day, notice before every send, privacy policy updated. It needs O16 (API key + deploy); the function code
   was not run by Claude (no Deno/key here), only the app side. Before that: "Tailor my CV" prompt, salary on offers,
   French content, app.js split, "CV sent", CV versions, FR/EN interface. O13–O15 done. Not tested signed in.
-- **Owner, first:** O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). Turn "Confirm email"
-  back ON in Supabase (custom SMTP works since 2026-11-06).
+- **Owner, first:** O16 (Anthropic key + deploy cv-tailor), then test "Rewrite with AI" signed in (O12). "Confirm email" is ON
+  again since 2026-11-06 (custom SMTP works).
 - **Next in code (owner's choice):** accessibility pass (1.9),
   LinkedIn import (3.10), networking contacts, offer coach (2.8, can reuse the pulse salaries). 2026-10-30:
   ROADMAP gained items from a jobicy.com review (2.8, 3.8–3.10, 4.4b, 4.7, 5.5).
@@ -63,6 +63,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-06 | "Confirm email" turned back on in Supabase by the owner (new sign-ups must confirm their address) |
 | 2026-11-06 | O5b done: the Resend key pasted in the chat was deleted and replaced in Supabase SMTP; sign-in link received again |
 | 2026-11-06 | O5 done: `mail.hellokhedma.io` verified in Resend, Supabase SMTP sends as "HelloKhedma" <no-reply@mail.hellokhedma.io>; a magic link reached the owner's Gmail inbox (not spam). Old Resend keys deleted. Next: "Confirm email" back on |
 | 2026-11-06 | O19 done: Supabase Site URL / Redirect URLs set to https://hellokhedma.io, sign-in tested by the owner. Site added to Google Search Console with sitemap.xml |

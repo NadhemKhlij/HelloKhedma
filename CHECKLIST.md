@@ -50,6 +50,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | # | Where | Task | Why it matters | Links / details |
 |---|---|---|---|---|
+| O23 | Supabase → SQL Editor | Run the migration for training step 1 (learning progress synced between devices, "Report a problem"): open the file below, copy everything, paste into **SQL Editor → New query**, **Run**. Until then progress stays on each device and reports open the email app | Creates learning_sync (own row only) and content_reports (read them with `select * from content_reports_open;`) | MIGRATION_LINK |
 | O7 | sentry.io (optional) | Create a project, add **`SENTRY_DSN`** as a GitHub variable | Error monitoring | — |
 | O21 | When HelloKhedma becomes a business | Owner said (2026-11-06) it is personal for now and will become more professional. On the switch (micro-entreprise, SASU…): legal notice with the company name, legal form, address, SIREN / RCS, VAT number if any and a phone number; the company becomes the data controller in the privacy policy; terms of use (CGU), and sales terms (CGV) if anything is paid; sign the processors' data processing agreements (Supabase, Resend, Anthropic, Cloudflare) as the company; any analytics or ads would need a consent banner. Also the opt-in recruiter profile, ROADMAP 6.5. Tell Claude: it updates both languages | Required by LCEN / GDPR once it is a professional activity | index.html (#/legal, #/privacy) |
 | O9 | Legal (before a big launch) | Claude reviewed both pages on 2026-11-06 (LCEN notice, GDPR art. 13 information, CNIL cookie rules, actual data flows in the code) and fixed them. Still for the owner: **1.** confirmed non-professional for now (2026-11-06; see O21 for the switch to a business); **2.** check GitHub's phone number in the notice (+1 877 448 4820, from a directory); **3.** optional: a lawyer's read before a big launch, and a retention rule for inactive accounts (e.g. delete after 3 years) | The texts are now accurate, but not legal advice | index.html (#/legal, #/privacy) |
@@ -61,6 +62,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-06 | Training step 1: learning progress synced between devices for signed-in users (merge, nothing lost), "⚑ Report a problem" on courses and projects, content checks in CI (a broken course stops the deploy). Needs O23 (run the migration) |
 | 2026-11-06 | O22 done: cv_sync / insights migration run by the owner in the SQL editor ("Save my CVs to my account" and anonymous statistics are live) |
 | 2026-11-06 | Opt-in "Save my CVs to my account" (synced, merged per version between devices) and opt-in anonymous statistics ("Help improve HelloKhedma"); privacy policy updated; recruiter profile planned for the pro version (ROADMAP 6.5). Needs O22 (run the migration) |
 | 2026-11-06 | O10 done: app installed on the owner's iPhone (Safari → Add to Home Screen) and checked offline |

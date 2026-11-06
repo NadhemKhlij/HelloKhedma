@@ -5,7 +5,8 @@
 // - renderProjectList(root, pathId): the "Portfolio projects" panel of the Training page (cards with step progress).
 // - renderProject(id): the project page (#/project/<id>): data links, steps to tick, deliverables, self-check, the CV
 //   bullet to copy and how to talk about it, stretch ideas.
-// Progress is kept in this browser ("hk.projects": "<id>:s<i>" for steps, "<id>:c<i>" for checklist items). XP via activity.js.
+// Progress is kept in this browser ("hk.projects": "<id>:s<i>" for steps, "<id>:c<i>" for checklist items), synced to the
+// account when signed in (learnsync.js). XP via activity.js. "⚑ Report a problem" (report.js) at the bottom of a project.
 // AI track projects (ids "ai-…") are in Tunisian, like its courses: content/ai/ar/projects.json and
 // content/ai/lat/projects.json (same structure), in the script chosen on #/ai. Their content reads right to left in
 // Arabic letters (aiDir); the interface labels stay in the interface language. Progress is shared by both scripts.
@@ -14,6 +15,7 @@ import { t, fetchContent } from "./i18n.js";
 import { state, skillChip } from "./state.js";
 import { logActivity } from "./activity.js";
 import { aiScript, aiDir, scriptSwitch } from "./aitrack.js";
+import { reportBox } from "./report.js";
 
 const BASE = "content/projects/", KEY = "hk.projects";
 const cache = new Map();
@@ -110,6 +112,7 @@ export async function renderProject(id) {
       h("button", { type: "button", class: "btn-ghost justify-self-start", onClick: () => copyText(p.cv.bullet, null, t("CV line copied.")) }, t("📋 Copy the CV line")),
       h("p", { class: "text-sm" }, h("b", {}, t("In the interview: ")), ai ? h("span", { class: "block", ...D }, p.cv.talk) : p.cv.talk)),
     p.stretch?.length ? section(t("Go further"), h("ul", { class: "grid gap-1.5 text-sm list-disc pl-5", ...D }, p.stretch.map((x) => h("li", {}, x)))) : null,
+    reportBox(p.id, () => ({ part: "project", number: null })),
   ].filter(Boolean));
   drawProgress();
 }

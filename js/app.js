@@ -14,6 +14,7 @@ import { $, h, safeColor, ls, toast, PREVIEW } from "./lib.js";
 import { sb, configured, CONFIG } from "./supabase.js";
 import { LocalStore, CloudStore, importLocalToCloud } from "./store.js";
 import { cvSyncUser } from "./cvsync.js";
+import { learnSyncUser } from "./learnsync.js";
 import { addKeywords } from "./ats.js";
 import { initAuth } from "./auth.js";
 import { state, path, byKind, fail } from "./state.js";
@@ -102,6 +103,9 @@ async function selectPath(id) {
   if (state.user) sb.from("profiles").upsert({ user_id: state.user.id, selected_path: id });
 }
 
+// Learning progress merged from another device (learnsync.js): redraw Training, Home and the interview page.
+window.addEventListener("hk:learning-synced", () => { renderLearn(); refreshInterview(); });
+
 /* ---------- auth ---------- */
 async function onUser(user) {
   if ((user?.id || null) === (state.user?.id || null)) return;
@@ -125,6 +129,7 @@ async function onUser(user) {
     state.store = new LocalStore();
   }
   cvSyncUser(user).catch((e) => console.warn("CV sync:", e.message)); // opt-in CV sync (no-op when it is off)
+  learnSyncUser(user).catch((e) => console.warn("Learning sync:", e.message)); // lessons, quizzes, XP… on every device
   await Promise.all([refreshTracker(), loadProgress()]);
   renderLearn(); renderStatus();
 }

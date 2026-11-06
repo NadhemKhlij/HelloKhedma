@@ -8,11 +8,12 @@
 //                    pitfalls: [..], interview: [{ q, a }] }
 // French: content/courses/fr/<id>.json (same structure and lesson order: progress is stored by lesson index) and
 // fr/index.json ([{ id, name, summary }], merged over index.json). Missing French files fall back to English.
-// Lesson progress is kept in this browser ("hk.lessons").
+// Lesson progress is kept in this browser ("hk.lessons") and synced to the account when signed in (learnsync.js).
 // The AI engineer track in Tunisian ("ai-…" ids, aitrack.js) uses the same player: content from content/ai/<script>/,
 // right-to-left content in Arabic letters, a script switch in the header and a back link to #/ai.
 // Course page: header with progress, then tabs: Lessons (one lesson at a time, lesson list + "Mark as done & continue"),
 // Quiz, Flashcards, Practice, Interview (practice.js) and the printable Cheat sheet. XP and "Resume" via activity.js.
+// At the bottom, "⚑ Report a problem" (report.js), preset to the open lesson or tab.
 import { $, h, ls, toast } from "./lib.js";
 import { t, lang, fetchContent } from "./i18n.js";
 import { isAiCourse, aiScript, aiMeta, aiDir, loadAiCourse, scriptSwitch } from "./aitrack.js";
@@ -20,6 +21,7 @@ import { logActivity, setLastCourse, lastCourse } from "./activity.js";
 import { quiz, flashcards, exercises, interviewCards, quizBest, exercisesSolved } from "./practice.js";
 import { lessonTime, courseTime, formatMinutes } from "./coursetime.js";
 import { logInsight } from "./insights.js";
+import { reportBox } from "./report.js";
 
 const BASE = "content/courses/";
 const LESSONS_KEY = "hk.lessons";
@@ -260,6 +262,9 @@ export async function renderCourse(id) {
         c.why ? h("p", { class: "mt-2" }, h("b", {}, t("Why recruiters care: ")), ai ? h("span", { ...aiDir(), class: "block" }, c.why) : c.why) : null,
         c.outcome ? h("p", { class: "mt-1" }, h("b", {}, t("After this course you can: ")), ai ? h("span", { ...aiDir(), class: "block" }, c.outcome) : c.outcome) : null) : null,
       progress),
-    tabBar, body);
+    tabBar, body,
+    // "Report a problem", preset to where the user is (the lesson open, or the tab's kind of content).
+    reportBox(id, () => ({ part: { lessons: "lesson", quiz: "quiz", cards: "flashcard", practice: "exercise", interview: "interview" }[tab] || "cheatsheet",
+      number: tab === "lessons" ? cur + 1 : null })));
   drawTabs(); drawBody();
 }

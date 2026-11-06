@@ -99,7 +99,12 @@ lessons, Power BI 9, Docker 8, Kubernetes 8, monitoring 7 with Prometheus and Gr
 has a course except Confluence. 4.5 portfolio projects: 3 per path (15, EN + FR) with steps, self-check, data links and
 a CV line (Training page, #/project/<id>). Same day, second pass: the 15 remaining 4-lesson courses brought to 8
 lessons (intermediate topics, more exercises, interview questions and cheat-sheet items): every course now has 7-10
-lessons, about 2.5-3.5 h of reading and practice each. Still to do: sync lesson and project progress to the account,
+lessons, about 2.5-3.5 h of reading and practice each. Done (2026-11-06, training step 1): learning progress synced to
+the account (js/learnsync.js: lessons, quizzes, flashcards, exercises, projects, XP, interview prep), "Report a problem"
+on courses and projects (content_reports), content checks in CI (scripts/check-content.mjs). Next (training plan):
+runnable SQL exercises (sql.js) checked against expected results, spaced repetition + placement test, AI "explain my
+mistake" (Sonnet 5.5), runnable Python (Pyodide), project starter repos with automatic checks + public portfolio.
+Earlier "still to do": sync lesson and project progress to the account (done 2026-11-06),
 expert review (CHECKLIST O11), advanced level for the core courses if users ask for it.
 Done (2026-10-29): 4.4 Interview prep page: 55 questions per path on average (14 behavioral, 8 role-specific, plus the
 technical questions of the path's courses) with example answers, 2-minute timer, "got it / to review" decks; STAR story

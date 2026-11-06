@@ -9,6 +9,7 @@ import { sb } from "./supabase.js";
 import { state, fail } from "./state.js";
 import { cvSyncOn, setCvSync, cvSyncExport } from "./cvsync.js";
 import { insightsChoice, setInsights } from "./insights.js";
+import { learnSyncExport } from "./learnsync.js";
 
 export function renderStatus() {
   const u = state.user;
@@ -17,7 +18,7 @@ export function renderStatus() {
   $("#accountLink").hidden = !u;
   $("#signOut").hidden = !u;
   $("#accountWho").textContent = u
-    ? t("Signed in as {email}. Your applications, training progress and path are synced to your account.", { email: u.email })
+    ? t("Signed in as {email}. Your applications, path and learning progress (lessons, quizzes, projects, interview prep) are synced to your account.", { email: u.email })
     : t("You are using HelloKhedma as a guest: everything is stored in this browser only, nothing on our servers.");
   $("#deleteInfo").textContent = u
     ? t("Permanently deletes your account and everything linked to it (applications, progress, profile, CVs saved to the account), then clears this browser. This cannot be undone.")
@@ -77,7 +78,7 @@ async function onExport() {
     if (err) { fail(err); return; }
     out.account = { email: state.user.email, created_at: state.user.created_at,
       profile: profile.data, applications: applications.data, training_progress: progress.data,
-      cvs_saved_to_account: await cvSyncExport() };
+      cvs_saved_to_account: await cvSyncExport(), learning_progress: await learnSyncExport() };
   }
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
   const a = h("a", { href: URL.createObjectURL(blob), download: `hellokhedma-data-${new Date().toISOString().slice(0, 10)}.json` });

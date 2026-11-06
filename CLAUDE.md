@@ -10,6 +10,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - No Node on the machine: `sh scripts/preview-cdn.sh`, then `scripts/serve.ps1` (or the "hellokhedma" entry of
   .claude/launch.json) and open /preview-test.html. Never commit preview-test.html. The real build runs in CI.
 - `npm run check-links`: checks every URL in supabase/seed.sql (Node 18+).
+- `npm run check-content`: checks every content JSON (structure, French copies, identical code, skills known to
+  js/ats.js, projects, AI track scripts). CI runs it before the smoke tests; a problem stops the deploy.
 - Translations: `perl scripts/check-i18n.pl js` (every t() text has French) and
   `powershell -File scripts/check-fr-content.ps1 -Root .` (French course / interview files match the English structure).
 - Course times: `powershell -File scripts/course-times.ps1 -Root .` writes `minutes` and `lessonCount` into
@@ -140,6 +142,9 @@ Read the header comment of any file before modifying it; update the header if be
 - js/cvsync.js — opt-in "Save my CVs to my account": merge per version between devices (cv_sync table)
 - js/insights.js — opt-in anonymous statistics (asked once under a CV check; Account page switch)
 - js/gaps.js — "Close the gaps": courses, roadmap steps and projects for the missing skills (#/cv, Tailor my CV)
+- js/learnsync.js — learning progress synced for signed-in users (learning_sync; merge per key, lib.js onStore watcher)
+- js/report.js — "⚑ Report a problem" on course and project pages (report_content(), e-mail fallback)
+- scripts/check-content.mjs — content checks run by CI (structure, French copies, identical code, skills, AI track)
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
 - js/atsscore.js — ATS score /100 (skills, job title, sections, contact, impact, length, layout) with fixes, EN + FR CVs
 - js/cvmaker.js — CV maker: form, one layout model (cvModel) for the preview, the PDF and the ATS text (centered header;

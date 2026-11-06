@@ -296,6 +296,11 @@ test("a course opens with its tabs and the quiz", async ({ page }) => {
   await expect(tabs.first()).toBeVisible();
   await tabs.filter({ hasText: "Quiz" }).click();
   await expect(page.locator('section[data-page="course"] [role=tabpanel]')).not.toBeEmpty();
+  // "Report a problem" opens preset to where the user is (the Quiz tab here).
+  const report = page.locator('section[data-page="course"] [data-report]');
+  await report.locator("summary").click();
+  await expect(report.locator("select")).toHaveValue("quiz");
+  await expect(report.getByRole("button", { name: "Send" })).toBeVisible();
 });
 
 test("French interface and back to English", async ({ page }) => {

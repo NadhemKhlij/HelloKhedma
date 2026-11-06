@@ -540,6 +540,27 @@
         }
       ],
       "answer": "Measure first (Performance Analyzer, DAX Studio with a cold cache and Server Timings), fix the cause (context transition over the fact table), then check the results did not change."
+    },
+    {
+      "q": "On DAX.do (▶ button): add a Rank column to the products by revenue, with ties sharing a rank and no gap after them (expected: Laptop 1, Screen 2, Mouse 3, Desk 3). Start from this table (copy it after EVALUATE): VAR Products = DATATABLE ( \"Product\", STRING, \"Revenue\", DOUBLE, { { \"Laptop\", 2700 }, { \"Screen\", 900 }, { \"Mouse\", 600 }, { \"Desk\", 600 } } ) RETURN …",
+      "hint": "RANKX ( table, expression, , DESC, DENSE ) inside ADDCOLUMNS. Then change DENSE to SKIP: what changes, and when would it show?",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Products =\n    DATATABLE (\n        \"Product\", STRING, \"Revenue\", DOUBLE,\n        {\n            { \"Laptop\", 2700 },\n            { \"Screen\", 900 },\n            { \"Mouse\", 600 },\n            { \"Desk\", 600 }\n        }\n    )\nRETURN\n    ADDCOLUMNS (\n        Products,\n        \"Rank\", RANKX ( Products, [Revenue], , DESC, DENSE )\n    )\nORDER BY [Rank], [Product]"
+    },
+    {
+      "q": "On DAX.do: add a Share column with each product's share of the total revenue of the table (expected: Laptop 0.5625, i.e. 56.25%). Start from this table (copy it after EVALUATE): VAR Products = DATATABLE ( \"Product\", STRING, \"Revenue\", DOUBLE, { { \"Laptop\", 2700 }, { \"Screen\", 900 }, { \"Mouse\", 600 }, { \"Desk\", 600 } } ) RETURN …",
+      "hint": "In ADDCOLUMNS, [Revenue] is the current row; SUMX ( Products, [Revenue] ) walks the whole table again, whatever the current row. DIVIDE avoids a division by zero.",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Products =\n    DATATABLE (\n        \"Product\", STRING, \"Revenue\", DOUBLE,\n        {\n            { \"Laptop\", 2700 },\n            { \"Screen\", 900 },\n            { \"Mouse\", 600 },\n            { \"Desk\", 600 }\n        }\n    )\nRETURN\n    ADDCOLUMNS (\n        Products,\n        \"Share\", DIVIDE ( [Revenue], SUMX ( Products, [Revenue] ) )\n    )\nORDER BY [Share] DESC"
+    },
+    {
+      "q": "On DAX.do: return only the 2 products with the highest revenue. Start from this table (copy it after EVALUATE): VAR Products = DATATABLE ( \"Product\", STRING, \"Revenue\", DOUBLE, { { \"Laptop\", 2700 }, { \"Screen\", 900 }, { \"Mouse\", 600 }, { \"Desk\", 600 } } ) RETURN …",
+      "hint": "TOPN ( n, table, order by, DESC ) returns a table. Try n = 3: Mouse and Desk tie at 600, so TOPN returns 4 rows. That is the tie behaviour to remember for Top N visuals.",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Products =\n    DATATABLE (\n        \"Product\", STRING, \"Revenue\", DOUBLE,\n        {\n            { \"Laptop\", 2700 },\n            { \"Screen\", 900 },\n            { \"Mouse\", 600 },\n            { \"Desk\", 600 }\n        }\n    )\nRETURN\n    TOPN ( 2, Products, [Revenue], DESC )"
     }
   ],
   "interview": [
@@ -575,5 +596,10 @@
       "q": "What are calculation groups and when would you use them?",
       "a": "A calculation group is a table whose items are DAX expressions applied to whatever measure is in the visual, through SELECTEDMEASURE. A Time Calc group with Current, YTD, PY and YoY % replaces dozens of near-identical measures, and format string expressions keep percentages formatted. They can now be created in Power BI Desktop's model view. I watch out for items that make no sense on some measures, such as YoY % on a ratio, and exclude those with ISSELECTEDMEASURE."
     }
-  ]
+  ],
+  "playground": {
+    "name": "DAX.do",
+    "url": "https://dax.do/",
+    "about": "DAX.do is a free DAX query playground made by SQLBI. The exercises marked ▶ build their own small table with DATATABLE, so they run as they are, whatever sample model DAX.do shows on the left."
+  }
 }

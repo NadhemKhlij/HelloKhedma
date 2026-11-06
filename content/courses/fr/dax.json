@@ -540,6 +540,27 @@
         }
       ],
       "answer": "Mesurez d’abord (Performance Analyzer, DAX Studio cache vidé avec Server Timings), corrigez la cause (transition de contexte sur la table de faits), puis vérifiez que les résultats n’ont pas changé."
+    },
+    {
+      "q": "Sur DAX.do (bouton ▶) : ajoutez une colonne Rank aux produits selon leur chiffre d’affaires, les ex æquo partageant un rang sans trou après eux (attendu : Laptop 1, Screen 2, Mouse 3, Desk 3). Partez de cette table (copiez-la après EVALUATE) : VAR Products = DATATABLE ( \"Product\", STRING, \"Revenue\", DOUBLE, { { \"Laptop\", 2700 }, { \"Screen\", 900 }, { \"Mouse\", 600 }, { \"Desk\", 600 } } ) RETURN …",
+      "hint": "RANKX ( table, expression, , DESC, DENSE ) dans ADDCOLUMNS. Remplacez ensuite DENSE par SKIP : qu’est-ce qui change, et quand cela se verrait-il ?",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Products =\n    DATATABLE (\n        \"Product\", STRING, \"Revenue\", DOUBLE,\n        {\n            { \"Laptop\", 2700 },\n            { \"Screen\", 900 },\n            { \"Mouse\", 600 },\n            { \"Desk\", 600 }\n        }\n    )\nRETURN\n    ADDCOLUMNS (\n        Products,\n        \"Rank\", RANKX ( Products, [Revenue], , DESC, DENSE )\n    )\nORDER BY [Rank], [Product]"
+    },
+    {
+      "q": "Sur DAX.do : ajoutez une colonne Share avec la part de chaque produit dans le chiffre d’affaires total de la table (attendu : Laptop 0,5625, soit 56,25 %). Partez de cette table (copiez-la après EVALUATE) : VAR Products = DATATABLE ( \"Product\", STRING, \"Revenue\", DOUBLE, { { \"Laptop\", 2700 }, { \"Screen\", 900 }, { \"Mouse\", 600 }, { \"Desk\", 600 } } ) RETURN …",
+      "hint": "Dans ADDCOLUMNS, [Revenue] est la ligne courante ; SUMX ( Products, [Revenue] ) reparcourt toute la table, quelle que soit la ligne courante. DIVIDE évite une division par zéro.",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Products =\n    DATATABLE (\n        \"Product\", STRING, \"Revenue\", DOUBLE,\n        {\n            { \"Laptop\", 2700 },\n            { \"Screen\", 900 },\n            { \"Mouse\", 600 },\n            { \"Desk\", 600 }\n        }\n    )\nRETURN\n    ADDCOLUMNS (\n        Products,\n        \"Share\", DIVIDE ( [Revenue], SUMX ( Products, [Revenue] ) )\n    )\nORDER BY [Share] DESC"
+    },
+    {
+      "q": "Sur DAX.do : renvoyez seulement les 2 produits au plus gros chiffre d’affaires. Partez de cette table (copiez-la après EVALUATE) : VAR Products = DATATABLE ( \"Product\", STRING, \"Revenue\", DOUBLE, { { \"Laptop\", 2700 }, { \"Screen\", 900 }, { \"Mouse\", 600 }, { \"Desk\", 600 } } ) RETURN …",
+      "hint": "TOPN ( n, table, tri, DESC ) renvoie une table. Essayez n = 3 : Mouse et Desk sont ex æquo à 600, donc TOPN renvoie 4 lignes. C’est le comportement à retenir pour les visuels Top N.",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Products =\n    DATATABLE (\n        \"Product\", STRING, \"Revenue\", DOUBLE,\n        {\n            { \"Laptop\", 2700 },\n            { \"Screen\", 900 },\n            { \"Mouse\", 600 },\n            { \"Desk\", 600 }\n        }\n    )\nRETURN\n    TOPN ( 2, Products, [Revenue], DESC )"
     }
   ],
   "interview": [
@@ -575,5 +596,10 @@
       "q": "Que sont les groupes de calcul et quand les utiliseriez-vous ?",
       "a": "Un groupe de calcul est une table dont les éléments sont des expressions DAX appliquées à la mesure présente dans le visuel, via SELECTEDMEASURE. Un groupe Time Calc avec Current, YTD, PY et YoY % remplace des dizaines de mesures presque identiques, et les expressions de chaîne de format gardent les pourcentages bien formatés. On peut désormais les créer dans la vue modèle de Power BI Desktop. Je fais attention aux éléments qui n’ont pas de sens sur certaines mesures, comme YoY % sur un ratio, et je les exclus avec ISSELECTEDMEASURE."
     }
-  ]
+  ],
+  "playground": {
+    "name": "DAX.do",
+    "url": "https://dax.do/",
+    "about": "DAX.do est un terrain de jeu DAX gratuit créé par SQLBI. Les exercices marqués ▶ construisent leur propre petite table avec DATATABLE : ils s’exécutent tels quels, quel que soit le modèle d’exemple affiché à gauche dans DAX.do."
+  }
 }

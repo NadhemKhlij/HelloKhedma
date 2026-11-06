@@ -54,7 +54,6 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | O7 | sentry.io (optional) | Create a project, add **`SENTRY_DSN`** as a GitHub variable | Error monitoring | — |
 | O9 | Legal (before a big launch) | Have the legal notice and privacy policy reviewed | Templates, not legal advice | — |
 | O10 | Your phone | Install the app (Android: "Install the app" link in the footer; iPhone: Safari → Share → Add to Home Screen) and check it opens offline | PWA install was only tested in a desktop browser | — |
-| O16 | Live site, signed in | **Deployed 2026-11-06** (ANTHROPIC_API_KEY set, `cv-tailor` deployed from the dashboard editor; the deployed copy is index.ts without its header comments, same code). Still to do: sign in on hellokhedma.io → CV → Tailor my CV → Rewrite with AI, and check a rewrite comes back | Confirms the key, credit and function work end to end | Errors: Edge Functions → cv-tailor → Logs |
 | O12 | Live site | Sign in and use the app in French, then press **EN** and back: check nothing is left in the wrong language and the French reads naturally (report odd wording) | Translations were written by Claude and only tested as a guest | js/i18n-fr.js |
 | O11 | Content (before promoting) | Have the 25 courses, 15 portfolio projects, interview questions and model answers reviewed by people in each field, in English **and French** | Written and translated by Claude: realistic but unreviewed | content/courses/, content/interview/ (French in fr/ subfolders) |
 | O18 | Live site: https://hellokhedma.io/#/ai (merged into main on 2026-11-05; the preview address is gone) | Read the 9 courses and the 3 portfolio projects of the Tunisian AI track (#/ai, start with courses 1 and 3) in both scripts and say: is the Derja natural? Is the 3arbizi spelling the one you want (8 for غ or gh, 9 for ق)? Mix of French/English terms OK? Words flagged by the writers: mrigel, تتفاكتورا, kontrol, s8ar, ena model, t9ossa, ما يتكاشاش, valid'hom. Also the Tunisian facts: international technology card for API payments, INPDP / personal-data law | All 9 courses are written (owner asked to continue before the review): style fixes now apply to every file, so list them and Claude applies them everywhere | content/ai/ar/, content/ai/lat/ |
@@ -63,6 +62,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-06 | O16 done: ANTHROPIC_API_KEY set, `cv-tailor` deployed (dashboard editor, same code without the header comments); "Rewrite with AI" tested signed in on hellokhedma.io: full rewrite in French with gaps and questions. Fixed a stray "null" shown above the result |
 | 2026-11-06 | "Confirm email" turned back on in Supabase by the owner (new sign-ups must confirm their address) |
 | 2026-11-06 | O5b done: the Resend key pasted in the chat was deleted and replaced in Supabase SMTP; sign-in link received again |
 | 2026-11-06 | O5 done: `mail.hellokhedma.io` verified in Resend, Supabase SMTP sends as "HelloKhedma" <no-reply@mail.hellokhedma.io>; a magic link reached the owner's Gmail inbox (not spam). Old Resend keys deleted. Next: "Confirm email" back on |

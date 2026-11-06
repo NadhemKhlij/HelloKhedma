@@ -134,7 +134,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/cvs.js — CV versions (local only): list, active version, version linked to a path
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
 - js/atsscore.js — ATS score /100 (skills, job title, sections, contact, impact, length, layout) with fixes, EN + FR CVs
-- js/cvmaker.js — CV maker: form, ATS-friendly preview (print to PDF), live ATS score, save as a CV version ("hk.cvmaker")
+- js/cvmaker.js — CV maker: form, ATS-friendly preview in the owner's CV layout (Arial, centered header, title / organisation
+  + dates on the right, grouped skills, Involvement), print to PDF (CV page only), live ATS score, save as a CV version ("hk.cvmaker")
 - js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
 - js/offercheck.js — age of an offer, level (Junior…Lead) and trust warnings (scam signals, stale, no company)
 - js/pulse.js — path market pulse on Home, from the offers seen on the Offers page (local only, "hk.pulse.<path>")

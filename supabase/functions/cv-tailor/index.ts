@@ -61,8 +61,11 @@ Rules:
 - Keep every job and degree of the CV with its real dates. Order the bullet points of each job so the ones that match the offer come first, rewrite them with strong verbs and the offer's wording only where it is true for this person, and drop bullets that add nothing for this offer (at most 6 per job).
 - When a bullet would be stronger with a number the CV does not give, do not make one up: write [number?] in the bullet and add a note asking for it.
 - Headline: the offer's job title if the CV supports it, otherwise the closest honest title.
-- Summary: 2-3 lines for this offer. Skills: the skills the CV really shows, those the offer asks for first, comma-separated, using the offer's exact words when they mean the same thing.
+- Summary: 2-3 lines for this offer. Skills: the skills the CV really shows, those the offer asks for first, using the offer's exact words when they mean the same thing.
 - Write the CV in the language of the job offer (lang "fr" for French, "en" otherwise), translating the CV content faithfully when needed.
+- context: an optional one- or two-line description of the team, product or scope of a job, taken from the CV (e.g. "Within the regulatory reporting team…"); empty if the CV has none.
+- skills: when the CV groups its skills, keep one group per line ("Databases: SQL, Oracle"); otherwise a comma-separated list.
+- involvement: volunteering, associations and events from the CV (organisation, role, dates); empty if none.
 - Bullets, details, links and certifications: one per line, with no leading dash. Dates as written in the CV (e.g. "03/2023" or "2019"); end is empty for a current job.
 - notes: short notes for the job seeker, in the language given in the request: each requirement of the offer the CV does not show (with an honest way to address it) and each [number?] to fill in.`;
 
@@ -72,9 +75,10 @@ const obj = (props: Record<string, unknown>) =>
 const CV_SCHEMA = obj({
   lang: { type: "string", enum: ["en", "fr"] },
   name: STR, headline: STR, email: STR, phone: STR, location: STR, links: STR, summary: STR, skills: STR,
-  experience: { type: "array", items: obj({ role: STR, company: STR, location: STR, start: STR, end: STR, bullets: STR }) },
+  experience: { type: "array", items: obj({ role: STR, company: STR, location: STR, start: STR, end: STR, context: STR, bullets: STR }) },
   education: { type: "array", items: obj({ degree: STR, school: STR, location: STR, start: STR, end: STR, details: STR }) },
   projects: { type: "array", items: obj({ name: STR, link: STR, bullets: STR }) },
+  involvement: { type: "array", items: obj({ org: STR, role: STR, start: STR, end: STR }) },
   certifications: STR, languages: STR,
   notes: { type: "array", items: STR },
 });

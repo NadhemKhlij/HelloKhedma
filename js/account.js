@@ -1,10 +1,14 @@
 // Account & data page (#/account) and the sign-in status (top bar, Home): GDPR access, portability and erasure.
 // - Export: every "hk.*" localStorage entry of this device, plus the account's rows when signed in (JSON file).
 // - Delete: signed in → delete-account Edge Function, then sign out; in every case all "hk.*" entries are cleared.
+// - Opt-in choices: "Save my CVs to my account" (cvsync.js, signed-in users, notice before turning it on) and
+//   "Help improve HelloKhedma" (insights.js, anonymous statistics). Both are off until the user turns them on.
 import { $, h, ls, toast } from "./lib.js";
 import { t } from "./i18n.js";
 import { sb } from "./supabase.js";
 import { state, fail } from "./state.js";
+import { cvSyncOn, setCvSync, cvSyncExport } from "./cvsync.js";
+import { insightsChoice, setInsights } from "./insights.js";
 
 export function renderStatus() {
   const u = state.user;
@@ -13,12 +17,51 @@ export function renderStatus() {
   $("#accountLink").hidden = !u;
   $("#signOut").hidden = !u;
   $("#accountWho").textContent = u
-    ? t("Signed in as {email}. Your applications, training progress and path are synced to your account; your CV stays on this device.", { email: u.email })
+    ? t("Signed in as {email}. Your applications, training progress and path are synced to your account.", { email: u.email })
     : t("You are using HelloKhedma as a guest: everything is stored in this browser only, nothing on our servers.");
   $("#deleteInfo").textContent = u
-    ? t("Permanently deletes your account and everything linked to it (applications, progress, profile), then clears this browser. This cannot be undone.")
+    ? t("Permanently deletes your account and everything linked to it (applications, progress, profile, CVs saved to the account), then clears this browser. This cannot be undone.")
     : t("Clears every HelloKhedma data from this browser: applications, progress, CV text and settings. This cannot be undone.");
   $("#deleteData").textContent = u ? t("Delete my account") : t("Delete data on this device");
+  renderChoices();
+}
+
+// The two opt-in switches (both off until the user turns them on).
+function renderChoices() {
+  const u = state.user, on = cvSyncOn();
+  const panel = $("#cvSyncPanel"), notice = h("div", { class: "grid gap-2" });
+  const turnOn = async (btn) => {
+    btn.disabled = true;
+    const r = await setCvSync(true);
+    if (!r.ok) { toast(t("Saving CVs to the account is not available yet. Your CVs stay on this device.")); btn.disabled = false; return; }
+    toast(t("Your CVs are now saved to your account."));
+  };
+  const ask = () => notice.replaceChildren(h("div", { class: "rounded-lg p-3 text-sm grid gap-2", style: "background:var(--bg);border:1px solid var(--accent)" },
+    h("p", {}, t("Your CV versions and your CV maker draft will be stored in your HelloKhedma account (Supabase), readable only by you, so you find them on every device where you sign in. Turn it off at any time: the copy in your account is then deleted, and this device keeps its CVs.")),
+    h("div", { class: "flex flex-wrap gap-2" },
+      h("button", { type: "button", class: "btn", onClick: (e) => turnOn(e.currentTarget) }, t("Turn on")),
+      h("button", { type: "button", class: "btn-ghost", onClick: () => notice.replaceChildren() }, t("Cancel")))));
+  const turnOff = async () => {
+    if (!confirm(t("Stop saving your CVs to your account? The copy in your account is deleted; this device keeps its CVs."))) return;
+    const r = await setCvSync(false);
+    toast(r.ok ? t("Your CVs are no longer saved to your account.") : t("Could not change the setting. Try again."));
+  };
+  panel.replaceChildren(h("h2", { class: "!mb-0" }, t("Your CVs")),
+    h("p", { class: "text-sm" }, !u ? t("Your CVs are saved in this browser only. Sign in to keep them in your account and find them on all your devices.")
+      : on ? t("✓ Your CVs are saved to your account and synced on every device where you sign in.")
+      : t("Your CVs are saved on this device only (off by default). Save them to your account to find them on your phone, the installed app and your computer.")),
+    u ? h("div", { class: "flex flex-wrap gap-2" }, on
+      ? h("button", { type: "button", class: "btn-ghost", onClick: turnOff }, t("Stop saving my CVs to my account"))
+      : h("button", { type: "button", class: "btn", onClick: ask }, t("Save my CVs to my account"))) : null,
+    notice);
+
+  const yes = insightsChoice() === "yes";
+  $("#insightsPanel").replaceChildren(h("h2", { class: "!mb-0" }, t("Help improve HelloKhedma")),
+    h("p", { class: "text-sm" }, t("Anonymous statistics: the skills offers ask for, the ones CVs lack, and the courses you finish. Never your CV, the offer text, your account or your IP address.")),
+    h("p", { class: "text-sm font-medium" }, yes ? t("✓ You share anonymous statistics. Thank you!") : t("You do not share statistics (off by default).")),
+    h("div", { class: "flex flex-wrap gap-2" }, yes
+      ? h("button", { type: "button", class: "btn-ghost", onClick: () => setInsights(false) }, t("Stop sharing"))
+      : h("button", { type: "button", class: "btn", onClick: () => setInsights(true) }, t("Share anonymous statistics"))));
 }
 
 // ls.keys(): this build's "hk.*" entries only (a preview build keeps its own, see lib.js).
@@ -33,7 +76,8 @@ async function onExport() {
     const err = profile.error || applications.error || progress.error;
     if (err) { fail(err); return; }
     out.account = { email: state.user.email, created_at: state.user.created_at,
-      profile: profile.data, applications: applications.data, training_progress: progress.data };
+      profile: profile.data, applications: applications.data, training_progress: progress.data,
+      cvs_saved_to_account: await cvSyncExport() };
   }
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
   const a = h("a", { href: URL.createObjectURL(blob), download: `hellokhedma-data-${new Date().toISOString().slice(0, 10)}.json` });
@@ -66,6 +110,8 @@ async function onDelete() {
 }
 
 export function initAccount() {
+  window.addEventListener("hk:cvsync", renderChoices);
+  window.addEventListener("hk:insights", renderChoices);
   $("#exportData").addEventListener("click", () => onExport().catch(fail));
   $("#deleteData").addEventListener("click", onDelete);
 }

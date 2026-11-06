@@ -76,9 +76,14 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   public by design; RLS protects the data.
 - Every user-owned table needs RLS policies scoped to auth.uid(); add schema changes as a new migration file.
 - Build DOM with the h() helper (textContent), never innerHTML with remote data (course text included).
-- CV texts (every version, "hk.cvs" via js/cvs.js, and the CV maker draft "hk.cvmaker") stay in localStorage only; never send them to Supabase or any API.
-  Single exception: "Rewrite with AI" (js/tailor.js → cv-tailor function → Claude API), signed-in users only, after a
-  notice shown before every send; the function stores and logs nothing. Never send the CV anywhere else.
+- CV texts (every version, "hk.cvs" via js/cvs.js, and the CV maker draft "hk.cvmaker") stay in localStorage by default.
+  They leave the browser in exactly two opt-in cases (owner decisions 2026-10-29 and 2026-11-06), never anywhere else:
+  1. "Save my CVs to my account" (js/cvsync.js → the user's own RLS row in cv_sync), off by default, turned on by the
+     signed-in user on the Account page after a notice; turning it off deletes the account copy;
+  2. the AI rewrite / CV creation (js/tailor.js → cv-tailor function → Claude API), signed-in users only, after a notice
+     shown before every send; the function stores and logs nothing.
+- Anonymous statistics (js/insights.js → log_insight()) only after the user said yes ("hk.insights"): skill names,
+  course ids and the path id, never CV or offer text, account ids or IPs. Do not add identifiers or free text to them.
 - Keep the privacy policy (index.html, #/privacy) in sync when adding a provider or any new personal data.
 - Every user-facing text is written in English and goes through t() / tn() (js/i18n.js); add its French to
   js/i18n-fr.js. Static text in index.html is translated automatically if its English is a key there. The legal notice
@@ -131,7 +136,10 @@ Read the header comment of any file before modifying it; update the header if be
 - js/jobs.js — client for the job-search function, job-board fallback links
 - js/companies.js — "Companies I follow" (career-page APIs)
 - js/remote.js — "Remote jobs" (Jobicy, Remotive)
-- js/cvs.js — CV versions (local only): list, active version, version linked to a path
+- js/cvs.js — CV versions (local; synced only if the user opted in): list, active version, version linked to a path
+- js/cvsync.js — opt-in "Save my CVs to my account": merge per version between devices (cv_sync table)
+- js/insights.js — opt-in anonymous statistics (asked once under a CV check; Account page switch)
+- js/gaps.js — "Close the gaps": courses, roadmap steps and projects for the missing skills (#/cv, Tailor my CV)
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
 - js/atsscore.js — ATS score /100 (skills, job title, sections, contact, impact, length, layout) with fixes, EN + FR CVs
 - js/cvmaker.js — CV maker: form, one layout model (cvModel) for the preview, the PDF and the ATS text (centered header;

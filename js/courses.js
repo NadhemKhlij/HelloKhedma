@@ -19,6 +19,7 @@ import { isAiCourse, aiScript, aiMeta, aiDir, loadAiCourse, scriptSwitch } from 
 import { logActivity, setLastCourse, lastCourse } from "./activity.js";
 import { quiz, flashcards, exercises, interviewCards, quizBest, exercisesSolved } from "./practice.js";
 import { lessonTime, courseTime, formatMinutes } from "./coursetime.js";
+import { logInsight } from "./insights.js";
 
 const BASE = "content/courses/";
 const LESSONS_KEY = "hk.lessons";
@@ -174,8 +175,11 @@ export async function renderCourse(id) {
     const go = (i) => { cur = i; drawLessons(); const top = body.getBoundingClientRect().top; if (top < 0) body.scrollIntoView({ behavior: "smooth" }); };
     const toggle = (val) => {
       const s = doneSet(), key = `${id}:${cur}`;
+      const wasComplete = c.lessons.every((_, i) => s.has(`${id}:${i}`));
       if (val) { if (!s.has(key)) logActivity(10); s.add(key); } else s.delete(key);
       saveDone(s); drawProgress();
+      // Anonymous statistics, only if the user opted in (insights.js): which courses get finished.
+      if (!wasComplete && c.lessons.every((_, i) => s.has(`${id}:${i}`))) logInsight("course_done", ls.get("hk.path"), [id]);
     };
     const list = h("ol", { class: "grid gap-1" }, c.lessons.map((x, i) => h("li", {},
       h("button", { type: "button", class: "w-full text-left flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-[var(--soft)]",

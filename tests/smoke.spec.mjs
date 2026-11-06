@@ -64,6 +64,12 @@ test("CV: skills are extracted, matched with an offer, and the cover letter prom
   await page.fill("#jd", "Data Engineer: Python, SQL, Spark and AWS. 3 years of experience.");
   await page.click("#atsBtn");
   await expect(page.locator("#atsOut")).toContainText("Spark");
+  // Anonymous statistics are asked once, off until the user says yes; "No thanks" is remembered.
+  const ask = page.locator("[data-insights-ask]");
+  await expect(ask).toBeVisible();
+  await ask.getByRole("button", { name: "No thanks" }).click();
+  await expect(ask).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("hk.insights"))).toBe("no");
   await page.locator("#atsOut").getByRole("button", { name: "✉ Cover letter" }).click();
   await expect(page.locator("#letterBody textarea")).toHaveValue(/Built Python and SQL pipelines on Airflow/);
   await page.locator("#letterBody").getByRole("button", { name: "Close" }).click();
@@ -271,6 +277,17 @@ test("AI track projects: both scripts match and a project page works", async ({ 
   await project.getByRole("tab", { name: "3arbizi" }).click();
   await expect(page.locator('section[data-page="project"] h1')).toHaveAttribute("dir", "ltr");
   await expect(page.locator('section[data-page="project"]')).toContainText("1/"); // progress is shared by both scripts
+});
+
+test("account: CV sync needs an account, anonymous statistics can be turned on and off", async ({ page }) => {
+  await open(page, "#/account");
+  await expect(page.locator("#cvSyncPanel")).toContainText("Sign in to keep them in your account");
+  const stats = page.locator("#insightsPanel");
+  await expect(stats).toContainText("off by default");
+  await stats.getByRole("button", { name: "Share anonymous statistics" }).click();
+  await expect(stats).toContainText("You share anonymous statistics");
+  await stats.getByRole("button", { name: "Stop sharing" }).click();
+  await expect(stats).toContainText("off by default");
 });
 
 test("a course opens with its tabs and the quiz", async ({ page }) => {

@@ -158,6 +158,7 @@ normal project page. Next: owner review of the Derja of the courses and projects
 | 6.2 | Admin page to edit paths, tracks and courses without SQL | Content updates without a developer | L |
 | 6.3 | Premium plan (AI features, alerts) | Pays for APIs | L |
 | 6.4 | Mentors / referrals / community | Network effects | L |
+| 6.5 | **Pro version only (once HelloKhedma is a company, CHECKLIST O21):** opt-in "Visible to recruiters" profile. The candidate chooses what recruiters see (a CV version, skills, path, availability), can pause or delete it at any time, and is contacted through HelloKhedma first. Needs: terms of use for candidates and recruiters, explicit consent separate from CV sync, recruiter accounts and verification, a data processing agreement, possibly a DPIA (large-scale profiling), and a business model (recruiters pay). Never built on the CVs saved for sync or on the anonymous statistics without asking each user again | Business model; candidates found by recruiters | XL |
 
 ## Engineering hygiene (ongoing)
 - Done (2026-10-30): smoke tests (Playwright, 15 tests, ~30 s) in the deploy workflow; a failure stops the deploy.
@@ -177,6 +178,10 @@ normal project page. Next: owner review of the Derja of the courses and projects
 ## Decisions log (so they are not reopened by accident)
 - 2026-10-29: Courses and interview content are static JSON in content/ (deployed with the site), not database rows.
 - 2026-10-29: The CV text never leaves the browser (localStorage only), even for signed-in users.
+- 2026-11-06: Owner chose to add two opt-in options, both off by default: "Save my CVs to my account" (cv_sync, own RLS
+  row, merge between devices, deleted when turned off) and "Help improve HelloKhedma" (anonymous statistics: skill
+  names, course ids, path; no CV/offer text, no account id, no IP; day only; kept 2 years). Without opt-in, the
+  2026-10-29 rule still holds. Reusing these data for any other purpose needs a new, explicit consent.
 - 2026-10-29: France Travail "Offres d'emploi" API is supported in code but unused: the owner's francetravail.io
   account does not offer it. La Bonne Boite and Marché du travail are available on that account (see 3.5, 3.6).
 - 2026-10-29: Owner declined a bookmarklet ("Analyze with HelloKhedma" from any job page). Do not propose it again.

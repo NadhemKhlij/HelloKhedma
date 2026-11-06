@@ -6,7 +6,8 @@
 // per line), Experience, Certifications (year on the right), Education, Projects, Volunteering, Languages; each entry =
 // bold title with the dates on the right, bold organisation and grey place below, a grey context line, bullets.
 // Arial / Helvetica only. Checked by an independent recruiter / ATS review (2026-11-06).
-// - The draft is kept in this browser only ("hk.cvmaker"), like every CV text (never sent to Supabase or any API).
+// - The draft is kept in this browser ("hk.cvmaker"), like every CV text; copied to the account only if the user turned
+//   on "Save my CVs to my account" (cvsync.js).
 // - CV language (EN / FR) is separate from the interface language: it sets the headings and date words.
 // - "Download PDF" builds the PDF in the browser (cvpdf.js; falls back to printing the page if it cannot load).
 //   "Use as a CV version" saves the plain text as a CV version (cvs.js), linked to the draft so later saves update it;
@@ -21,6 +22,7 @@ import { extractSkills } from "./ats.js";
 import { atsReport, atsView } from "./atsscore.js";
 import { loadCvs, addCv, updateCv, setActiveCv } from "./cvs.js";
 import { cvPdf } from "./cvpdf.js";
+import { localChange } from "./cvsync.js";
 
 const KEY = "hk.cvmaker";
 const HEAD = {
@@ -45,7 +47,9 @@ function load() {
     return c;
   } catch { return blank(); }
 }
-const save = () => ls.set(KEY, JSON.stringify(cv));
+const save = () => { ls.set(KEY, JSON.stringify(cv)); localChange(); };
+// The draft came from another device ("Save my CVs to my account", cvsync.js): reload it, and redraw if it is open.
+window.addEventListener("hk:cvs-synced", () => { cv = load(); if (!$("#cvMakerTab")?.hidden) renderCvMaker(); });
 const lines = (s) => (s || "").split(/\r?\n/).map((x) => x.replace(/^\s*[-•*]\s*/, "").trim()).filter(Boolean);
 const skillsOf = (s) => (s || "").split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
 const dates = (e, H) => [e.start, e.end || (e.start ? H.present : "")].filter(Boolean).join(" – ");

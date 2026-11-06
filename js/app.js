@@ -13,6 +13,7 @@ import { t, tn, lang, setLang, localize } from "./i18n.js";
 import { $, h, safeColor, ls, toast, PREVIEW } from "./lib.js";
 import { sb, configured, CONFIG } from "./supabase.js";
 import { LocalStore, CloudStore, importLocalToCloud } from "./store.js";
+import { cvSyncUser } from "./cvsync.js";
 import { addKeywords } from "./ats.js";
 import { initAuth } from "./auth.js";
 import { state, path, byKind, fail } from "./state.js";
@@ -123,6 +124,7 @@ async function onUser(user) {
   } else {
     state.store = new LocalStore();
   }
+  cvSyncUser(user).catch((e) => console.warn("CV sync:", e.message)); // opt-in CV sync (no-op when it is off)
   await Promise.all([refreshTracker(), loadProgress()]);
   renderLearn(); renderStatus();
 }

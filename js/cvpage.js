@@ -18,6 +18,7 @@ import { openCoverLetter } from "./letters.js";
 import { atsReport, atsView } from "./atsscore.js";
 import { initCvMaker, renderCvMaker } from "./cvmaker.js";
 import { gapTrainings } from "./gaps.js";
+import { logInsight, insightsAsk } from "./insights.js";
 
 // Loads the active CV version into state.cv. Skills are re-extracted each time: path keywords may have changed.
 export function loadActiveCv() {
@@ -31,6 +32,8 @@ function refreshCv({ fillEditor = false } = {}) {
   renderCvVersions(); renderCvSkills(); renderOffers(); renderStudyPlan();
 }
 function switchCv(id) { setActiveCv(id); refreshCv({ fillEditor: true }); }
+// CVs merged from another device ("Save my CVs to my account", cvsync.js).
+window.addEventListener("hk:cvs-synced", () => refreshCv({ fillEditor: true }));
 // Name of the active CV version, recorded on new applications ("" when no CV is saved).
 export const cvUsed = () => (state.cv.text.trim() ? state.cv.name : "");
 
@@ -173,7 +176,11 @@ function onAts() {
     h("p", { class: "mute text-sm mt-3 mb-1" }, t("Missing: add the ones you genuinely have · 📘 = open the HelloKhedma course")),
     h("div", { class: "flex flex-wrap gap-2" }, r.missing.length ? chips(r.missing, false) : h("span", { class: "mute text-sm" }, t("Nothing missing."))),
     gapTrainings(r.missing),
+    insightsAsk(),
   ].filter(Boolean));
+  // Anonymous statistics, only if the user opted in (insights.js): skill names only, never the CV or the offer text.
+  if (usedJd) logInsight("offer_skills", state.pathId, required);
+  logInsight("gaps", state.pathId, r.missing);
 }
 
 // Tabs: "maker" shows the CV maker, anything else the CV check (router.js passes the #/cv/<param>).

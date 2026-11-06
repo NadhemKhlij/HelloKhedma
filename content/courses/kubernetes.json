@@ -260,6 +260,35 @@
       "fix": "  selector:\n    matchLabels:\n      app: api\n  template:\n    metadata:\n      labels:\n        tier: backend\n        app: api",
       "hint": "A Deployment finds its pods through spec.selector.",
       "answer": "The selector looks for app: api but the pod template is labelled app: web, so the Deployment would own none of its own pods: the API server refuses it (“selector does not match template labels”). The template labels must include every label of the selector."
+    },
+    {
+      "q": "Fix this file: this Deployment is refused by the API server, and the platform team's rules also want a fixed image version, resource requests with a memory limit, and health probes. Make every check pass (the app answers on /ready and /healthz, port 8080; version 1.4.2 is deployed).",
+      "type": "fixfile",
+      "code": "yaml",
+      "rules": [
+        "k8s-selector",
+        "k8s-image-tag",
+        "k8s-resources",
+        "k8s-probes"
+      ],
+      "start": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: orders-api\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: orders\n  template:\n    metadata:\n      labels:\n        app: orders-api\n    spec:\n      containers:\n        - name: api\n          image: registry.example.com/orders-api:latest\n          ports:\n            - containerPort: 8080",
+      "answer": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: orders-api\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: orders\n  template:\n    metadata:\n      labels:\n        app: orders\n    spec:\n      containers:\n        - name: api\n          image: registry.example.com/orders-api:1.4.2\n          ports:\n            - containerPort: 8080\n          resources:\n            requests:\n              cpu: 250m\n              memory: 256Mi\n            limits:\n              memory: 512Mi\n          readinessProbe:\n            httpGet:\n              path: /ready\n              port: 8080\n          livenessProbe:\n            httpGet:\n              path: /healthz\n              port: 8080\n            initialDelaySeconds: 10",
+      "hint": "The template labels must contain app: orders. Requests: cpu and memory; limits: memory. readinessProbe and livenessProbe with httpGet.",
+      "explain": "The selector and the template labels must match, or the Deployment would own none of its pods. :latest makes rollbacks and audits guesswork: deploy a version (or a digest). Requests let the scheduler place the pod on a node with room; the memory limit stops a leak from starving its neighbours (the container is OOMKilled instead). Many teams leave out the CPU limit because it throttles the app even when the node is idle. The readiness probe keeps a pod out of the Service until it is ready (and during a rollout); the liveness probe restarts a pod that is stuck. Keep liveness cheap and do not make it check the database, or one database hiccup restarts every pod."
+    },
+    {
+      "q": "Fix this file: after this deploy the site returns 503 (the Service reaches no pod), the database password sits in the manifest, and the security scan wants non-root containers. Make every check pass; the password is in a Secret called web-db, key password.",
+      "type": "fixfile",
+      "code": "yaml",
+      "rules": [
+        "k8s-service",
+        "k8s-secrets",
+        "k8s-security"
+      ],
+      "start": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: web\n  template:\n    metadata:\n      labels:\n        app: web\n    spec:\n      containers:\n        - name: web\n          image: shop/web:2.7.0\n          ports:\n            - name: http\n              containerPort: 3000\n          env:\n            - name: DATABASE_HOST\n              value: postgres.data.svc\n            - name: DATABASE_PASSWORD\n              value: hunter2\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: web\nspec:\n  selector:\n    app: website\n  ports:\n    - port: 80\n      targetPort: 8080",
+      "answer": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: web\n  template:\n    metadata:\n      labels:\n        app: web\n    spec:\n      containers:\n        - name: web\n          image: shop/web:2.7.0\n          ports:\n            - name: http\n              containerPort: 3000\n          env:\n            - name: DATABASE_HOST\n              value: postgres.data.svc\n            - name: DATABASE_PASSWORD\n              valueFrom:\n                secretKeyRef:\n                  name: web-db\n                  key: password\n          securityContext:\n            runAsNonRoot: true\n            allowPrivilegeEscalation: false\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: web\nspec:\n  selector:\n    app: web\n  ports:\n    - port: 80\n      targetPort: http",
+      "hint": "The Service selector must be app: web and its targetPort the container port (3000, or its name http). For the password: valueFrom.secretKeyRef.",
+      "explain": "A Service sends traffic to the pods whose labels match its selector, on targetPort: app: website matched nothing and nothing listened on 8080, hence the 503 (kubectl get endpoints web shows it empty). Naming the port (http) lets the Service follow the container if the number changes. A value in the manifest ends up in Git and in kubectl describe; secretKeyRef reads it from the Secret, whose access is controlled by RBAC (and which you can fill from a vault with External Secrets). runAsNonRoot makes the kubelet refuse to start the container as root; allowPrivilegeEscalation: false blocks setuid tricks."
     }
   ],
   "interview": [

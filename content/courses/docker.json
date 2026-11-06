@@ -408,6 +408,49 @@
         "ENV"
       ],
       "answer": "CMD (or ENTRYPOINT) sets the command run when the container starts. RUN and COPY run at build time and their result is saved in a layer; ENV sets a variable for both."
+    },
+    {
+      "q": "Fix this file: the Dockerfile of a Node.js API works, but it reinstalls every package after each code change, runs as root and does not stop cleanly. Make every check pass.",
+      "type": "fixfile",
+      "code": "dockerfile",
+      "rules": [
+        "docker-from-tag",
+        "docker-cache-order",
+        "docker-user",
+        "docker-exec-form"
+      ],
+      "start": "FROM node:latest\nWORKDIR /app\nCOPY . .\nRUN npm ci --omit=dev\nEXPOSE 3000\nCMD node server.js",
+      "answer": "FROM node:22-alpine\nWORKDIR /app\nCOPY package.json package-lock.json ./\nRUN npm ci --omit=dev\nCOPY . .\nUSER node\nEXPOSE 3000\nCMD [\"node\", \"server.js\"]",
+      "hint": "Copy package.json and package-lock.json first, run npm ci, then COPY . . ; the official node images already have a user called node.",
+      "explain": "A pinned base image (node:22-alpine, never latest) gives the same build next month. Docker caches each layer until one of its inputs changes: with the dependency files copied alone, npm ci is only rerun when they change, not on every code edit. USER node drops root (an attacker who breaks the app is not root in the container). CMD [\"node\", \"server.js\"] makes node process 1, so it receives the SIGTERM sent by docker stop / Kubernetes and can finish its requests; the shell form runs through /bin/sh, which does not pass it on."
+    },
+    {
+      "q": "Fix this file: a security review flagged this Python image (a password inside it, stale apt cache, ADD for local files). Make every check pass; the password will be given when the container starts.",
+      "type": "fixfile",
+      "code": "dockerfile",
+      "rules": [
+        "docker-apt",
+        "docker-secrets",
+        "docker-copy"
+      ],
+      "start": "FROM python:3.12-slim\nENV DB_PASSWORD=Sup3rS3cret\nRUN apt-get update\nRUN apt-get install -y libpq5\nWORKDIR /app\nADD requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nADD . .\nUSER 1000\nCMD [\"python\", \"app.py\"]",
+      "answer": "FROM python:3.12-slim\nRUN apt-get update \\\n    && apt-get install -y --no-install-recommends libpq5 \\\n    && rm -rf /var/lib/apt/lists/*\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nUSER 1000\nCMD [\"python\", \"app.py\"]",
+      "hint": "One RUN: apt-get update && apt-get install -y --no-install-recommends … && rm -rf /var/lib/apt/lists/*. Delete the ENV line.",
+      "explain": "ENV values are stored in the image: anyone who can pull it reads them with docker history or docker inspect, so DB_PASSWORD is passed at run time (docker run -e, a Kubernetes Secret) or, if the build needs it, with RUN --mount=type=secret. apt-get update alone in its own RUN is cached forever and later installs fetch package versions that no longer exist; in the same RUN as install, with --no-install-recommends and the lists removed, the layer is also smaller. ADD unpacks archives and downloads URLs: COPY does only what it says."
+    },
+    {
+      "q": "Fix this file: this Go API image weighs about 900 MB because the whole Go toolchain ships with it, and it runs as root. Use a multi-stage build so the final image only holds the compiled binary.",
+      "type": "fixfile",
+      "code": "dockerfile",
+      "rules": [
+        "docker-multistage",
+        "docker-from-tag",
+        "docker-user"
+      ],
+      "start": "FROM golang:1.23\nWORKDIR /src\nCOPY go.mod go.sum ./\nRUN go mod download\nCOPY . .\nRUN CGO_ENABLED=0 go build -o /bin/api ./cmd/api\nEXPOSE 8080\nENTRYPOINT [\"/bin/api\"]",
+      "answer": "FROM golang:1.23 AS build\nWORKDIR /src\nCOPY go.mod go.sum ./\nRUN go mod download\nCOPY . .\nRUN CGO_ENABLED=0 go build -o /bin/api ./cmd/api\n\nFROM gcr.io/distroless/static-debian12:nonroot\nCOPY --from=build /bin/api /bin/api\nUSER nonroot\nEXPOSE 8080\nENTRYPOINT [\"/bin/api\"]",
+      "hint": "Name the first stage (FROM golang:1.23 AS build), then start a second FROM from a small image (e.g. gcr.io/distroless/static-debian12:nonroot) and COPY --from=build the binary.",
+      "explain": "The build stage keeps the compiler, the module cache and the sources; the final stage starts from a distroless image (no shell, no package manager) and only copies /bin/api: a few MB instead of ~900, and far fewer packages for scanners to flag. CGO_ENABLED=0 makes a static binary that runs without libc. The :nonroot variant has a user nonroot (uid 65532); USER nonroot makes it explicit. The same pattern works for Java (JDK to build, JRE to run), Node (build the front end, serve the files with nginx) or Python (build wheels, install them in a slim image)."
     }
   ],
   "interview": [

@@ -71,8 +71,10 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   `"code": "sql"` (same in the French copy); the answer must run on content/sql/<db>.sql in SQLite (CI checks it).
   Datasets are fictional, small, and designed so each answer has one unambiguous result (no ties at a LIMIT).
 - Auto-graded exercises: add `"type"` to an exercise (same in the French copy): choice, fill, order, match, groups,
-  bug, scenario, logs, regex, cron, json (fields in the js/drills.js header). regex / cron / json keep the solution in
-  `answer` (code, identical in both languages) and the explanation in `explain`. Practice files go in content/logs/
+  bug, scenario, logs, regex, cron, json, fixfile (fields in the js/drills.js header). regex / cron / json / fixfile keep
+  the solution in `answer` (code, identical in both languages) and the explanation in `explain`. fixfile ("fix this
+  file": Kubernetes / GitHub Actions YAML, Dockerfile) lists rule ids from js/filecheck.js; CI checks that the answer
+  passes them all and the starting file fails at least one. Practice files go in content/logs/
   and content/data/ (fictional, small); compute answers from the file, never guess them. CI runs every answer.
   Append new exercises at the end (progress is stored by exercise index) and update `minutes` (course-times.ps1).
 - Courses are static JSON in content/courses/ (index.json + one file per course): keep `lessonCount` and `minutes`
@@ -162,6 +164,8 @@ Read the header comment of any file before modifying it; update the header if be
   spot the bug, scenarios, log analysis, regex, cron, jq); js/drillcheck.js — their checks, shared with CI (no DOM);
   js/regexrun.js + js/regexworker.js — the learner's regex runs in a Web Worker with a 2 s limit
 - content/logs/, content/data/ — fictional log and JSON files for the log analysis and jq exercises
+- js/filecheck.js — "fix this file" checks (Kubernetes manifests, GitHub Actions workflows, Dockerfiles), shared with CI;
+  YAML read by js/vendor/js-yaml.esm.min.js (self-hosted, loaded on demand)
 - js/sqlrun.js + js/sqlgrade.js — runnable SQL exercises: SQLite (sql.js, js/vendor) in a Web Worker with a 5 s limit on
   a fresh copy of content/sql/<db>.sql; the grader compares the learner's result with the course answer's result
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
@@ -183,7 +187,7 @@ Read the header comment of any file before modifying it; update the header if be
 - js/activity.js — XP, study streak, 7-day strip, last course for "Resume" (local only, "hk.activity")
 - js/interview.js — interview prep page
 - sw.js, manifest.json, icons/ — installable app and offline cache
-- fonts/ (Inter, Source Serif 4) and js/vendor/ (supabase-js, pdf-lib): self-hosted, so a page load reaches no third party
+- fonts/ (Inter, Source Serif 4) and js/vendor/ (supabase-js, pdf-lib, sql.js, js-yaml): self-hosted, so a page load reaches no third party
   but Supabase; do not add CDN scripts, fonts or trackers without updating the privacy policy (both languages)
 - js/coursetime.js — lesson and course durations computed from the content (reading + practice)
 - js/projects.js — portfolio projects: Training panel, AI track projects (#/ai) and the project page (#/project/<id>)

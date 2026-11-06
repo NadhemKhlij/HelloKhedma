@@ -408,6 +408,49 @@
         "ENV"
       ],
       "answer": "CMD (ou ENTRYPOINT) fixe la commande lancée au démarrage du conteneur. RUN et COPY s’exécutent à la construction et leur résultat est enregistré dans une couche ; ENV définit une variable pour les deux."
+    },
+    {
+      "q": "Corrigez ce fichier : le Dockerfile de cette API Node.js fonctionne, mais il réinstalle tous les paquets à chaque modification du code, tourne en root et ne s’arrête pas proprement. Faites passer toutes les vérifications.",
+      "type": "fixfile",
+      "code": "dockerfile",
+      "rules": [
+        "docker-from-tag",
+        "docker-cache-order",
+        "docker-user",
+        "docker-exec-form"
+      ],
+      "start": "FROM node:latest\nWORKDIR /app\nCOPY . .\nRUN npm ci --omit=dev\nEXPOSE 3000\nCMD node server.js",
+      "answer": "FROM node:22-alpine\nWORKDIR /app\nCOPY package.json package-lock.json ./\nRUN npm ci --omit=dev\nCOPY . .\nUSER node\nEXPOSE 3000\nCMD [\"node\", \"server.js\"]",
+      "hint": "Copiez d’abord package.json et package-lock.json, lancez npm ci, puis COPY . . ; les images node officielles ont déjà un utilisateur node.",
+      "explain": "Une image de base figée (node:22-alpine, jamais latest) donne le même build le mois prochain. Docker met chaque couche en cache tant que ses entrées ne changent pas : en copiant seuls les fichiers de dépendances, npm ci ne repart que s’ils changent, pas à chaque modification du code. USER node quitte root (un attaquant qui casse l’application n’est pas root dans le conteneur). CMD [\"node\", \"server.js\"] fait de node le processus 1 : il reçoit le SIGTERM envoyé par docker stop / Kubernetes et peut terminer ses requêtes ; la forme shell passe par /bin/sh, qui ne le transmet pas."
+    },
+    {
+      "q": "Corrigez ce fichier : une revue de sécurité a signalé cette image Python (un mot de passe dedans, cache apt périmé, ADD pour des fichiers locaux). Faites passer toutes les vérifications ; le mot de passe sera fourni au démarrage du conteneur.",
+      "type": "fixfile",
+      "code": "dockerfile",
+      "rules": [
+        "docker-apt",
+        "docker-secrets",
+        "docker-copy"
+      ],
+      "start": "FROM python:3.12-slim\nENV DB_PASSWORD=Sup3rS3cret\nRUN apt-get update\nRUN apt-get install -y libpq5\nWORKDIR /app\nADD requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nADD . .\nUSER 1000\nCMD [\"python\", \"app.py\"]",
+      "answer": "FROM python:3.12-slim\nRUN apt-get update \\\n    && apt-get install -y --no-install-recommends libpq5 \\\n    && rm -rf /var/lib/apt/lists/*\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nUSER 1000\nCMD [\"python\", \"app.py\"]",
+      "hint": "Un seul RUN : apt-get update && apt-get install -y --no-install-recommends … && rm -rf /var/lib/apt/lists/*. Supprimez la ligne ENV.",
+      "explain": "Les valeurs ENV sont stockées dans l’image : quiconque peut la télécharger les lit avec docker history ou docker inspect. DB_PASSWORD est donc fourni à l’exécution (docker run -e, un Secret Kubernetes) ou, si le build en a besoin, avec RUN --mount=type=secret. Un apt-get update seul dans son RUN reste en cache pour toujours et les installations suivantes cherchent des versions de paquets qui n’existent plus ; dans le même RUN que install, avec --no-install-recommends et les listes supprimées, la couche est aussi plus petite. ADD décompresse les archives et télécharge les URL : COPY ne fait que ce qu’il dit."
+    },
+    {
+      "q": "Corrigez ce fichier : cette image d’API Go pèse environ 900 Mo parce que toute la chaîne d’outils Go est livrée avec, et elle tourne en root. Passez à un build multi-étapes pour que l’image finale ne contienne que le binaire compilé.",
+      "type": "fixfile",
+      "code": "dockerfile",
+      "rules": [
+        "docker-multistage",
+        "docker-from-tag",
+        "docker-user"
+      ],
+      "start": "FROM golang:1.23\nWORKDIR /src\nCOPY go.mod go.sum ./\nRUN go mod download\nCOPY . .\nRUN CGO_ENABLED=0 go build -o /bin/api ./cmd/api\nEXPOSE 8080\nENTRYPOINT [\"/bin/api\"]",
+      "answer": "FROM golang:1.23 AS build\nWORKDIR /src\nCOPY go.mod go.sum ./\nRUN go mod download\nCOPY . .\nRUN CGO_ENABLED=0 go build -o /bin/api ./cmd/api\n\nFROM gcr.io/distroless/static-debian12:nonroot\nCOPY --from=build /bin/api /bin/api\nUSER nonroot\nEXPOSE 8080\nENTRYPOINT [\"/bin/api\"]",
+      "hint": "Nommez la première étape (FROM golang:1.23 AS build), puis démarrez un second FROM depuis une petite image (par ex. gcr.io/distroless/static-debian12:nonroot) et faites COPY --from=build du binaire.",
+      "explain": "L’étape de build garde le compilateur, le cache des modules et les sources ; l’étape finale part d’une image distroless (pas de shell, pas de gestionnaire de paquets) et ne copie que /bin/api : quelques Mo au lieu de ~900, et bien moins de paquets signalés par les scanners. CGO_ENABLED=0 produit un binaire statique qui tourne sans libc. La variante :nonroot a un utilisateur nonroot (uid 65532) ; USER nonroot le rend explicite. Le même principe vaut pour Java (JDK pour compiler, JRE pour exécuter), Node (build du front, fichiers servis par nginx) ou Python (wheels construites puis installées dans une image slim)."
     }
   ],
   "interview": [

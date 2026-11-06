@@ -13,14 +13,17 @@
 //   regex    { q, code: "regex", text? | file?, mode: "lines" | "extract", flags?, answer: pattern, explain }  result = the answer's
 //   cron     { q, code: "cron", answer: expression, explain }                      same run times as the answer
 //   json     { q, code: "jq", file: "data/<name>.json", answer: jq filter, explain } same output as the answer's filter
-// (regex, cron and json keep the solution in answer, shown as code, and the explanation in explain.)
+//   fixfile  { q, code: "yaml" | "dockerfile", start: the file to fix, rules: [id | { id, ...params }], answer: a fixed
+//            file, explain }   edit the file until every check passes (Kubernetes, GitHub Actions, Dockerfile; step 2d,
+//            rules in filecheck.js, loaded on demand with the self-hosted YAML parser); edits kept until the page reloads
+// (regex, cron, json and fixfile keep the solution in answer, shown as code, and the explanation in explain.)
 // Accepted answers: equal after trimming and ignoring case and extra spaces, or "/regex/flags" (drillcheck.accepts).
 // solution(e) draws the worked answer shown by "Reveal the answer" (before the explanation in e.answer).
 import { h } from "./lib.js";
 import { t, tn, lang } from "./i18n.js";
 import { accepts, parseCron, sameCron, nextRuns, jq, sameList } from "./drillcheck.js";
 
-export const DRILL_TYPES = ["choice", "fill", "order", "match", "groups", "bug", "scenario", "logs", "regex", "cron", "json"];
+export const DRILL_TYPES = ["choice", "fill", "order", "match", "groups", "bug", "scenario", "logs", "regex", "cron", "json", "fixfile"];
 const OK = "#18a999", BAD = "#e0508b", WARN = "#f08a24";
 const say = (text, color) => h("p", { class: "text-sm font-medium", style: color ? `color:${color}` : "" }, text);
 const out = () => h("div", { class: "grid gap-2", "aria-live": "polite" });
@@ -306,7 +309,53 @@ function json(e, done) {
     h("div", { class: "flex flex-wrap items-center gap-2" }, h("span", { class: "font-mono mute" }, "jq"), inp, btn(t("✓ Check my answer"), check)), fb];
 }
 
-const DRAW = { choice, fill, order, match, groups, bug, scenario, logs, regex, cron, json };
+/* ---------- fix this file (Kubernetes, GitHub Actions, Dockerfile) ---------- */
+const drafts = new Map(); // edits survive a tab switch, not a reload
+const tr = (x) => t(x.m, x.p);
+function fixfile(e, done) {
+  const fb = out(), key = e.start;
+  const lines = e.start.split("\n").length;
+  const area = h("textarea", { class: "input font-mono !text-[.75rem] !leading-5 w-full whitespace-pre overflow-auto", rows: Math.min(28, lines + 2), wrap: "off", dir: "ltr",
+    spellcheck: "false", autocapitalize: "off", autocorrect: "off", "aria-label": t("The file to fix"),
+    onInput: () => drafts.set(key, area.value),
+    onKeydown: (ev) => {
+      // Tab indents with two spaces (YAML refuses tabs); Esc then Tab leaves the box.
+      if (ev.key === "Tab" && !ev.shiftKey && !area.dataset.esc) { ev.preventDefault(); area.setRangeText("  ", area.selectionStart, area.selectionEnd, "end"); drafts.set(key, area.value); }
+      area.dataset.esc = ev.key === "Escape" ? "1" : "";
+    } });
+  area.value = drafts.get(key) ?? e.start;
+  const items = (e.rules || []).map(() => h("li", { class: "flex gap-2 items-start" }));
+  let titles = items.map(() => ({ m: "…", p: {} })); // filled once filecheck.js has loaded
+  const paint = (res) => items.forEach((li, k) => {
+    const r = res?.[k];
+    const icon = h("span", { class: "shrink-0 w-4 font-semibold", style: r ? `color:${r.ok ? OK : BAD}` : "" }, r ? (r.ok ? "✓" : "✗") : "○");
+    li.replaceChildren(icon, h("div", { class: "grid gap-0.5 min-w-0" }, h("span", {}, tr(r?.title || titles[k])),
+      r && !r.ok ? h("ul", { class: "grid gap-0.5 text-xs [overflow-wrap:anywhere]", style: `color:${BAD}` }, r.problems.map((p) => h("li", {}, tr(p)))) : null));
+  });
+  const lib = import("./filecheck.js");
+  lib.then((m) => { titles = (e.rules || []).map(m.ruleTitle); paint(); }).catch(() => {});
+  paint();
+  async function check() {
+    let m;
+    try { m = await lib; } catch { fb.replaceChildren(say(t("Could not load the checker. Check your connection and try again."), BAD)); return; }
+    const res = m.checkFile(e.code, area.value, e.rules);
+    if (res.error) {
+      paint();
+      fb.replaceChildren(say(t("Line {line}: the file cannot be read.", { line: res.error.line }), BAD), h("p", { class: "text-xs font-mono [overflow-wrap:anywhere]", dir: "ltr" }, res.error.reason));
+      return;
+    }
+    paint(res.results);
+    const wrong = res.results.filter((r) => !r.ok).length;
+    if (!wrong) { fb.replaceChildren(say(t("✓ Correct! Every check passes."), OK)); done(); }
+    else fb.replaceChildren(say(tn(wrong, "{n} check still fails.", "{n} checks still fail."), WARN));
+  }
+  const reset = () => { area.value = e.start; drafts.delete(key); paint(); fb.replaceChildren(); };
+  return [h("p", { class: "mute text-xs" }, e.code === "dockerfile" ? t("Edit the Dockerfile below, then check it.") : t("Edit the YAML below (indent with spaces), then check it.")),
+    h("div", { class: "rounded-xl p-3 grid gap-1 text-sm", style: "background:var(--soft)" }, h("b", { class: "text-xs" }, t("The checks")), h("ul", { class: "grid gap-1.5" }, items)),
+    area, h("div", { class: "flex flex-wrap gap-2" }, btn(t("✓ Check my file"), check), btn(t("↺ Start again"), reset, "btn-ghost")), fb];
+}
+
+const DRAW = { choice, fill, order, match, groups, bug, scenario, logs, regex, cron, json, fixfile };
 export function drill(e, onSolved) {
   let fired = false;
   const done = () => { if (!fired) { fired = true; onSolved(); } };
@@ -330,6 +379,6 @@ export function solution(e) {
       e.fix ? h("div", { class: "grid gap-1" }, h("p", { class: "mute text-xs" }, t("Fixed version:")), pre(e.fix, e.lang)) : null);
     case "scenario": return box(h("ol", { class: "list-decimal pl-5 grid gap-1" }, e.steps.map((s) => h("li", {}, s.choices.filter((c) => c.best).map((c) => c.label).join(" / ")))));
     case "logs": return box(...e.fields.map((f) => h("p", {}, label(`${f.label} `), h("code", { class: "inline-code" }, plain(f.accept)))));
-    default: return null; // regex, cron, json: the answer is the code shown below
+    default: return null; // regex, cron, json, fixfile: the answer is the code shown below
   }
 }

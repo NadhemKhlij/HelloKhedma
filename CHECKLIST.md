@@ -1,12 +1,12 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-11-06)
-- **Start here:** ROADMAP "Phase 4b: training plan". Steps 1, 2, 2b and 2c are done (2b + 2c on branch
-  `practice-formats`, see the Done log). Next: 2d (Kubernetes / GitHub Actions / Dockerfile validators) and 2e (more
-  SQL datasets, take-home cases), then 3 (spaced repetition + placement test), 4 (AI "explain my mistake", Sonnet 5.5),
+- **Start here:** ROADMAP "Phase 4b: training plan". Steps 1, 2, 2b, 2c and 2d are done (see the Done log). Next: 2e
+  (more SQL datasets, take-home cases), then 3 (spaced repetition + placement test), 4 (AI "explain my mistake", Sonnet 5.5),
   5 (Python / Excel), 6 (project repos + public portfolio), 7 (content from data, expert review).
-- **New exercise content is part of O11:** the 53 auto-graded exercises (EN + FR) were written by Claude; answers of the
-  log / regex / cron / jq exercises are computed from the files and checked in CI, the wording is unreviewed.
+- **New exercise content is part of O11:** the 70 auto-graded exercises (EN + FR) were written by Claude; answers of the
+  log / regex / cron / jq exercises are computed from the files and checked in CI, the "fix this file" answers pass
+  their checks in CI; the wording and the rules (js/filecheck.js) are unreviewed.
 - **Done on 2026-11-06 (all live on hellokhedma.io):** custom domain + Resend email sender + contact address; legal
   review (FR + EN, LCEN / GDPR) with fonts and supabase-js self-hosted, IPs hashed with HMAC; CV maker rebuilt
   (owner's layout, "Download PDF" built in the app with pdf-lib, 4 render rounds + independent review); PDF CV reading
@@ -82,6 +82,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-06 | Training step 2d: "fix this file" exercises in the Practice tab: edit a Dockerfile, a Kubernetes manifest or a GitHub Actions workflow until every check passes (24 rules: pinned images and actions, non-root, layer cache, apt hygiene, multi-stage, selectors, resources, probes, Services, secrets, token permissions, script injection, needs / main-only deploys). 7 exercises (Docker 3, Kubernetes 2, CI/CD 2), EN + FR. Checked in the browser with a self-hosted YAML parser (js-yaml, MIT), nothing sent anywhere; CI checks every answer. No setup needed |
 | 2026-11-06 | Two in-depth courses (EN + FR): "DAX in depth" (8 lessons, 13 exercises, after Power BI & DAX) and "Snowflake in depth" (8 lessons, 10 exercises, after Cloud data warehouses; free-trial advice). "▶ Run on DAX.do" (course playground): copies a DAX query and opens SQLBI's free DAX.do; 3 runnable exercises in Power BI & DAX, 3 in DAX in depth. Header toggles show the current language / theme, Home cards in nav order (Offers first). No setup needed |
 | 2026-11-06 | CV page reworked: the CV is scored as soon as it is saved (no offer needed), against the path's keywords and job titles; fixes sorted by the points they add ("+N pts"); "↑ +N points since your last save" after an edit; "unsaved changes" hint; three-step start when there is no CV; skills found folded under the score. "Match with a job offer" is now a separate, optional panel that runs when an offer is pasted (match %, versions, Tailor / Cover letter first, gaps, full ATS report for the offer folded). No setup needed |
 | 2026-11-06 | Training steps 2b + 2c: auto-graded exercises in the Practice tab of every course (53, EN + FR): predict the output, fill in the blanks, put steps in order, match pairs, sort into groups, spot the bug, branching scenarios (incident on call, sprint, dashboard request); for App Support / DevOps: log analysis on real-looking logs (SSH attacks, checkout outage), regex on access logs, cron schedules (crontab, GitHub Actions, Airflow), jq on kubectl / AWS CLI / Prometheus JSON. Checked in the browser, nothing sent anywhere; CI checks every answer. No setup needed |

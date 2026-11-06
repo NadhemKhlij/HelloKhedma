@@ -381,6 +381,29 @@ test("practice formats for support and DevOps: regex, cron, log analysis, jq", a
   await expect(jq).toContainText("Same output");
 });
 
+// "Fix this file" (training step 2d, js/filecheck.js): the starting file fails its checks, the fixed one passes.
+test("practice: fix a Dockerfile and a Kubernetes manifest", async ({ page }) => {
+  await practice(page, "docker");
+  const df = page.locator('[data-drill="fixfile"]').first();
+  await expect(df).toContainText("The final image does not run as root");
+  await df.getByRole("button", { name: /Check my file/ }).click();
+  await expect(df).toContainText("4 checks still fail", { timeout: 10_000 });
+  await expect(df).toContainText("CMD in shell form");
+  await df.getByLabel("The file to fix").fill(["FROM node:22-alpine", "WORKDIR /app", "COPY package*.json ./", "RUN npm ci --omit=dev",
+    "COPY . .", "USER node", "EXPOSE 3000", 'CMD ["node", "server.js"]'].join("\n"));
+  await df.getByRole("button", { name: /Check my file/ }).click();
+  await expect(df).toContainText("Every check passes");
+  await expect(solvedBadge(df)).toBeVisible();
+
+  await practice(page, "kubernetes");
+  const k8s = page.locator('[data-drill="fixfile"]').first();
+  await k8s.getByLabel("The file to fix").fill("kind: Deployment\nmetadata:\n\tname: api");
+  await k8s.getByRole("button", { name: /Check my file/ }).click();
+  await expect(k8s).toContainText("Line 3: the file cannot be read", { timeout: 10_000 });
+  await k8s.getByRole("button", { name: /Start again/ }).click();
+  await expect(k8s.getByLabel("The file to fix")).toHaveValue(/orders-api:latest/);
+});
+
 test("practice formats: order, match, spot the bug, scenario, fill in", async ({ page }) => {
   await practice(page, "terraform");
   const ord = page.locator('[data-drill="order"]').first();

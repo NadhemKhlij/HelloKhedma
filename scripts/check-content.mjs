@@ -14,7 +14,10 @@
 //   - auto-graded exercise formats (exercise.type, training steps 2b + 2c, js/drills.js): the fields of each format,
 //     accepted answers that compile, "___" blanks = blanks, the bug line inside the snippet, scenario steps with a best
 //     choice; files (content/logs, content/data) that exist; regex / cron / jq answers that run (js/drillcheck.js) and
-//     give a result; French copies with the same type, counts, correct option, bug line, files and code.
+//     give a result; French copies with the same type, counts, correct option, bug line, files and code;
+//   - "fix this file" exercises (type fixfile, training step 2d, js/filecheck.js): known rules of the right file kind,
+//     the course answer passes every check and the starting file fails at least one; French copies with the same
+//     starting file, rules and answer.
 // The same rules as scripts/check-fr-content.ps1 (French) and the course smoke test, plus the structure rules above.
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -23,6 +26,7 @@ import { createRequire } from "node:module";
 import { SKILLS } from "../js/ats.js";
 import { gradeResult } from "../js/sqlgrade.js";
 import { blanks as countBlanks, parseCron, regexRun, jq } from "../js/drillcheck.js";
+import { checkFile, RULES as FILE_RULES } from "../js/filecheck.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const C = (...p) => join(ROOT, "content", ...p);
@@ -91,7 +95,7 @@ function sameShape(where, a, b, { translated = true } = {}) {
 }
 
 /* ---------- auto-graded exercise formats (js/drills.js) ---------- */
-const TYPES = new Set(["choice", "fill", "order", "match", "groups", "bug", "scenario", "logs", "regex", "cron", "json"]);
+const TYPES = new Set(["choice", "fill", "order", "match", "groups", "bug", "scenario", "logs", "regex", "cron", "json", "fixfile"]);
 const fileText = (f) => (/^(logs|data)\/[a-z0-9_.-]+$/.test(f || "") && existsSync(C(f)) ? readFileSync(C(f), "utf8") : null);
 const regexOk = (a) => { const m = /^\/(.+)\/([a-z]*)$/s.exec(a); if (!m) return true; try { new RegExp(m[1], m[2]); return true; } catch { return false; } };
 const acceptList = (where, list) => {
@@ -159,11 +163,27 @@ function checkDrill(where, e) {
       if (!got.length || got.every((x) => x == null)) bad(where, "the answer returns nothing (or only null) on the file");
     } catch (err) { bad(where, `the answer fails on the file (${err.message})`); }
   }
+  if (t === "fixfile") {
+    if (!["yaml", "dockerfile"].includes(e.code)) { bad(where, 'code must be "yaml" or "dockerfile"'); return; }
+    if (!str(e.start) || !str(e.answer)) { bad(where, "needs start (the file to fix) and answer (a fixed file)"); return; }
+    if (!arr(e.rules).length) { bad(where, "needs rules"); return; }
+    const ids = e.rules.map((r) => (typeof r === "string" ? r : r?.id));
+    ids.forEach((id) => {
+      if (!FILE_RULES[id]) bad(where, `unknown rule "${id}" (js/filecheck.js)`);
+      else if (FILE_RULES[id].kind !== e.code) bad(where, `rule ${id} reads ${FILE_RULES[id].kind} files, not ${e.code}`);
+    });
+    if (!unique(ids)) bad(where, "a rule is listed twice");
+    const fixed = checkFile(e.code, e.answer, e.rules);
+    if (fixed.error) bad(where, `the answer cannot be read: line ${fixed.error.line}, ${fixed.error.reason}`);
+    fixed.results.filter((r) => !r.ok).forEach((r) => bad(where, `the answer fails ${r.id}: ${r.problems.map((p) => p.m).join(" / ")}`));
+    const start = checkFile(e.code, e.start, e.rules);
+    if (!start.error && start.results.every((r) => r.ok)) bad(where, "the starting file already passes every check");
+  }
 }
 // The two languages of a typed exercise: same type and shape, same correct answer, files and code.
 function sameDrill(where, a, b) {
   if (a.type !== b.type) { bad(where, `type ${a.type} vs ${b.type}`); return; }
-  for (const k of ["snippet", "lang", "correct", "line", "file", "mode", "flags", "text", "fix"]) if (JSON.stringify(a[k] ?? null) !== JSON.stringify(b[k] ?? null)) bad(where, `${k} differs between the two languages`);
+  for (const k of ["snippet", "lang", "correct", "line", "file", "mode", "flags", "text", "fix", "start", "rules"]) if (JSON.stringify(a[k] ?? null) !== JSON.stringify(b[k] ?? null)) bad(where, `${k} differs between the two languages`);
   for (const k of ["options", "blanks", "steps", "pairs", "groups", "fields"]) if (arr(a[k]).length !== arr(b[k]).length) bad(where, `${k}: ${arr(a[k]).length} vs ${arr(b[k]).length}`);
   arr(a.groups).forEach((g, k) => { if (arr(g.items).length !== arr(arr(b.groups)[k]?.items).length) bad(where, `group ${k + 1}: item count differs`); });
   if (a.type === "scenario") arr(a.steps).forEach((s, k) => {

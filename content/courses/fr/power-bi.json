@@ -421,6 +421,27 @@
         ]
       ],
       "answer": "CALCULATE est la plus importante : toutes les mesures d’intelligence temporelle l’utilisent. SUMX(Sales, Sales[Qty] * Sales[Price]) est le modèle pour les calculs par ligne ; DIVIDE([A], [B]) renvoie un vide au lieu d’une erreur."
+    },
+    {
+      "q": "Sur DAX.do (bouton ▶) : une requête DAX commence par EVALUATE et renvoie une table. À partir de cette petite table de ventes, renvoyez chaque produit avec une colonne Revenue (Qty × Price), du plus gros chiffre d’affaires au plus petit. Point de départ : EVALUATE VAR Sales = DATATABLE ( \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE, { { \"Laptop\", 3, 900 }, { \"Mouse\", 40, 15 }, { \"Screen\", 5, 180 }, { \"Desk\", 2, 250 } } ) RETURN …",
+      "hint": "ADDCOLUMNS ajoute une colonne calculée à une table, ligne par ligne ; ORDER BY [Revenue] DESC trie le résultat.",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Sales =\n    DATATABLE (\n        \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE,\n        {\n            { \"Laptop\", 3, 900 },\n            { \"Mouse\", 40, 15 },\n            { \"Screen\", 5, 180 },\n            { \"Desk\", 2, 250 }\n        }\n    )\nRETURN\n    ADDCOLUMNS ( Sales, \"Revenue\", [Qty] * [Price] )\nORDER BY [Revenue] DESC"
+    },
+    {
+      "q": "Sur DAX.do : même table, renvoyez maintenant une seule ligne avec le chiffre d’affaires total (4 700 attendu).",
+      "hint": "SUMX parcourt la table ligne par ligne et additionne Qty × Price ; ROW transforme une valeur en table d’une ligne que EVALUATE peut renvoyer.",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Sales =\n    DATATABLE (\n        \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE,\n        {\n            { \"Laptop\", 3, 900 },\n            { \"Mouse\", 40, 15 },\n            { \"Screen\", 5, 180 },\n            { \"Desk\", 2, 250 }\n        }\n    )\nRETURN\n    ROW ( \"Total revenue\", SUMX ( Sales, [Qty] * [Price] ) )"
+    },
+    {
+      "q": "Sur DAX.do : la table a maintenant une colonne Category (IT : Laptop 3 × 900, Mouse 40 × 15 ; Office : Desk 2 × 250, Chair 6 × 120). Renvoyez le chiffre d’affaires par catégorie (attendu : IT 3 300 et Office 1 220).",
+      "hint": "GROUPBY regroupe les lignes ; à l’intérieur, CURRENTGROUP() désigne les lignes du groupe courant, à parcourir avec SUMX.",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Sales =\n    DATATABLE (\n        \"Category\", STRING, \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE,\n        {\n            { \"IT\", \"Laptop\", 3, 900 },\n            { \"IT\", \"Mouse\", 40, 15 },\n            { \"Office\", \"Desk\", 2, 250 },\n            { \"Office\", \"Chair\", 6, 120 }\n        }\n    )\nRETURN\n    GROUPBY ( Sales, [Category], \"Revenue\", SUMX ( CURRENTGROUP (), [Qty] * [Price] ) )"
     }
   ],
   "interview": [
@@ -456,5 +477,10 @@
       "q": "Quand choisiriez-vous DirectQuery plutôt qu’Import ?",
       "a": "Quand les données doivent être proches du temps réel ou sont trop volumineuses pour être importées, ou quand elles doivent rester dans la source pour des raisons de gouvernance. Le prix à payer : des visuels plus lents, de la charge sur la base source et certaines limites en DAX et Power Query. Import reste donc le choix par défaut, et les modèles composites permettent de combiner les deux."
     }
-  ]
+  ],
+  "playground": {
+    "name": "DAX.do",
+    "url": "https://dax.do/",
+    "about": "DAX.do est un terrain de jeu DAX gratuit créé par SQLBI. Les exercices marqués ▶ construisent leur propre petite table avec DATATABLE : ils s’exécutent tels quels, quel que soit le modèle d’exemple affiché à gauche dans DAX.do."
+  }
 }

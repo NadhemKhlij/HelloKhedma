@@ -7,7 +7,11 @@
 //                    exercises: [{ q, hint?, answer, code?: "sql" | "python" | ... (answer shown as code),
 //                                  run?: { db, … } (runnable SQL), type?: "choice" | "fill" | … (auto-graded, drills.js),
 //                                  explain? (text under a code answer) }],
-//                    pitfalls: [..], interview: [{ q, a }] }
+//                    pitfalls: [..], interview: [{ q, a }],
+//                    playground?: { name, url, about? } }   a free online engine for this course (DAX.do for DAX):
+//                    lesson examples and written exercises with "try": true are full queries that run there; a ▶ button
+//                    copies the code (or the learner's attempt) and opens the playground in a new tab (just a link: nothing
+//                    is sent by HelloKhedma)
 // French: content/courses/fr/<id>.json (same structure and lesson order: progress is stored by lesson index) and
 // fr/index.json ([{ id, name, summary }], merged over index.json). Missing French files fall back to English.
 // Lesson progress is kept in this browser ("hk.lessons") and synced to the account when signed in (learnsync.js).
@@ -16,7 +20,7 @@
 // Course page: header with progress, then tabs: Lessons (one lesson at a time, lesson list + "Mark as done & continue"),
 // Quiz, Flashcards, Practice, Interview (practice.js) and the printable Cheat sheet. XP and "Resume" via activity.js.
 // At the bottom, "⚑ Report a problem" (report.js), preset to the open lesson or tab.
-import { $, h, ls, toast } from "./lib.js";
+import { $, h, ls, toast, safeUrl } from "./lib.js";
 import { t, lang, fetchContent } from "./i18n.js";
 import { isAiCourse, aiScript, aiMeta, aiDir, loadAiCourse, scriptSwitch } from "./aitrack.js";
 import { logActivity, setLastCourse, lastCourse } from "./activity.js";
@@ -112,14 +116,24 @@ export async function courseInterviewQuestions(pathId) {
     ({ id: `tech:${c.id}:${i}`, q: iv.q, model: iv.a, course: { id: c.id, name: c.name } })));
 }
 
-// Code with a Copy button (lessons and exercise answers).
-function codeBlock(lang, code) {
-  const btn = h("button", { type: "button", class: "btn-ghost !py-0.5 !px-2 !text-xs absolute top-2 right-2", "data-print-hide": "",
+// Code with a Copy button (lessons and exercise answers). play = the course's playground ({ name, url }, e.g. DAX.do)
+// when this code is a full query that runs there: "▶ name" copies the code and opens the playground in a new tab.
+export function playLink(play, getCode, label) {
+  const url = safeUrl(play?.url);
+  if (!url) return null;
+  return h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn-ghost !py-0.5 !px-2 !text-xs", "data-print-hide": "", "data-play": "",
+    title: t("Copies the code, then opens {name} in a new tab: paste it there and run it.", { name: play.name }),
+    onClick: () => { navigator.clipboard?.writeText(getCode()).then(() => toast(t("Code copied: paste it in {name} and run it.", { name: play.name })), () => {}); } },
+    label || t("▶ Run on {name}", { name: play.name }));
+}
+function codeBlock(lang, code, play) {
+  const btn = h("button", { type: "button", class: "btn-ghost !py-0.5 !px-2 !text-xs", "data-print-hide": "",
     onClick: async () => {
       try { await navigator.clipboard.writeText(code); btn.textContent = t("Copied ✓"); } catch { btn.textContent = t("Copy failed"); }
       setTimeout(() => { btn.textContent = t("Copy"); }, 1500);
     } }, t("Copy"));
-  return h("div", { class: "relative", dir: "ltr" }, h("pre", { class: "codeblock !pr-16", "data-lang": lang || "" }, h("code", {}, code)), btn); // ltr inside Arabic text too
+  return h("div", { class: "relative", dir: "ltr" }, h("pre", { class: `codeblock ${play ? "!pr-36" : "!pr-16"}`, "data-lang": lang || "" }, h("code", {}, code)), // ltr inside Arabic text too
+    h("div", { class: "absolute top-2 right-2 flex gap-1" }, play ? playLink(play, () => code) : null, btn));
 }
 
 function printCheatsheet() {
@@ -214,7 +228,7 @@ export async function renderCourse(id) {
           h("ul", { class: "grid gap-1.5 text-sm" }, l.points.map((p) => h("li", { class: "flex gap-2" }, h("span", { style: "color:var(--accent)" }, "●"), h("span", {}, p))))) : null,
         l.example ? h("div", { class: "grid gap-1" },
           h("p", { class: "eyebrow" }, t("Example")),
-          codeBlock(l.example.lang, l.example.code),
+          codeBlock(l.example.lang, l.example.code, l.example.try && c.playground),
           l.example.note ? h("p", { class: "mute text-xs" }, l.example.note) : null) : null,
         h("div", { class: "flex flex-wrap items-center gap-2 pt-3 mt-1", style: "border-top:1px solid var(--line)" },
           cur > 0 ? h("button", { type: "button", class: "btn-ghost", onClick: () => go(cur - 1) }, t("← Previous")) : null,
@@ -243,7 +257,7 @@ export async function renderCourse(id) {
     if (tab === "lessons") drawLessons();
     else if (tab === "quiz") panel(t("Quiz"), t("Questions drawn from the cheat sheet. A new mix every time."), (b) => quiz(b, c, { onReview: () => show("cards") }));
     else if (tab === "cards") panel(t("Flashcards"), t("Flip each card, then say whether you knew it. Known cards are set aside."), (b) => flashcards(b, c));
-    else if (tab === "practice") panel(t("Practice"), t("Try each exercise yourself before revealing the answer."), (b) => exercises(b, c, codeBlock));
+    else if (tab === "practice") panel(t("Practice"), t("Try each exercise yourself before revealing the answer."), (b) => exercises(b, c, codeBlock, playLink));
     else if (tab === "interview") panel(t("Interview questions"), t("Questions recruiters ask about {name}.", { name: c.name }), (b) => interviewCards(b, c));
     else drawCheat();
     drawProgress();

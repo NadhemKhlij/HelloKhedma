@@ -421,6 +421,27 @@
         ]
       ],
       "answer": "CALCULATE is the most important one: every time-intelligence measure uses it. SUMX(Sales, Sales[Qty] * Sales[Price]) is the pattern for row-level maths; DIVIDE([A], [B]) returns blank instead of an error."
+    },
+    {
+      "q": "On DAX.do (▶ button): a DAX query starts with EVALUATE and returns a table. From this small sales table, return each product with a Revenue column (Qty × Price), highest revenue first. Start from: EVALUATE VAR Sales = DATATABLE ( \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE, { { \"Laptop\", 3, 900 }, { \"Mouse\", 40, 15 }, { \"Screen\", 5, 180 }, { \"Desk\", 2, 250 } } ) RETURN …",
+      "hint": "ADDCOLUMNS adds a computed column to a table, row by row; ORDER BY [Revenue] DESC sorts the result.",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Sales =\n    DATATABLE (\n        \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE,\n        {\n            { \"Laptop\", 3, 900 },\n            { \"Mouse\", 40, 15 },\n            { \"Screen\", 5, 180 },\n            { \"Desk\", 2, 250 }\n        }\n    )\nRETURN\n    ADDCOLUMNS ( Sales, \"Revenue\", [Qty] * [Price] )\nORDER BY [Revenue] DESC"
+    },
+    {
+      "q": "On DAX.do: same table, now return a single row with the total revenue (expected 4,700).",
+      "hint": "SUMX walks the table row by row and adds up Qty × Price; ROW turns one value into a one-row table that EVALUATE can return.",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Sales =\n    DATATABLE (\n        \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE,\n        {\n            { \"Laptop\", 3, 900 },\n            { \"Mouse\", 40, 15 },\n            { \"Screen\", 5, 180 },\n            { \"Desk\", 2, 250 }\n        }\n    )\nRETURN\n    ROW ( \"Total revenue\", SUMX ( Sales, [Qty] * [Price] ) )"
+    },
+    {
+      "q": "On DAX.do: the table now has a Category column (IT: Laptop 3 × 900, Mouse 40 × 15; Office: Desk 2 × 250, Chair 6 × 120). Return the revenue per category (expected IT 3,300 and Office 1,220).",
+      "hint": "GROUPBY groups the rows; inside it, CURRENTGROUP() is the rows of the current group, to iterate with SUMX.",
+      "code": "dax",
+      "try": true,
+      "answer": "EVALUATE\nVAR Sales =\n    DATATABLE (\n        \"Category\", STRING, \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE,\n        {\n            { \"IT\", \"Laptop\", 3, 900 },\n            { \"IT\", \"Mouse\", 40, 15 },\n            { \"Office\", \"Desk\", 2, 250 },\n            { \"Office\", \"Chair\", 6, 120 }\n        }\n    )\nRETURN\n    GROUPBY ( Sales, [Category], \"Revenue\", SUMX ( CURRENTGROUP (), [Qty] * [Price] ) )"
     }
   ],
   "interview": [
@@ -456,5 +477,10 @@
       "q": "When would you choose DirectQuery instead of Import?",
       "a": "When data must be close to real time or is too large to import, or when the data must stay in the source for governance reasons. The cost is slower visuals, load on the source database and some DAX and Power Query limitations, so Import remains the default and composite models can mix both."
     }
-  ]
+  ],
+  "playground": {
+    "name": "DAX.do",
+    "url": "https://dax.do/",
+    "about": "DAX.do is a free DAX query playground made by SQLBI. The exercises marked ▶ build their own small table with DATATABLE, so they run as they are, whatever sample model DAX.do shows on the left."
+  }
 }

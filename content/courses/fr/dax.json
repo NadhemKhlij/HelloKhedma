@@ -1,0 +1,579 @@
+{
+  "why": "La plupart des entretiens Power BI pour les postes d’analyste vont au-delà de SUM et du cumul annuel : on vous demande pourquoi un total semble faux, comment CALCULATE traite un segment, comment classer ou comparer des périodes correctement et comment accélérer un rapport lent. Maîtriser les contextes d’évaluation, c’est ce qui distingue celui qui copie des mesures de celui qui sait les écrire et les déboguer.",
+  "outcome": "raisonner en contexte de ligne et de filtre, maîtriser CALCULATE et la transition de contexte, écrire des mesures justes d’intelligence temporelle, de classement, de Top N, de nouveaux clients, de Pareto et de solde de clôture, utiliser les relations depuis DAX, et diagnostiquer et organiser un modèle avec DAX Studio, les groupes de calcul et un nommage clair.",
+  "lessons": [
+    {
+      "title": "Les contextes d’évaluation pour de vrai : contexte de ligne, contexte de filtre et ce qu’envoie un visuel",
+      "text": [
+        "Toute expression DAX s’exécute dans deux contextes possibles. Le contexte de filtre est l’ensemble des filtres actifs sur les colonnes du modèle : il décide quelles lignes de Sales une mesure voit. Le contexte de ligne n’existe que pendant que DAX parcourt une table ligne par ligne : dans une colonne calculée ou dans un itérateur comme SUMX. Le point que testent les entretiens : un contexte de ligne ne filtre rien. Une colonne calculée Sales All Customers = SUM ( Sales[NetAmount] ) dans la table Customer renvoie le total général sur chaque ligne, car parcourir Customer ne filtre pas Sales.",
+        "Un visuel construit le contexte de filtre pour vous. Pour une matrice avec Product[Category] en lignes et 'Date'[Year] en colonnes, Power BI envoie une requête DAX (construite avec SUMMARIZECOLUMNS) et chaque cellule est évaluée avec les filtres de sa ligne et de sa colonne, plus les segments, les filtres de page et de rapport et les filtres du visuel. Les filtres sur Product passent ensuite par la relation un-à-plusieurs jusqu’à Sales. Les lignes où toutes les mesures sont vides sont retirées du résultat : c’est pourquoi les catégories vides disparaissent.",
+        "La ligne de total n’est pas la somme des lignes au-dessus. C’est la même mesure évaluée à nouveau avec moins de filtres : le filtre de catégorie est simplement absent. Pour une mesure additive comme Sales Amount, les deux coïncident ; pour Customers (un comptage distinct) ou une moyenne, non, car un client qui a acheté des vélos et des casques compte une seule fois dans le total. C’est le comportement attendu, pas un bug, et il faut savoir l’expliquer aux utilisateurs.",
+        "Pour déboguer une mesure, regardez son contexte. Placez-la dans une matrice à côté de la dimension, calculez une cellule à la main, puis inspectez le contexte avec ISINSCOPE (cette colonne regroupe-t-elle la cellule courante, ce qui distingue les lignes de détail des totaux), HASONEVALUE et SELECTEDVALUE. La vue de requête DAX de Power BI Desktop et DAX Studio permettent de lancer des requêtes EVALUATE et de voir exactement ce que renvoie une mesure."
+      ],
+      "points": [
+        "Contexte de filtre = les lignes que voit une mesure ; contexte de ligne = la ligne courante d’une itération.",
+        "Un contexte de ligne ne filtre pas les tables liées : seul CALCULATE (transition de contexte) le transforme en filtre.",
+        "Chaque cellule d’un visuel est une évaluation distincte, avec son propre contexte de filtre.",
+        "Les totaux sont réévalués, pas additionnés : comptages distincts et moyennes ne sont pas additifs.",
+        "ISINSCOPE distingue une ligne de détail d’un total ; SELECTEDVALUE renvoie la valeur unique ou un vide."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "-- Calculated columns on Customer (row context, computed at refresh)\nSales All Customers = SUM ( Sales[NetAmount] )            -- grand total on every row\nCustomer Sales = CALCULATE ( SUM ( Sales[NetAmount] ) )   -- this customer's sales\n\n-- Measures (filter context, computed for every cell of a visual)\nSales Amount = SUM ( Sales[NetAmount] )\n\nCustomers = DISTINCTCOUNT ( Sales[CustomerKey] )\n\nSales per Customer = DIVIDE ( [Sales Amount], [Customers] )\n\nCategory Label =\nIF (\n    ISINSCOPE ( Product[Category] ),\n    SELECTEDVALUE ( Product[Category] ),\n    \"All categories\"\n)",
+        "note": "Customers sur la ligne de total est inférieur à la somme des lignes de catégorie : les clients ayant acheté dans plusieurs catégories sont comptés une fois. Sales per Customer au niveau du total n’est donc pas non plus la moyenne des lignes."
+      }
+    },
+    {
+      "title": "CALCULATE en profondeur : arguments de filtre, KEEPFILTERS et transition de contexte",
+      "text": [
+        "CALCULATE suit un ordre précis. Il évalue ses arguments de filtre dans le contexte de filtre d’origine, puis transforme un éventuel contexte de ligne en filtres (transition de contexte), applique ensuite les modificateurs comme REMOVEFILTERS, USERELATIONSHIP ou CROSSFILTER, puis les arguments de filtre, et seulement alors évalue l’expression. Un filtre booléen comme Product[Color] = \"Red\" est un raccourci de FILTER ( ALL ( Product[Color] ), Product[Color] = \"Red\" ) : il remplace tout filtre existant sur cette colonne. Dans une matrice par couleur, Red Sales affiche les ventes rouges sur la ligne Blue.",
+        "KEEPFILTERS transforme le remplacement en intersection : la ligne Blue devient vide, et un segment sur Red et Blue continue de fonctionner. Aucun des deux n’est faux ; tout dépend de la question. « Les ventes rouges, quelle que soit la couleur sélectionnée » demande le filtre simple, « les ventes de la sélection qui sont rouges » demande KEEPFILTERS. Demandez à l’utilisateur métier ce qu’il veut dire avant de l’écrire.",
+        "Pour retirer des filtres, il existe plusieurs outils. REMOVEFILTERS (un modificateur, le nom le plus clair) et ALL suppriment les filtres d’une table ou de colonnes ; ALL peut aussi renvoyer une table. ALLEXCEPT ( Product, Product[Category] ) supprime tous les filtres de Product sauf la catégorie, mais retire aussi un segment sur la marque. ALLSELECTED rétablit les filtres venant de l’extérieur du visuel (segments, filtres de page) en retirant ceux de ses lignes et colonnes : utilisez-le pour un pourcentage du total visible.",
+        "La transition de contexte se produit dès que CALCULATE s’exécute dans un contexte de ligne, et chaque référence à une mesure contient un CALCULATE implicite. C’est ce qui fait fonctionner MAXX ( VALUES ( Customer[CustomerKey] ), [Sales Amount] ) client par client. Elle a deux coûts : elle est chère sur les grandes tables, et sur une table sans clé unique elle filtre toutes les lignes identiques, si bien que SUMX ( Sales, [Sales Amount] ) peut compter deux fois des lignes en double. Parcourez une dimension ou une colonne de clés, pas la table de faits."
+      ],
+      "points": [
+        "Les arguments de filtre sont évalués dans le contexte d’origine, avant la transition de contexte.",
+        "Un filtre booléen écrase les filtres de sa colonne ; KEEPFILTERS fait l’intersection.",
+        "REMOVEFILTERS pour la clarté, ALLEXCEPT garde les colonnes choisies, ALLSELECTED garde la sélection extérieure.",
+        "Toute référence à une mesure dans un itérateur déclenche une transition de contexte.",
+        "Ne parcourez jamais la table de faits avec une mesure : parcourez les clés d’une dimension."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Red Sales =\nCALCULATE ( [Sales Amount], Product[Color] = \"Red\" )\n\nRed Sales (keep filters) =\nCALCULATE ( [Sales Amount], KEEPFILTERS ( Product[Color] = \"Red\" ) )\n\n% of All Categories =\nDIVIDE (\n    [Sales Amount],\n    CALCULATE ( [Sales Amount], REMOVEFILTERS ( Product[Category] ) )\n)\n\n% of Visible Total =\nDIVIDE ( [Sales Amount], CALCULATE ( [Sales Amount], ALLSELECTED () ) )\n\nCategory Sales (all products) =\nCALCULATE ( [Sales Amount], ALLEXCEPT ( Product, Product[Category] ) )",
+        "note": "REMOVEFILTERS ( Product[Category] ) ne vide que cette colonne : mettez Product[Subcategory] en lignes et le filtre de sous-catégorie reste, donc chaque ligne affiche 100 %. Retirez les colonnes réellement présentes dans le visuel."
+      }
+    },
+    {
+      "title": "Itérateurs et variables : calculer au bon grain",
+      "text": [
+        "Un itérateur (SUMX, AVERAGEX, MINX, MAXX, COUNTX, RANKX, FILTER) crée un contexte de ligne sur une table, évalue une expression pour chaque ligne et agrège les résultats. SUM ( Sales[NetAmount] ) est en fait un raccourci de SUMX ( Sales, Sales[NetAmount] ). Un itérateur explicite est nécessaire quand le calcul doit avoir lieu avant l’agrégation, comme quantité fois prix, ou à un autre grain que celui du visuel.",
+        "Choisir la table à parcourir, c’est choisir le grain. AVERAGEX ( VALUES ( 'Date'[YearMonth] ), [Sales Amount] ) est la moyenne mensuelle des ventes de la période, quoi qu’affiche le visuel ; MAXX ( VALUES ( Customer[CustomerKey] ), [Sales Amount] ) donne les ventes du meilleur client. Parcourez la plus petite table qui a le grain voulu : quelques milliers de clients, pas cinquante millions de lignes de commande.",
+        "FILTER est un itérateur qui renvoie une table, et c’est l’outil quand une condition a besoin d’une mesure, car un argument de filtre booléen de CALCULATE ne peut pas référencer une mesure. COUNTROWS ( FILTER ( VALUES ( Customer[CustomerKey] ), [Sales Amount] > 1000 ) ) compte les clients au-dessus de 1 000. Mais FILTER ( Sales, … ) sur toute une table de faits, ou FILTER ( ALL ( Product ), … ) utilisé comme argument de CALCULATE, est lent et retire aussi des filtres que vous voudriez garder : filtrez des colonnes, pas des tables.",
+        "VAR … RETURN rend les mesures lisibles et plus rapides, car chaque variable n’est évaluée qu’une fois. Une variable est évaluée là où elle est définie, dans le contexte de ce moment, puis c’est une constante : CALCULATE ( CurrentSales, 'Date'[Year] = 2025 ) renvoie les ventes courantes, pas celles de 2025. Utilisez des variables pour les valeurs réutilisées, et pour déboguer : renvoyez une variable intermédiaire avec RETURN pour voir ce qu’elle contient."
+      ],
+      "points": [
+        "SUM(colonne) = SUMX(table, colonne) : les itérateurs sont la forme générale.",
+        "La table parcourue fixe le grain : mois, clients, magasins.",
+        "Utilisez FILTER sur une dimension quand la condition a besoin d’une mesure.",
+        "Une VAR est évaluée une fois, là où elle est définie, et ne change plus ensuite.",
+        "Renvoyez une variable intermédiaire avec RETURN pour déboguer une longue mesure."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Avg Monthly Sales =\nAVERAGEX ( VALUES ( 'Date'[YearMonth] ), [Sales Amount] )\n\nBest Customer Sales =\nMAXX ( VALUES ( Customer[CustomerKey] ), [Sales Amount] )\n\nCustomers over 1000 =\nCOUNTROWS (\n    FILTER ( VALUES ( Customer[CustomerKey] ), [Sales Amount] > 1000 )\n)\n\nSales vs PY Label =\nVAR CurrentSales = [Sales Amount]\nVAR PreviousSales =\n    CALCULATE ( [Sales Amount], DATEADD ( 'Date'[Date], -1, YEAR ) )\nRETURN\n    SWITCH (\n        TRUE (),\n        ISBLANK ( CurrentSales ), BLANK (),\n        ISBLANK ( PreviousSales ), \"New\",\n        FORMAT ( DIVIDE ( CurrentSales - PreviousSales, PreviousSales ), \"0.0%\" )\n    )\n\n-- Wrong: a variable is a constant, CALCULATE cannot change it\nSales 2025 (wrong) =\nVAR CurrentSales = [Sales Amount]\nRETURN CALCULATE ( CurrentSales, 'Date'[Year] = 2025 )",
+        "note": "Sales 2025 (wrong) renvoie les ventes courantes, car CurrentSales a été calculée avant CALCULATE. Écrivez plutôt CALCULATE ( [Sales Amount], 'Date'[Year] = 2025 ). Le test ISBLANK sur CurrentSales évite d’afficher les lignes sans ventes."
+      }
+    },
+    {
+      "title": "L’intelligence temporelle bien faite : table de dates, cumul annuel, année précédente et périodes glissantes",
+      "text": [
+        "Les fonctions d’intelligence temporelle renvoient un ensemble de dates que CALCULATE utilise comme filtre : elles dépendent donc de la table de dates. Il faut une ligne par jour sans trou, des années complètes, une colonne Date unique et l’option Marquer comme table de dates. Quand un filtre d’intelligence temporelle s’applique à 'Date'[Date], DAX retire les autres filtres de 'Date' (année, mois) pour que les dates décalées ne soient pas croisées avec les dates courantes ; marquer la table le garantit même quand la relation utilise une clé entière. Passez toujours 'Date'[Date], jamais Sales[OrderDate].",
+        "TOTALYTD et DATESYTD acceptent une date de fin d’année pour les exercices fiscaux : TOTALYTD ( [Sales Amount], 'Date'[Date], \"06-30\" ) pour un exercice clos le 30 juin. Ajoutez des colonnes FiscalYear et FiscalMonth à la table de dates pour l’axe. Les calendriers commerciaux en semaines 4-4-5 ne conviennent pas aux fonctions classiques : utilisez des colonnes de semaines et vos propres filtres, ou l’intelligence temporelle basée sur des calendriers, apparue en préversion fin 2025 (vérifiez son statut dans votre version de Desktop).",
+        "Les comparaisons avec l’année précédente cachent un piège. Si les données s’arrêtent au 31 octobre 2026 alors que la table de dates va jusqu’en décembre, le total 2026 compare dix mois à douze mois de 2025, et l’évolution annuelle paraît catastrophique. Ajoutez une colonne DateWithSales à la table de dates et restreignez les dates avant de les décaler. Dans YoY %, renvoyez un vide quand l’une des deux années est vide, pour que les nouveaux produits n’affichent pas +∞ ou -100 %.",
+        "Les périodes glissantes utilisent DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -12, MONTH ) : la dernière date visible, en remontant 12 mois. MAX est évalué dans le contexte d’origine, car les arguments de filtre sont calculés avant que CALCULATE les applique. DATEADD décale les dates visibles d’un nombre de jours, mois, trimestres ou années et fonctionne à n’importe quel niveau du visuel."
+      ],
+      "points": [
+        "Table de dates : tous les jours, années complètes, dates uniques, marquée comme table de dates, date/heure automatique désactivée.",
+        "Utilisez toujours 'Date'[Date] dans les fonctions d’intelligence temporelle, pas une colonne de faits.",
+        "Exercice fiscal : passez la date de fin d’année, par ex. \"06-30\", à TOTALYTD ou DATESYTD.",
+        "Limitez les comparaisons avec l’année précédente aux dates qui ont déjà des données.",
+        "12 mois glissants = DATESINPERIOD se terminant à la dernière date visible."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "-- Calculated column in 'Date': DateWithSales = 'Date'[Date] <= MAX ( Sales[OrderDate] )\n\nSales YTD = TOTALYTD ( [Sales Amount], 'Date'[Date] )\n\nSales FYTD = TOTALYTD ( [Sales Amount], 'Date'[Date], \"06-30\" )\n\nSales PY =\nCALCULATE (\n    [Sales Amount],\n    CALCULATETABLE (\n        SAMEPERIODLASTYEAR ( 'Date'[Date] ),\n        'Date'[DateWithSales] = TRUE\n    )\n)\n\nSales YoY % =\nVAR Cur = [Sales Amount]\nVAR Prev = [Sales PY]\nRETURN IF ( ISBLANK ( Cur ) || ISBLANK ( Prev ), BLANK (), DIVIDE ( Cur - Prev, Prev ) )\n\nSales R12M =\nCALCULATE (\n    [Sales Amount],\n    DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -12, MONTH )\n)",
+        "note": "Le CALCULATETABLE ne garde que les dates courantes qui ont des ventes avant de les reculer d’un an : 2026 (jusqu’à octobre) est comparé à janvier–octobre 2025, pas à toute l’année 2025."
+      }
+    },
+    {
+      "title": "Classement et Top N : RANKX, ex aequo et la ligne « Autres »",
+      "text": [
+        "RANKX ( table, expression, value, order, ties ) évalue l’expression pour chaque ligne de la table (une mesure déclenche la transition de contexte), puis l’évalue une fois de plus dans le contexte courant et renvoie sa position. La table doit contenir tous les concurrents : avec VALUES ( Product[Product Name] ), elle ne contient que le produit courant, donc chaque produit est classé 1. ALL ( Product[Product Name] ) classe parmi tous les noms de produits, même ceux écartés par un segment ou un filtre sur cette colonne ; ALLSELECTED classe parmi les noms sélectionnés par l’utilisateur. Les filtres sur d’autres tables, comme l’année ou le magasin, s’appliquent toujours.",
+        "Les ex aequo utilisent SKIP par défaut (1, 2, 2, 4) ; DENSE donne 1, 2, 2, 3. Classez sur une colonne unique : deux produits portant le même nom seraient fusionnés. Renvoyez un vide sur la ligne de total avec ISINSCOPE, et décidez si les produits sans ventes doivent être classés. Les fonctions de fenêtre RANK, ROWNUMBER, INDEX et OFFSET (ajoutées en 2022–2023) classent avec ORDERBY et PARTITIONBY explicites et méritent d’être connues, mais RANKX reste le plus courant dans les modèles existants.",
+        "« Les 5 meilleurs produits et Autres » est une demande classique. Le visuel a besoin d’une ligne Others qui n’existe pas dans Product : vous créez donc une table calculée des noms plus \"Others\", non reliée au modèle, et mettez sa colonne en lignes. La mesure renvoie les ventes d’un nom quand il est dans le top 5, les ventes de tous les autres produits sur la ligne Others, et un vide ailleurs pour que le visuel masque le reste.",
+        "TOPN ( 5, table, expression, DESC ) renvoie les meilleures lignes sous forme de table, réutilisable comme filtre ou avec EXCEPT. Elle renvoie plus de 5 lignes en cas d’égalité à la cinquième position : précisez comment les ex aequo sont traités quand vous montrez le résultat."
+      ],
+      "points": [
+        "RANKX a besoin de la liste complète des concurrents : ALL ou ALLSELECTED, jamais VALUES seul.",
+        "ALL ignore une sélection sur la colonne classée ; ALLSELECTED classe à l’intérieur de cette sélection.",
+        "Ex aequo : SKIP (par défaut) ou DENSE.",
+        "Videz le rang sur les totaux avec ISINSCOPE.",
+        "TOPN peut renvoyer plus de N lignes en cas d’égalité."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "Product Rank =\nIF (\n    ISINSCOPE ( Product[Product Name] ),\n    RANKX ( ALLSELECTED ( Product[Product Name] ), [Sales Amount], , DESC, DENSE )\n)\n\n-- Calculated table, not related to anything: every name plus an \"Others\" row\nProduct Ranking = UNION ( DISTINCT ( Product[Product Name] ), { \"Others\" } )\n\nTop 5 + Others =\nVAR AllNames = ALLSELECTED ( Product[Product Name] )\nVAR TopProducts = TOPN ( 5, AllNames, [Sales Amount], DESC )\nVAR CurrentName = SELECTEDVALUE ( 'Product Ranking'[Product Name] )\nRETURN\n    SWITCH (\n        TRUE (),\n        NOT ISINSCOPE ( 'Product Ranking'[Product Name] ), [Sales Amount],\n        CurrentName = \"Others\",\n            CALCULATE ( [Sales Amount], EXCEPT ( AllNames, TopProducts ) ),\n        CurrentName IN TopProducts,\n            CALCULATE ( [Sales Amount], TREATAS ( { CurrentName }, Product[Product Name] ) )\n    )",
+        "note": "Le visuel trie par ventes, donc Others peut apparaître en haut quand la traîne est importante. Ajoutez une mesure de tri (le rang, avec Others en dernier) ou triez par une colonne. Un vrai produit nommé \"Others\" casserait le modèle."
+      }
+    },
+    {
+      "title": "Les relations en DAX : USERELATIONSHIP, CROSSFILTER et TREATAS",
+      "text": [
+        "Sales a deux dates, OrderDate et DeliveryDate, mais une seule relation entre 'Date' et Sales peut être active. Gardez OrderDate active, créez la relation DeliveryDate comme inactive, et utilisez USERELATIONSHIP dans CALCULATE dans les mesures qui en ont besoin : la relation active est ignorée pendant l’évaluation de cette mesure. Si les utilisateurs doivent filtrer à la fois par date de commande et par date de livraison (commandé en janvier, livré en février), une seconde dimension de dates est plus simple que des mesures.",
+        "Les relations filtrent du côté un vers le côté plusieurs. Passer une relation en double sens dans le modèle est tentant, mais crée des chemins ambigus et ralentit toutes les requêtes. CROSSFILTER ( Sales[ProductKey], Product[ProductKey], BOTH ) active les deux sens pour une seule mesure, par exemple pour compter les marques achetées par les clients sélectionnés ; NONE désactive une relation le temps d’un calcul.",
+        "TREATAS applique les valeurs d’une table comme filtres sur les colonnes d’une autre table : une relation virtuelle. Cas typique : un budget stocké par Category et YearMonth, sans relation avec le modèle, car son grain est plus grossier que Product et 'Date'. TREATAS ( VALUES ( Product[Category] ), Budget[Category] ) reporte la sélection de catégorie sur le budget. C’est plus propre et plus rapide que les modèles FILTER ou INTERSECT, mais une relation physique vers une dimension Category partagée reste plus rapide et plus simple pour les auteurs de rapports.",
+        "Les relations plusieurs-à-plusieurs, où aucun côté n’a de valeurs uniques, sont autorisées dans Power BI mais faciles à mal lire. Sous le grain du budget, chaque produit d’une catégorie affiche le budget complet de la catégorie, et les totaux ne sont pas la somme des lignes. N’affichez ces mesures qu’à leur grain, par exemple avec ISINSCOPE, et documentez-le. Les tables de pont avec filtres bidirectionnels, comme des clients partageant des comptes, donnent des totaux non additifs : testez-les sur un petit échantillon."
+      ],
+      "points": [
+        "Une seule relation active entre deux tables ; activez les autres avec USERELATIONSHIP.",
+        "CROSSFILTER change le sens (BOTH, ONEWAY, NONE) pour une seule mesure.",
+        "TREATAS crée une relation virtuelle : les valeurs doivent correspondre en type et en format.",
+        "Préférez une dimension partagée à TREATAS quand le modèle sert à de nombreux rapports.",
+        "N’affichez les résultats plusieurs-à-plusieurs qu’au grain où ils ont un sens."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "-- Model: 'Date'[Date] -> Sales[OrderDate] (active), 'Date'[Date] -> Sales[DeliveryDate] (inactive)\nSales by Delivery Date =\nCALCULATE (\n    [Sales Amount],\n    USERELATIONSHIP ( Sales[DeliveryDate], 'Date'[Date] )\n)\n\nBrands Bought =\nCALCULATE (\n    DISTINCTCOUNT ( Product[Brand] ),\n    CROSSFILTER ( Sales[ProductKey], Product[ProductKey], BOTH )\n)\n\n-- Budget (Category, YearMonth, Amount) has no relationship in the model\nBudget Amount =\nCALCULATE (\n    SUM ( Budget[Amount] ),\n    TREATAS ( VALUES ( Product[Category] ), Budget[Category] ),\n    TREATAS ( VALUES ( 'Date'[YearMonth] ), Budget[YearMonth] )\n)",
+        "note": "TREATAS compare les valeurs à l’identique : stockez YearMonth sous le même entier (202611) dans 'Date' et dans Budget. Sans CROSSFILTER, Brands Bought compterait toutes les marques, car Sales ne filtre pas Product."
+      }
+    },
+    {
+      "title": "Tables virtuelles et modèles avancés : nouveaux clients, Pareto et soldes de clôture",
+      "text": [
+        "Une mesure peut construire des tables en mémoire puis les agréger. VALUES renvoie les valeurs visibles d’une colonne, ADDCOLUMNS ajoute des colonnes calculées à une table (une mesure à l’intérieur déclenche la transition de contexte) et FILTER garde les lignes utiles. SUMMARIZECOLUMNS est ce qu’utilisent les visuels dans leurs requêtes et le meilleur choix dans les requêtes DAX et les tables calculées ; dans les mesures, ADDCOLUMNS sur VALUES est le modèle classique et sûr. Préfixez les colonnes virtuelles, par exemple @FirstDate, pour ne pas les confondre avec les colonnes du modèle.",
+        "Nouveaux clients : un client est nouveau sur une période quand son tout premier achat y tombe. Prenez les clients qui ont acheté sur la période, ajoutez leur première date de commande calculée avec REMOVEFILTERS ( 'Date' ), et comptez ceux dont la première date est égale ou postérieure au début de la période. Les clients fidèles sont les autres. Les autres filtres restent : avec un segment Bikes, « nouveau » veut dire nouveau sur les vélos, alors validez la définition avec le métier.",
+        "L’analyse ABC ou de Pareto classe les produits par ventes et cumule leur part : la classe A fait les premiers 80 % des ventes, B les 15 % suivants, C le reste. En mesure, elle réagit aux segments (meilleurs produits de ce magasin cette année) ; en colonne calculée, elle est figée au rafraîchissement mais rapide et utilisable comme segment. Les produits aux ventes égales obtiennent la même part cumulée.",
+        "Les soldes, niveaux de stock et effectifs sont semi-additifs : ils s’additionnent entre magasins et produits, mais pas dans le temps. Additionner un instantané de stock quotidien sur un mois donne un nombre sans signification ; le stock de clôture est la valeur à la dernière date. LASTDATE renvoie la dernière date de la période même sans instantané ce jour-là, LASTNONBLANK la dernière date qui a des données. Ici, une table d’instantanés Stock (Date, StoreKey, ProductKey, UnitsOnHand) rejoint le modèle."
+      ],
+      "points": [
+        "Tables virtuelles : VALUES, ADDCOLUMNS, FILTER, puis COUNTROWS ou SUMX.",
+        "Nouveau client = premier achat de tous les temps (REMOVEFILTERS sur les dates) dans la période.",
+        "Pareto : part cumulée des ventes sur les produits triés par ventes.",
+        "Semi-additif : somme entre magasins, dernière valeur dans le temps.",
+        "LASTDATE = dernière date de la période ; LASTNONBLANK = dernière date avec données."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "New Customers =\nVAR PeriodStart = MIN ( 'Date'[Date] )\nVAR FirstPurchases =\n    ADDCOLUMNS (\n        VALUES ( Sales[CustomerKey] ),\n        \"@FirstDate\", CALCULATE ( MIN ( Sales[OrderDate] ), REMOVEFILTERS ( 'Date' ) )\n    )\nRETURN\n    COUNTROWS ( FILTER ( FirstPurchases, [@FirstDate] >= PeriodStart ) )\n\nReturning Customers = [Customers] - [New Customers]\n\n-- Stock: one row per Date, StoreKey, ProductKey with UnitsOnHand (daily snapshot)\nClosing Stock =\nVAR LastStockDate =\n    LASTNONBLANK ( 'Date'[Date], CALCULATE ( SUM ( Stock[UnitsOnHand] ) ) )\nRETURN\n    CALCULATE ( SUM ( Stock[UnitsOnHand] ), LastStockDate )",
+        "note": "Au niveau de tous les magasins, LASTNONBLANK trouve une seule date pour tous : un magasin dont le dernier instantané date de la veille disparaît du total. Calculez le stock de clôture par magasin puis additionnez (voir les exercices)."
+      }
+    },
+    {
+      "title": "Performance et maintenabilité : moteurs, DAX Studio et groupes de calcul",
+      "text": [
+        "Une requête s’exécute sur deux moteurs. Le moteur de stockage (VertiPaq en mode Import) parcourt des colonnes compressées, est multithread et met les résultats en cache ; le moteur de formules est monothread et traite tout ce que le moteur de stockage ne sait pas faire, comme une logique IF complexe ou la transition de contexte ligne par ligne. Un DAX rapide confie le travail au moteur de stockage. La taille du modèle compte toujours : les colonnes à forte cardinalité sont les premières à retirer.",
+        "Mesurez, ne devinez pas. Performance Analyzer montre quel visuel est lent ; copiez sa requête dans DAX Studio, videz le cache et lancez-la avec Server Timings. Une grande part de moteur de formules, ou des centaines de requêtes au moteur de stockage, désigne une itération avec transition de contexte sur une grosse table ; CallbackDataID dans une requête du moteur de stockage signifie qu’il a dû rappeler le moteur de formules pour chaque ligne. Changez une chose à la fois et comparez.",
+        "Les bonnes habitudes paient : filtrez des colonnes, pas des tables entières (KEEPFILTERS ( Sales[Quantity] >= 10 ) au lieu de FILTER ( Sales, … )) ; parcourez les clés des dimensions, pas la table de faits ; stockez les résultats réutilisés dans des variables ; utilisez DIVIDE pour les divisions qui peuvent tomber sur zéro ; ne transformez pas les vides en zéros partout, car une mesure qui ne renvoie jamais de vide oblige les visuels à afficher toutes les combinaisons de lignes.",
+        "La maintenabilité fait partie du métier. Les groupes de calcul, désormais créables dans la vue modèle de Power BI Desktop, appliquent YTD, PY ou YoY % à n’importe quelle mesure via SELECTEDMEASURE, au lieu de trois copies de chaque mesure ; ils touchent toutes les mesures du visuel, donc excluez les ratios avec ISSELECTEDMEASURE si besoin, et prévoyez des mesures explicites, car en créer un peut activer le paramètre Décourager les mesures implicites. Les paramètres de champ permettent aux utilisateurs de changer de mesure ou de colonne dans un visuel (longtemps en préversion : vérifiez votre version). Rangez les mesures de base dans une table de mesures dédiée avec des dossiers d’affichage, des noms cohérents (Sales Amount, Sales PY, Sales YoY %), des chaînes de format et des descriptions."
+      ],
+      "points": [
+        "Moteur de stockage : rapide, parallèle, en cache ; moteur de formules : monothread.",
+        "Performance Analyzer trouve le visuel ; Server Timings de DAX Studio l’explique.",
+        "Filtrez des colonnes, pas des tables ; ne parcourez jamais la table de faits avec une mesure.",
+        "Les groupes de calcul remplacent les familles de mesures temporelles grâce à SELECTEDMEASURE.",
+        "Une table de mesures, des dossiers d’affichage et des noms cohérents rendent un modèle utilisable par d’autres."
+      ],
+      "example": {
+        "lang": "dax",
+        "code": "-- Slow: FILTER iterates the whole Sales table\nBig Order Sales (slow) =\nCALCULATE ( [Sales Amount], FILTER ( Sales, Sales[Quantity] >= 10 ) )\n\n-- Fast: a filter on one column, same result\nBig Order Sales =\nCALCULATE ( [Sales Amount], KEEPFILTERS ( Sales[Quantity] >= 10 ) )\n\n-- Calculation group \"Time Calc\": one DAX expression per calculation item\n-- Item \"Current\"\nSELECTEDMEASURE ()\n-- Item \"YTD\"\nCALCULATE ( SELECTEDMEASURE (), DATESYTD ( 'Date'[Date] ) )\n-- Item \"PY\"\nCALCULATE ( SELECTEDMEASURE (), SAMEPERIODLASTYEAR ( 'Date'[Date] ) )\n-- Item \"YoY %\" (format string expression: \"0.0%\")\nVAR Cur = SELECTEDMEASURE ()\nVAR Prev = CALCULATE ( SELECTEDMEASURE (), SAMEPERIODLASTYEAR ( 'Date'[Date] ) )\nRETURN DIVIDE ( Cur - Prev, Prev )",
+        "note": "L’élément YoY % s’appliquerait aussi à une mesure déjà en pourcentage et donnerait un résultat absurde : testez avec ISSELECTEDMEASURE ou SELECTEDMEASURENAME et renvoyez SELECTEDMEASURE () inchangée pour ces mesures."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Contextes d’évaluation",
+      "items": [
+        [
+          "Contexte de filtre",
+          "Filtres actifs sur les colonnes du modèle : les lignes que voit une mesure"
+        ],
+        [
+          "Contexte de ligne",
+          "La ligne courante d’une itération ; il ne filtre pas les autres tables"
+        ],
+        [
+          "ISINSCOPE(Product[Category])",
+          "TRUE quand la cellule est regroupée par cette colonne (pas un total)"
+        ],
+        [
+          "SELECTEDVALUE(colonne, alternative)",
+          "La valeur visible unique, sinon la valeur alternative"
+        ],
+        [
+          "HASONEVALUE(colonne)",
+          "TRUE quand une seule valeur de la colonne est visible"
+        ]
+      ]
+    },
+    {
+      "group": "Modificateurs de CALCULATE",
+      "items": [
+        [
+          "CALCULATE(m, Product[Color] = \"Red\")",
+          "Remplace tout filtre existant sur Color"
+        ],
+        [
+          "KEEPFILTERS(Product[Color] = \"Red\")",
+          "Croise le nouveau filtre avec le filtre existant"
+        ],
+        [
+          "REMOVEFILTERS(Product[Category])",
+          "Vide les filtres d’une colonne dans CALCULATE"
+        ],
+        [
+          "ALLEXCEPT(Product, Product[Category])",
+          "Vide tous les filtres de Product sauf la catégorie"
+        ],
+        [
+          "ALLSELECTED()",
+          "Garde les filtres extérieurs (segments), retire ceux du visuel"
+        ],
+        [
+          "Transition de contexte",
+          "CALCULATE transforme la ligne courante en filtres"
+        ]
+      ]
+    },
+    {
+      "group": "Itérateurs et variables",
+      "items": [
+        [
+          "AVERAGEX(VALUES('Date'[YearMonth]), [Sales Amount])",
+          "Moyenne mensuelle des ventes"
+        ],
+        [
+          "MAXX(VALUES(Customer[CustomerKey]), [Sales Amount])",
+          "Ventes du meilleur client"
+        ],
+        [
+          "FILTER(VALUES(Customer[CustomerKey]), [Sales Amount] > 1000)",
+          "Clients dont les ventes dépassent 1000"
+        ],
+        [
+          "VAR x = … RETURN …",
+          "Évaluée une fois, là où elle est définie ; constante ensuite"
+        ]
+      ]
+    },
+    {
+      "group": "Intelligence temporelle",
+      "items": [
+        [
+          "TOTALYTD([Sales Amount], 'Date'[Date], \"06-30\")",
+          "Cumul de l’exercice fiscal clos le 30 juin"
+        ],
+        [
+          "SAMEPERIODLASTYEAR('Date'[Date])",
+          "Dates visibles reculées d’un an"
+        ],
+        [
+          "DATEADD('Date'[Date], -1, QUARTER)",
+          "Dates visibles reculées d’un trimestre"
+        ],
+        [
+          "DATESINPERIOD('Date'[Date], MAX('Date'[Date]), -12, MONTH)",
+          "Les 12 derniers mois jusqu’à la dernière date visible"
+        ],
+        [
+          "Marquer comme table de dates",
+          "Permet à l’intelligence temporelle de retirer les autres filtres de dates, même avec une clé entière"
+        ]
+      ]
+    },
+    {
+      "group": "Classement et Top N",
+      "items": [
+        [
+          "RANKX(ALL(Product[Product Name]), [Sales Amount])",
+          "Classe parmi tous les noms de produits, même non sélectionnés"
+        ],
+        [
+          "RANKX(ALLSELECTED(Product[Product Name]), [Sales Amount])",
+          "Classe parmi les produits sélectionnés"
+        ],
+        [
+          "RANKX(…, , DESC, DENSE)",
+          "Les ex aequo partagent un rang sans trou : 1, 2, 2, 3"
+        ],
+        [
+          "TOPN(5, table, [Sales Amount], DESC)",
+          "Les 5 meilleures lignes sous forme de table, plus en cas d’égalité"
+        ],
+        [
+          "EXCEPT(table1, table2)",
+          "Les lignes de table1 absentes de table2 (les Autres)"
+        ]
+      ]
+    },
+    {
+      "group": "Relations en DAX",
+      "items": [
+        [
+          "USERELATIONSHIP(Sales[DeliveryDate], 'Date'[Date])",
+          "Utiliser une relation inactive dans une mesure"
+        ],
+        [
+          "CROSSFILTER(Sales[ProductKey], Product[ProductKey], BOTH)",
+          "Filtrer dans les deux sens pour une mesure"
+        ],
+        [
+          "TREATAS(VALUES(Product[Category]), Budget[Category])",
+          "Relation virtuelle vers une table non reliée"
+        ],
+        [
+          "Relation plusieurs-à-plusieurs",
+          "Aucun côté unique : n’afficher les résultats qu’à son grain"
+        ]
+      ]
+    },
+    {
+      "group": "Modèles avancés",
+      "items": [
+        [
+          "ADDCOLUMNS(VALUES(Sales[CustomerKey]), \"@FirstDate\", …)",
+          "Ajouter une colonne calculée à une table virtuelle"
+        ],
+        [
+          "CALCULATE(MIN(Sales[OrderDate]), REMOVEFILTERS('Date'))",
+          "Date du tout premier achat"
+        ],
+        [
+          "LASTNONBLANK('Date'[Date], CALCULATE(SUM(Stock[UnitsOnHand])))",
+          "Dernière date qui a des données de stock"
+        ],
+        [
+          "LASTDATE('Date'[Date])",
+          "Dernière date de la période, avec ou sans données"
+        ],
+        [
+          "Mesure semi-additive",
+          "S’additionne entre magasins, pas dans le temps"
+        ]
+      ]
+    },
+    {
+      "group": "Performance et maintenabilité",
+      "items": [
+        [
+          "Server Timings de DAX Studio",
+          "Temps et requêtes du moteur de stockage et du moteur de formules"
+        ],
+        [
+          "CallbackDataID",
+          "Le moteur de stockage rappelle le moteur de formules ligne par ligne"
+        ],
+        [
+          "SELECTEDMEASURE()",
+          "La mesure à laquelle s’applique un élément de calcul"
+        ],
+        [
+          "ISSELECTEDMEASURE([Sales YoY %])",
+          "Exclure certaines mesures d’un élément de calcul"
+        ],
+        [
+          "Table de mesures + dossiers d’affichage",
+          "Un seul endroit pour trouver toutes les mesures"
+        ]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Classer avec RANKX sur VALUES de la colonne courante, si bien que chaque ligne est classée 1 : classez sur ALL ou ALLSELECTED de la colonne.",
+    "Utiliser un filtre booléen dans CALCULATE alors que l’utilisateur s’attend à ce que le segment s’applique : encadrez-le avec KEEPFILTERS.",
+    "Écrire FILTER ( Sales, … ) comme argument de CALCULATE sur une table de faits de millions de lignes : filtrez plutôt la colonne.",
+    "Parcourir la table de faits avec une mesure (SUMX ( Sales, [Margin] )) : la transition de contexte à chaque ligne est lente et compte deux fois les lignes en double ; utilisez des colonnes ou parcourez une dimension.",
+    "Comparer une année en cours partielle à une année précédente complète : restreignez les dates à celles qui ont des données avant de les décaler.",
+    "Passer Sales[OrderDate] aux fonctions d’intelligence temporelle ou utiliser une table de dates non marquée avec des trous : utilisez une table 'Date' complète et marquée.",
+    "Additionner un stock ou un solde sur plusieurs mois : utilisez un solde de clôture avec LASTNONBLANK, calculé par magasin.",
+    "Ajouter + 0 ou IF ( ISBLANK (…), 0 ) à chaque mesure : les visuels affichent alors toutes les combinaisons et deviennent lents."
+  ],
+  "exercises": [
+    {
+      "q": "Une matrice affiche Product[Category] puis Product[Product Name] en lignes. Écrivez une mesure donnant la part de chaque produit dans les ventes de sa catégorie.",
+      "hint": "Gardez le filtre de catégorie, retirez seulement le filtre de produit au dénominateur.",
+      "code": "dax",
+      "answer": "Share in Category =\nDIVIDE (\n    [Sales Amount],\n    CALCULATE ( [Sales Amount], REMOVEFILTERS ( Product[Product Name] ) )\n)",
+      "explain": "Sur une ligne de produit, le dénominateur retire le filtre sur le nom du produit mais garde la catégorie de la ligne : il renvoie donc le total de la catégorie. Utilisez plutôt ALLSELECTED ( Product[Product Name] ) si un segment sur les noms de produits doit aussi limiter le dénominateur."
+    },
+    {
+      "q": "Écrivez une mesure donnant la moyenne mensuelle des ventes des 3 derniers mois, jusqu’à la dernière date visible (pour qu’elle fonctionne par mois dans un graphique en courbes).",
+      "hint": "DATESINPERIOD donne les dates ; AVERAGEX sur les mois donne la moyenne mensuelle.",
+      "code": "dax",
+      "answer": "Sales 3M Avg =\nVAR LastVisibleDate = MAX ( 'Date'[Date] )\nVAR Last3Months = DATESINPERIOD ( 'Date'[Date], LastVisibleDate, -3, MONTH )\nRETURN\n    CALCULATE (\n        AVERAGEX ( VALUES ( 'Date'[YearMonth] ), [Sales Amount] ),\n        Last3Months\n    )",
+      "explain": "Le filtre sur 'Date'[Date] remplace le filtre de mois du visuel (la table de dates est marquée) : VALUES ( 'Date'[YearMonth] ) renvoie donc les trois mois et AVERAGEX fait la moyenne de leurs ventes."
+    },
+    {
+      "q": "Dans une matrice avec Product[Category] et Product[Product Name] en lignes, écrivez un rang de chaque produit dans sa catégorie, limité aux produits sélectionnés par l’utilisateur, avec des ex aequo sans trou et un vide sur les lignes de total.",
+      "code": "dax",
+      "answer": "Rank in Category =\nIF (\n    ISINSCOPE ( Product[Product Name] ),\n    RANKX ( ALLSELECTED ( Product[Product Name] ), [Sales Amount], , DESC, DENSE )\n)",
+      "explain": "ALLSELECTED retire le filtre de nom de produit de la ligne mais garde la catégorie de la ligne parente et les segments : le rang est donc calculé dans la catégorie. ISINSCOPE le masque sur les totaux de catégorie et le total général."
+    },
+    {
+      "q": "[Closing Stock] utilise LASTNONBLANK sur 'Date'[Date]. Au niveau de tous les magasins, le total est trop bas car certains magasins ont envoyé leur dernier instantané la veille. Écrivez une mesure qui donne le bon total.",
+      "hint": "Calculez le stock de clôture magasin par magasin, puis additionnez.",
+      "code": "dax",
+      "answer": "Closing Stock (all stores) =\nSUMX ( VALUES ( Store[StoreKey] ), [Closing Stock] )",
+      "explain": "SUMX parcourt les magasins et [Closing Stock] s’exécute pour chacun (transition de contexte) : chaque magasin utilise sa propre dernière date d’instantané avant que les résultats soient additionnés."
+    },
+    {
+      "q": "Cette mesure est lente sur 40 millions de lignes : Margin = SUMX ( Sales, [Line Margin] ), où [Line Margin] est une mesure qui calcule NetAmount moins Quantity fois le UnitCost du produit. Réécrivez-la.",
+      "hint": "Évitez d’appeler une mesure pour chaque ligne de la table de faits.",
+      "code": "dax",
+      "answer": "Margin =\nSUMX (\n    Sales,\n    Sales[NetAmount] - Sales[Quantity] * RELATED ( Product[UnitCost] )\n)",
+      "explain": "Référencer une mesure dans SUMX sur Sales déclenche une transition de contexte pour chaque ligne : c’est lent, et faux quand deux lignes sont identiques. Les colonnes et RELATED laissent le travail au moteur de stockage."
+    },
+    {
+      "q": "Une matrice affiche Product[Color] en lignes, sans segment. Qu’affiche la mesure Red Sales sur la ligne Blue ?",
+      "type": "choice",
+      "lang": "dax",
+      "snippet": "Red Sales =\nCALCULATE ( [Sales Amount], Product[Color] = \"Red\" )",
+      "options": [
+        "Un vide",
+        "Les ventes des produits bleus",
+        "Les ventes des produits rouges",
+        "Les ventes de tous les produits"
+      ],
+      "correct": 2,
+      "answer": "Le filtre booléen remplace le filtre existant sur Product[Color] (Blue) par Red : chaque ligne affiche donc les ventes rouges. Encadrez-le avec KEEPFILTERS pour faire l’intersection : la ligne Blue devient alors vide."
+    },
+    {
+      "q": "Complétez la mesure des 12 mois glissants.",
+      "type": "fill",
+      "lang": "dax",
+      "snippet": "Sales R12M =\nCALCULATE (\n    [Sales Amount],\n    DATESINPERIOD ( 'Date'[Date], ___ ( 'Date'[Date] ), -12, ___ )\n)",
+      "blanks": [
+        [
+          "MAX",
+          "LASTDATE"
+        ],
+        [
+          "MONTH"
+        ]
+      ],
+      "answer": "MAX ( 'Date'[Date] ) est la dernière date visible, évaluée avant que CALCULATE applique le nouveau filtre ; DATESINPERIOD renvoie ensuite les 12 mois qui se terminent à cette date."
+    },
+    {
+      "q": "Chaque produit obtient le rang 1. Touchez la ligne qui contient le bug.",
+      "type": "bug",
+      "lang": "dax",
+      "snippet": "Product Rank =\nRANKX (\n    VALUES ( Product[Product Name] ),\n    [Sales Amount],\n    ,\n    DESC\n)",
+      "line": 3,
+      "fix": "Product Rank =\nRANKX (\n    ALLSELECTED ( Product[Product Name] ),\n    [Sales Amount],\n    ,\n    DESC\n)",
+      "answer": "Sur une ligne de produit, VALUES ( Product[Product Name] ) ne contient que le produit courant, qui est donc toujours premier. RANKX a besoin de la liste de tous les concurrents : ALLSELECTED (dans la sélection) ou ALL (tous les produits)."
+    },
+    {
+      "q": "Associez chaque besoin à la fonction DAX qui y répond.",
+      "type": "match",
+      "pairs": [
+        [
+          "USERELATIONSHIP",
+          "Analyser les ventes par date de livraison avec une relation inactive"
+        ],
+        [
+          "CROSSFILTER",
+          "Laisser Sales filtrer Product dans une seule mesure"
+        ],
+        [
+          "TREATAS",
+          "Filtrer une table de budget qui n’a aucune relation"
+        ],
+        [
+          "KEEPFILTERS",
+          "Respecter le segment sur une colonne que vous filtrez aussi"
+        ],
+        [
+          "ALLSELECTED",
+          "Pourcentage du total sélectionné par l’utilisateur"
+        ],
+        [
+          "LASTNONBLANK",
+          "Stock de clôture à la dernière date avec données"
+        ]
+      ],
+      "answer": "USERELATIONSHIP et CROSSFILTER modifient les relations dans CALCULATE, TREATAS crée une relation virtuelle, KEEPFILTERS et ALLSELECTED règlent la combinaison des filtres, et LASTNONBLANK traite les mesures semi-additives."
+    },
+    {
+      "q": "Une responsable commerciale se plaint qu’une matrice des clients par mois met 12 secondes à s’afficher.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Par où commencez-vous ?",
+          "choices": [
+            {
+              "label": "Performance Analyzer, puis copier la requête du visuel lent dans DAX Studio",
+              "best": true,
+              "feedback": "Exact : trouvez le visuel lent, puis mesurez sa requête cache vidé avec Server Timings."
+            },
+            {
+              "label": "Réécrire toutes les mesures du rapport",
+              "feedback": "Trop large : sans mesurer, vous risquez de réécrire des mesures qui ne posent pas problème."
+            },
+            {
+              "label": "Passer toutes les relations en double sens",
+              "feedback": "Cela rend en général les requêtes plus lentes et les résultats ambigus."
+            }
+          ]
+        },
+        {
+          "text": "Server Timings : 85 % de moteur de formules, 3 000 requêtes au moteur de stockage avec CallbackDataID. La mesure est SUMX ( Sales, [Line Margin] ). Que changez-vous ?",
+          "choices": [
+            {
+              "label": "Calculer la marge à partir des colonnes : SUMX ( Sales, Sales[NetAmount] - Sales[Quantity] * RELATED ( Product[UnitCost] ) )",
+              "best": true,
+              "feedback": "Exact : plus de transition de contexte à chaque ligne, le moteur de stockage peut faire le travail."
+            },
+            {
+              "label": "Ajouter un filtre de page sur l’année en cours",
+              "feedback": "Cela masque le problème sur cette page seulement ; la mesure reste lente."
+            },
+            {
+              "label": "Encadrer la mesure avec IFERROR",
+              "feedback": "IFERROR n’accélère rien et peut ralentir l’évaluation."
+            }
+          ]
+        },
+        {
+          "text": "Le visuel s’affiche maintenant en 0,8 s. Que faites-vous avant de publier ?",
+          "choices": [
+            {
+              "label": "Comparer les anciens et les nouveaux résultats sur quelques clients et mois",
+              "best": true,
+              "feedback": "Exact : une mesure plus rapide doit toujours renvoyer les mêmes chiffres."
+            },
+            {
+              "label": "Rien, plus rapide veut dire correct",
+              "feedback": "Une réécriture peut changer les résultats, par exemple avec des lignes en double."
+            }
+          ]
+        }
+      ],
+      "answer": "Mesurez d’abord (Performance Analyzer, DAX Studio cache vidé avec Server Timings), corrigez la cause (transition de contexte sur la table de faits), puis vérifiez que les résultats n’ont pas changé."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Quelle est la différence entre contexte de ligne et contexte de filtre ?",
+      "a": "Le contexte de filtre est l’ensemble des filtres sur les colonnes du modèle qui décide quelles lignes une mesure voit ; il vient du visuel, des segments et des filtres, et se propage par les relations. Le contexte de ligne est la ligne courante pendant que DAX parcourt une table, dans une colonne calculée ou un itérateur comme SUMX. Un contexte de ligne ne filtre pas à lui seul les autres tables : un SUM dans une colonne calculée renvoie le total général. CALCULATE convertit un contexte de ligne en contexte de filtre par la transition de contexte."
+    },
+    {
+      "q": "Qu’est-ce que la transition de contexte, et quand pose-t-elle problème ?",
+      "a": "Quand CALCULATE s’exécute dans un contexte de ligne, il transforme les valeurs de la ligne courante en filtres, et chaque référence à une mesure contient un CALCULATE implicite. C’est pourquoi MAXX sur les clients avec une mesure fonctionne client par client. Elle pose problème sur les grandes tables, car elle s’exécute une fois par ligne et pousse le travail vers le moteur de formules, et sur les tables sans clé unique, où les lignes identiques sont filtrées ensemble et le résultat compté deux fois. Je parcours les clés des dimensions plutôt que la table de faits."
+    },
+    {
+      "q": "Expliquez la différence entre ALL, REMOVEFILTERS, ALLSELECTED et KEEPFILTERS.",
+      "a": "ALL et REMOVEFILTERS suppriment les filtres d’une table ou de colonnes ; REMOVEFILTERS n’est qu’un modificateur de CALCULATE et dit clairement l’intention, tandis que ALL peut aussi renvoyer une table à parcourir. ALLSELECTED retire les filtres des lignes et colonnes du visuel mais garde ceux des segments et des filtres de page, ce qu’il faut pour un pourcentage du total visible. KEEPFILTERS joue un autre rôle : il fait qu’un argument de filtre se croise avec le filtre existant au lieu de le remplacer."
+    },
+    {
+      "q": "Pourquoi le total de ma mesure n’est-il pas la somme des lignes ?",
+      "a": "Parce qu’un total n’est pas une somme : la mesure est réévaluée dans le contexte de filtre du total, sans le filtre de la ligne. Pour une mesure additive, cela coïncide, mais les comptages distincts, moyennes, ratios et tout ce qui utilise MAX ou une condition ne s’additionnent pas. Si le métier veut la somme des lignes, je l’écris explicitement en parcourant le grain des lignes, par exemple SUMX ( VALUES ( Store[StoreKey] ), [Measure] ), et je vérifie avec ISINSCOPE ce que chaque niveau doit afficher."
+    },
+    {
+      "q": "Comment calculez-vous un solde de clôture ou un niveau de stock ?",
+      "a": "Le stock est semi-additif : il s’additionne entre magasins et produits, mais pas dans le temps. Je prends la valeur à la dernière date de la période qui a des données, avec LASTNONBLANK sur la colonne de dates et un CALCULATE de la somme, et je l’utilise comme filtre. Comme les magasins peuvent remonter leurs données à des derniers jours différents, je le calcule par magasin avec SUMX sur les clés de magasin. LASTDATE renverrait la dernière date de la période même sans instantané, ce qui donnerait des vides."
+    },
+    {
+      "q": "Une table de faits a une date de commande et une date de livraison. Comment analysez-vous les deux ?",
+      "a": "Je relie les deux colonnes à la même table de dates, je garde active la relation sur la date de commande et inactive celle sur la date de livraison, et j’écris les mesures par date de livraison avec USERELATIONSHIP dans CALCULATE. On garde ainsi une seule table de dates et un seul jeu de segments. Si les utilisateurs doivent filtrer sur les deux dates à la fois, par exemple les commandes passées en janvier et livrées en février, j’ajoute plutôt une seconde dimension de dates."
+    },
+    {
+      "q": "Comment abordez-vous une mesure DAX lente ?",
+      "a": "Je trouve le visuel lent avec Performance Analyzer, je copie sa requête dans DAX Studio, je vide le cache et je regarde Server Timings. Une forte part de moteur de formules, beaucoup de requêtes au moteur de stockage ou des CallbackDataID désignent en général une itération avec transition de contexte sur une grosse table, un FILTER sur une table entière ou une logique IF complexe dans un itérateur. Je corrige une chose à la fois, je mesure à nouveau et je vérifie que les résultats n’ont pas changé. Si le modèle lui-même est gros, je regarde la cardinalité des colonnes avec VertiPaq Analyzer."
+    },
+    {
+      "q": "Que sont les groupes de calcul et quand les utiliseriez-vous ?",
+      "a": "Un groupe de calcul est une table dont les éléments sont des expressions DAX appliquées à la mesure présente dans le visuel, via SELECTEDMEASURE. Un groupe Time Calc avec Current, YTD, PY et YoY % remplace des dizaines de mesures presque identiques, et les expressions de chaîne de format gardent les pourcentages bien formatés. On peut désormais les créer dans la vue modèle de Power BI Desktop. Je fais attention aux éléments qui n’ont pas de sens sur certaines mesures, comme YoY % sur un ratio, et je les exclus avec ISSELECTEDMEASURE."
+    }
+  ]
+}

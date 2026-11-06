@@ -48,6 +48,10 @@ function checkCourse(where, c) {
     if (l.example && !str(l.example.code)) bad(where, `lesson ${i + 1}: example without code`);
   });
   if (!arr(c.cheatsheet).length) bad(where, "no cheat sheet");
+  // Playground (e.g. DAX.do): an https link; "try" only on full queries of a course that has one.
+  if (c.playground && (!str(c.playground.name) || !/^https:\/\/[^\s]+$/.test(c.playground.url || ""))) bad(where, "playground needs a name and an https url");
+  arr(c.lessons).forEach((l, i) => { if (l.example?.try && !c.playground) bad(where, `lesson ${i + 1}: try without a course playground`); });
+  arr(c.exercises).forEach((e, i) => { if (e.try && (!c.playground || !e.code || e.type || e.run)) bad(where, `exercise ${i + 1}: try needs a course playground and a written exercise with code`); });
   arr(c.cheatsheet).forEach((g, i) => {
     if (!str(g.group)) bad(where, `cheat sheet group ${i + 1}: no name`);
     arr(g.items).forEach((it, j) => { if (!Array.isArray(it) || it.length !== 2 || !it.every(str)) bad(where, `cheat sheet group ${i + 1} item ${j + 1}: must be [syntax, meaning]`); });
@@ -67,8 +71,10 @@ function sameShape(where, a, b, { translated = true } = {}) {
     const [x, y] = len(k);
     if (x !== y) bad(where, `${k}: ${x} vs ${y}`);
   }
+  if ((a.playground?.url || "") !== (b.playground?.url || "")) bad(where, "playground url differs");
   arr(a.lessons).forEach((l, i) => {
     const m = arr(b.lessons)[i] || {};
+    if (!!l.example?.try !== !!m.example?.try) bad(where, `lesson ${i + 1}: example try differs`);
     if (arr(l.text).length !== arr(m.text).length) bad(where, `lesson ${i + 1}: paragraph count differs`);
     if (arr(l.points).length !== arr(m.points).length) bad(where, `lesson ${i + 1}: point count differs`);
     if ((l.example?.code || "") !== (m.example?.code || "") || (l.example?.lang || "") !== (m.example?.lang || "")) bad(where, `lesson ${i + 1}: example code differs`);
@@ -78,6 +84,7 @@ function sameShape(where, a, b, { translated = true } = {}) {
     const f = arr(b.exercises)[i] || {};
     if (e.code && (e.answer !== f.answer || e.code !== f.code)) bad(where, `exercise ${i + 1}: code answer differs`);
     if (JSON.stringify(e.run || null) !== JSON.stringify(f.run || null)) bad(where, `exercise ${i + 1}: run settings differ`);
+    if (!!e.try !== !!f.try) bad(where, `exercise ${i + 1}: try differs`);
     if (e.type || f.type) sameDrill(`${where} exercise ${i + 1}`, e, f);
   });
   if (translated && a.why && a.why === b.why) bad(where, "why is not translated");

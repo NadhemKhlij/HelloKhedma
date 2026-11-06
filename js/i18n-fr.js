@@ -1014,4 +1014,10 @@ export default {
   "+{n} pts": "+{n} pts",
   "📘 How to learn the missing keyword": "📘 Comment apprendre le mot-clé manquant",
   "📘 How to learn the {n} missing keywords": "📘 Comment apprendre les {n} mots-clés manquants",
+  /* ---------- course playground (DAX.do) ---------- */
+  "Copies the code, then opens {name} in a new tab: paste it there and run it.": "Copie le code, puis ouvre {name} dans un nouvel onglet : collez-le et exécutez-le.",
+  "Code copied: paste it in {name} and run it.": "Code copié : collez-le dans {name} et exécutez-le.",
+  "▶ Run on {name}": "▶ Exécuter sur {name}",
+  "▶ Run my attempt on {name}": "▶ Exécuter mon essai sur {name}",
+  "Exercises marked ▶ run on {name}, a free online engine (no account). The button copies the code and opens it: paste, then run.": "Les exercices marqués ▶ s’exécutent sur {name}, un moteur en ligne gratuit (sans compte). Le bouton copie le code et l’ouvre : collez, puis exécutez.",
 };

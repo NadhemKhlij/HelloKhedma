@@ -9,6 +9,8 @@
 //   with the result of the course answer (sqlgrade.js); a correct result marks the exercise solved.
 //   Auto-graded formats (exercise.type, training steps 2b + 2c, drills.js): choice, fill, order, match, groups, bug,
 //   scenario, logs, regex, cron, json; a correct answer marks the exercise solved, "Reveal" shows the worked answer.
+// - Courses with a playground (DAX.do): written exercises with "try" get "▶ Run my attempt on …" (copies the attempt,
+//   opens the playground in a new tab) and a ▶ button on the answer code (courses.js playLink).
 // - interviewCards(): think first, then reveal the model answer.
 // Everything stays in this browser (synced to the account when signed in, learnsync.js); each action adds XP (activity.js).
 import { h, ls } from "./lib.js";
@@ -131,7 +133,7 @@ export function flashcards(root, c) {
 }
 
 /* ---------- practice exercises ---------- */
-export function exercises(root, c, codeBlock) {
+export function exercises(root, c, codeBlock, playLink) {
   const solved = new Set(EX.get(c.id) || []);
   const count = h("span", { class: "mute text-sm" });
   const upd = () => { count.textContent = t("{d}/{n} solved", { d: solved.size, n: c.exercises.length }); };
@@ -144,23 +146,29 @@ export function exercises(root, c, codeBlock) {
       h("button", { type: "button", class: "btn-ghost", onClick: () => { solved.delete(i); EX.set(c.id, [...solved]); status.hidden = true; upd(); } }, t("↻ Not yet")));
     const answer = h("div", { class: "grid gap-3", hidden: true },
       e.type ? solution(e) : null,
-      e.code ? codeBlock(e.code, e.answer) : h("p", { class: "text-sm rounded-xl p-3", style: "background:var(--soft)" }, e.answer),
+      e.code ? codeBlock(e.code, e.answer, e.try && c.playground) : h("p", { class: "text-sm rounded-xl p-3", style: "background:var(--soft)" }, e.answer),
       e.explain ? h("p", { class: "text-sm rounded-xl p-3", style: "background:var(--soft)" }, e.explain) : null,
       h("p", { class: "mute text-xs" }, t("Compare with your attempt. Did you get it?")), grade);
     const reveal = h("button", { type: "button", class: "btn-ghost", onClick: () => { answer.hidden = false; reveal.hidden = true; } }, t("Reveal the answer"));
+    const scratch = e.run || e.type ? null : h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
+      placeholder: t("Try it here first (not saved)…") });
     return h("li", { class: "panel !shadow-none grid gap-3" },
       h("div", { class: "flex items-start gap-3" },
         h("span", { class: "w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold", style: "background:var(--soft)" }, String(i + 1)),
         h("p", { class: "font-medium flex-1" }, e.q), status),
       hint,
-      e.run ? sqlRunner(e, () => markSolved(i, status)) : e.type ? drill(e, () => markSolved(i, status)) : h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
-        placeholder: t("Try it here first (not saved)…") }),
+      e.run ? sqlRunner(e, () => markSolved(i, status)) : e.type ? drill(e, () => markSolved(i, status)) : scratch,
       h("div", { class: "flex flex-wrap gap-2" }, reveal,
+        // A query exercise of a course with a playground (DAX.do): run the attempt on the real engine.
+        scratch && e.try && playLink ? playLink(c.playground, () => scratch.value, t("▶ Run my attempt on {name}", { name: c.playground?.name })) : null,
         hint ? h("button", { type: "button", class: "btn-ghost", onClick: (ev) => { hint.hidden = false; ev.currentTarget.remove(); } }, t("💡 Show a hint")) : null),
       answer);
   };
   upd();
-  root.replaceChildren(h("div", { class: "grid gap-3" }, count, h("ol", { class: "grid gap-3" }, c.exercises.map(one))));
+  const play = c.playground && playLink ? h("p", { class: "text-sm rounded-xl p-3 flex flex-wrap items-center gap-2", style: "background:var(--soft)" },
+    t("Exercises marked ▶ run on {name}, a free online engine (no account). The button copies the code and opens it: paste, then run.", { name: c.playground.name }),
+    c.playground.about ? h("span", { class: "mute text-xs" }, c.playground.about) : null) : null;
+  root.replaceChildren(h("div", { class: "grid gap-3" }, play, count, h("ol", { class: "grid gap-3" }, c.exercises.map(one))));
 }
 
 /* ---------- interview questions ---------- */

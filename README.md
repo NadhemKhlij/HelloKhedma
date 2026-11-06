@@ -1,110 +1,134 @@
 # HelloKhedma
 
-Pick a career path (Data Engineer, Business Analyst, Application Support, Data Analyst, DevOps Engineer) and the app adapts:
-live job offers, learning tracks with progress and a time estimate, tools, tips, a CV keyword check, and a Kanban application tracker.
+**A job hunting companion for tech careers.** Pick a career path and the whole app adapts to it: live job
+offers, learning tracks and courses, CV tools with an ATS score, interview prep and a Kanban application tracker.
 
-- **Guests** are saved in the browser (localStorage).
-- **Signed-in users** are saved in Supabase, and guest data is imported on first sign-in.
-- **Path content** (trainings, tools, tips, keywords) lives in the database, not in the JS.
-- **Job APIs** (Adzuna, JSearch) are called from a Supabase Edge Function, so keys never reach the browser.
+Live: **https://nadhemkhlij.github.io/HelloKhedma/** · English and French · installable on phone and desktop (PWA)
 
-## 1. Supabase project
+Career paths: **Data Engineer · Business Analyst · Application Support · Data Analyst · DevOps Engineer**,
+plus an **AI engineer track in Tunisian Derja** (Arabic letters or 3arbizi).
 
-Install the [Supabase CLI](https://supabase.com/docs/guides/cli), then from this folder:
+## What it does
 
-```bash
-supabase login
-supabase link --project-ref YOUR_PROJECT_REF
-supabase db push                      # creates tables + RLS (supabase/migrations)
-```
+| Page | Features |
+|---|---|
+| **Home** | Path cards, greeting and summary, "Your market" pulse (typical salary, % remote, top skills with your CV gaps, levels), study streak and "Resume" |
+| **Offers** | Live search (France Travail, Adzuna, JSearch), "Companies I follow" (Greenhouse, Lever, Ashby, Workable, SmartRecruiters career pages) and "Remote jobs" (Jobicy, Remotive). CV fit score and skill highlights, salary chip / filter / sort, posted date, level (Junior…Lead), "⚠ Check this offer" scam and stale warnings, cover letter prompt, one-click add to the tracker |
+| **Training** | Roadmap of tracks per path with progress, weekly study plan, 25 courses (7-10 lessons each) with quiz, flashcards, exercises, interview questions and cheat sheet, honest time estimates, 15 portfolio projects, XP and streak |
+| **AI track** (`#/ai`) | "Tunisian AI Teacher": 9 courses and 3 portfolio projects on building with LLMs and the Claude API, in Derja, right to left in Arabic letters or in 3arbizi |
+| **CV** | Several CV versions (one per path), CV keyword check against an offer, **ATS score /100** with the fixes to make, **CV maker** (ATS-friendly one-column CV in EN or FR, print to PDF), "Tailor my CV" (honest gap analysis, prompt for your own AI, or "Rewrite with AI" for signed-in users) |
+| **Interview** | Questions and model answers per path, STAR stories, checklist |
+| **Applications** | Kanban tracker with details, notes, follow-up dates, contacts, salary, "CV sent", stats, CSV export, calendar files, thank-you / follow-up email templates |
+| **Account** | Sign in (email / magic link), export or delete all data, legal notice and privacy policy |
 
-Load the seed content: open the SQL editor in the Supabase dashboard, paste `supabase/seed.sql`, run it.
-(It is idempotent; re-run it whenever you edit paths, trainings, tools, tips or keywords.)
+### Privacy by design
 
-Auth settings (Dashboard → Authentication → URL Configuration): add your local and deployed URLs
-(for example `http://localhost:5173`) to **Redirect URLs**. For quick testing you can turn off
-"Confirm email" under Providers → Email.
+- **Guests** need no account: everything is saved in the browser (localStorage).
+- **Signed-in users** are saved in Supabase, with Row Level Security on every table; guest data is imported on first sign-in.
+- **CV texts never leave the browser.** The only exception is "Rewrite with AI", signed-in only, after a notice shown
+  before every send; the function stores and logs nothing.
+- **API keys stay server-side** in Supabase Edge Functions; the frontend only holds the public anon key.
 
-## 2. Job APIs
+## Tech stack
 
-- France Travail (recommended for France: free, full descriptions + structured skills, which makes the
-  CV fit score much more accurate): on https://francetravail.io create an account and an application,
-  subscribe it to the API "Offres d'emploi v2", then set `FRANCE_TRAVAIL_CLIENT_ID` and
-  `FRANCE_TRAVAIL_CLIENT_SECRET` as secrets. It only covers France.
-- Adzuna: create an app at https://developer.adzuna.com to get an app id and key.
-- JSearch: subscribe to the JSearch API on RapidAPI to get a key.
-  You only need one of the two; the free tiers have quotas, so check each provider's current limits.
+- **Frontend:** HTML, Tailwind CSS 3, vanilla JavaScript ES modules (no framework, no bundler), PWA with offline cache.
+- **Backend:** Supabase (PostgreSQL, Auth, RLS) and three Edge Functions: `job-search` (job APIs, cache, rate limit),
+  `delete-account`, `cv-tailor` (Claude API).
+- **Content:** path content (tracks, steps, tools, tips, ATS keywords) in the database (`supabase/seed.sql`, with French
+  columns); courses, interview questions and projects as static JSON in `content/` (English + `fr/`).
+- **CI/CD:** GitHub Actions builds, runs the Playwright smoke tests and publishes to GitHub Pages; a failing test stops the deploy.
 
-```bash
-supabase secrets set ADZUNA_APP_ID=xxx ADZUNA_APP_KEY=xxx RAPIDAPI_KEY=xxx
-supabase secrets set DEFAULT_PROVIDER=adzuna      # optional: adzuna | jsearch | both
-supabase functions deploy job-search
-```
-
-The function caches identical searches for 6 hours and rate-limits callers (20 searches/hour per IP
-for guests, 60/hour per signed-in user). Tune with `CACHE_TTL_HOURS`, `RATE_LIMIT_GUEST` and
-`RATE_LIMIT_USER` secrets. Both rely on the `20261028000200_job_search_guard.sql` migration.
-
-If the function is not deployed, the app still shows direct search links to LinkedIn, Indeed,
-Welcome to the Jungle, France Travail and Google Jobs.
-
-## 3. Run the frontend
+## Run it locally
 
 Needs Node 18+.
 
 ```bash
 cp js/config.example.js js/config.js     # fill in SUPABASE_URL and SUPABASE_ANON_KEY
 npm install
-npm run build                            # writes css/app.css (Tailwind, minified)
-python3 -m http.server 5173              # or: npx serve -l 5173 .
+npm run build                            # writes js/config.js from env vars (if set) and css/app.css
+npx serve -l 5173 .                      # ES modules need http, not file://
 ```
 
-Open http://localhost:5173. ES modules need http, so don't open index.html as a file.
-While editing classes, run `npm run watch:css` in a second terminal.
+While editing classes, run `npm run watch:css` in a second terminal. Without Node: `sh scripts/preview-cdn.sh`,
+then `scripts/serve.ps1`, and open `/preview-test.html` (never commit that file).
 
-### Deploy on GitHub Pages
+Useful checks:
 
-`.github/workflows/deploy.yml` builds and publishes the site on every push to `main`. One-time setup:
+```bash
+npm test                                        # Playwright smoke tests (guest flows)
+npm run check-links                             # every URL in supabase/seed.sql
+perl scripts/check-i18n.pl js                   # every t() text has French
+powershell -File scripts/check-fr-content.ps1 -Root .   # French content matches the English structure
+powershell -File scripts/course-times.ps1 -Root .       # recompute course minutes / lesson counts
+```
 
-1. Repo **Settings → Pages → Source: GitHub Actions**.
-2. Repo **Settings → Secrets and variables → Actions → Variables**: add `SUPABASE_URL` and
-   `SUPABASE_ANON_KEY` (optional `DEFAULT_COUNTRY`).
-3. Push to `main` (or run the workflow from the Actions tab). The site is at
-   `https://<your-user>.github.io/<repo>/`; add that URL to Supabase **Auth → Redirect URLs**.
+## Set up your own instance
 
-On a free GitHub account, Pages needs a public repo. No secrets are in the code, so that is fine.
+### 1. Supabase
 
-### Deploy (Cloudflare Pages, Netlify or Vercel)
+```bash
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase db push                     # tables + RLS (supabase/migrations)
+```
 
-- Build command: `npm run build`. Output directory: `/` (the repo root).
-- Environment variables: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, optional `DEFAULT_COUNTRY`.
-  The build writes `js/config.js` from them (`scripts/write-config.mjs`), so neither `js/config.js`
-  nor `css/app.css` is committed. The anon key is public by design; never use the service_role key here.
+Then run `supabase/seed.sql` in the SQL editor (idempotent: re-run it after editing path content).
+In Authentication → URL Configuration, add your local and deployed URLs to **Redirect URLs**.
+Real users need custom SMTP for confirmation emails (see GO-LIVE.md).
 
-## Security notes
+### 2. Job APIs and AI (Edge Functions)
 
-- Row Level Security is on for every table. Users can only read and write their own applications,
-  progress and profile. Career content is read-only for everyone.
-- The `job-search` function requires a valid Supabase JWT (the anon key counts), so guests can call it.
-  Results are cached and calls are rate-limited per IP / per user to protect your API quotas.
-  The cache and rate-limit tables have RLS on and no policies: only the function (service role) uses them.
-- All remote text is rendered with `textContent`, and offer links are limited to http(s).
+Only providers whose secrets are set are used; you need at least one.
+
+- **France Travail** (France, free, full descriptions): app on francetravail.io subscribed to "Offres d'emploi v2" →
+  `FRANCE_TRAVAIL_CLIENT_ID`, `FRANCE_TRAVAIL_CLIENT_SECRET`.
+- **Adzuna**: developer.adzuna.com → `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`.
+- **JSearch** (RapidAPI) → `RAPIDAPI_KEY`.
+- **Claude** for "Rewrite with AI": `ANTHROPIC_API_KEY` (optional `CV_TAILOR_DAILY_LIMIT`, `CV_TAILOR_MODEL`).
+
+```bash
+npx supabase secrets set ADZUNA_APP_ID=xxx ADZUNA_APP_KEY=xxx RAPIDAPI_KEY=xxx
+npx supabase functions deploy job-search --use-api
+npx supabase functions deploy delete-account --use-api
+npx supabase functions deploy cv-tailor --use-api
+```
+
+`job-search` caches identical searches for 6 hours and rate-limits callers (20/hour per IP for guests, 60/hour per
+user); tune with `CACHE_TTL_HOURS`, `RATE_LIMIT_GUEST`, `RATE_LIMIT_USER`. Without it, the app still shows direct
+search links to LinkedIn, Indeed, Welcome to the Jungle, France Travail and Google Jobs. Company career pages and
+remote boards are called from the browser and need no setup.
+
+### 3. Deploy on GitHub Pages
+
+`.github/workflows/deploy.yml` builds, tests and publishes on every push to `main` (other branches: build + tests only).
+
+1. **Settings → Pages → Source: GitHub Actions.**
+2. **Settings → Secrets and variables → Actions → Variables:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`; optional
+   `DEFAULT_COUNTRY`, `CONTACT_EMAIL`, `SENTRY_DSN`.
+3. Push to `main`, then add the site URL to Supabase **Auth → Redirect URLs**.
+
+Branches listed in `PREVIEW_BRANCHES` (deploy.yml) are also published under `preview/<branch>/`.
+Other static hosts work too: build command `npm run build`, output directory `/`, same environment variables.
 
 ## Customising
 
-- Add or edit a path, track or step: change `supabase/seed.sql` and re-run it. No code changes needed.
-  A track has a level (beginner, intermediate, advanced), a summary and an outcome. A step has a kind
-  (learn, practice, project, certification), a provider, a link, estimated hours and a free/paid flag.
-  Step ids come from the track id plus the step title, so renaming a step resets its progress.
-- Check the training links: `node scripts/check-links.mjs` (some sites block scripts; open those by hand).
-- Add a column to the tracker (notes, salary, contact): new migration file, then extend `FIELDS` in `js/store.js`.
-- Styles: component classes (`panel`, `btn`, `chip`…) live in `css/input.css`; rebuild with `npm run build:css`.
+- **Paths, tracks, steps, tools, tips, keywords:** edit `supabase/seed.sql` (and its French block at the end), re-run it.
+- **Courses:** `content/courses/` (`index.json` + one file per course, French copy in `fr/`); append lessons to extend
+  a course and recompute times with `scripts/course-times.ps1`.
+- **Interview questions and portfolio projects:** `content/interview/`, `content/projects/`.
+- **Interface texts:** written in English through `t()`, French in `js/i18n-fr.js`.
+- **Styles:** theme tokens and components (`panel`, `btn`, `chip`…) in `css/input.css`.
 
-## Ideas for next steps
+## Project docs
 
-Notes and reminders per application, follow-up dates, CSV export, a weekly study plan built from the
-training list, saving CV text per path for the keyword check, and a dashboard of stage conversion.
+- [CLAUDE.md](CLAUDE.md): project rules and file map (read automatically by Claude Code).
+- [ROADMAP.md](ROADMAP.md): roadmap and decisions log.
+- [CHECKLIST.md](CHECKLIST.md): owner tasks (Supabase, GitHub, providers) and what is done.
+- [GO-LIVE.md](GO-LIVE.md): architecture review and go-live plan.
 
-## Working with Claude Code
+## Security
 
-`CLAUDE.md` contains the project rules and file map, so Claude Code follows them automatically.
+- Row Level Security on every table: users only read and write their own rows; career content is read-only.
+- Cache and rate-limit tables have RLS on and no policies: only the functions (service role) use them.
+- All remote text is rendered with `textContent`; offer links are limited to http(s).
+- Course, interview and AI-track content was written with AI help and is pending expert review.

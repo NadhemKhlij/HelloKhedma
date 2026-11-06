@@ -1,6 +1,6 @@
 // "Tailor my CV" dialog (#tailorDialog), opened from an offer card (offers.js) or the CV match (cvpage.js).
 // - Honest gap analysis, computed in the browser (ats.js): skills of the offer found in the active CV, the lines of
-//   the CV that mention them (to put forward) and the missing skills (with course links).
+//   the CV that mention them (to put forward) and the missing skills, with the trainings that close them (gaps.js).
 // - A ready-made prompt for the user's own AI assistant (Claude, ChatGPT…): CV + offer + skills + strict honesty
 //   rules (never invent experience, skills or numbers). It is copied to the clipboard only.
 //   The prompt templates (PROMPTS) are content, written in English and French like the interface.
@@ -14,6 +14,7 @@ import { sb } from "./supabase.js";
 import { state, path, fitColor, skillChip } from "./state.js";
 import { extractSkills, matchSkills } from "./ats.js";
 import { loadAiCv, renderCvMaker } from "./cvmaker.js";
+import { gapTrainings } from "./gaps.js";
 
 const PROMPTS = {
   en: ({ role, matched, missing, title, company, offer, cv }) => `You are an experienced recruiter and CV coach for ${role} roles. Help me tailor my CV to the job offer below, honestly.
@@ -200,7 +201,8 @@ export function openTailor(offer) {
     h("div", {},
       h("p", { class: "text-sm font-medium mb-1" }, t("Gaps: don't add them unless they are true · 📘 = HelloKhedma course")),
       r.missing.length ? h("div", { class: "flex flex-wrap gap-1.5" }, r.missing.map((s) => skillChip(s, false)))
-        : h("p", { class: "mute text-sm" }, t("Nothing missing."))),
+        : h("p", { class: "mute text-sm" }, t("Nothing missing.")),
+      gapTrainings(r.missing, { onOpen: () => dlg.close() })),
     h("div", { class: "grid gap-2" },
       h("p", { class: "text-sm font-medium" }, t("Rewrite it with your AI assistant")),
       h("p", { class: "mute text-xs" }, t("This prompt contains your CV and the offer, with strict honesty rules. It only leaves this device if you paste it somewhere. Check every line the AI writes before using it.")),

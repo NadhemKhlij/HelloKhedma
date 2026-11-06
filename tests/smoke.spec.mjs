@@ -209,6 +209,10 @@ test("CV maker: the form fills the preview, saves a CV version, and the ATS scor
   await page.click("#atsBtn");
   await expect(page.locator("#atsOut")).toContainText("ATS score");
   await expect(page.locator("#atsOut")).toContainText("Standard sections");
+  // "Close the gaps": the offer asks for Airflow and dbt, the CV has neither: their HelloKhedma courses are proposed.
+  await expect(page.locator("#atsOut")).toContainText("Close the gaps with HelloKhedma");
+  await expect(page.locator('#atsOut a[href="#/course/airflow"]')).toBeVisible();
+  await expect(page.locator('#atsOut a[href="#/course/dbt"]')).toBeVisible();
 });
 
 // "Correct, tailor and create my CV" needs sign-in and the Claude API, so the function's answer is fed to the CV maker directly.

@@ -3,6 +3,7 @@
 // The active version (state.cv) also scores offers (offers.js), feeds the study plan (training.js) and is recorded
 // as "CV sent" on new applications (cvUsed). A version linked to a path becomes active when that path is selected.
 // After a match with a pasted offer, "✍ Tailor my CV for this offer" opens tailor.js and "✉ Cover letter" letters.js.
+// Under the missing skills, "Close the gaps" (gaps.js) lists the HelloKhedma courses, roadmap steps and projects for them.
 // "Calculate my ATS score" adds the full ATS report (atsscore.js) above the skills match. Two tabs: this CV check
 // (#/cv) and the CV maker (#/cv/maker, cvmaker.js), whose "Use as a CV version" refreshes this page.
 import { $, h, toast } from "./lib.js";
@@ -16,6 +17,7 @@ import { openTailor } from "./tailor.js";
 import { openCoverLetter } from "./letters.js";
 import { atsReport, atsView } from "./atsscore.js";
 import { initCvMaker, renderCvMaker } from "./cvmaker.js";
+import { gapTrainings } from "./gaps.js";
 
 // Loads the active CV version into state.cv. Skills are re-extracted each time: path keywords may have changed.
 export function loadActiveCv() {
@@ -170,6 +172,7 @@ function onAts() {
     h("div", { class: "flex flex-wrap gap-2" }, r.matched.length ? chips(r.matched, true) : h("span", { class: "mute text-sm" }, t("None yet."))),
     h("p", { class: "mute text-sm mt-3 mb-1" }, t("Missing: add the ones you genuinely have · 📘 = open the HelloKhedma course")),
     h("div", { class: "flex flex-wrap gap-2" }, r.missing.length ? chips(r.missing, false) : h("span", { class: "mute text-sm" }, t("Nothing missing."))),
+    gapTrainings(r.missing),
   ].filter(Boolean));
 }
 

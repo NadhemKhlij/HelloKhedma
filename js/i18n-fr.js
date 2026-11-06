@@ -306,6 +306,8 @@ export default {
   "Lessons": "Leçons",
   "{name} cheat sheet": "Fiche mémo {name}",
   "Print / save as PDF": "Imprimer / enregistrer en PDF",
+  "⬇ Download PDF": "⬇ Télécharger le PDF",
+  "The PDF could not be built here: the print window opens instead (choose \"Save as PDF\").": "Le PDF n’a pas pu être créé ici : la fenêtre d’impression s’ouvre à la place (choisissez « Enregistrer en PDF »).",
   "Common mistakes": "Erreurs fréquentes",
   "Hint: {hint}": "Indice : {hint}",
   "Show answer": "Voir la réponse",

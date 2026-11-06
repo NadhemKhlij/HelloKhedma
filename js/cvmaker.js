@@ -1,24 +1,25 @@
-// CV maker (CV page, "CV maker" tab, #/cv/maker): a form that builds an ATS-friendly CV (one column, standard headings,
-// plain text, no tables or icons) with a live preview and a live ATS score (atsscore.js) against the path keywords.
-// Layout (the owner's CV framework): centered name and plain contact line; Summary, Experience, Education,
-// Certifications, Projects, Involvement, Skills, Languages; each entry = bold title, then organisation on the left and
-// dates / place on the right, an optional context line, bullets. Skills can be grouped, one "Group: a, b" per line.
-// Arial everywhere (the safest font for ATS), no icons, no columns, no tables.
+// CV maker (CV page, "CV maker" tab, #/cv/maker): a form that builds an ATS-friendly CV with a live preview, a live ATS
+// score (atsscore.js) against the path keywords and a real text PDF (cvpdf.js).
+// One layout model (cvModel) feeds the preview, the PDF and the plain text, so the three always match. Layout, from the
+// owner's CV framework and the usual ATS guidance: one column; centered name, headline and plain contact line (no
+// icons); standard section titles in capitals over a rule, in this order: Summary, Skills (grouped, one "Group: a, b"
+// per line), Experience, Education, Certifications, Projects, Involvement, Languages; each entry = bold title with the
+// dates on the right, organisation and place below, an optional context line, bullets. Arial / Helvetica only.
 // - The draft is kept in this browser only ("hk.cvmaker"), like every CV text (never sent to Supabase or any API).
 // - CV language (EN / FR) is separate from the interface language: it sets the headings and date words.
-// - "Print / save as PDF" prints the preview only (text PDF, readable by ATS). "Use as a CV version" saves the plain
-//   text as a CV version (cvs.js), linked to the draft so later saves update it; it then scores offers like any CV.
-// - "Download .txt" gives the same plain text.
+// - "Download PDF" builds the PDF in the browser (cvpdf.js; falls back to printing the page if it cannot load).
+//   "Use as a CV version" saves the plain text as a CV version (cvs.js), linked to the draft so later saves update it;
+//   it then scores offers like any CV. "Download .txt" gives the same plain text.
 // - loadAiCv() fills the form with a CV corrected and tailored by AI for one offer ("Correct, tailor and create my CV" in
 //   tailor.js, via the cv-tailor function): what was changed and the AI's notes (gaps, [number?] to fill in) are shown
-//   above the form until hidden, and
-//   "Use as a CV version" then saves it as a new version named after the offer.
+//   above the form until hidden, and "Use as a CV version" then saves it as a new version named after the offer.
 import { $, h, ls, toast, download } from "./lib.js";
 import { t } from "./i18n.js";
 import { path, byKind } from "./state.js";
 import { extractSkills } from "./ats.js";
 import { atsReport, atsView } from "./atsscore.js";
 import { loadCvs, addCv, updateCv, setActiveCv } from "./cvs.js";
+import { cvPdf } from "./cvpdf.js";
 
 const KEY = "hk.cvmaker";
 const HEAD = {
@@ -51,7 +52,6 @@ const join = (...xs) => xs.filter(Boolean).join(", ");
 // Skills: grouped ("Databases: SQL, Oracle", one group per line) or a plain comma-separated list.
 const skillLines = (s) => (s || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
 const grouped = (s) => skillLines(s).some((l) => /^[^:,]{2,40}:\s*\S/.test(l));
-const when = (e, H) => join(dates(e, H), e.location);
 
 // Fills the form with a CV from the cv-tailor function (mode "cv"). Only known fields are kept, as plain strings.
 // Asks first when the form holds a CV that is not saved as a version. Returns false if the user cancels.
@@ -79,50 +79,61 @@ export function loadAiCv(data, forOffer) {
   return true;
 }
 
+// The CV as a layout model: { lang, name, headline, contact[], sections: [{ title, blocks }] }. Blocks: { type: "p", text },
+// { type: "label", label, text } (a skill group), { type: "bullets", items }, { type: "entry", title, right, org, place,
+// context[], bullets[] } (org in bold under the title, place after it). Used by the preview, the PDF (cvpdf.js) and the plain text (what ATS read).
+export function cvModel(c = cv) {
+  const H = HEAD[c.lang] || HEAD.en, sections = [];
+  const add = (title, blocks) => { if (blocks.length) sections.push({ title, blocks }); };
+  const entry = (title, right, org, place, context, bullets) => ({ type: "entry", title, right, org, place, context, bullets });
+  add(H.summary, lines(c.summary).map((text) => ({ type: "p", text })));
+  add(H.skills, grouped(c.skills)
+    ? skillLines(c.skills).map((l) => { const i = l.indexOf(":"); return i > 0 ? { type: "label", label: l.slice(0, i).trim(), text: l.slice(i + 1).trim() } : { type: "p", text: l }; })
+    : skillsOf(c.skills).length ? [{ type: "p", text: skillsOf(c.skills).join(", ") }] : []);
+  add(H.experience, c.experience.filter((e) => e.role || e.company).map((e) =>
+    entry(e.role || e.company, dates(e, H), e.role ? e.company : "", e.location, lines(e.context), lines(e.bullets))));
+  add(H.education, c.education.filter((e) => e.degree || e.school).map((e) =>
+    entry(e.degree || e.school, dates(e, H), e.degree ? e.school : "", e.location, [], lines(e.details))));
+  add(H.certifications, lines(c.certifications).length ? [{ type: "bullets", items: lines(c.certifications) }] : []);
+  add(H.projects, c.projects.filter((p) => p.name).map((p) => entry(p.name, "", "", p.link, [], lines(p.bullets))));
+  add(H.involvement, c.involvement.filter((v) => v.org || v.role).map((v) => entry([v.org, v.role].filter(Boolean).join(" – "), dates(v, H), "", "", [], [])));
+  add(H.languages, lines(c.languages).length ? [{ type: "p", text: lines(c.languages).join(", ") }] : []);
+  return { lang: c.lang, name: c.name.trim() || t("Your name"), headline: c.headline.trim(),
+    contact: [c.location, c.phone, c.email, ...lines(c.links)].map((x) => x.trim()).filter(Boolean), sections };
+}
+
 // Plain text of the CV: what an ATS reads, what is saved as a CV version and downloaded. Same order as the page.
 export function cvText(c = cv) {
-  const H = HEAD[c.lang] || HEAD.en, out = [];
-  const sec = (title, body) => { if (body.length) out.push("", title.toUpperCase(), ...body); };
-  const entries = (list) => list.flatMap((x) => ["", ...x.filter((l) => l !== null)]).slice(1);
-  out.push(c.name.trim(), c.headline.trim(), [c.location, c.email, c.phone, ...lines(c.links)].map((x) => x.trim()).filter(Boolean).join(" | "));
-  sec(H.summary, lines(c.summary));
-  sec(H.experience, entries(c.experience.filter((e) => e.role || e.company).map((e) => [
-    e.role, [e.company, when(e, H)].filter(Boolean).join(" | "), ...lines(e.context), ...lines(e.bullets).map((b) => `• ${b}`)])));
-  sec(H.education, entries(c.education.filter((e) => e.degree || e.school).map((e) => [
-    e.degree, [e.school, when(e, H)].filter(Boolean).join(" | "), ...lines(e.details).map((b) => `• ${b}`)])));
-  sec(H.certifications, lines(c.certifications).map((b) => `• ${b}`));
-  sec(H.projects, entries(c.projects.filter((p) => p.name).map((p) => [p.link ? `${p.name} | ${p.link}` : p.name, ...lines(p.bullets).map((b) => `• ${b}`)])));
-  sec(H.involvement, c.involvement.filter((v) => v.org || v.role).map((v) => [v.org, v.role, dates(v, H)].filter(Boolean).join(" | ")));
-  sec(H.skills, grouped(c.skills) ? skillLines(c.skills) : skillsOf(c.skills).length ? [skillsOf(c.skills).join(", ")] : []);
-  sec(H.languages, lines(c.languages).length ? [lines(c.languages).join(", ")] : []);
+  const m = cvModel(c), out = [c.name.trim(), m.headline, m.contact.join(" | ")];
+  for (const sec of m.sections) {
+    out.push("", sec.title.toUpperCase());
+    for (const b of sec.blocks) {
+      if (b.type === "p") out.push(b.text);
+      else if (b.type === "label") out.push(`${b.label}: ${b.text}`);
+      else if (b.type === "bullets") out.push(...b.items.map((x) => `• ${x}`));
+      else out.push([b.title, b.right].filter(Boolean).join(" | "), ...(b.org || b.place ? [join(b.org, b.place)] : []), ...b.context, ...b.bullets.map((x) => `• ${x}`));
+    }
+  }
   return out.filter((l, i) => l !== "" || out[i - 1] !== "").join("\n").replace(/^\n+/, "").trim();
 }
 
-/* ---------- preview: a white page, one column, standard headings ---------- */
+/* ---------- preview: a white page, the same layout as the PDF ---------- */
 function preview() {
-  const H = HEAD[cv.lang] || HEAD.en;
-  const sec = (title, ...kids) => (kids.flat().filter(Boolean).length ? h("section", { class: "cvp-sec" }, h("h2", {}, title), ...kids) : null);
+  const m = cvModel();
   const ul = (items) => (items.length ? h("ul", {}, items.map((x) => h("li", {}, x))) : null);
-  // Bold title; organisation on the left, dates and place on the right; optional context lines; bullets.
-  const entry = (title, org, right, context, items) => h("div", { class: "cvp-entry" },
-    title ? h("div", { class: "cvp-title" }, title) : null,
-    org || right ? h("div", { class: "cvp-row" }, h("b", {}, org || ""), right ? h("b", { class: "cvp-when" }, right) : null) : null,
-    ...context.map((x) => h("p", { class: "cvp-context" }, x)), ul(items));
-  const contact = [cv.location, cv.email, cv.phone, ...lines(cv.links)].map((x) => x.trim()).filter(Boolean);
-  const skills = grouped(cv.skills)
-    ? skillLines(cv.skills).map((l) => { const i = l.indexOf(":"); return i > 0 ? h("p", {}, h("b", {}, l.slice(0, i + 1)), l.slice(i + 1)) : h("p", {}, l); })
-    : skillsOf(cv.skills).length ? h("p", {}, skillsOf(cv.skills).join(", ")) : null;
-  return h("article", { id: "cvPreview", class: "cvp", lang: cv.lang },
-    h("header", {}, h("h1", {}, cv.name || t("Your name")), cv.headline ? h("p", { class: "cvp-head" }, cv.headline) : null,
-      contact.length ? h("p", { class: "cvp-contact" }, contact.flatMap((x, i) => [i ? " | " : "", h("span", {}, x)])) : null),
-    sec(H.summary, lines(cv.summary).map((x) => h("p", {}, x))),
-    sec(H.experience, cv.experience.filter((e) => e.role || e.company).map((e) => entry(e.role, e.company, when(e, H), lines(e.context), lines(e.bullets)))),
-    sec(H.education, cv.education.filter((e) => e.degree || e.school).map((e) => entry(e.degree, e.school, when(e, H), [], lines(e.details)))),
-    sec(H.certifications, ul(lines(cv.certifications))),
-    sec(H.projects, cv.projects.filter((p) => p.name).map((p) => entry(p.name, p.link, "", [], lines(p.bullets)))),
-    sec(H.involvement, cv.involvement.filter((v) => v.org || v.role).map((v) => entry(v.org, v.role, dates(v, H), [], []))),
-    sec(H.skills, skills),
-    sec(H.languages, lines(cv.languages).length ? h("p", {}, lines(cv.languages).join(", ")) : null));
+  const block = (b) => {
+    if (b.type === "p") return h("p", {}, b.text);
+    if (b.type === "label") return h("p", {}, h("b", {}, `${b.label}: `), b.text);
+    if (b.type === "bullets") return ul(b.items);
+    return h("div", { class: "cvp-entry" },
+      h("div", { class: "cvp-row" }, h("span", { class: "cvp-title" }, b.title), b.right ? h("span", { class: "cvp-when" }, b.right) : null),
+      b.org || b.place ? h("div", { class: "cvp-sub" }, b.org ? h("b", {}, b.org) : null, b.org && b.place ? ", " : "", b.place ? h("span", { class: "cvp-place" }, b.place) : null) : null,
+      ...b.context.map((x) => h("p", { class: "cvp-context" }, x)), ul(b.bullets));
+  };
+  return h("article", { id: "cvPreview", class: "cvp", lang: m.lang },
+    h("header", {}, h("h1", {}, m.name), m.headline ? h("p", { class: "cvp-head" }, m.headline) : null,
+      m.contact.length ? h("p", { class: "cvp-contact" }, m.contact.flatMap((x, i) => [i ? "  |  " : "", h("span", {}, x)])) : null),
+    ...m.sections.map((sec) => h("section", { class: "cvp-sec" }, h("h2", {}, sec.title), ...sec.blocks.map(block))));
 }
 
 // Live score against the path keywords and job titles.
@@ -182,6 +193,7 @@ function drawForm() {
       field(t("Email"), "email", cv, { type: "email" }), field(t("Phone"), "phone", cv, { type: "tel" }),
       field(t("City, country"), "location"), field(t("Links (one per line): LinkedIn, GitHub, portfolio"), "links", cv, { rows: 2 })),
     group(t("Summary"), field(t("2 or 3 lines: who you are, what you bring, what you look for"), "summary", cv, { rows: 3, wide: true })),
+    group(t("Skills"), field(t("One group per line (\"Databases: SQL, Oracle\") or a comma-separated list, with the exact words recruiters use"), "skills", cv, { rows: 4, wide: true }), skillSuggestions()),
     list("experience", t("Experience"), (e) => [field(t("Job title"), "role", e), field(t("Company"), "company", e), field(t("City"), "location", e),
       h("div", { class: "grid grid-cols-2 gap-2" }, field(t("Start"), "start", e, { ph: "03/2023" }), field(t("End"), "end", e, { ph: t("empty = present") })),
       field(t("Context (optional): team, product, scope"), "context", e, { rows: 2, wide: true }),
@@ -193,7 +205,6 @@ function drawForm() {
       field(t("What you built and the result"), "bullets", p, { rows: 3, wide: true })]),
     list("involvement", t("Involvement"), (v) => [field(t("Organisation"), "org", v), field(t("Role"), "role", v),
       h("div", { class: "grid grid-cols-2 gap-2 sm:col-span-2" }, field(t("Start"), "start", v, { ph: "2017" }), field(t("End"), "end", v, { ph: "2018" }))]),
-    group(t("Skills"), field(t("One group per line (\"Databases: SQL, Oracle\") or a comma-separated list, with the exact words recruiters use"), "skills", cv, { rows: 4, wide: true }), skillSuggestions()),
     group(t("Certifications and languages"), field(t("Certifications (one per line)"), "certifications", cv, { rows: 2 }),
       field(t("Languages (e.g. French: native, English: C1)"), "languages", cv, { rows: 2 })),
   ].filter(Boolean));
@@ -226,8 +237,20 @@ function useAsVersion() {
   else { const c = addCv({ name: cv.aiFor ? t("CV · {title}", { title: cv.aiFor }) : t("CV maker · {title}", { title: cv.headline.trim() || path()?.name || "" }), text }); cv.cvId = c.id; save(); toast(t("Saved as a new CV version. It now scores offers.")); }
   onSaved();
 }
-// Prints a copy of the CV page alone (#cvPrint, a direct child of body; everything else is display:none in print), so
-// the long form behind it does not add blank pages.
+// "Download PDF": a real text PDF built in the browser (cvpdf.js). If the PDF library cannot load (offline on first use),
+// the browser prints a copy of the CV page alone instead (#cvPrint; everything else is display:none in print).
+async function downloadPdf(btn) {
+  btn.disabled = true;
+  try {
+    const bytes = await cvPdf(cvModel());
+    const name = (cv.name.trim() || "cv").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    download(`${name || "cv"}-CV.pdf`, bytes, "application/pdf");
+  } catch (e) {
+    console.warn("CV PDF:", e);
+    toast(t("The PDF could not be built here: the print window opens instead (choose \"Save as PDF\")."));
+    printCv();
+  } finally { btn.disabled = false; }
+}
 function printCv() {
   const page = preview(); page.removeAttribute("id");
   const box = h("div", { id: "cvPrint" }, page);
@@ -245,8 +268,8 @@ export function renderCvMaker() { drawForm(); redraw(); }
 export function initCvMaker(opts = {}) {
   onSaved = opts.onSaved || onSaved;
   $("#cvmActions").replaceChildren(
-    h("button", { type: "button", class: "btn", onClick: useAsVersion }, t("Use as a CV version")),
-    h("button", { type: "button", class: "btn-ghost", onClick: printCv }, t("Print / save as PDF")),
+    h("button", { type: "button", class: "btn", onClick: (e) => downloadPdf(e.currentTarget) }, t("⬇ Download PDF")),
+    h("button", { type: "button", class: "btn-ghost", onClick: useAsVersion }, t("Use as a CV version")),
     h("button", { type: "button", class: "btn-ghost", onClick: () => download(`${(cv.name || "cv").replace(/\W+/g, "-").toLowerCase()}.txt`, cvText()) }, t("Download .txt")),
     h("button", { type: "button", class: "btn-ghost", onClick: reset }, t("Clear the form")));
 }

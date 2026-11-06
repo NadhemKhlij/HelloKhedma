@@ -194,6 +194,12 @@ test("CV maker: the form fills the preview, saves a CV version, and the ATS scor
   await expect(page.locator("#cvPreview")).toContainText("Test Person");
   await expect(page.locator("#cvPreview")).toContainText("Reduced report time by 80%");
   await expect(page.locator("#cvmScore")).toContainText("ATS score");
+  // "Download PDF" builds a real PDF in the browser (js/cvpdf.js + js/vendor/pdf-lib).
+  const [pdf] = await Promise.all([page.waitForEvent("download"), page.locator("#cvmActions").getByRole("button", { name: "Download PDF" }).click()]);
+  expect(pdf.suggestedFilename()).toBe("Test-Person-CV.pdf");
+  const bytes = await (await import("node:fs/promises")).readFile(await pdf.path());
+  expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
+  expect(bytes.length).toBeGreaterThan(1500);
   await page.locator("#cvmActions").getByRole("button", { name: "Use as a CV version" }).click();
   await page.locator("#cvTabCheck").click();
   await expect(page.locator("#cv")).toHaveValue(/Test Person/);

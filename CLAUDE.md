@@ -63,6 +63,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   Supabase on first sign-in (js/store.js).
 - No permanent mock data. Path content lives in the database (career_paths, path_resources, training_tracks,
   training_steps): edit supabase/seed.sql, not the JS.
+- Runnable SQL exercises: add `"run": { "db": "shop", "ordered"?: true, "minColumns"?: n }` to an exercise with
+  `"code": "sql"` (same in the French copy); the answer must run on content/sql/<db>.sql in SQLite (CI checks it).
+  Datasets are fictional, small, and designed so each answer has one unambiguous result (no ties at a LIMIT).
 - Courses are static JSON in content/courses/ (index.json + one file per course): keep `lessonCount` and `minutes`
   in sync (minutes = courseTime() from js/coursetime.js; a smoke test fails when they drift) and use skill names that
   exist in js/ats.js so missing skills link to the course. Lessons have no hand-written duration. To extend a course,
@@ -144,7 +147,10 @@ Read the header comment of any file before modifying it; update the header if be
 - js/gaps.js — "Close the gaps": courses, roadmap steps and projects for the missing skills (#/cv, Tailor my CV)
 - js/learnsync.js — learning progress synced for signed-in users (learning_sync; merge per key, lib.js onStore watcher)
 - js/report.js — "⚑ Report a problem" on course and project pages (report_content(), e-mail fallback)
-- scripts/check-content.mjs — content checks run by CI (structure, French copies, identical code, skills, AI track)
+- scripts/check-content.mjs — content checks run by CI (structure, French copies, identical code, skills, AI track,
+  and every runnable SQL answer executed on its dataset and accepted by the grader)
+- js/sqlrun.js + js/sqlgrade.js — runnable SQL exercises: SQLite (sql.js, js/vendor) in a Web Worker with a 5 s limit on
+  a fresh copy of content/sql/<db>.sql; the grader compares the learner's result with the course answer's result
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
 - js/atsscore.js — ATS score /100 (skills, job title, sections, contact, impact, length, layout) with fixes, EN + FR CVs
 - js/cvmaker.js — CV maker: form, one layout model (cvModel) for the preview, the PDF and the ATS text (centered header;

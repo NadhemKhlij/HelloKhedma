@@ -102,7 +102,8 @@ lessons (intermediate topics, more exercises, interview questions and cheat-shee
 lessons, about 2.5-3.5 h of reading and practice each. Done (2026-11-06, training step 1): learning progress synced to
 the account (js/learnsync.js: lessons, quizzes, flashcards, exercises, projects, XP, interview prep), "Report a problem"
 on courses and projects (content_reports), content checks in CI (scripts/check-content.mjs). Next (training plan):
-runnable SQL exercises (sql.js) checked against expected results, spaced repetition + placement test, AI "explain my
+runnable SQL exercises (done 2026-11-06: 7 SQL-course exercises on the "shop" dataset, SQLite in a Web Worker, result
+compared with the course answer's, answers executed in CI), spaced repetition + placement test, AI "explain my
 mistake" (Sonnet 5.5), runnable Python (Pyodide), project starter repos with automatic checks + public portfolio.
 Earlier "still to do": sync lesson and project progress to the account (done 2026-11-06),
 expert review (CHECKLIST O11), advanced level for the core courses if users ask for it.

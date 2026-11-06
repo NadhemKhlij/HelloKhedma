@@ -4,8 +4,11 @@
 //   from the same course), instant feedback, best score per course ("hk.quiz").
 // - flashcards(): the cheat sheet as flip cards; "I knew it" cards are remembered per course ("hk.cards").
 // - exercises(): try first in a scratch box (not saved), reveal the answer, then grade yourself ("hk.exercises").
+//   Runnable SQL exercises (exercise.run = { db, ordered?, minColumns? }, training step 2): ▶ Run shows the result
+//   table on the practice dataset (sqlrun.js: SQLite in a Web Worker, nothing sent anywhere) and ✓ Check compares it
+//   with the result of the course answer (sqlgrade.js); a correct result marks the exercise solved.
 // - interviewCards(): think first, then reveal the model answer.
-// Everything stays in this browser; each action adds XP (activity.js).
+// Everything stays in this browser (synced to the account when signed in, learnsync.js); each action adds XP (activity.js).
 import { h, ls } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { logActivity } from "./activity.js";
@@ -129,6 +132,7 @@ export function exercises(root, c, codeBlock) {
   const solved = new Set(EX.get(c.id) || []);
   const count = h("span", { class: "mute text-sm" });
   const upd = () => { count.textContent = t("{d}/{n} solved", { d: solved.size, n: c.exercises.length }); };
+  const markSolved = (i, status) => { if (!solved.has(i)) logActivity(3); solved.add(i); EX.set(c.id, [...solved]); status.hidden = false; upd(); };
   const one = (e, i) => {
     const status = h("span", { class: "badge", hidden: !solved.has(i) }, t("Solved"));
     const hint = e.hint ? h("p", { class: "mute text-sm", hidden: true }, t("Hint: {hint}", { hint: e.hint })) : null;
@@ -144,7 +148,7 @@ export function exercises(root, c, codeBlock) {
         h("span", { class: "w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold", style: "background:var(--soft)" }, String(i + 1)),
         h("p", { class: "font-medium flex-1" }, e.q), status),
       hint,
-      h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
+      e.run ? sqlRunner(e, () => markSolved(i, status)) : h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
         placeholder: t("Try it here first (not saved)…") }),
       h("div", { class: "flex flex-wrap gap-2" }, reveal,
         hint ? h("button", { type: "button", class: "btn-ghost", onClick: (ev) => { hint.hidden = false; ev.currentTarget.remove(); } }, t("💡 Show a hint")) : null),
@@ -163,4 +167,73 @@ export function interviewCards(root, c) {
       const btn = h("button", { type: "button", class: "btn-ghost self-start", onClick: () => { a.hidden = false; btn.remove(); logActivity(1); } }, t("Show the model answer"));
       return h("div", { class: "panel !shadow-none grid gap-2" }, h("p", { class: "font-medium" }, x.q), btn, a);
     })));
+}
+
+/* ---------- runnable SQL exercises (training step 2) ---------- */
+const MAX_ROWS = 20;
+// The result table of a query (first MAX_ROWS rows).
+function resultTable(res) {
+  if (!res.columns.length) return h("p", { class: "mute text-sm" }, t("The statement ran. It returns no table (only a SELECT shows rows)."));
+  const shown = res.values.slice(0, MAX_ROWS);
+  return h("div", { class: "grid gap-1" },
+    h("div", { class: "overflow-x-auto rounded-xl", style: "border:1px solid var(--line)" },
+      h("table", { class: "text-xs font-mono w-full" },
+        h("thead", {}, h("tr", { style: "background:var(--soft)" }, res.columns.map((c) => h("th", { class: "text-left px-2 py-1 whitespace-nowrap" }, c)))),
+        h("tbody", {}, shown.map((r) => h("tr", { style: "border-top:1px solid var(--line)" },
+          r.map((v) => h("td", { class: "px-2 py-1 whitespace-nowrap" }, v == null ? "NULL" : String(v)))))))),
+    h("p", { class: "mute text-xs" }, res.values.length > MAX_ROWS
+      ? t("{n} rows ({max} shown)", { n: res.values.length, max: MAX_ROWS }) : tn(res.values.length, "{n} row", "{n} rows")));
+}
+const VERDICT = {
+  rows: "Not yet: your query returns {got} rows, the expected result has {want}.",
+  columns: "Not yet: the number of rows is right, but some expected columns are missing or hold other values.",
+  values: "Not yet: same number of rows, but some values differ.",
+  order: "Almost: the right rows, but not in the order asked for.",
+  none: "Your query returns no table. Write a SELECT that answers the question.",
+};
+function sqlRunner(e, onSolved) {
+  const box = h("textarea", { class: "input font-mono min-h-[110px] w-full", rows: 5, spellcheck: "false", autocapitalize: "off", autocorrect: "off",
+    "aria-label": t("Your SQL query"), placeholder: t("Write your SQL query, then ▶ Run (Ctrl + Enter)…") });
+  const out = h("div", { class: "grid gap-2", "aria-live": "polite" });
+  const say = (text, color) => h("p", { class: "text-sm font-medium", style: color ? `color:${color}` : "" }, text);
+  let expected = null;
+  const engine = () => Promise.all([import("./sqlrun.js"), import("./sqlgrade.js")]);
+  const errorText = (err) => (err.message === "timeout" ? t("Your query took more than 5 seconds and was stopped.") : t("SQL error: {msg}", { msg: err.message }));
+  const busy = (on) => { run.disabled = check.disabled = on; };
+  async function onRun() {
+    if (!box.value.trim()) { box.focus(); return; }
+    busy(true); out.replaceChildren(h("p", { class: "mute text-sm" }, t("Running…")));
+    try { const [{ runSql }] = await engine(); out.replaceChildren(resultTable(await runSql(e.run.db, box.value))); }
+    catch (err) { out.replaceChildren(say(errorText(err), "#e0508b")); }
+    finally { busy(false); }
+  }
+  async function onCheck() {
+    if (!box.value.trim()) { box.focus(); return; }
+    busy(true); out.replaceChildren(h("p", { class: "mute text-sm" }, t("Checking…")));
+    try {
+      const [{ runSql }, { gradeResult }] = await engine();
+      expected ||= await runSql(e.run.db, e.answer);
+      let mine;
+      try { mine = await runSql(e.run.db, box.value); } catch (err) { out.replaceChildren(say(errorText(err), "#e0508b")); return; }
+      const g = gradeResult(expected, mine, e.run);
+      if (g.ok) { onSolved(); out.replaceChildren(say(t("✓ Correct! Same result as the expected answer."), "#18a999"), resultTable(mine)); }
+      else out.replaceChildren(say(t(VERDICT[g.reason] || VERDICT.values, { got: g.got, want: g.want }), "#f08a24"), resultTable(mine));
+    } catch (err) { out.replaceChildren(say(errorText(err), "#e0508b")); }
+    finally { busy(false); }
+  }
+  const run = h("button", { type: "button", class: "btn-ghost", onClick: onRun }, t("▶ Run"));
+  const check = h("button", { type: "button", class: "btn", onClick: onCheck }, t("✓ Check my answer"));
+  box.addEventListener("keydown", (ev) => { if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") { ev.preventDefault(); onRun(); } });
+  // The practice tables, loaded when opened.
+  const schema = h("details", { class: "text-xs" }, h("summary", { class: "cursor-pointer mute" }, t("Tables in the practice database")));
+  schema.addEventListener("toggle", async () => {
+    if (!schema.open || schema.dataset.loaded) return;
+    schema.dataset.loaded = "1";
+    try {
+      const [{ tablesOf }] = await engine();
+      schema.append(h("ul", { class: "grid gap-1 mt-2 font-mono" }, (await tablesOf(e.run.db)).map((tb) =>
+        h("li", {}, h("b", {}, tb.name), `(${tb.columns.join(", ")}) · `, h("span", { class: "mute" }, tn(tb.rows, "{n} row", "{n} rows"))))));
+    } catch (err) { schema.append(h("p", { class: "mute" }, errorText(err))); }
+  });
+  return h("div", { class: "grid gap-2", "data-sql-runner": true }, schema, box, h("div", { class: "flex flex-wrap gap-2" }, run, check), out);
 }

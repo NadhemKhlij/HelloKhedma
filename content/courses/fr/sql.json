@@ -411,43 +411,70 @@
       "q": "Listez les 5 villes qui comptent le plus de clients, avec le nombre de clients.",
       "hint": "GROUP BY city, ORDER BY sur le nombre, LIMIT.",
       "code": "sql",
-      "answer": "SELECT city, COUNT(*) AS customers\nFROM customers\nGROUP BY city\nORDER BY customers DESC\nLIMIT 5;"
+      "answer": "SELECT city, COUNT(*) AS customers\nFROM customers\nGROUP BY city\nORDER BY customers DESC\nLIMIT 5;",
+      "run": {
+        "db": "shop",
+        "ordered": true
+      }
     },
     {
       "q": "Trouvez les clients qui n’ont jamais passé de commande.",
       "hint": "LEFT JOIN, puis cherchez les NULL côté commandes.",
       "code": "sql",
-      "answer": "SELECT c.id, c.name\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.id IS NULL;"
+      "answer": "SELECT c.id, c.name\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.id IS NULL;",
+      "run": {
+        "db": "shop",
+        "minColumns": 1
+      }
     },
     {
       "q": "Pour chaque client, renvoyez uniquement sa commande la plus récente.",
       "hint": "ROW_NUMBER() partitionné par client, trié par date décroissante.",
       "code": "sql",
-      "answer": "WITH ranked AS (\n  SELECT o.*, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY ordered_at DESC) AS rn\n  FROM orders o\n)\nSELECT * FROM ranked WHERE rn = 1;"
+      "answer": "WITH ranked AS (\n  SELECT o.*, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY ordered_at DESC) AS rn\n  FROM orders o\n)\nSELECT * FROM ranked WHERE rn = 1;",
+      "run": {
+        "db": "shop",
+        "minColumns": 2
+      }
     },
     {
       "q": "Réécrivez ce filtre pour qu’un index sur created_at puisse être utilisé : WHERE EXTRACT(MONTH FROM created_at) = 1 AND EXTRACT(YEAR FROM created_at) = 2026.",
       "hint": "Comparez la colonne elle-même à un intervalle de dates.",
       "code": "sql",
-      "answer": "SELECT id, total\nFROM orders\nWHERE created_at >= '2026-01-01'\n  AND created_at <  '2026-02-01';"
+      "answer": "SELECT id, total\nFROM orders\nWHERE created_at >= '2026-01-01'\n  AND created_at <  '2026-02-01';",
+      "run": {
+        "db": "shop"
+      }
     },
     {
       "q": "Listez les employés qui gagnent plus que le salaire moyen de leur propre département.",
       "hint": "Une sous-requête corrélée qui compare avec le département de la ligne externe.",
       "code": "sql",
-      "answer": "SELECT e.first_name, e.department, e.salary\nFROM employees e\nWHERE e.salary > (\n  SELECT AVG(e2.salary)\n  FROM employees e2\n  WHERE e2.department = e.department\n);"
+      "answer": "SELECT e.first_name, e.department, e.salary\nFROM employees e\nWHERE e.salary > (\n  SELECT AVG(e2.salary)\n  FROM employees e2\n  WHERE e2.department = e.department\n);",
+      "run": {
+        "db": "shop",
+        "minColumns": 1
+      }
     },
     {
       "q": "Affichez chaque commande avec un cumul du montant par client, strictement ligne par ligne même quand deux commandes ont la même date.",
       "hint": "Un cadre ROWS explicite et un critère de départage unique dans ORDER BY.",
       "code": "sql",
-      "answer": "SELECT customer_id, ordered_at, amount,\n       SUM(amount) OVER (PARTITION BY customer_id ORDER BY ordered_at, id\n                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total\nFROM orders\nORDER BY customer_id, ordered_at, id;"
+      "answer": "SELECT customer_id, ordered_at, amount,\n       SUM(amount) OVER (PARTITION BY customer_id ORDER BY ordered_at, id\n                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total\nFROM orders\nORDER BY customer_id, ordered_at, id;",
+      "run": {
+        "db": "shop",
+        "ordered": true
+      }
     },
     {
       "q": "Calculez le taux de conversion (conversions / clics, en %) par campagne sans erreur quand une campagne a 0 clic.",
       "hint": "NULLIF sur le diviseur, et multipliez par 100.0 pour éviter la division entière.",
       "code": "sql",
-      "answer": "SELECT campaign,\n       SUM(clicks) AS clicks,\n       SUM(conversions) AS conversions,\n       ROUND(100.0 * SUM(conversions) / NULLIF(SUM(clicks), 0), 1) AS conversion_pct\nFROM campaign_stats\nGROUP BY campaign;"
+      "answer": "SELECT campaign,\n       SUM(clicks) AS clicks,\n       SUM(conversions) AS conversions,\n       ROUND(100.0 * SUM(conversions) / NULLIF(SUM(clicks), 0), 1) AS conversion_pct\nFROM campaign_stats\nGROUP BY campaign;",
+      "run": {
+        "db": "shop",
+        "minColumns": 2
+      }
     },
     {
       "q": "Chargez les prix de staging_prices (une ligne par sku) dans products : insérez les nouveaux sku et mettez à jour le prix des sku existants.",

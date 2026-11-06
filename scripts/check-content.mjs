@@ -8,12 +8,16 @@
 //     order, identical code (lesson examples, code answers), and actually translated (why differs);
 //   - interview (content/interview): ids unique, model answers present;
 //   - portfolio projects (content/projects): 3 per path, required fields, ids "<path>-…", http(s) data links;
-//   - AI track (content/ai): index entries, Arabic-letter and 3arbizi files with the same structure and identical code.
+//   - AI track (content/ai): index entries, Arabic-letter and 3arbizi files with the same structure and identical code;
+//   - runnable SQL exercises (exercise.run, training step 2): the dataset exists, the course answer runs on it with
+//     SQLite (sql.js, the same engine as the browser) and returns rows, and the grader (js/sqlgrade.js) accepts it.
 // The same rules as scripts/check-fr-content.ps1 (French) and the course smoke test, plus the structure rules above.
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { SKILLS } from "../js/ats.js";
+import { gradeResult } from "../js/sqlgrade.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const C = (...p) => join(ROOT, "content", ...p);
@@ -64,6 +68,7 @@ function sameShape(where, a, b, { translated = true } = {}) {
   arr(a.exercises).forEach((e, i) => {
     const f = arr(b.exercises)[i] || {};
     if (e.code && (e.answer !== f.answer || e.code !== f.code)) bad(where, `exercise ${i + 1}: code answer differs`);
+    if (JSON.stringify(e.run || null) !== JSON.stringify(f.run || null)) bad(where, `exercise ${i + 1}: run settings differ`);
   });
   if (translated && a.why && a.why === b.why) bad(where, "why is not translated");
 }
@@ -166,8 +171,33 @@ aiAr.forEach((p) => checkProject("ai/ar/projects.json", p, "ai"));
 aiLat.forEach((p) => checkProject("ai/lat/projects.json", p, "ai"));
 sameProjects("ai/lat/projects.json", aiAr, aiLat, { codeOnly: true });
 
+/* ---------- runnable SQL exercises ---------- */
+const runnable = [];
+for (const e of index) {
+  const c = existsSync(C("courses", `${e.id}.json`)) ? load(C("courses", `${e.id}.json`)) : null;
+  arr(c?.exercises).forEach((x, i) => { if (x.run) runnable.push({ where: `courses/${e.id}.json exercise ${i + 1}`, x }); });
+}
+if (runnable.length) {
+  const initSqlJs = createRequire(import.meta.url)("sql.js");
+  const SQL = await initSqlJs();
+  const run = (db, sql) => {
+    const d = new SQL.Database();
+    try { d.exec(readFileSync(C("sql", `${db}.sql`), "utf8")); const r = d.exec(sql).at(-1); return r ? { columns: r.columns, values: r.values } : { columns: [], values: [] }; }
+    finally { d.close(); }
+  };
+  for (const { where, x } of runnable) {
+    if (!/^[a-z0-9_-]+$/.test(x.run.db || "") || !existsSync(C("sql", `${x.run.db}.sql`))) { bad(where, `dataset "${x.run.db}" not found in content/sql/`); continue; }
+    if (x.code !== "sql") bad(where, "a runnable exercise must have code: \"sql\"");
+    let res;
+    try { res = run(x.run.db, x.answer); } catch (err) { bad(where, `the answer fails on dataset ${x.run.db}: ${err.message}`); continue; }
+    if (!res.values.length) { bad(where, "the answer returns no rows on the dataset (nothing to compare with)"); continue; }
+    const g = gradeResult(res, res, x.run);
+    if (!g.ok) bad(where, `the grader rejects the course answer (${g.reason})`);
+  }
+}
+
 /* ---------- result ---------- */
-const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${PATHS.size * 3} + ${aiAr.length} projects`;
+const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${PATHS.size * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises`;
 if (problems.length) {
   console.log(`Content check: ${problems.length} problem(s) (${counted})`);
   for (const p of problems) console.log(`  - ${p}`);

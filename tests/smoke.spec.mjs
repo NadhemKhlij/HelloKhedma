@@ -303,6 +303,19 @@ test("a course opens with its tabs and the quiz", async ({ page }) => {
   await expect(report.getByRole("button", { name: "Send" })).toBeVisible();
 });
 
+test("runnable SQL exercise: a correct query written differently is accepted, a wrong one explained", async ({ page }) => {
+  await open(page, "#/course/sql");
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+  const runner = page.locator("[data-sql-runner]").first();
+  await runner.locator("textarea").fill("select city, count(*) from customers group by city order by 2 desc limit 4");
+  await runner.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(runner).toContainText("the expected result has 5", { timeout: 15_000 });
+  await runner.locator("textarea").fill("select count(*) as n, city from customers group by city order by n desc limit 5");
+  await runner.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(runner).toContainText("Correct!", { timeout: 15_000 });
+  await expect(runner.locator("table")).toContainText("Paris");
+});
+
 test("French interface and back to English", async ({ page }) => {
   await open(page);
   await page.click("#langToggle");

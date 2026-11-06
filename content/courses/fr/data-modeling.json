@@ -407,6 +407,70 @@
         "Une ligne par produit"
       ],
       "answer": "Le grain est ce que représente une ligne, et il se fixe avant de choisir les colonnes. Une ligne par ligne de commande permet de sommer par produit, par commande et par client ; une table par commande ne distinguerait pas les produits."
+    },
+    {
+      "q": "Schéma en étoile (base d’entraînement dwh : fact_sales avec dim_date, dim_store, dim_product, dim_customer). Comparez les ventes du week-end et de la semaine : renvoyez is_weekend, le chiffre d’affaires et le nombre de tickets. Attention : fact_sales a une ligne par ligne de ticket, un ticket peut donc avoir plusieurs lignes.",
+      "hint": "Joignez dim_date sur date_key et groupez par is_weekend ; COUNT(DISTINCT ticket_id) compte les tickets, pas les lignes.",
+      "code": "sql",
+      "answer": "SELECT d.is_weekend, ROUND(SUM(f.amount), 2) AS revenue,\n       COUNT(DISTINCT f.ticket_id) AS tickets\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nGROUP BY d.is_weekend;",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "La table de faits porte les mesures (amount, quantity) à un grain : la ligne de ticket. La dimension date porte les attributs utilisés pour filtrer et grouper (is_weekend, mois, trimestre, nom du jour), calculés une fois : personne ne réécrit la logique de dates dans chaque rapport. COUNT(*) compterait des lignes (412), pas des tickets (251) : annoncez toujours le grain avant de compter."
+    },
+    {
+      "q": "Schéma en étoile : chiffre d’affaires par trimestre et par canal (magasin ou en ligne), trié par trimestre puis par canal.",
+      "hint": "Deux dimensions dans une requête : joignez dim_date et dim_store, groupez par les deux attributs.",
+      "code": "sql",
+      "answer": "SELECT d.quarter, s.channel, ROUND(SUM(f.amount), 2) AS revenue\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_store s ON s.store_key = f.store_key\nGROUP BY d.quarter, s.channel\nORDER BY d.quarter, s.channel;",
+      "run": {
+        "db": "dwh",
+        "ordered": true
+      },
+      "explain": "C’est le rôle d’un schéma en étoile : n’importe quelle mesure du fait, découpée par n’importe quel attribut de n’importe quelle dimension, avec des jointures simples sur les clés de substitution. Dans un outil BI, le même modèle permet de découper par glisser-déposer. Le canal en ligne passe de 5 873 à 9 170 entre T1 et T2."
+    },
+    {
+      "q": "Schéma en étoile : les 3 produits avec la plus forte marge brute (amount moins quantity × unit_cost), la plus forte en premier.",
+      "hint": "unit_cost est un attribut de dim_product ; amount et quantity sont dans le fait.",
+      "code": "sql",
+      "answer": "SELECT p.name, ROUND(SUM(f.amount - f.quantity * p.unit_cost), 2) AS margin\nFROM fact_sales f\nJOIN dim_product p ON p.product_key = f.product_key\nGROUP BY p.name\nORDER BY margin DESC\nLIMIT 3;",
+      "run": {
+        "db": "dwh",
+        "ordered": true
+      },
+      "explain": "La marge combine une mesure du fait (amount, déjà remisé) et un attribut de dimension (unit_cost). Ici, le coût est le coût actuel du produit : si les coûts changent dans le temps, il faut le stocker sur la ligne de fait (ou historiser la dimension produit en SCD type 2), sinon la marge des ventes passées est réécrite. Laptop 14in, Standing desk, Office chair."
+    },
+    {
+      "q": "Dimension à évolution lente : dim_customer est de type 2 (une nouvelle ligne avec une nouvelle customer_key quand un client change ; valid_from, valid_to, is_current). Donnez le chiffre d’affaires par segment de client tel qu’il était au moment de chaque vente (les ventes sans carte n’ont pas de client : laissez-les de côté).",
+      "hint": "La ligne de fait pointe déjà vers la version valide le jour de la vente : joignez sur customer_key, rien d’autre.",
+      "code": "sql",
+      "answer": "SELECT c.segment, ROUND(SUM(f.amount), 2) AS revenue\nFROM fact_sales f\nJOIN dim_customer c ON c.customer_key = f.customer_key\nGROUP BY c.segment;",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "Avec une SCD type 2, joindre sur la clé de substitution donne l’historique gratuitement : C007 est passé Business le 15 avril, ses ventes antérieures restent Consumer (Business 14 912 / Consumer 20 551). Pour raisonner sur le segment d’aujourd’hui, passez par customer_id vers la ligne is_current = 1 (Business 16 774 / Consumer 18 689). Les deux questions sont valables : demandez laquelle le métier veut."
+    },
+    {
+      "q": "Dimension à évolution lente : quels clients ont déménagé ? Renvoyez customer_id, l’ancienne ville et la ville actuelle (un client peut aussi avoir une nouvelle version pour une autre raison, comme un changement de segment).",
+      "hint": "Joignez dim_customer à elle-même sur customer_id : l’ancienne version (is_current = 0) avec l’actuelle (is_current = 1).",
+      "code": "sql",
+      "answer": "SELECT o.customer_id, o.city AS old_city, n.city AS new_city\nFROM dim_customer o\nJOIN dim_customer n ON n.customer_id = o.customer_id AND n.is_current = 1\nWHERE o.is_current = 0 AND o.city <> n.city;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 3
+      },
+      "explain": "Chaque version a sa propre customer_key mais partage la clé métier customer_id : une auto-jointure sur customer_id aligne les versions. C003 est passé de Lyon à Paris (1er mars), C012 de Tunis à Sfax (10 février) ; C007 a aussi deux versions, mais pour un changement de segment, donc le test sur la ville l’écarte."
+    },
+    {
+      "q": "Grain : la valeur moyenne d’un ticket (panier moyen) par ville de magasin, la plus forte en premier. AVG(amount) sur fact_sales n’est pas la réponse : trouvez d’abord pourquoi.",
+      "hint": "Additionnez d’abord les lignes de chaque ticket (sous-requête ou CTE groupée par ticket_id), puis faites la moyenne de ces totaux par magasin.",
+      "code": "sql",
+      "answer": "SELECT s.city, ROUND(AVG(t.ticket_total), 2) AS avg_ticket\nFROM (\n  SELECT ticket_id, store_key, SUM(amount) AS ticket_total\n  FROM fact_sales\n  GROUP BY ticket_id, store_key\n) t\nJOIN dim_store s ON s.store_key = t.store_key\nGROUP BY s.city\nORDER BY avg_ticket DESC;",
+      "run": {
+        "db": "dwh",
+        "ordered": true
+      },
+      "explain": "AVG(amount) fait la moyenne des lignes : un ticket avec trois petites lignes tire la moyenne vers le bas trois fois, et le classement change même (Lyon est dernier par ligne, Sfax dernier par ticket). Changez d’abord le grain (lignes → tickets), puis agrégez. Le même piège existe dans les outils BI quand une mesure est moyennée au mauvais niveau."
     }
   ],
   "interview": [

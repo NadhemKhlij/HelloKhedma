@@ -11,6 +11,7 @@
 //   - AI track (content/ai): index entries, Arabic-letter and 3arbizi files with the same structure and identical code;
 //   - runnable SQL exercises (exercise.run, training step 2): the dataset exists, the course answer runs on it with
 //     SQLite (sql.js, the same engine as the browser) and returns rows, and the grader (js/sqlgrade.js) accepts it;
+//     a "fix this query" starting query (exercise.start) is not accepted, and is the same in the French copy;
 //   - auto-graded exercise formats (exercise.type, training steps 2b + 2c, js/drills.js): the fields of each format,
 //     accepted answers that compile, "___" blanks = blanks, the bug line inside the snippet, scenario steps with a best
 //     choice; files (content/logs, content/data) that exist; regex / cron / jq answers that run (js/drillcheck.js) and
@@ -88,6 +89,7 @@ function sameShape(where, a, b, { translated = true } = {}) {
     const f = arr(b.exercises)[i] || {};
     if (e.code && (e.answer !== f.answer || e.code !== f.code)) bad(where, `exercise ${i + 1}: code answer differs`);
     if (JSON.stringify(e.run || null) !== JSON.stringify(f.run || null)) bad(where, `exercise ${i + 1}: run settings differ`);
+    if (!e.type && (e.start ?? null) !== (f.start ?? null)) bad(where, `exercise ${i + 1}: starting query differs`);
     if (!!e.try !== !!f.try) bad(where, `exercise ${i + 1}: try differs`);
     if (e.type || f.type) sameDrill(`${where} exercise ${i + 1}`, e, f);
   });
@@ -312,6 +314,12 @@ if (runnable.length) {
     if (!res.values.length) { bad(where, "the answer returns no rows on the dataset (nothing to compare with)"); continue; }
     const g = gradeResult(res, res, x.run);
     if (!g.ok) bad(where, `the grader rejects the course answer (${g.reason})`);
+    if (x.start != null) { // "fix this query": the starting query must not already pass
+      if (!str(x.start)) { bad(where, "start must be a query"); continue; }
+      let mine = null;
+      try { mine = run(x.run.db, x.start); } catch { /* a query that fails is a fine starting point */ }
+      if (mine && gradeResult(res, mine, x.run).ok) bad(where, "the starting query already gives the expected result");
+    }
   }
 }
 

@@ -505,6 +505,111 @@
       "snippet": "SELECT city, COUNT(*) AS customers\nFROM customers\nWHERE COUNT(*) > 10\nGROUP BY city\nORDER BY customers DESC;",
       "fix": "SELECT city, COUNT(*) AS customers\nFROM customers\nGROUP BY city\nHAVING COUNT(*) > 10\nORDER BY customers DESC;",
       "answer": "WHERE filtre les lignes avant le regroupement : il ne peut pas utiliser d’agrégat. Une condition sur COUNT(*) va dans HAVING, après GROUP BY. Ordre d’évaluation : FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY."
+    },
+    {
+      "q": "Corrigez cette requête (base d’entraînement dwh, un petit entrepôt de données de ventes ; dim_customer garde une ligne par version d’un client, is_current = 1 pour celle d’aujourd’hui). Elle doit donner le chiffre d’affaires des clients inscrits par ville où ils habitent aujourd’hui, mais les totaux de Lyon et Tunis sont trop élevés.",
+      "hint": "Exécutez-la, puis comptez les lignes de dim_customer par customer_id : combien de lignes de c chaque vente rencontre-t-elle ?",
+      "code": "sql",
+      "answer": "SELECT c.city, ROUND(SUM(f.amount), 2) AS revenue\nFROM fact_sales f\nJOIN dim_customer h ON h.customer_key = f.customer_key\nJOIN dim_customer c ON c.customer_id = h.customer_id AND c.is_current = 1\nGROUP BY c.city;",
+      "run": {
+        "db": "dwh"
+      },
+      "start": "SELECT c.city, ROUND(SUM(f.amount), 2) AS revenue\nFROM fact_sales f\nJOIN dim_customer h ON h.customer_key = f.customer_key\nJOIN dim_customer c ON c.customer_id = h.customer_id\nGROUP BY c.city;",
+      "explain": "La seconde jointure trouve toutes les versions du client : les ventes des clients avec historique sont comptées une fois par version, et aussi dans leur ancienne ville (démultiplication). Ne garder que la version actuelle (c.is_current = 1) donne une ligne par vente. Vérifiez toute jointure sur une clé non unique : comparez COUNT(*) avant et après la jointure."
+    },
+    {
+      "q": "Corrigez cette requête (dwh) : les produits vendus à plus de 50 unités au T2. Elle échoue avec « misuse of aggregate ».",
+      "hint": "WHERE filtre les lignes avant le regroupement ; une condition sur SUM() se place après GROUP BY.",
+      "code": "sql",
+      "answer": "SELECT p.name, SUM(f.quantity) AS units\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_product p ON p.product_key = f.product_key\nWHERE d.quarter = 2\nGROUP BY p.name\nHAVING SUM(f.quantity) > 50;",
+      "run": {
+        "db": "dwh"
+      },
+      "start": "SELECT p.name, SUM(f.quantity) AS units\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_product p ON p.product_key = f.product_key\nWHERE d.quarter = 2 AND SUM(f.quantity) > 50\nGROUP BY p.name;",
+      "explain": "WHERE s’exécute avant GROUP BY, sur des lignes isolées : SUM() n’existe pas encore. Gardez le filtre de lignes (quarter = 2) dans WHERE et déplacez la condition sur le total dans HAVING. Ordre d’exécution : FROM / JOIN → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT."
+    },
+    {
+      "q": "Corrigez cette requête (dwh) : les clients qui n’ont rien acheté depuis le 1er mai 2025. Elle ne renvoie aucune ligne, alors que le marketing sait que des clients ont arrêté d’acheter.",
+      "hint": "Certaines ventes n’ont pas de client (ventes sans carte : customer_key est NULL). Que donne x NOT IN (1, 2, NULL) ?",
+      "code": "sql",
+      "answer": "SELECT c.customer_id, c.name\nFROM dim_customer c\nWHERE c.is_current = 1\n  AND NOT EXISTS (\n    SELECT 1 FROM fact_sales f\n    WHERE f.customer_key = c.customer_key AND f.date_key >= 20250501\n  );",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "start": "SELECT customer_id, name\nFROM dim_customer\nWHERE is_current = 1\n  AND customer_key NOT IN (\n    SELECT customer_key FROM fact_sales WHERE date_key >= 20250501\n  );",
+      "explain": "x NOT IN (…, NULL) n’est jamais vrai : x <> NULL est inconnu, donc toutes les lignes sont écartées. Utilisez NOT EXISTS (qui ignore les NULL), ou ajoutez WHERE customer_key IS NOT NULL dans la sous-requête. Quatre clients ont arrêté : C005, C009, C015, C018. (Tous les déménagements ont eu lieu avant mai : la clé actuelle est celle utilisée depuis.)"
+    },
+    {
+      "q": "Plan d’exécution (dwh) : un index idx_sales_date existe sur fact_sales(date_key), mais cette requête sur mars lit toute la table (le plan dit SCAN). Réécrivez le WHERE pour que SQLite puisse utiliser l’index, gardez EXPLAIN QUERY PLAN devant et exécutez jusqu’à ce que le plan dise SEARCH … USING INDEX.",
+      "hint": "Un index sur date_key sait trouver une plage de valeurs de date_key, pas des valeurs de date_key / 100. date_key ressemble à 20250315.",
+      "code": "sql",
+      "answer": "EXPLAIN QUERY PLAN\nSELECT SUM(amount)\nFROM fact_sales\nWHERE date_key >= 20250301 AND date_key < 20250401;",
+      "run": {
+        "db": "dwh",
+        "plan": "idx_sales_date"
+      },
+      "start": "EXPLAIN QUERY PLAN\nSELECT SUM(amount)\nFROM fact_sales\nWHERE date_key / 100 = 202503;",
+      "explain": "Un calcul ou une fonction sur la colonne indexée (date_key / 100, strftime(…, date), LOWER(email), CAST) cache la colonne à l’index : le moteur doit la calculer pour chaque ligne. Une plage sur la colonne brute (>= premier jour AND < premier jour du mois suivant, ou BETWEEN) est « sargable » : SEARCH … USING INDEX (date_key>? AND date_key<?). Même principe dans PostgreSQL, SQL Server ou les partitions BigQuery : filtrez la colonne brute."
+    },
+    {
+      "q": "Plan d’exécution (dwh) : chercher les ventes d’un client parcourt tout fact_sales. Dans la même zone, créez un index nommé idx_sales_customer sur fact_sales(customer_key), puis exécutez l’EXPLAIN QUERY PLAN ci-dessous : le plan doit utiliser votre index.",
+      "hint": "CREATE INDEX <nom> ON <table> (<colonne>); puis la ligne EXPLAIN QUERY PLAN. Chaque exécution repart d’une copie neuve de la base.",
+      "code": "sql",
+      "answer": "CREATE INDEX idx_sales_customer ON fact_sales (customer_key);\nEXPLAIN QUERY PLAN\nSELECT SUM(amount) FROM fact_sales WHERE customer_key = 7;",
+      "run": {
+        "db": "dwh",
+        "plan": "idx_sales_customer"
+      },
+      "start": "-- 1. Create the index here\n\n-- 2. Then show the plan\nEXPLAIN QUERY PLAN\nSELECT SUM(amount) FROM fact_sales WHERE customer_key = 7;",
+      "explain": "SCAN lit toutes les lignes ; SEARCH … USING INDEX idx_sales_customer (customer_key=?) saute directement aux lignes concernées. Indexez les colonnes utilisées pour filtrer et joindre (les clés étrangères d’une table de faits sont des candidates classiques), mais pas tout : chaque index coûte de l’espace disque et ralentit les INSERT / UPDATE. Dans PostgreSQL, la même vérification se fait avec EXPLAIN (ANALYZE) : on cherche Seq Scan ou Index Scan."
+    },
+    {
+      "q": "Cas pratique, Data Analyst (1/5). Le directeur commercial d’une enseigne (base d’entraînement dwh) écrit : « Le T2 a l’air bon dans l’ensemble, mais tous les magasins progressent-ils ? Trouvez ce qui se passe. » Commencez par la vue d’ensemble : chiffre d’affaires et nombre de tickets par trimestre.",
+      "hint": "Joignez dim_date pour le trimestre ; comptez les tickets distincts, pas les lignes.",
+      "code": "sql",
+      "answer": "SELECT d.quarter, ROUND(SUM(f.amount), 2) AS revenue,\n       COUNT(DISTINCT f.ticket_id) AS tickets\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nGROUP BY d.quarter;",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "T1 22 040 (116 tickets) → T2 27 138 (135 tickets) : +23 % de chiffre d’affaires, +16 % de tickets, donc le panier moyen a aussi augmenté. Une bonne première étape dans tout cas : une ligne qui dimensionne la question avant de découper."
+    },
+    {
+      "q": "Cas pratique, Data Analyst (2/5). Chiffre d’affaires par ville de magasin au T1 et au T2, avec l’évolution en % (arrondie à 1 décimale), la pire évolution en premier.",
+      "hint": "Pivotez avec des sommes conditionnelles : SUM(CASE WHEN d.quarter = 1 THEN f.amount ELSE 0 END). Multipliez par 100.0 pour éviter la division entière.",
+      "code": "sql",
+      "answer": "SELECT s.city,\n       ROUND(SUM(CASE WHEN d.quarter = 1 THEN f.amount ELSE 0 END), 2) AS q1,\n       ROUND(SUM(CASE WHEN d.quarter = 2 THEN f.amount ELSE 0 END), 2) AS q2,\n       ROUND(100.0 * (SUM(CASE WHEN d.quarter = 2 THEN f.amount ELSE 0 END)\n                    - SUM(CASE WHEN d.quarter = 1 THEN f.amount ELSE 0 END))\n             / SUM(CASE WHEN d.quarter = 1 THEN f.amount ELSE 0 END), 1) AS change_pct\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_store s ON s.store_key = f.store_key\nGROUP BY s.city\nORDER BY change_pct;",
+      "run": {
+        "db": "dwh",
+        "ordered": true,
+        "minColumns": 3
+      },
+      "explain": "Tous les magasins progressent (Tunis +13 %, Marseille +13 %, Paris +35 %, en ligne +56 %, Sfax depuis une petite base) sauf Lyon : 4 762 → 2 630, −44,8 %. Le total le cachait. L’agrégation conditionnelle (CASE dans SUM) met les périodes côte à côte en une passe ; 100.0 force une division décimale."
+    },
+    {
+      "q": "Cas pratique, Data Analyst (3/5). Zoomez sur Lyon : chiffre d’affaires par catégorie de produit au T1 et au T2.",
+      "hint": "Même pivot qu’avant, filtré sur le magasin de Lyon, groupé par catégorie.",
+      "code": "sql",
+      "answer": "SELECT p.category,\n       ROUND(SUM(CASE WHEN d.quarter = 1 THEN f.amount ELSE 0 END), 2) AS q1,\n       ROUND(SUM(CASE WHEN d.quarter = 2 THEN f.amount ELSE 0 END), 2) AS q2\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_product p ON p.product_key = f.product_key\nJOIN dim_store s ON s.store_key = f.store_key\nWHERE s.city = 'Lyon'\nGROUP BY p.category;",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "Electronics passe de 2 454 à 0, et Accessories (souris, claviers, hubs, souvent achetés avec un ordinateur) baisse de 851 à 354, alors que Furniture et Office progressent. La baisse ne touche pas tout le magasin : une catégorie, plus les produits vendus avec elle."
+    },
+    {
+      "q": "Cas pratique, Data Analyst (4/5). Quand a eu lieu la dernière vente Electronics à Lyon ? Renvoyez la date (full_date).",
+      "hint": "MAX() de la date, filtré sur Lyon et la catégorie Electronics.",
+      "code": "sql",
+      "answer": "SELECT MAX(d.full_date) AS last_sale\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_product p ON p.product_key = f.product_key\nJOIN dim_store s ON s.store_key = f.store_key\nWHERE s.city = 'Lyon' AND p.category = 'Electronics';",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "Le 26 mars 2025, et plus rien depuis, dans un magasin qui vendait de l’électronique tous les mois avant. Un arrêt brutal à zéro signifie rarement que les clients ont changé d’avis : cela oriente vers l’offre (rupture de stock, déréférencement, rayon ou caisse mal paramétrés). Les données disent quand et où ; quelqu’un sur place doit dire pourquoi."
+    },
+    {
+      "q": "Cas pratique, Data Analyst (5/5). Rédigez votre réponse au directeur en 4 à 6 lignes : ce qui s’est passé (avec les chiffres), votre degré de certitude, ce qu’il faut vérifier ensuite et ce que vous recommandez.",
+      "hint": "La conclusion d’abord, puis les preuves, puis la suite. Chiffres arrondis, pas de SQL.",
+      "answer": "Le chiffre d’affaires du T2 progresse de 23 % (22,0 k → 27,1 k) et tous les magasins progressent sauf Lyon, en baisse de 45 % (4,8 k → 2,6 k). Toute la baisse vient de l’électronique : Lyon n’a vendu aucun article électronique depuis le 26 mars (2,5 k au T1, 0 au T2), et les accessoires, souvent achetés avec un ordinateur, ont été divisés par deux ; Furniture et Office progressent. Une chute à zéro du jour au lendemain oriente vers un problème de stock ou de référencement plutôt que de demande, mais les données ne le prouvent pas. Ensuite : vérifier avec le responsable du magasin le stock et le référencement électronique de Lyon depuis fin mars, et si les clients lyonnais sont passés au site en ligne (+56 %). Recommandation : rétablir l’approvisionnement, puis ajouter une alerte hebdomadaire magasin × catégorie pour repérer une catégorie à zéro en quelques jours, pas en un trimestre."
     }
   ],
   "interview": [

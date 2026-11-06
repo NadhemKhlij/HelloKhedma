@@ -329,6 +329,28 @@ test("runnable SQL exercise: a correct query written differently is accepted, a 
   await expect(runner.locator("table")).toContainText("Paris");
 });
 
+// Training step 2e: "fix this query" opens on the broken query; a query plan exercise checks the index is used.
+test("SQL practice: fix this query (NOT IN with NULL) and a query plan that must use an index", async ({ page }) => {
+  await open(page, "#/course/sql");
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+  const fix = page.locator("[data-sql-runner]").filter({ has: page.getByRole("button", { name: /Start again/ }) }).nth(2);
+  await expect(fix.locator("textarea")).toHaveValue(/NOT IN/);
+  await fix.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(fix).toContainText("your query returns no rows", { timeout: 15_000 });
+  await fix.locator("textarea").fill("SELECT c.customer_id FROM dim_customer c WHERE c.is_current = 1 AND NOT EXISTS (SELECT 1 FROM fact_sales f WHERE f.customer_key = c.customer_key AND f.date_key >= 20250501)");
+  await fix.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(fix).toContainText("Correct!", { timeout: 15_000 });
+  await fix.getByRole("button", { name: /Start again/ }).click();
+  await expect(fix.locator("textarea")).toHaveValue(/NOT IN/);
+
+  const plan = page.locator("[data-sql-runner]").filter({ has: page.getByRole("button", { name: /Start again/ }) }).nth(3);
+  await plan.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(plan).toContainText("does not use the index", { timeout: 15_000 });
+  await plan.locator("textarea").fill("EXPLAIN QUERY PLAN SELECT SUM(amount) FROM fact_sales WHERE date_key BETWEEN 20250301 AND 20250331");
+  await plan.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(plan).toContainText("Correct!", { timeout: 15_000 });
+});
+
 // Auto-graded formats (training steps 2b + 2c, js/drills.js): a wrong answer is explained, a right one marks the
 // exercise solved.
 const practice = async (page, id) => {

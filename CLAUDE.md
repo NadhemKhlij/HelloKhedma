@@ -69,7 +69,12 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   sample model). Used by power-bi and dax.
 - Runnable SQL exercises: add `"run": { "db": "shop", "ordered"?: true, "minColumns"?: n }` to an exercise with
   `"code": "sql"` (same in the French copy); the answer must run on content/sql/<db>.sql in SQLite (CI checks it).
-  Datasets are fictional, small, and designed so each answer has one unambiguous result (no ties at a LIMIT).
+  Datasets are fictional, small, and designed so each answer has one unambiguous result (no ties at a LIMIT):
+  shop (SQL basics), dwh (star schema + SCD2 customers + staging orders with planted quality problems), payments
+  (incident case, consistent with content/logs/payments-api.log). "Fix this query": `"start"` = the broken query the
+  editor opens on (identical in French; CI checks it is not accepted). Query plans: `"run": { "db", "plan": "<index>" }`
+  passes when EXPLAIN QUERY PLAN uses that index and scans no table. Take-home cases are consecutive exercises
+  "Take-home case, <path> (n/N)" ending with a written answer (plain exercise, model answer).
 - Auto-graded exercises: add `"type"` to an exercise (same in the French copy): choice, fill, order, match, groups,
   bug, scenario, logs, regex, cron, json, fixfile (fields in the js/drills.js header). regex / cron / json / fixfile keep
   the solution in `answer` (code, identical in both languages) and the explanation in `explain`. fixfile ("fix this
@@ -196,7 +201,8 @@ Read the header comment of any file before modifying it; update the header if be
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)
 - supabase/functions/job-search/, delete-account/, cv-tailor/ — Edge Functions (cv-tailor: AI CV rewrite with Claude)
-- scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node)
+- scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node),
+  gen-practice-2e.mjs (rebuilds the dwh / payments datasets and the payments log, fixed seed)
 - .github/workflows/deploy.yml — build, smoke tests, publish to GitHub Pages (main only)
 - .github/workflows/deploy-functions.yml — deploy one Edge Function on demand (Run workflow)
 - tests/smoke.spec.mjs, playwright.config.mjs — smoke tests (guest flows; no sign-in, no job search)

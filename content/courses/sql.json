@@ -505,6 +505,111 @@
       "snippet": "SELECT city, COUNT(*) AS customers\nFROM customers\nWHERE COUNT(*) > 10\nGROUP BY city\nORDER BY customers DESC;",
       "fix": "SELECT city, COUNT(*) AS customers\nFROM customers\nGROUP BY city\nHAVING COUNT(*) > 10\nORDER BY customers DESC;",
       "answer": "WHERE filters rows before grouping, so it cannot use an aggregate. A condition on COUNT(*) goes in HAVING, after GROUP BY. Order of evaluation: FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY."
+    },
+    {
+      "q": "Fix this query (practice database dwh, a small sales data warehouse; dim_customer keeps one row per version of a customer, is_current = 1 for today's). It should give the revenue of registered customers by the city they live in today, but the Lyon and Tunis totals are too high.",
+      "hint": "Run it, then count the dim_customer rows per customer_id: how many rows of c does each sale meet?",
+      "code": "sql",
+      "answer": "SELECT c.city, ROUND(SUM(f.amount), 2) AS revenue\nFROM fact_sales f\nJOIN dim_customer h ON h.customer_key = f.customer_key\nJOIN dim_customer c ON c.customer_id = h.customer_id AND c.is_current = 1\nGROUP BY c.city;",
+      "run": {
+        "db": "dwh"
+      },
+      "start": "SELECT c.city, ROUND(SUM(f.amount), 2) AS revenue\nFROM fact_sales f\nJOIN dim_customer h ON h.customer_key = f.customer_key\nJOIN dim_customer c ON c.customer_id = h.customer_id\nGROUP BY c.city;",
+      "explain": "The second join matches every version of the customer, so the sales of customers with history are counted once per version, and in their old city too (fan-out). Keeping only the current version (c.is_current = 1) gives one row per sale. Check any join on a non-unique key: compare COUNT(*) before and after the join."
+    },
+    {
+      "q": "Fix this query (dwh): the products that sold more than 50 units in Q2. It fails with “misuse of aggregate”.",
+      "hint": "WHERE filters rows before grouping; a condition on SUM() belongs after GROUP BY.",
+      "code": "sql",
+      "answer": "SELECT p.name, SUM(f.quantity) AS units\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_product p ON p.product_key = f.product_key\nWHERE d.quarter = 2\nGROUP BY p.name\nHAVING SUM(f.quantity) > 50;",
+      "run": {
+        "db": "dwh"
+      },
+      "start": "SELECT p.name, SUM(f.quantity) AS units\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_product p ON p.product_key = f.product_key\nWHERE d.quarter = 2 AND SUM(f.quantity) > 50\nGROUP BY p.name;",
+      "explain": "WHERE runs before GROUP BY, on single rows: SUM() does not exist yet. Keep the row filter (quarter = 2) in WHERE and move the condition on the total to HAVING. Order of execution: FROM / JOIN → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT."
+    },
+    {
+      "q": "Fix this query (dwh): the customers who have not bought anything since 1 May 2025. It returns no rows, although marketing knows some customers stopped buying.",
+      "hint": "Some sales have no customer (walk-in sales: customer_key is NULL). What does x NOT IN (1, 2, NULL) give?",
+      "code": "sql",
+      "answer": "SELECT c.customer_id, c.name\nFROM dim_customer c\nWHERE c.is_current = 1\n  AND NOT EXISTS (\n    SELECT 1 FROM fact_sales f\n    WHERE f.customer_key = c.customer_key AND f.date_key >= 20250501\n  );",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "start": "SELECT customer_id, name\nFROM dim_customer\nWHERE is_current = 1\n  AND customer_key NOT IN (\n    SELECT customer_key FROM fact_sales WHERE date_key >= 20250501\n  );",
+      "explain": "x NOT IN (…, NULL) is never true: x <> NULL is unknown, so every row is filtered out. Use NOT EXISTS (it ignores NULLs), or add WHERE customer_key IS NOT NULL in the subquery. Four customers stopped: C005, C009, C015, C018. (All customer moves happened before May, so the current key is the one used since then.)"
+    },
+    {
+      "q": "Query plan (dwh): there is an index idx_sales_date on fact_sales(date_key), but this query for March reads the whole table (the plan says SCAN). Rewrite the WHERE so SQLite can use the index, keep EXPLAIN QUERY PLAN in front, and run it until the plan says SEARCH … USING INDEX.",
+      "hint": "An index on date_key can find a range of date_key values, not values of date_key / 100. date_key looks like 20250315.",
+      "code": "sql",
+      "answer": "EXPLAIN QUERY PLAN\nSELECT SUM(amount)\nFROM fact_sales\nWHERE date_key >= 20250301 AND date_key < 20250401;",
+      "run": {
+        "db": "dwh",
+        "plan": "idx_sales_date"
+      },
+      "start": "EXPLAIN QUERY PLAN\nSELECT SUM(amount)\nFROM fact_sales\nWHERE date_key / 100 = 202503;",
+      "explain": "A calculation or function on the indexed column (date_key / 100, strftime(…, date), LOWER(email), CAST) hides the column from the index: the engine has to compute it for every row. A range on the bare column (>= first day AND < first day of next month, or BETWEEN) is “sargable”: SEARCH … USING INDEX (date_key>? AND date_key<?). Same idea in PostgreSQL, SQL Server or BigQuery partitions: filter the raw column."
+    },
+    {
+      "q": "Query plan (dwh): looking up one customer's sales scans all of fact_sales. In the same box, create an index named idx_sales_customer on fact_sales(customer_key), then run the EXPLAIN QUERY PLAN below: the plan must use your index.",
+      "hint": "CREATE INDEX <name> ON <table> (<column>); then the EXPLAIN QUERY PLAN line. Each run starts from a fresh copy of the database.",
+      "code": "sql",
+      "answer": "CREATE INDEX idx_sales_customer ON fact_sales (customer_key);\nEXPLAIN QUERY PLAN\nSELECT SUM(amount) FROM fact_sales WHERE customer_key = 7;",
+      "run": {
+        "db": "dwh",
+        "plan": "idx_sales_customer"
+      },
+      "start": "-- 1. Create the index here\n\n-- 2. Then show the plan\nEXPLAIN QUERY PLAN\nSELECT SUM(amount) FROM fact_sales WHERE customer_key = 7;",
+      "explain": "SCAN reads every row; SEARCH … USING INDEX idx_sales_customer (customer_key=?) jumps to the matching rows. Index the columns used to filter and join (foreign keys of a fact table are classic candidates), but not everything: each index costs disk space and slows down INSERT / UPDATE. In PostgreSQL the same check is EXPLAIN (ANALYZE) and you look for Seq Scan vs Index Scan."
+    },
+    {
+      "q": "Take-home case, Data Analyst (1/5). The sales director of a retailer (practice database dwh) writes: “Q2 looks good overall, but is every store growing? Find out what is going on.” Start with the big picture: revenue and number of tickets per quarter.",
+      "hint": "Join dim_date for the quarter; count distinct tickets, not lines.",
+      "code": "sql",
+      "answer": "SELECT d.quarter, ROUND(SUM(f.amount), 2) AS revenue,\n       COUNT(DISTINCT f.ticket_id) AS tickets\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nGROUP BY d.quarter;",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "Q1 22,040 (116 tickets) → Q2 27,138 (135 tickets): +23% revenue, +16% tickets, so the average basket grew too. A good first step in any case: one line that sizes the question before slicing."
+    },
+    {
+      "q": "Take-home case, Data Analyst (2/5). Revenue per store city in Q1 and in Q2, with the change in % (rounded to 1 decimal), worst change first.",
+      "hint": "Pivot with conditional sums: SUM(CASE WHEN d.quarter = 1 THEN f.amount ELSE 0 END). Multiply by 100.0 to avoid integer division.",
+      "code": "sql",
+      "answer": "SELECT s.city,\n       ROUND(SUM(CASE WHEN d.quarter = 1 THEN f.amount ELSE 0 END), 2) AS q1,\n       ROUND(SUM(CASE WHEN d.quarter = 2 THEN f.amount ELSE 0 END), 2) AS q2,\n       ROUND(100.0 * (SUM(CASE WHEN d.quarter = 2 THEN f.amount ELSE 0 END)\n                    - SUM(CASE WHEN d.quarter = 1 THEN f.amount ELSE 0 END))\n             / SUM(CASE WHEN d.quarter = 1 THEN f.amount ELSE 0 END), 1) AS change_pct\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_store s ON s.store_key = f.store_key\nGROUP BY s.city\nORDER BY change_pct;",
+      "run": {
+        "db": "dwh",
+        "ordered": true,
+        "minColumns": 3
+      },
+      "explain": "Every store grows (Tunis +13%, Marseille +13%, Paris +35%, Online +56%, Sfax from a small base) except Lyon: 4,762 → 2,630, −44.8%. The total hid it. Conditional aggregation (CASE inside SUM) puts periods side by side in one pass; 100.0 forces a decimal division."
+    },
+    {
+      "q": "Take-home case, Data Analyst (3/5). Drill down into Lyon: revenue per product category in Q1 and in Q2.",
+      "hint": "Same pivot as before, filtered on the Lyon store, grouped by category.",
+      "code": "sql",
+      "answer": "SELECT p.category,\n       ROUND(SUM(CASE WHEN d.quarter = 1 THEN f.amount ELSE 0 END), 2) AS q1,\n       ROUND(SUM(CASE WHEN d.quarter = 2 THEN f.amount ELSE 0 END), 2) AS q2\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_product p ON p.product_key = f.product_key\nJOIN dim_store s ON s.store_key = f.store_key\nWHERE s.city = 'Lyon'\nGROUP BY p.category;",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "Electronics went from 2,454 to 0, and Accessories (mice, keyboards, hubs, often bought with a laptop) fell from 851 to 354, while Furniture and Office grew. The drop is not the whole store: it is one category, plus the products sold with it."
+    },
+    {
+      "q": "Take-home case, Data Analyst (4/5). When was the last Electronics sale at Lyon? Return the date (full_date).",
+      "hint": "MAX() of the date, filtered on Lyon and the Electronics category.",
+      "code": "sql",
+      "answer": "SELECT MAX(d.full_date) AS last_sale\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_product p ON p.product_key = f.product_key\nJOIN dim_store s ON s.store_key = f.store_key\nWHERE s.city = 'Lyon' AND p.category = 'Electronics';",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "26 March 2025, and nothing since, in a store that sold electronics every month before. A sudden stop to zero rarely means customers changed their mind: it points to supply (stock-out, delisting, a broken shelf or till setup). The data can say when and where; someone in the store has to say why."
+    },
+    {
+      "q": "Take-home case, Data Analyst (5/5). Write your answer to the director in 4 to 6 lines: what happened (with the numbers), how sure you are, what to check next and what you recommend.",
+      "hint": "Lead with the conclusion, then the evidence, then the next step. Numbers rounded, no SQL.",
+      "answer": "Q2 revenue is up 23% (22.0k → 27.1k) and every store grows except Lyon, down 45% (4.8k → 2.6k). The whole drop is Electronics: Lyon has not sold a single electronics item since 26 March (2.5k in Q1, 0 in Q2), and Accessories, usually bought with a laptop, halved; Furniture and Office are up. A drop to zero overnight points to a stock or listing problem rather than demand, but the data cannot prove it. Next: check Lyon's electronics stock and listings since late March with the store manager, and whether Lyon customers switched to the online shop (+56%). Recommendation: fix the supply, then add a weekly store × category alert so a category at zero is caught within days, not a quarter."
     }
   ],
   "interview": [

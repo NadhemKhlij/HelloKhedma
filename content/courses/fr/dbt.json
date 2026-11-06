@@ -424,6 +424,50 @@
         ]
       ],
       "answer": "En CI, dbt build est le choix habituel : un modèle dont les tests échouent arrête les modèles construits dessus. Ajoutez --select (par ex. --select stg_orders+) pour travailler sur un modèle et tout ce qui en dépend."
+    },
+    {
+      "q": "Tests de données en SQL (base d’entraînement dwh, table stg_orders : les prochaines commandes web à charger). Un test dbt est une requête qui renvoie les lignes en échec : zéro ligne veut dire qu’il passe. Écrivez la requête derrière un test unique sur order_id.",
+      "hint": "GROUP BY order_id, gardez les groupes de plus d’une ligne.",
+      "code": "sql",
+      "answer": "SELECT order_id, COUNT(*) AS copies\nFROM stg_orders\nGROUP BY order_id\nHAVING COUNT(*) > 1;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "C’est ce que dbt exécute pour `unique` (dans schema.yml : columns: - name: order_id, tests: [unique]). Deux identifiants de commande apparaissent deux fois (90006 et 90023) : des copies exactes de la même ligne, typiques d’un fichier envoyé deux fois ou d’une extraction relancée. Dédoublonnez dans le modèle de staging (ou avec une fenêtre row_number()) avant de charger le fait."
+    },
+    {
+      "q": "Tests de données : écrivez la requête derrière des tests not_null sur customer_id, sku et quantity de stg_orders (une seule requête, les lignes où l’une d’elles manque).",
+      "hint": "IS NULL, pas = NULL ; combinez les trois conditions avec OR.",
+      "code": "sql",
+      "answer": "SELECT order_id, customer_id, sku, quantity\nFROM stg_orders\nWHERE customer_id IS NULL OR sku IS NULL OR quantity IS NULL;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "= NULL n’est jamais vrai (NULL comparé à quoi que ce soit est inconnu) : seul IS NULL trouve les valeurs manquantes. Les commandes 90004 (pas de client) et 90013 (pas de quantité) échouent. Dans dbt, chaque colonne a son propre test not_null : le message d’échec dit quelle colonne a cassé."
+    },
+    {
+      "q": "Tests de données : écrivez la requête derrière un test relationships : chaque sku de stg_orders doit exister dans dim_product. Renvoyez les commandes dont le sku est inconnu (un sku manquant relève du test not_null, pas de celui-ci).",
+      "hint": "LEFT JOIN dim_product sur sku et gardez les lignes où le côté produit est NULL.",
+      "code": "sql",
+      "answer": "SELECT s.order_id, s.sku\nFROM stg_orders s\nLEFT JOIN dim_product p ON p.sku = s.sku\nWHERE p.sku IS NULL AND s.sku IS NOT NULL;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "Une anti-jointure (LEFT JOIN … WHERE côté droit IS NULL, ou NOT EXISTS) trouve les orphelins : 90008 (LAP-15, une faute de frappe pour LAP-14 ?) et 90021 (CAB-HDMI, un produit pas encore créé). Chargées telles quelles, ces lignes n’auraient pas de product_key : soit elles disparaissent en silence, soit le fait pointe vers rien. Le test relationships de dbt exécute exactement cette requête."
+    },
+    {
+      "q": "Tests de données : règles métier. Renvoyez les commandes de stg_orders avec une valeur impossible : une quantité nulle ou négative, ou une date d’expédition avant la date de commande.",
+      "hint": "Des dates stockées en texte AAAA-MM-JJ se comparent correctement avec < .",
+      "code": "sql",
+      "answer": "SELECT order_id, quantity, order_date, ship_date\nFROM stg_orders\nWHERE quantity <= 0 OR ship_date < order_date;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "90011 a une quantité de -1 (un retour passé par le flux des commandes ?) et 90019 est expédiée le 30 juin pour une commande du 2 juillet. Dans dbt, ce sont des tests personnalisés (dbt_utils.expression_is_true, ou un test singulier : un fichier .sql dans tests/ avec cette requête). Les lignes à quantité NULL ne sortent pas ici : NULL <= 0 est inconnu, c’est pourquoi not_null est un test à part."
     }
   ],
   "interview": [

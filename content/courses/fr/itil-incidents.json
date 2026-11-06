@@ -443,6 +443,68 @@
         }
       ],
       "answer": "Premier 503 à 09:41:17, dernier à 09:52:02 : environ 11 minutes d’impact (10 min 45 s). Écrivez la chronologie avec les heures des logs, pas avec l’heure de l’alerte (09:43) : l’écart est votre délai de détection, un chiffre que la revue cherche à réduire."
+    },
+    {
+      "q": "Cas pratique, Application Support (1/4). À 14 h 45, le centre de services reçoit des tickets de boutiques : « les paiements par carte échouent depuis 14 h environ ». Voici le log de payments-api de cet après-midi (UTC). Filtrez-le (essayez ERROR, puis paylink, puis msg=) et répondez.",
+      "type": "logs",
+      "file": "logs/payments-api.log",
+      "hint": "Filtrez sur ERROR pour le premier échec et le nombre ; les lignes WARN et INFO avec msg= racontent la suite.",
+      "fields": [
+        {
+          "label": "Heure de la première ERROR (hh:mm:ss)",
+          "accept": [
+            "14:03:50",
+            "/^(2026-03-18[T ])?14:03:50Z?$/i"
+          ]
+        },
+        {
+          "label": "Combien de paiements ont échoué avec PSP_TIMEOUT ?",
+          "accept": [
+            "17"
+          ]
+        },
+        {
+          "label": "Quel prestataire de paiement (psp) est en échec ?",
+          "accept": [
+            "paylink",
+            "/^paylink(\\b|$)/i"
+          ]
+        },
+        {
+          "label": "À quelle heure le prestataire est-il redevenu sain (hh:mm:ss) ?",
+          "accept": [
+            "14:41:02",
+            "/^(2026-03-18[T ])?14:41:02Z?$/i"
+          ]
+        }
+      ],
+      "answer": "Première ERROR à 14:03:50 ; 17 paiements en échec PSP_TIMEOUT, tous sur psp=paylink (api.paylink.example ne répond pas en 30 s) ; une bascule vers api-eu2.paylink.example est chargée à 14:35:50 et le prestataire redevient sain à 14:41:02. Notez le WARN « TLS handshake slow » à 14:01:37 : le premier signe est arrivé 2 minutes avant le premier échec, et la supervision n’a pas alerté. Les autres prestataires ont continué à fonctionner, et les quelques lignes CARD_DECLINED sont des refus clients normaux, hors incident."
+    },
+    {
+      "q": "Cas pratique, Application Support (2/4). Mesurez l’impact dans la base (base d’entraînement payments, heures en UTC comme le log) : de 14:00 à 15:00, le nombre de paiements par psp et par statut.",
+      "hint": "created_at est un texte ISO (2026-03-18T14:03:50Z) : une plage sur le texte fonctionne : >= '2026-03-18T14:00' AND < '2026-03-18T15:00'.",
+      "code": "sql",
+      "answer": "SELECT psp, status, COUNT(*) AS payments\nFROM payments\nWHERE created_at >= '2026-03-18T14:00' AND created_at < '2026-03-18T15:00'\nGROUP BY psp, status;",
+      "run": {
+        "db": "payments"
+      },
+      "explain": "paylink : 17 en échec, 8 réussis (avant 14:02 et après 14:41), 2 refusés ; adyenish et stripeish : tous réussis. La base confirme le log : un seul prestataire, une fenêtre de 40 minutes, les autres prestataires non touchés. Cette phrase de périmètre va dans le premier point envoyé au métier."
+    },
+    {
+      "q": "Cas pratique, Application Support (3/4). Le service client veut contacter les boutiques qui ont perdu des paiements. Listez les commerçants avec des paiements en échec : nom, nombre de paiements en échec et leur montant total, le plus gros montant en premier.",
+      "hint": "Joignez merchants pour le nom ; status = 'failed' (les paiements declined sont des refus de carte normaux).",
+      "code": "sql",
+      "answer": "SELECT m.name, COUNT(*) AS failed, ROUND(SUM(p.amount), 2) AS failed_amount\nFROM payments p\nJOIN merchants m ON m.merchant_id = p.merchant_id\nWHERE p.status = 'failed'\nGROUP BY m.name\nORDER BY failed_amount DESC;",
+      "run": {
+        "db": "payments",
+        "ordered": true
+      },
+      "explain": "4 boutiques, toutes sur paylink : LibrairieSfax (5, 614,29), MaisonBio (5, 535,34), BoutiqueNour (4, 321,30), PharmaPlus (3, 76,41) : 1 547,34 au total. Donnez au service client la liste avec les identifiants de paiement pour que les boutiques demandent à leurs clients de payer à nouveau ; laissez de côté les paiements refusés, sans rapport avec l’incident."
+    },
+    {
+      "q": "Cas pratique, Application Support (4/4). Rédigez le résumé d’incident pour la revue post-incident (6 à 8 lignes) : impact, chronologie, cause connue, résolution, et 2 ou 3 actions pour éviter une répétition ou la détecter plus tôt.",
+      "hint": "Des faits avec heures (UTC) et chiffres ; sans chercher de coupable ; des actions avec un responsable.",
+      "answer": "Impact : de 14:03 à 14:38 UTC, 17 paiements par carte de 4 boutiques chez le prestataire Paylink ont échoué (1 547,34 au total) ; les autres prestataires n’ont pas été touchés. Chronologie : 14:01:37 premier avertissement (poignée de main TLS lente vers api.paylink.example) ; 14:03:50 premier paiement en échec (PSP_TIMEOUT après 30 s) ; 14:09 disjoncteur semi-ouvert ; 14:35:50 bascule vers le point d’accès Paylink EU2 chargée ; 14:41:02 prestataire sain, les paiements repassent ; 14:45 premiers tickets des boutiques. Cause : le point d’accès principal de Paylink ne répondait plus (côté prestataire, cause racine demandée à Paylink). Résolution : bascule vers le point d’accès secondaire. Actions : alerter sur le taux de PSP_TIMEOUT par prestataire (l’info est venue des boutiques, 40 minutes plus tard) ; rendre la bascule automatique au-delà d’un seuil d’erreurs ; transmettre au service client la liste des paiements échoués pour que les boutiques relancent."
     }
   ],
   "interview": [

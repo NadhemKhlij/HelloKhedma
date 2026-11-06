@@ -383,6 +383,43 @@
         "It fails: start_date is in the past"
       ],
       "answer": "With catchup=True the scheduler fills every complete interval since start_date that never ran: 1, 2, 3 and 4 January (the 5 January interval is not over yet). Set catchup=False if a DAG must not backfill, and make tasks idempotent so a rerun gives the same result."
+    },
+    {
+      "q": "Take-home case, Data Engineer (1/4). Before the nightly DAG loads stg_orders into fact_sales (practice database dwh), its quality-gate task decides go / no-go. First, completeness: compare the rows received per batch with load_batches.expected_rows (the count announced by the source system) and return the batches that do not match.",
+      "hint": "LEFT JOIN load_batches to stg_orders on batch_id (a batch with no rows at all must show too), GROUP BY, then HAVING count <> expected_rows.",
+      "code": "sql",
+      "answer": "SELECT b.batch_id, b.expected_rows, COUNT(s.order_id) AS received\nFROM load_batches b\nLEFT JOIN stg_orders s ON s.batch_id = b.batch_id\nGROUP BY b.batch_id, b.expected_rows\nHAVING COUNT(s.order_id) <> b.expected_rows;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "B-0702 announced 11 rows and 9 arrived: a truncated file (a transfer cut off, an export that timed out). Control totals (row counts, sums) sent with each file are the cheapest completeness check. Starting from load_batches with a LEFT JOIN also catches a batch that never arrived (0 rows)."
+    },
+    {
+      "q": "Take-home case, Data Engineer (2/4). Each loaded order needs the current customer_key of its customer. Return the orders whose customer_id is filled in but has no current row in dim_customer.",
+      "hint": "LEFT JOIN dim_customer on customer_id AND is_current = 1; keep the rows where the customer side is NULL (and the staging customer_id is not).",
+      "code": "sql",
+      "answer": "SELECT s.order_id, s.customer_id\nFROM stg_orders s\nLEFT JOIN dim_customer c ON c.customer_id = s.customer_id AND c.is_current = 1\nWHERE s.customer_id IS NOT NULL AND c.customer_key IS NULL;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "Order 90016 comes from customer C099, unknown to the warehouse: a late-arriving dimension (the customer was created in the shop after the last customer load). Options: load the customers first in the DAG (a dependency), park the order in a quarantine table and retry next run, or insert an “unknown” member (customer_key -1) and fix it later. Dropping it silently is the one wrong answer."
+    },
+    {
+      "q": "Take-home case, Data Engineer (3/4). Which rows can be loaded? Keep one copy of exact duplicates and only the rows that pass every check: customer, sku and quantity present, known current customer, known product, quantity above 0, ship_date not before order_date. Return the number of rows and their total value (quantity × unit_price).",
+      "hint": "SELECT DISTINCT * in a subquery removes the exact copies; inner joins drop unknown or missing customers and products; then the two business rules in WHERE.",
+      "code": "sql",
+      "answer": "SELECT COUNT(*) AS rows_ok, ROUND(SUM(s.quantity * s.unit_price), 2) AS order_value\nFROM (SELECT DISTINCT * FROM stg_orders) s\nJOIN dim_product p ON p.sku = s.sku\nJOIN dim_customer c ON c.customer_id = s.customer_id AND c.is_current = 1\nWHERE s.quantity > 0 AND s.ship_date >= s.order_date;",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "23 of the 30 distinct orders pass, worth 8,575.80. The 7 others (90004, 90008, 90011, 90013, 90016, 90019, 90021) go to a quarantine table with the reason, and someone owns fixing them. Inner joins silently drop NULL keys: here that is wanted, but write it on purpose and count what you dropped (30 − 23 = 7) so the run log explains every row."
+    },
+    {
+      "q": "Take-home case, Data Engineer (4/4). Your quality-gate task must now decide. Write the decision and what the DAG does, in 4 to 6 lines: go or no-go per batch, what happens to the rejected rows, who is told, and how tomorrow's run stays safe.",
+      "hint": "Separate the batch-level problem (completeness) from the row-level problems (quality). Think about re-runs.",
+      "answer": "No-go for B-0702: the file is incomplete (9 of 11 rows), so loading it would under-report 2 July; the task fails, the source team is asked to resend the file, and B-0702 is loaded on the next run. Go for B-0701 and B-0703: their valid rows are loaded (deduplicated), the rejected rows (unknown sku, unknown customer, missing values, negative quantity, ship before order) go to a quarantine table with the reason and are reported in the run summary sent to the data owner. The load is idempotent (delete-insert or MERGE per batch_id), so re-running a batch never doubles it, and the DAG alerts when the share of rejected rows goes above a threshold (e.g. 5%)."
     }
   ],
   "interview": [

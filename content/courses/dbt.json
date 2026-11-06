@@ -424,6 +424,50 @@
         ]
       ],
       "answer": "In CI, dbt build is the usual choice: a model whose tests fail stops the models built on top of it. Add --select (e.g. --select stg_orders+) to work on one model and everything after it."
+    },
+    {
+      "q": "Data tests in SQL (practice database dwh, table stg_orders: the next web orders to load). A dbt test is a query that returns the failing rows: zero rows means it passes. Write the query behind a unique test on order_id.",
+      "hint": "GROUP BY order_id, keep the groups with more than one row.",
+      "code": "sql",
+      "answer": "SELECT order_id, COUNT(*) AS copies\nFROM stg_orders\nGROUP BY order_id\nHAVING COUNT(*) > 1;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "This is what dbt runs for `unique` (in schema.yml: columns: - name: order_id, tests: [unique]). Two order ids come twice (90006 and 90023): exact copies of the same row, typical of a file sent twice or an extract retried. Deduplicate in the staging model (or a row_number() window) before the fact is loaded."
+    },
+    {
+      "q": "Data tests: write the query behind not_null tests on customer_id, sku and quantity of stg_orders (one query, the rows where any of them is missing).",
+      "hint": "IS NULL, not = NULL; combine the three conditions with OR.",
+      "code": "sql",
+      "answer": "SELECT order_id, customer_id, sku, quantity\nFROM stg_orders\nWHERE customer_id IS NULL OR sku IS NULL OR quantity IS NULL;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "= NULL is never true (NULL compared with anything is unknown): only IS NULL finds missing values. Orders 90004 (no customer) and 90013 (no quantity) fail. In dbt each column gets its own not_null test, so the failure message says which column broke."
+    },
+    {
+      "q": "Data tests: write the query behind a relationships test: every sku of stg_orders must exist in dim_product. Return the orders whose sku is unknown (a missing sku is the not_null test's job, not this one).",
+      "hint": "LEFT JOIN dim_product on sku and keep the rows where the product side is NULL.",
+      "code": "sql",
+      "answer": "SELECT s.order_id, s.sku\nFROM stg_orders s\nLEFT JOIN dim_product p ON p.sku = s.sku\nWHERE p.sku IS NULL AND s.sku IS NOT NULL;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "An anti-join (LEFT JOIN … WHERE right side IS NULL, or NOT EXISTS) finds orphans: 90008 (LAP-15, a typo for LAP-14?) and 90021 (CAB-HDMI, a product not created yet). Loaded as is, these lines would get no product_key: either they are dropped silently, or the fact points to nothing. dbt's relationships test runs exactly this query."
+    },
+    {
+      "q": "Data tests: business rules. Return the orders of stg_orders with an impossible value: a quantity of zero or less, or a ship date before the order date.",
+      "hint": "Dates stored as YYYY-MM-DD text compare correctly with < .",
+      "code": "sql",
+      "answer": "SELECT order_id, quantity, order_date, ship_date\nFROM stg_orders\nWHERE quantity <= 0 OR ship_date < order_date;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "90011 has quantity -1 (a return sent through the orders feed?) and 90019 ships on 30 June for an order of 2 July. In dbt these are custom tests (dbt_utils.expression_is_true, or a singular test: a .sql file in tests/ with this query). Rows with a NULL quantity are not returned here: NULL <= 0 is unknown, which is why not_null is a separate test."
     }
   ],
   "interview": [

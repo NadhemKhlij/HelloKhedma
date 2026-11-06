@@ -383,6 +383,43 @@
         "Il échoue : start_date est dans le passé"
       ],
       "answer": "Avec catchup=True, le scheduler rattrape chaque intervalle complet depuis start_date qui n’a jamais tourné : 1er, 2, 3 et 4 janvier (l’intervalle du 5 n’est pas terminé). Mettez catchup=False si un DAG ne doit pas rattraper, et rendez les tâches idempotentes pour qu’une relance donne le même résultat."
+    },
+    {
+      "q": "Cas pratique, Data Engineer (1/4). Avant que le DAG de nuit charge stg_orders dans fact_sales (base d’entraînement dwh), sa tâche de contrôle qualité décide go / no-go. D’abord, l’exhaustivité : comparez les lignes reçues par lot avec load_batches.expected_rows (le nombre annoncé par le système source) et renvoyez les lots qui ne correspondent pas.",
+      "hint": "LEFT JOIN de load_batches vers stg_orders sur batch_id (un lot sans aucune ligne doit aussi apparaître), GROUP BY, puis HAVING compte <> expected_rows.",
+      "code": "sql",
+      "answer": "SELECT b.batch_id, b.expected_rows, COUNT(s.order_id) AS received\nFROM load_batches b\nLEFT JOIN stg_orders s ON s.batch_id = b.batch_id\nGROUP BY b.batch_id, b.expected_rows\nHAVING COUNT(s.order_id) <> b.expected_rows;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "B-0702 annonçait 11 lignes et 9 sont arrivées : un fichier tronqué (transfert coupé, export qui a expiré). Les totaux de contrôle (nombre de lignes, sommes) envoyés avec chaque fichier sont le contrôle d’exhaustivité le moins cher. Partir de load_batches avec un LEFT JOIN détecte aussi un lot jamais arrivé (0 ligne)."
+    },
+    {
+      "q": "Cas pratique, Data Engineer (2/4). Chaque commande chargée doit recevoir la customer_key actuelle de son client. Renvoyez les commandes dont le customer_id est renseigné mais n’a pas de ligne actuelle dans dim_customer.",
+      "hint": "LEFT JOIN dim_customer sur customer_id AND is_current = 1 ; gardez les lignes où le côté client est NULL (et où le customer_id du staging ne l’est pas).",
+      "code": "sql",
+      "answer": "SELECT s.order_id, s.customer_id\nFROM stg_orders s\nLEFT JOIN dim_customer c ON c.customer_id = s.customer_id AND c.is_current = 1\nWHERE s.customer_id IS NOT NULL AND c.customer_key IS NULL;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 1
+      },
+      "explain": "La commande 90016 vient du client C099, inconnu de l’entrepôt : une dimension arrivée en retard (le client a été créé dans la boutique après le dernier chargement des clients). Options : charger les clients d’abord dans le DAG (une dépendance), mettre la commande en quarantaine et la réessayer au prochain passage, ou insérer un membre « inconnu » (customer_key -1) et corriger plus tard. La seule mauvaise réponse est de la perdre en silence."
+    },
+    {
+      "q": "Cas pratique, Data Engineer (3/4). Quelles lignes peut-on charger ? Gardez un seul exemplaire des doublons exacts et seulement les lignes qui passent tous les contrôles : client, sku et quantité présents, client actuel connu, produit connu, quantité supérieure à 0, ship_date pas avant order_date. Renvoyez le nombre de lignes et leur valeur totale (quantity × unit_price).",
+      "hint": "SELECT DISTINCT * dans une sous-requête retire les copies exactes ; les jointures internes écartent les clients et produits inconnus ou manquants ; puis les deux règles métier dans WHERE.",
+      "code": "sql",
+      "answer": "SELECT COUNT(*) AS rows_ok, ROUND(SUM(s.quantity * s.unit_price), 2) AS order_value\nFROM (SELECT DISTINCT * FROM stg_orders) s\nJOIN dim_product p ON p.sku = s.sku\nJOIN dim_customer c ON c.customer_id = s.customer_id AND c.is_current = 1\nWHERE s.quantity > 0 AND s.ship_date >= s.order_date;",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "23 des 30 commandes distinctes passent, pour 8 575,80. Les 7 autres (90004, 90008, 90011, 90013, 90016, 90019, 90021) vont dans une table de quarantaine avec leur motif, et quelqu’un est chargé de les corriger. Les jointures internes écartent les clés NULL sans prévenir : ici c’est voulu, mais faites-le exprès et comptez ce qui a été écarté (30 − 23 = 7) pour que le journal du run explique chaque ligne."
+    },
+    {
+      "q": "Cas pratique, Data Engineer (4/4). Votre tâche de contrôle qualité doit maintenant décider. Écrivez la décision et ce que fait le DAG, en 4 à 6 lignes : go ou no-go par lot, ce que deviennent les lignes rejetées, qui est prévenu et comment le run de demain reste sûr.",
+      "hint": "Séparez le problème au niveau du lot (exhaustivité) des problèmes au niveau des lignes (qualité). Pensez aux relances.",
+      "answer": "No-go pour B-0702 : le fichier est incomplet (9 lignes sur 11), le charger sous-estimerait le 2 juillet ; la tâche échoue, l’équipe source est priée de renvoyer le fichier, et B-0702 sera chargé au prochain run. Go pour B-0701 et B-0703 : leurs lignes valides sont chargées (dédoublonnées), les lignes rejetées (sku inconnu, client inconnu, valeurs manquantes, quantité négative, expédition avant commande) vont dans une table de quarantaine avec leur motif et figurent dans le résumé du run envoyé au propriétaire des données. Le chargement est idempotent (delete-insert ou MERGE par batch_id) : relancer un lot ne le double jamais, et le DAG alerte quand la part de lignes rejetées dépasse un seuil (par ex. 5 %)."
     }
   ],
   "interview": [

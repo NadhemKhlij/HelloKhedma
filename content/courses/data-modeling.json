@@ -407,6 +407,70 @@
         "One row per product"
       ],
       "answer": "The grain is what one row stands for, and it is set before choosing columns. One row per order line lets you sum by product, by order and by customer; a table per order could not tell the products apart."
+    },
+    {
+      "q": "Star schema (practice database dwh: fact_sales with dim_date, dim_store, dim_product, dim_customer). Compare weekend and weekday sales: return is_weekend, the revenue and the number of tickets. Careful: fact_sales has one row per ticket line, so a ticket can have several rows.",
+      "hint": "Join dim_date on date_key and group by is_weekend; COUNT(DISTINCT ticket_id) counts tickets, not lines.",
+      "code": "sql",
+      "answer": "SELECT d.is_weekend, ROUND(SUM(f.amount), 2) AS revenue,\n       COUNT(DISTINCT f.ticket_id) AS tickets\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nGROUP BY d.is_weekend;",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "The fact table holds the measures (amount, quantity) at one grain: a ticket line. The date dimension holds the attributes people filter and group by (is_weekend, month, quarter, day name), computed once, so nobody writes date logic in every report. COUNT(*) would count lines (412), not tickets (251): always say the grain out loud before counting."
+    },
+    {
+      "q": "Star schema: revenue per quarter and per channel (store or online), sorted by quarter then channel.",
+      "hint": "Two dimensions in one query: join dim_date and dim_store, group by both attributes.",
+      "code": "sql",
+      "answer": "SELECT d.quarter, s.channel, ROUND(SUM(f.amount), 2) AS revenue\nFROM fact_sales f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_store s ON s.store_key = f.store_key\nGROUP BY d.quarter, s.channel\nORDER BY d.quarter, s.channel;",
+      "run": {
+        "db": "dwh",
+        "ordered": true
+      },
+      "explain": "This is what a star schema is for: any measure of the fact, sliced by any attribute of any dimension, with simple joins on surrogate keys. In a BI tool the same model gives drag-and-drop slicing. Online grew from 5,873 to 9,170 between Q1 and Q2."
+    },
+    {
+      "q": "Star schema: the 3 products with the highest gross margin (amount minus quantity × unit_cost), highest first.",
+      "hint": "unit_cost is an attribute of dim_product; amount and quantity are in the fact.",
+      "code": "sql",
+      "answer": "SELECT p.name, ROUND(SUM(f.amount - f.quantity * p.unit_cost), 2) AS margin\nFROM fact_sales f\nJOIN dim_product p ON p.product_key = f.product_key\nGROUP BY p.name\nORDER BY margin DESC\nLIMIT 3;",
+      "run": {
+        "db": "dwh",
+        "ordered": true
+      },
+      "explain": "Margin mixes a fact measure (amount, already after discount) with a dimension attribute (unit_cost). Here the cost is the product's current cost: if costs changed over time, the cost should be stored on the fact line (or the product dimension kept as SCD type 2), or the margin of past sales would be rewritten. Laptop 14in, Standing desk, Office chair."
+    },
+    {
+      "q": "Slowly changing dimension: dim_customer is type 2 (a new row with a new customer_key when a customer changes; valid_from, valid_to, is_current). Give the revenue per customer segment as it was at the time of each sale (walk-in sales have no customer: leave them out).",
+      "hint": "The fact line already points to the version that was valid on the sale day: join on customer_key, nothing else.",
+      "code": "sql",
+      "answer": "SELECT c.segment, ROUND(SUM(f.amount), 2) AS revenue\nFROM fact_sales f\nJOIN dim_customer c ON c.customer_key = f.customer_key\nGROUP BY c.segment;",
+      "run": {
+        "db": "dwh"
+      },
+      "explain": "With SCD type 2, joining on the surrogate key gives history for free: C007 became Business on 15 April, so its earlier sales stay Consumer (Business 14,912 / Consumer 20,551). To report by today's segment instead, go through customer_id to the is_current = 1 row (Business 16,774 / Consumer 18,689). Both are valid questions: ask which one the business means."
+    },
+    {
+      "q": "Slowly changing dimension: which customers moved? Return customer_id, the old city and the current city (a customer can also have a new version for another reason, such as a segment change).",
+      "hint": "Join dim_customer to itself on customer_id: the old version (is_current = 0) with the current one (is_current = 1).",
+      "code": "sql",
+      "answer": "SELECT o.customer_id, o.city AS old_city, n.city AS new_city\nFROM dim_customer o\nJOIN dim_customer n ON n.customer_id = o.customer_id AND n.is_current = 1\nWHERE o.is_current = 0 AND o.city <> n.city;",
+      "run": {
+        "db": "dwh",
+        "minColumns": 3
+      },
+      "explain": "Each version has its own customer_key but shares the business key customer_id: a self-join on customer_id lines versions up. C003 moved from Lyon to Paris (1 March), C012 from Tunis to Sfax (10 February); C007 has two versions too, but for a segment change, so the city test leaves it out."
+    },
+    {
+      "q": "Grain: the average ticket value (average basket) per store city, highest first. AVG(amount) on fact_sales is not the answer: work out why first.",
+      "hint": "First add up the lines of each ticket (subquery or CTE grouped by ticket_id), then average those totals per store.",
+      "code": "sql",
+      "answer": "SELECT s.city, ROUND(AVG(t.ticket_total), 2) AS avg_ticket\nFROM (\n  SELECT ticket_id, store_key, SUM(amount) AS ticket_total\n  FROM fact_sales\n  GROUP BY ticket_id, store_key\n) t\nJOIN dim_store s ON s.store_key = t.store_key\nGROUP BY s.city\nORDER BY avg_ticket DESC;",
+      "run": {
+        "db": "dwh",
+        "ordered": true
+      },
+      "explain": "AVG(amount) averages lines, so a ticket with three cheap lines pulls the average down three times: it even changes the ranking (Lyon is last by line, Sfax is last by ticket). Change the grain first (lines → tickets), then aggregate. The same trap appears in BI tools when a measure is averaged at the wrong level."
     }
   ],
   "interview": [

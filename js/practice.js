@@ -4,9 +4,10 @@
 //   from the same course), instant feedback, best score per course ("hk.quiz").
 // - flashcards(): the cheat sheet as flip cards; "I knew it" cards are remembered per course ("hk.cards").
 // - exercises(): try first in a scratch box (not saved), reveal the answer, then grade yourself ("hk.exercises").
-//   Runnable SQL exercises (exercise.run = { db, ordered?, minColumns? }, training step 2): ▶ Run shows the result
+//   Runnable SQL exercises (exercise.run = { db, ordered?, minColumns?, plan? }, training step 2): ▶ Run shows the result
 //   table on the practice dataset (sqlrun.js: SQLite in a Web Worker, nothing sent anywhere) and ✓ Check compares it
-//   with the result of the course answer (sqlgrade.js); a correct result marks the exercise solved.
+//   with the result of the course answer (sqlgrade.js); a correct result marks the exercise solved. With "start" (a
+//   query, training step 2e: "fix this query"), the editor opens on that query and "↺ Start again" brings it back.
 //   Auto-graded formats (exercise.type, training steps 2b, 2c + 2d, drills.js): choice, fill, order, match, groups, bug,
 //   scenario, logs, regex, cron, json, fixfile; a correct answer marks the exercise solved, "Reveal" shows the worked answer.
 // - Courses with a playground (DAX.do): written exercises with "try" get "▶ Run my attempt on …" (copies the attempt,
@@ -186,7 +187,7 @@ export function interviewCards(root, c) {
 const MAX_ROWS = 20;
 // The result table of a query (first MAX_ROWS rows).
 function resultTable(res) {
-  if (!res.columns.length) return h("p", { class: "mute text-sm" }, t("The statement ran. It returns no table (only a SELECT shows rows)."));
+  if (!res.columns.length) return h("p", { class: "mute text-sm" }, t("The query ran and returned no rows (a statement other than SELECT never returns rows)."));
   const shown = res.values.slice(0, MAX_ROWS);
   return h("div", { class: "grid gap-1" },
     h("div", { class: "overflow-x-auto rounded-xl", style: "border:1px solid var(--line)" },
@@ -202,10 +203,11 @@ const VERDICT = {
   columns: "Not yet: the number of rows is right, but some expected columns are missing or hold other values.",
   values: "Not yet: same number of rows, but some values differ.",
   order: "Almost: the right rows, but not in the order asked for.",
-  none: "Your query returns no table. Write a SELECT that answers the question.",
+  none: "Not yet: your query returns no rows. Check its conditions (a statement other than SELECT never returns rows).",
+  plan: "Not yet: the plan does not use the index asked for, or still scans a whole table (SCAN). Keep EXPLAIN QUERY PLAN in front of the query.",
 };
 function sqlRunner(e, onSolved) {
-  const box = h("textarea", { class: "input font-mono min-h-[110px] w-full", rows: 5, spellcheck: "false", autocapitalize: "off", autocorrect: "off",
+  const box = h("textarea", { class: "input font-mono min-h-[110px] w-full", rows: e.start ? Math.min(14, e.start.split("\n").length + 1) : 5, spellcheck: "false", autocapitalize: "off", autocorrect: "off",
     "aria-label": t("Your SQL query"), placeholder: t("Write your SQL query, then ▶ Run (Ctrl + Enter)…") });
   const out = h("div", { class: "grid gap-2", "aria-live": "polite" });
   const say = (text, color) => h("p", { class: "text-sm font-medium", style: color ? `color:${color}` : "" }, text);
@@ -234,6 +236,8 @@ function sqlRunner(e, onSolved) {
     } catch (err) { out.replaceChildren(say(errorText(err), "#e0508b")); }
     finally { busy(false); }
   }
+  if (e.start) box.value = e.start;
+  const reset = e.start ? h("button", { type: "button", class: "btn-ghost", onClick: () => { box.value = e.start; out.replaceChildren(); box.focus(); } }, t("↺ Start again")) : null;
   const run = h("button", { type: "button", class: "btn-ghost", onClick: onRun }, t("▶ Run"));
   const check = h("button", { type: "button", class: "btn", onClick: onCheck }, t("✓ Check my answer"));
   box.addEventListener("keydown", (ev) => { if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") { ev.preventDefault(); onRun(); } });
@@ -248,5 +252,5 @@ function sqlRunner(e, onSolved) {
         h("li", {}, h("b", {}, tb.name), `(${tb.columns.join(", ")}) · `, h("span", { class: "mute" }, tn(tb.rows, "{n} row", "{n} rows"))))));
     } catch (err) { schema.append(h("p", { class: "mute" }, errorText(err))); }
   });
-  return h("div", { class: "grid gap-2", "data-sql-runner": true }, schema, box, h("div", { class: "flex flex-wrap gap-2" }, run, check), out);
+  return h("div", { class: "grid gap-2", "data-sql-runner": true }, schema, box, h("div", { class: "flex flex-wrap gap-2" }, run, check, reset), out);
 }

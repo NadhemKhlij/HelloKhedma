@@ -7,7 +7,10 @@
 //   - the learner must return at least `minColumns` of the expected columns (default: all of them);
 //   - rows are compared as a multiset, or in order when the exercise says `ordered` (an ORDER BY is asked for);
 //   - numbers equal within 0.05 when not whole (ROUND(…, 1) vs no rounding), text compared exactly, NULL = NULL.
-// Returns { ok, reason, got, want }: reason is "none" (no result), "rows", "columns", "order" or "values".
+// Query plan exercises (run.plan = an index name, training step 2e): the learner runs EXPLAIN QUERY PLAN; the result
+// passes when a row of its "detail" column uses that index (USING [COVERING] INDEX <name>) and no row scans a whole
+// table (SCAN …). The plan text is not compared as such: aliases, column order and node ids change it harmlessly.
+// Returns { ok, reason, got, want }: reason is "none" (no result), "rows", "columns", "order", "values" or "plan".
 
 const close = (a, b) => {
   if (a === b) return true;
@@ -22,7 +25,13 @@ const sameMultiset = (a, b) => {
   return x.every((v, i) => v === y[i]) || a.every((v) => b.some((w) => close(v, w)));
 };
 
-export function gradeResult(expected, actual, { ordered = false, minColumns } = {}) {
+export function gradeResult(expected, actual, { ordered = false, minColumns, plan } = {}) {
+  if (plan) {
+    const i = actual?.columns?.indexOf("detail") ?? -1;
+    const rows = i < 0 ? [] : actual.values.map((r) => String(r[i]));
+    const uses = rows.some((d) => new RegExp(`USING (COVERING )?INDEX ${plan}\\b`).test(d));
+    return { ok: uses && !rows.some((d) => /^SCAN /.test(d)), reason: "plan", got: rows.length, want: 1 };
+  }
   const want = expected.values.length;
   if (!actual || !actual.columns?.length) return { ok: false, reason: "none", got: 0, want };
   const got = actual.values.length;

@@ -443,6 +443,68 @@
         }
       ],
       "answer": "First 503 at 09:41:17, last at 09:52:02: about 11 minutes of impact (10 min 45 s). Write the timeline with the log times, not with when the alert came in (09:43): the gap is your detection time, a figure the review tries to reduce."
+    },
+    {
+      "q": "Take-home case, Application Support (1/4). At 14:45 the service desk gets tickets from shops: “card payments fail since about 2 pm”. Here is the payments-api log for that afternoon (UTC). Filter it (try ERROR, then paylink, then msg=) and answer.",
+      "type": "logs",
+      "file": "logs/payments-api.log",
+      "hint": "Filter on ERROR for the first failure and the count; the WARN and INFO lines with msg= tell the rest of the story.",
+      "fields": [
+        {
+          "label": "Time of the first ERROR (hh:mm:ss)",
+          "accept": [
+            "14:03:50",
+            "/^(2026-03-18[T ])?14:03:50Z?$/i"
+          ]
+        },
+        {
+          "label": "How many payments failed with PSP_TIMEOUT?",
+          "accept": [
+            "17"
+          ]
+        },
+        {
+          "label": "Which payment provider (psp) fails?",
+          "accept": [
+            "paylink",
+            "/^paylink(\\b|$)/i"
+          ]
+        },
+        {
+          "label": "When was the provider healthy again (hh:mm:ss)?",
+          "accept": [
+            "14:41:02",
+            "/^(2026-03-18[T ])?14:41:02Z?$/i"
+          ]
+        }
+      ],
+      "answer": "First ERROR at 14:03:50; 17 payments failed with PSP_TIMEOUT, all on psp=paylink (api.paylink.example timed out after 30 s); a failover to api-eu2.paylink.example was loaded at 14:35:50 and the provider was healthy again at 14:41:02. Note the WARN “TLS handshake slow” at 14:01:37: the first sign came 2 minutes before the first failure, and the monitoring did not alert on it. The other providers kept working, and the few CARD_DECLINED lines are normal customer declines, not part of the incident."
+    },
+    {
+      "q": "Take-home case, Application Support (2/4). Measure the impact in the database (practice database payments, times in UTC like the log): for 14:00 to 15:00, the number of payments per psp and status.",
+      "hint": "created_at is ISO text (2026-03-18T14:03:50Z), so a range on the text works: >= '2026-03-18T14:00' AND < '2026-03-18T15:00'.",
+      "code": "sql",
+      "answer": "SELECT psp, status, COUNT(*) AS payments\nFROM payments\nWHERE created_at >= '2026-03-18T14:00' AND created_at < '2026-03-18T15:00'\nGROUP BY psp, status;",
+      "run": {
+        "db": "payments"
+      },
+      "explain": "paylink: 17 failed, 8 succeeded (before 14:02 and after 14:41), 2 declined; adyenish and stripeish: all succeeded. The database confirms the log: one provider, a 40-minute window, the other providers unaffected. That scoping sentence goes in the first update to the business."
+    },
+    {
+      "q": "Take-home case, Application Support (3/4). Customer care wants to contact the shops that lost payments. List the merchants with failed payments: name, number of failed payments and their total amount, biggest amount first.",
+      "hint": "Join merchants for the name; status = 'failed' (declined payments are normal card refusals).",
+      "code": "sql",
+      "answer": "SELECT m.name, COUNT(*) AS failed, ROUND(SUM(p.amount), 2) AS failed_amount\nFROM payments p\nJOIN merchants m ON m.merchant_id = p.merchant_id\nWHERE p.status = 'failed'\nGROUP BY m.name\nORDER BY failed_amount DESC;",
+      "run": {
+        "db": "payments",
+        "ordered": true
+      },
+      "explain": "4 shops, all on paylink: LibrairieSfax (5, 614.29), MaisonBio (5, 535.34), BoutiqueNour (4, 321.30), PharmaPlus (3, 76.41): 1,547.34 in total. Give customer care the list with the payment ids so shops can ask their customers to pay again; leave out declined payments, which have nothing to do with the incident."
+    },
+    {
+      "q": "Take-home case, Application Support (4/4). Write the incident summary for the post-incident review (6 to 8 lines): impact, timeline, cause as far as known, how it was resolved, and 2 or 3 actions to avoid a repeat or detect it sooner.",
+      "hint": "Facts with times (UTC) and numbers; blameless; actions with an owner.",
+      "answer": "Impact: from 14:03 to 14:38 UTC, 17 card payments of 4 shops on the provider Paylink failed (1,547.34 in total); other providers were not affected. Timeline: 14:01:37 first warning (slow TLS handshake to api.paylink.example); 14:03:50 first failed payment (PSP_TIMEOUT after 30 s); 14:09 circuit breaker half-open; 14:35:50 failover to the Paylink EU2 endpoint loaded; 14:41:02 provider healthy, payments succeed again; 14:45 first shop tickets. Cause: Paylink's main endpoint stopped answering (provider-side, root cause requested from Paylink). Resolution: switch to the secondary endpoint. Actions: alert on the PSP_TIMEOUT rate per provider (we learned about it from shops, 40 minutes late); make the failover automatic when the error rate passes a threshold; send customer care the list of failed payments so the shops can retry."
     }
   ],
   "interview": [

@@ -166,7 +166,7 @@ export default {
   "Flashcard": "Carte mémo",
   "Interview question": "Question d’entretien",
   "Something else": "Autre chose",
-  "The statement ran. It returns no table (only a SELECT shows rows).": "L’instruction s’est exécutée. Elle ne renvoie pas de tableau (seul un SELECT affiche des lignes).",
+  "The query ran and returned no rows (a statement other than SELECT never returns rows).": "La requête s’est exécutée et n’a renvoyé aucune ligne (une instruction autre que SELECT n’en renvoie jamais).",
   "{n} rows ({max} shown)": "{n} lignes ({max} affichées)",
   "Your SQL query": "Votre requête SQL",
   "Write your SQL query, then ▶ Run (Ctrl + Enter)…": "Écrivez votre requête SQL, puis ▶ Exécuter (Ctrl + Entrée)…",
@@ -184,7 +184,7 @@ export default {
   "Not yet: the number of rows is right, but some expected columns are missing or hold other values.": "Pas encore : le nombre de lignes est bon, mais des colonnes attendues manquent ou contiennent d’autres valeurs.",
   "Not yet: same number of rows, but some values differ.": "Pas encore : même nombre de lignes, mais certaines valeurs diffèrent.",
   "Almost: the right rows, but not in the order asked for.": "Presque : les bonnes lignes, mais pas dans l’ordre demandé.",
-  "Your query returns no table. Write a SELECT that answers the question.": "Votre requête ne renvoie pas de tableau. Écrivez un SELECT qui répond à la question.",
+  "Not yet: your query returns no rows. Check its conditions (a statement other than SELECT never returns rows).": "Pas encore : votre requête ne renvoie aucune ligne. Vérifiez ses conditions (une instruction autre que SELECT n’en renvoie jamais).",
   "📘 Close the gaps with HelloKhedma": "📘 Combler les manques avec HelloKhedma",
   " · {covered} of {all} missing skills, ≈ {time}": " · {covered} compétences manquantes sur {all}, ≈ {time}",
   "Courses (lessons, quiz, flashcards, practice)": "Cours (leçons, quiz, cartes mémo, exercices)",
@@ -1103,4 +1103,5 @@ export default {
   "The final stage copies nothing from the build stage (COPY --from=build …).": "L’étape finale ne copie rien de l’étape de build (COPY --from=build …).",
   "Unknown check {id}": "Vérification inconnue {id}",
   "This check could not read the file.": "Cette vérification n’a pas pu lire le fichier.",
+  "Not yet: the plan does not use the index asked for, or still scans a whole table (SCAN). Keep EXPLAIN QUERY PLAN in front of the query.": "Pas encore : le plan n’utilise pas l’index demandé, ou parcourt encore toute une table (SCAN). Gardez EXPLAIN QUERY PLAN devant la requête.",
 };

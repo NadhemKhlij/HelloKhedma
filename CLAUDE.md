@@ -104,7 +104,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   2. the AI rewrite / CV creation (js/tailor.js → cv-tailor function → Claude API), signed-in users only, after a notice
      shown before every send; the function stores and logs nothing.
 - Admin statistics (js/admin.js): totals only, through security-definer functions that check the admins table; never
-  list e-mails, names or CV text there. usage_daily holds day + kind + count only (bumped by job-search and cv-tailor).
+  list e-mails, names or CV text there. usage_daily holds day + kind + count only (bumped by job-search and cv-tailor);
+  ai_usage_daily holds day + model + token counts (cv-tailor, migration 20261106000300), priced in js/admin.js PRICES
+  (update it when Anthropic's prices change). Anthropic has no API for the credit balance: the owner enters the top-up.
   Visitor counts: Cloudflare Web Analytics (cookie-free beacon, CF_ANALYTICS_TOKEN, never on preview builds).
 - Anonymous statistics (js/insights.js → log_insight()) only after the user said yes ("hk.insights"): skill names,
   course ids and the path id, never CV or offer text, account ids or IPs. Do not add identifiers or free text to them.

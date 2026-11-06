@@ -2,7 +2,8 @@
 // admin_stats() (migration 20261106000200): totals only, no e-mail, name or CV text. The database refuses anyone who
 // is not in the admins table (error 42501), so hiding the link is not the protection. Visitors who never sign in are
 // not counted here: they are in Cloudflare Web Analytics (link at the top) when CONFIG.CF_ANALYTICS_TOKEN is set.
-//   renderAdmin()  draws the page (stat tiles, sign-ups per week, daily searches / AI calls, applications by stage,
+//   renderAdmin()  draws the page (stat tiles, Claude API cost estimate + credit left (admin_ai_usage(), migration
+//                  20261106000300), sign-ups per week, daily searches / AI calls, applications by stage,
 //                  chosen paths, anonymous statistics, open problem reports with Done / Ignore)
 //   checkAdmin()   true when the signed-in user is an admin (is_admin()); account.js shows the Admin link with it
 // Charts: one series each, in the path color (--accent), a tooltip (title) on every bar; the numbers are also written
@@ -42,7 +43,7 @@ function bars(rows, empty) {
 }
 
 // Vertical bars over time: [{ label, n }] (oldest first), with the total and the peak written below.
-function columns(points, caption) {
+function columns(points, caption, fmt = num) {
   const W = 300, H = 90, gap = 2, n = points.length, max = Math.max(...points.map((p) => p.n), 1);
   const w = (W - gap * (n - 1)) / n;
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -60,7 +61,7 @@ function columns(points, caption) {
     const bar = document.createElementNS(svg.namespaceURI, "rect");
     Object.entries({ x: i * (w + gap), y: H - bh, width: w, height: bh, rx: Math.min(2, w / 2), fill: "var(--accent)" }).forEach(([k, v]) => bar.setAttribute(k, v));
     const title = document.createElementNS(svg.namespaceURI, "title");
-    title.textContent = `${p.label}: ${num(p.n)}`;
+    title.textContent = `${p.label}: ${fmt(p.n)}`;
     g.append(title, hit, bar);
     svg.append(g);
   });
@@ -71,12 +72,13 @@ function columns(points, caption) {
   const peak = points.reduce((a, p) => (p.n > a.n ? p : a), points[0] || { n: 0, label: "" });
   return h("figure", { class: "grid gap-1" }, svg,
     h("div", { class: "flex justify-between mute text-xs" }, h("span", {}, points[0]?.label || ""), h("span", {}, points.at(-1)?.label || "")),
-    h("figcaption", { class: "text-xs" }, t("Total {total} · peak {peak} ({when})", { total: num(total), peak: num(peak.n), when: peak.label })));
+    h("figcaption", { class: "text-xs" }, t("Total {total} · peak {peak} ({when})", { total: fmt(total), peak: fmt(peak.n), when: peak.label })));
 }
 
 // Last `days` days (oldest first), zeros filled in, from [{ day, kind, n }].
 function daily(rows, kind, days = 30) {
-  const by = new Map(rows.filter((r) => r.kind === kind).map((r) => [r.day, r.n]));
+  const by = new Map();
+  for (const r of rows.filter((x) => kind == null || x.kind === kind)) by.set(r.day, (by.get(r.day) || 0) + r.n);
   const out = [];
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
@@ -96,6 +98,59 @@ function weekly(rows) {
     out.push({ label: day(k), n: by.get(k) || 0 });
   }
   return out;
+}
+
+/* ---------- Claude API: tokens recorded by cv-tailor (ai_usage_daily, migration 20261106000300) → estimated cost ---------- */
+// US dollars per million tokens, from Anthropic's price list (checked 2026-11-06; update when prices change). Cache
+// writes are billed at 1.25 × the input price (5-minute cache). A model missing here is priced as Opus 5.5.
+const PRICES = {
+  "claude-opus-5-5": { in: 4, out: 20, read: 0.2 },
+  "claude-sonnet-5-5": { in: 2, out: 10, read: 0.2 },
+  "claude-haiku-5-5": { in: 0.1, out: 0.5, read: 0.01 },
+  "claude-opus-5": { in: 5, out: 25, read: 0.5 },
+  "claude-opus-4-8": { in: 5, out: 25, read: 0.5 },
+  "claude-fable-5-1": { in: 10, out: 50, read: 0.25 },
+};
+const priceOf = (model) => PRICES[model] || PRICES[Object.keys(PRICES).find((k) => String(model).startsWith(k))] || PRICES["claude-opus-5-5"];
+const costOf = (r) => { const p = priceOf(r.model);
+  return (r.input_tokens * p.in + r.output_tokens * p.out + r.cache_read_tokens * p.read + r.cache_write_tokens * p.in * 1.25) / 1e6; };
+const usd = (n) => Number(n || 0).toLocaleString(LOCALE, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: n > 0 && n < 1 ? 3 : 2 });
+const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+async function claudeSection() {
+  const { data, error } = await sb.rpc("admin_ai_usage");
+  if (error) return section(t("Claude API (estimated)"), h("p", { class: "mute text-sm" }, error.code === "42501" ? t("This page is for administrators only.")
+    : t("Not installed yet: run the migration 20261106000300_ai_usage.sql, then redeploy cv-tailor.")));
+  const rows = (data.rows || []).map((r) => ({ ...r, cost: costOf(r) }));
+  const since30 = new Date(); since30.setDate(since30.getDate() - 29);
+  const last30 = rows.filter((r) => r.day >= isoDay(since30));
+  const cost30 = last30.reduce((a, r) => a + r.cost, 0), calls30 = last30.reduce((a, r) => a + r.calls, 0);
+  const credit = data.credit;
+  const spent = credit ? rows.filter((r) => r.day >= credit.since).reduce((a, r) => a + r.cost, 0) : 0;
+  const left = credit ? Math.max(0, Number(credit.amount_usd) - spent) : null;
+  const models = [...new Set(last30.map((r) => r.model))];
+
+  const amount = h("input", { class: "input !py-1 w-28", type: "number", min: "0", step: "0.01", inputmode: "decimal", value: credit?.amount_usd ?? "", "aria-label": t("Credit bought (USD)") });
+  const since = h("input", { class: "input !py-1 w-40", type: "date", max: isoDay(new Date()), value: credit?.since ?? isoDay(new Date()), "aria-label": t("Bought on") });
+  const msg = h("span", { class: "text-xs", "aria-live": "polite" });
+  const save = async () => {
+    const { error: e } = await sb.rpc("admin_set_credit", { p_amount: Number(amount.value), p_since: since.value });
+    if (e) { msg.textContent = t("Could not save: {msg}", { msg: e.message }); return; }
+    renderAdmin();
+  };
+  return section(t("Claude API (estimated)"),
+    h("div", { class: "grid grid-cols-2 sm:grid-cols-4 gap-3" },
+      tile(t("Cost, last 30 days"), usd(cost30), t("{n} calls", { n: num(calls30) })),
+      tile(t("Cost per call"), calls30 ? usd(cost30 / calls30) : "–", models.join(", ") || t("no call yet")),
+      tile(t("Spent since the top-up"), credit ? usd(spent) : "–", credit ? t("since {date}", { date: new Date(`${credit.since}T00:00:00`).toLocaleDateString(LOCALE) }) : t("enter your last top-up below")),
+      tile(t("Credit left (estimate)"), left == null ? "–" : usd(left), credit ? t("of {amount} bought", { amount: usd(credit.amount_usd) }) : "")),
+    columns(daily(rows.map((r) => ({ day: r.day, n: r.cost }))), t("Claude cost per day (USD)"), usd),
+    h("div", { class: "flex flex-wrap items-end gap-2 text-sm" },
+      h("label", { class: "grid gap-1" }, h("span", { class: "mute text-xs" }, t("Credit bought (USD)")), amount),
+      h("label", { class: "grid gap-1" }, h("span", { class: "mute text-xs" }, t("Bought on")), since),
+      h("button", { type: "button", class: "btn !py-1.5 !px-3 !text-xs", onClick: save }, t("Save")),
+      h("a", { href: "https://platform.claude.com/settings/billing", target: "_blank", rel: "noopener", class: "btn-ghost !py-1.5 !px-3 !text-xs" }, t("Exact balance (Claude Console) ↗")), msg),
+    h("p", { class: "mute text-xs" }, t("Estimated from the tokens of every AI CV call (counted from the day cv-tailor was redeployed) and Anthropic's prices per model. Anthropic has no API for the remaining credit: the exact balance is in the Claude Console.")));
 }
 
 const section = (title, ...kids) => h("section", { class: "panel grid gap-3 content-start" }, h("h2", { class: "font-semibold" }, title), ...kids);
@@ -136,6 +191,7 @@ export async function renderAdmin() {
     }))
     : h("p", { class: "mute text-sm" }, t("No open report."));
 
+  const claude = await claudeSection();
   root.replaceChildren(
     h("div", { class: "flex flex-wrap items-center gap-2 text-sm" },
       h("span", { class: "mute" }, t("Updated {when}", { when: stamp })),
@@ -150,6 +206,7 @@ export async function renderAdmin() {
       tile(t("Learning synced"), num(s.learning_sync_accounts), t("accounts")),
       tile(t("Job searches"), num(daily(s.usage_daily || [], "job_search").reduce((x, p) => x + p.n, 0)), t("last 30 days")),
       tile(t("AI CV calls"), num(daily(s.usage_daily || [], "cv_tailor").reduce((x, p) => x + p.n, 0)), t("last 30 days"))),
+    claude,
     h("div", { class: "grid gap-4 md:grid-cols-2" },
       section(t("Sign-ups per week"), columns(weekly(s.signups_weekly || []), t("Sign-ups per week"))),
       section(t("Job searches per day"), columns(daily(s.usage_daily || [], "job_search"), t("Job searches per day"))),

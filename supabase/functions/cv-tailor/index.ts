@@ -16,7 +16,8 @@
 // and tailored) and notes (gaps, numbers to add) for the user.
 // Errors: 401 not signed in · 429 daily limit (shared by both modes) · 503 not configured · 4xx/5xx { error, code }
 // The daily limit reuses job_search_hit() and job_search_hits (migration 20261028000200), bucket "tailor:<user id>".
-// Each allowed call bumps the anonymous daily counter usage_daily (count_usage(), migration 20261106000200).
+// Each allowed call bumps the anonymous daily counter usage_daily (count_usage(), migration 20261106000200), and each
+// Claude reply adds its token counts to ai_usage_daily (count_ai_tokens(), migration 20261106000300): numbers only.
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import Anthropic from "npm:@anthropic-ai/sdk";
@@ -151,6 +152,14 @@ Deno.serve(async (req) => {
       system: asCv ? SYSTEM_CV : SYSTEM,
       messages: [{ role: "user", content: prompt }],
     });
+    // Token counts for the admin page's cost estimate (numbers only; migration 20261106000300). Recorded before the
+    // checks below: refused or truncated replies are billed too. Never blocks the answer.
+    const u = response.usage;
+    const { error: tokErr } = await admin.rpc("count_ai_tokens", {
+      p_model: response.model, p_input: u?.input_tokens ?? 0, p_output: u?.output_tokens ?? 0,
+      p_cache_read: u?.cache_read_input_tokens ?? 0, p_cache_write: u?.cache_creation_input_tokens ?? 0,
+    });
+    if (tokErr) console.error("token count failed:", tokErr.message);
     if (response.stop_reason === "refusal") {
       return json({ error: "The AI declined this request. Use the prompt to copy instead.", code: "refusal" }, 422);
     }

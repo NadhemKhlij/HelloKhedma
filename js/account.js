@@ -3,6 +3,7 @@
 // - Delete: signed in → delete-account Edge Function, then sign out; in every case all "hk.*" entries are cleared.
 // - Opt-in choices: "Save my CVs to my account" (cvsync.js, signed-in users, notice before turning it on) and
 //   "Help improve HelloKhedma" (insights.js, anonymous statistics). Both are off until the user turns them on.
+// - "Admin: site statistics" link (#/admin, admin.js), shown only when is_admin() says so.
 import { $, h, ls, toast } from "./lib.js";
 import { t } from "./i18n.js";
 import { sb } from "./supabase.js";
@@ -10,6 +11,7 @@ import { state, fail } from "./state.js";
 import { cvSyncOn, setCvSync, cvSyncExport } from "./cvsync.js";
 import { insightsChoice, setInsights } from "./insights.js";
 import { learnSyncExport } from "./learnsync.js";
+import { checkAdmin, renderAdmin } from "./admin.js";
 
 export function renderStatus() {
   const u = state.user;
@@ -24,6 +26,9 @@ export function renderStatus() {
     ? t("Permanently deletes your account and everything linked to it (applications, progress, profile, CVs saved to the account), then clears this browser. This cannot be undone.")
     : t("Clears every HelloKhedma data from this browser: applications, progress, CV text and settings. This cannot be undone.");
   $("#deleteData").textContent = u ? t("Delete my account") : t("Delete data on this device");
+  $("#adminLink").hidden = true;
+  if (u) checkAdmin().then((yes) => { $("#adminLink").hidden = !yes; }); // the Admin link, for admins only
+  if (location.hash.startsWith("#/admin")) renderAdmin(); // signed in or out while on the admin page
   renderChoices();
 }
 

@@ -5,7 +5,7 @@
 // - Data: path content from Supabase (career_paths, path_resources here; tracks in training.js); applications through
 //   state.store (LocalStore for guests, CloudStore when signed in, see store.js); onUser() imports guest data on sign-in.
 // - selectPath() reloads the path content and redraws every page; the CV version linked to the path becomes active.
-// - Also here: theme toggle ("hk.theme", shows the current theme), EN / FR button (both shown, the current one highlighted), error toasts + optional Sentry (CONFIG.SENTRY_DSN),
+// - Also here: theme toggle ("hk.theme", shows the current theme), EN / FR button (both shown, the current one highlighted), error toasts + optional Sentry (CONFIG.SENTRY_DSN), optional Cloudflare Web Analytics (CONFIG.CF_ANALYTICS_TOKEN),
 //   PWA registration (sw.js) and the "Install the app" link.
 // - Every user-facing text goes through t() / tn(). i18n.js is imported first so the static page is translated
 //   before anything renders; the FR / EN button reloads the page in the other language.
@@ -146,11 +146,23 @@ function onUnexpectedError(err) {
 function initMonitoring() {
   window.addEventListener("error", (e) => onUnexpectedError(e.error || e.message));
   window.addEventListener("unhandledrejection", (e) => onUnexpectedError(e.reason));
+  initWebAnalytics();
   if (!CONFIG.SENTRY_DSN) return;
   const s = document.createElement("script");
   s.src = "https://browser.sentry-cdn.com/8.38.0/bundle.min.js";
   s.crossOrigin = "anonymous";
   s.onload = () => window.Sentry?.init({ dsn: CONFIG.SENTRY_DSN, tracesSampleRate: 0, sendDefaultPii: false });
+  document.head.append(s);
+}
+
+// Visitor counts (CONFIG.CF_ANALYTICS_TOKEN, 2026-11-06): Cloudflare Web Analytics, cookie-free, aggregated page views
+// only (privacy policy); never on a preview build, so test visits are not counted.
+function initWebAnalytics() {
+  if (!CONFIG.CF_ANALYTICS_TOKEN || PREVIEW) return;
+  const s = document.createElement("script");
+  s.defer = true;
+  s.src = "https://static.cloudflareinsights.com/beacon.min.js";
+  s.dataset.cfBeacon = JSON.stringify({ token: CONFIG.CF_ANALYTICS_TOKEN, spa: true });
   document.head.append(s);
 }
 

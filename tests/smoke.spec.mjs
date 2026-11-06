@@ -329,6 +329,15 @@ test("runnable SQL exercise: a correct query written differently is accepted, a 
   await expect(runner.locator("table")).toContainText("Paris");
 });
 
+// Admin page (js/admin.js): a guest gets the sign-in message, no statistics, and no Admin link on the Account page.
+test("admin page: guests see no statistics and no admin link", async ({ page }) => {
+  await open(page, "#/admin");
+  await expect(page.locator("#h-admin")).toBeVisible();
+  await expect(page.locator("#adminRoot")).toContainText("Sign in with an administrator account");
+  await open(page, "#/account");
+  await expect(page.locator("#adminLink")).toBeHidden();
+});
+
 // Training step 2e: "fix this query" opens on the broken query; a query plan exercise checks the index is used.
 test("SQL practice: fix this query (NOT IN with NULL) and a query plan that must use an index", async ({ page }) => {
   await open(page, "#/course/sql");

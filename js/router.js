@@ -11,13 +11,14 @@ import { showCvTab } from "./cvpage.js";
 import { renderAiTrack } from "./aitrack.js";
 import { refreshLearning } from "./training.js";
 import { renderHome } from "./home.js";
+import { renderAdmin } from "./admin.js";
 
 const ROUTES = {
   home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course",
   account: "Your account & data", legal: "Legal notice", privacy: "Privacy policy", interview: "Interview prep",
-  project: "Portfolio project", ai: "AI engineer in Tunisian",
+  project: "Portfolio project", ai: "AI engineer in Tunisian", admin: "Site statistics",
 };
-const NAV_OF = { course: "training", project: "training", ai: "training" }; // which nav tab is highlighted for sub-pages
+const NAV_OF = { course: "training", project: "training", ai: "training", admin: "account" }; // which nav tab is highlighted for sub-pages
 export const coursesReady = loadCourseIndex();
 
 const routeOf = () => {
@@ -42,6 +43,7 @@ export function showRoute(moveFocus) {
     renderProject(param).then(() => { if (moveFocus) $("#h-project")?.focus({ preventScroll: true }); });
   } else if (moveFocus) $(`#h-${r}`)?.focus({ preventScroll: true });
   if (r === "interview") refreshInterview();
+  if (r === "admin") renderAdmin(); // admins only: the database refuses everyone else
   if (r === "cv" && path()) showCvTab(param); // #/cv/maker opens the CV maker tab
   if (r === "training" && path()) refreshLearning(); // lessons, quiz scores and XP may have changed on a course page
   if (r === "home" && path()) renderHome(); // streak

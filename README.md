@@ -107,7 +107,7 @@ remote boards are called from the browser and need no setup.
 
 1. **Settings → Pages → Source: GitHub Actions.**
 2. **Settings → Secrets and variables → Actions → Variables:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`; optional
-   `DEFAULT_COUNTRY`, `CONTACT_EMAIL`, `SENTRY_DSN`.
+   `DEFAULT_COUNTRY`, `CONTACT_EMAIL`, `SENTRY_DSN`, `CF_ANALYTICS_TOKEN` (Cloudflare Web Analytics site token).
 3. Push to `main`, then add the site URL to Supabase **Auth → Redirect URLs**.
 
 The live site uses a custom domain: DNS at Cloudflare (4 `A` records to GitHub Pages, `www` CNAME to

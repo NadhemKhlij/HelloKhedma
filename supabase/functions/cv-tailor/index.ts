@@ -16,6 +16,7 @@
 // and tailored) and notes (gaps, numbers to add) for the user.
 // Errors: 401 not signed in · 429 daily limit (shared by both modes) · 503 not configured · 4xx/5xx { error, code }
 // The daily limit reuses job_search_hit() and job_search_hits (migration 20261028000200), bucket "tailor:<user id>".
+// Each allowed call bumps the anonymous daily counter usage_daily (count_usage(), migration 20261106000200).
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import Anthropic from "npm:@anthropic-ai/sdk";
@@ -119,6 +120,9 @@ Deno.serve(async (req) => {
   await admin.from("job_search_hits").delete().lt("window_start", new Date(Date.now() - 24 * 3600_000).toISOString());
   if (limitErr) return json({ error: "Could not check the daily limit.", code: "limit_check" }, 500);
   if (!allowed) return json({ error: `Daily limit reached (${DAILY_LIMIT} AI rewrites a day). Try again tomorrow.`, code: "limit" }, 429);
+  // Anonymous daily counter for the admin page (day + count only; migration 20261106000200). Never blocks the call.
+  const { error: countErr } = await admin.rpc("count_usage", { p_kind: "cv_tailor" });
+  if (countErr) console.error("usage count failed:", countErr.message);
 
   const language = body.lang === "fr" ? "French" : "English";
   const prompt = [

@@ -17,7 +17,8 @@
 // Response (JSON):      { jobs: Job[], warnings: string[], cached?: true }   429 when rate limited
 // Each Job carries the provider's salary as text (`salary`, Adzuna estimates flagged), read by js/salary.js.
 //
-// Cache (job_search_cache, 6 h) and rate limit (job_search_hits) come from migration 20261028000200. Guests are
+// Cache (job_search_cache, 6 h) and rate limit (job_search_hits) come from migration 20261028000200; each allowed search
+// also bumps the anonymous daily counter usage_daily (count_usage(), migration 20261106000200, admin page). Guests are
 // limited per IP stored only as a SHA-256 hash, purged after 24 h, as stated in the privacy policy.
 // Deploying from the dashboard: paste from a commit-pinned raw GitHub link (the plain raw link is cached ~5 min).
 
@@ -301,6 +302,9 @@ Deno.serve(async (req) => {
     if (!error && allowed === false) {
       return json({ error: "Too many searches in the last hour. Please try again later." }, 429);
     }
+    // Anonymous daily counter for the admin page (day + count only; migration 20261106000200). Never blocks a search.
+    const { error: countErr } = await admin.rpc("count_usage", { p_kind: "job_search" });
+    if (countErr) console.error("usage count failed:", countErr.message);
 
     const { data: hit, error: cacheErr } = await admin.from("job_search_cache").select("results")
       .eq("key", cacheKey).gte("created_at", new Date(Date.now() - CACHE_TTL_MS).toISOString()).maybeSingle();

@@ -358,6 +358,12 @@
   </section>
 
   <!-- Account & data (#/account): export and deletion, for guests and signed-in users -->
+  <!-- Admin statistics (js/admin.js): for accounts in the admins table only; the database refuses everyone else -->
+  <section data-page="admin" aria-labelledby="h-admin" hidden class="grid gap-4">
+    <h1 id="h-admin" tabindex="-1" class="page-title">Site statistics</h1>
+    <div id="adminRoot" class="grid gap-4"></div>
+  </section>
+
   <section data-page="account" aria-labelledby="h-account" hidden class="grid gap-4 max-w-3xl">
     <div class="panel">
       <h1 id="h-account" tabindex="-1" class="page-title">Your account &amp; data</h1>
@@ -365,6 +371,7 @@
       <div class="flex flex-wrap gap-2 mt-3">
         <button id="exportData" class="btn" type="button">Download my data (JSON)</button>
         <button id="signOut" class="btn-ghost" type="button" hidden>Sign out</button>
+        <a id="adminLink" class="btn-ghost" href="#/admin" hidden>Admin: site statistics</a>
       </div>
     </div>
     <!-- Opt-in choices (js/account.js): CV sync (cvsync.js) and anonymous statistics (insights.js) -->
@@ -448,15 +455,17 @@
       <li><b>Signaler un problème</b> : quand vous signalez une erreur dans un cours ou un projet, nous recevons le cours, la partie concernée, son numéro, la langue et votre message, sans votre compte ni votre adresse IP ; n’y mettez pas d’information personnelle (intérêt légitime : corriger les contenus).</li>
       <li><b>Statistiques anonymes</b> (désactivé par défaut) : si vous acceptez « Aider à améliorer HelloKhedma », nous recevons les noms des compétences demandées par les offres que vous analysez sur la page CV, celles qui manquent à votre CV, et l’identifiant des cours que vous terminez, avec le parcours choisi. Jamais votre CV, le texte de l’offre, votre compte ni votre adresse IP : seul le jour est enregistré, et nous ne pouvons relier ces statistiques à personne. Elles servent à choisir les cours à écrire et à décrire le marché (base légale : votre consentement, retirable à tout moment sur la page Compte et données).</li>
       <li><b>Rapports d’erreur</b> : si le suivi des erreurs est activé, des détails techniques (page, navigateur, message d’erreur) sont envoyés à Sentry pour corriger les bugs (intérêt légitime).</li>
+      <li><b>Mesure d’audience</b> : un petit script de Cloudflare Web Analytics compte les pages vues, sans cookie ni stockage dans votre navigateur et sans profil : il reçoit l’adresse de la page, le site d’où vous venez, le type de navigateur et d’appareil et, au moment de la requête, votre adresse IP, dont il ne déduit que le pays et que, selon Cloudflare, il ne conserve pas. Nous ne voyons que des totaux (intérêt légitime : savoir combien de personnes utilisent le site). La version de test du site n’est pas mesurée.</li>
+      <li><b>Statistiques d’utilisation</b> : l’éditeur consulte des totaux calculés à partir des données déjà décrites ci-dessus (nombre de comptes, de candidatures suivies, de recherches et d’utilisations de l’IA par jour, statistiques anonymes, signalements), jamais le détail d’un compte. Les recherches et utilisations de l’IA sont comptées par jour, sans compte ni adresse IP (intérêt légitime : piloter le service et ses coûts).</li>
     </ul>
     <p>Fournir votre adresse e-mail est nécessaire pour créer un compte ; tout le reste est facultatif. Les scores (ATS, correspondance avec une offre, marché) sont des calculs indicatifs affichés pour vous seul : aucune décision n’est prise automatiquement à votre sujet.</p>
     <h2>Stockage local et cookies</h2>
-    <p>HelloKhedma n’utilise aucun cookie publicitaire, de mesure d’audience ou de suivi. Il utilise le stockage local de votre navigateur pour vos réglages (thème, langue), les données invité, vos CV et, une fois connecté, votre session. Si vous installez l’application ou l’utilisez hors ligne, votre navigateur garde aussi une copie des fichiers de l’application et des contenus publics. Ces usages sont strictement nécessaires au service que vous demandez : aucun consentement n’est requis (article 82 de la loi Informatique et Libertés). Vous pouvez tout effacer depuis la page <a href="#/account">Compte et données</a> ou les réglages de votre navigateur.</p>
+    <p>HelloKhedma n’utilise aucun cookie publicitaire, de mesure d’audience ou de suivi (la mesure d’audience décrite ci-dessus fonctionne sans cookie ni stockage local). Il utilise le stockage local de votre navigateur pour vos réglages (thème, langue), les données invité, vos CV et, une fois connecté, votre session. Si vous installez l’application ou l’utilisez hors ligne, votre navigateur garde aussi une copie des fichiers de l’application et des contenus publics. Ces usages sont strictement nécessaires au service que vous demandez : aucun consentement n’est requis (article 82 de la loi Informatique et Libertés). Vous pouvez tout effacer depuis la page <a href="#/account">Compte et données</a> ou les réglages de votre navigateur.</p>
     <h2>Destinataires et sous-traitants</h2>
     <ul>
       <li>Supabase, Inc. (États-Unis) : base de données (dont vos CV si vous les enregistrez dans votre compte, et les statistiques anonymes), authentification et fonctions serveur.</li>
       <li>GitHub, Inc. (États-Unis) : hébergement du site.</li>
-      <li>Cloudflare, Inc. (États-Unis) : nom de domaine, routage des e-mails de contact, bibliothèque pdf.js (cdnjs).</li>
+      <li>Cloudflare, Inc. (États-Unis) : nom de domaine, routage des e-mails de contact, bibliothèque pdf.js (cdnjs), mesure d’audience sans cookie (Web Analytics).</li>
       <li>Resend, Inc. (États-Unis) : envoi des e-mails du compte.</li>
       <li>Anthropic, PBC (États-Unis) : réécriture et création de CV par IA, uniquement à votre demande.</li>
       <li>Google (Gmail) : réception des messages envoyés à l’adresse de contact.</li>
@@ -471,7 +480,8 @@
       <li>Cache des recherches : 6 heures. Empreintes de limitation : 24 heures.</li>
       <li>CV et offres envoyés à l’IA : non conservés par HelloKhedma.</li>
       <li>CV enregistrés dans votre compte : jusqu’à ce que vous désactiviez l’option ou supprimiez votre compte.</li>
-      <li>Statistiques anonymes : 2 ans.</li>
+      <li>Statistiques anonymes : 2 ans. Compteurs quotidiens de recherches et d’utilisations de l’IA (jour et nombre) : 2 ans.</li>
+      <li>Mesure d’audience : totaux conservés par Cloudflare selon sa propre durée (quelques mois).</li>
       <li>Signalements de problèmes : jusqu’à leur traitement, au plus 1 an.</li>
       <li>Messages envoyés au contact : le temps de vous répondre, puis au plus 3 ans après le dernier échange.</li>
       <li>Données de votre navigateur : jusqu’à ce que vous les effaciez.</li>
@@ -509,15 +519,17 @@
       <li><b>Reporting a problem</b>: when you report a mistake in a course or project, we receive the course, the part, its number, the language and your message, without your account or IP address; please do not include personal information (legitimate interest: fixing the content).</li>
       <li><b>Anonymous statistics</b> (off by default): if you accept "Help improve HelloKhedma", we receive the names of the skills asked for by the offers you check on the CV page, the ones your CV lacks, and the id of the courses you finish, with the selected career path. Never your CV, the offer text, your account or your IP address: only the day is stored, and we cannot link these statistics to anyone. They help choose which courses to write and describe the job market (legal basis: your consent, which you can withdraw at any time on the Account &amp; data page).</li>
       <li><b>Error reports</b>: if error monitoring is enabled, technical error details (page, browser, error message) are sent to Sentry to fix bugs (legitimate interest).</li>
+      <li><b>Audience measurement</b>: a small Cloudflare Web Analytics script counts page views, with no cookie, no storage in your browser and no profile: it receives the page address, the site you came from, the type of browser and device and, at the time of the request, your IP address, from which it only derives the country and which, according to Cloudflare, it does not keep. We only see totals (legitimate interest: knowing how many people use the site). The test version of the site is not measured.</li>
+      <li><b>Usage statistics</b>: the publisher looks at totals computed from the data already described above (number of accounts, tracked applications, searches and AI uses per day, anonymous statistics, problem reports), never at the details of an account. Searches and AI uses are counted per day, without account or IP address (legitimate interest: running the service and its costs).</li>
     </ul>
     <p>Giving your email address is needed to create an account; everything else is optional. Scores (ATS, offer match, market) are indicative calculations shown to you only: no decision about you is made automatically.</p>
     <h2>Local storage and cookies</h2>
-    <p>HelloKhedma uses no advertising, audience-measurement or tracking cookies. It uses your browser's local storage for your settings (theme, language), guest data, your CVs and, when signed in, your session. If you install the app or use it offline, your browser also keeps a copy of the app files and public content. These uses are strictly necessary for the service you ask for, so no consent is needed (article 82 of the French Data Protection Act). You can erase everything from the <a href="#/account">Account &amp; data</a> page or your browser settings.</p>
+    <p>HelloKhedma uses no advertising, audience-measurement or tracking cookies (the audience measurement described above works without cookies or local storage). It uses your browser's local storage for your settings (theme, language), guest data, your CVs and, when signed in, your session. If you install the app or use it offline, your browser also keeps a copy of the app files and public content. These uses are strictly necessary for the service you ask for, so no consent is needed (article 82 of the French Data Protection Act). You can erase everything from the <a href="#/account">Account &amp; data</a> page or your browser settings.</p>
     <h2>Recipients and processors</h2>
     <ul>
       <li>Supabase, Inc. (USA): database (including your CVs if you save them to your account, and the anonymous statistics), authentication and server functions.</li>
       <li>GitHub, Inc. (USA): website hosting.</li>
-      <li>Cloudflare, Inc. (USA): domain name, routing of contact emails, pdf.js library (cdnjs).</li>
+      <li>Cloudflare, Inc. (USA): domain name, routing of contact emails, pdf.js library (cdnjs), cookie-free audience measurement (Web Analytics).</li>
       <li>Resend, Inc. (USA): sending account emails.</li>
       <li>Anthropic, PBC (USA): AI CV rewriting and creation, only at your request.</li>
       <li>Google (Gmail): receiving messages sent to the contact address.</li>
@@ -532,7 +544,8 @@
       <li>Search cache: 6 hours. Rate-limit hashes: 24 hours.</li>
       <li>CVs and offers sent to the AI: not kept by HelloKhedma.</li>
       <li>CVs saved to your account: until you turn the option off or delete your account.</li>
-      <li>Anonymous statistics: 2 years.</li>
+      <li>Anonymous statistics: 2 years. Daily counters of searches and AI uses (day and number): 2 years.</li>
+      <li>Audience measurement: totals kept by Cloudflare for its own period (a few months).</li>
       <li>Problem reports: until handled, at most 1 year.</li>
       <li>Messages sent to the contact address: as long as needed to answer, then at most 3 years after the last exchange.</li>
       <li>Data in your browser: until you erase it.</li>

@@ -49,7 +49,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 |---|---|
 | SUPABASE_URL, SUPABASE_ANON_KEY | GitHub → Actions → Variables (build writes js/config.js); local js/config.js |
 | SUPABASE_ACCESS_TOKEN | GitHub → Actions → Secrets (deploy-functions.yml only); never in code |
-| DEFAULT_COUNTRY, CONTACT_EMAIL, SENTRY_DSN (optional) | GitHub → Actions → Variables; local js/config.js |
+| DEFAULT_COUNTRY, CONTACT_EMAIL, SENTRY_DSN, CF_ANALYTICS_TOKEN (optional) | GitHub → Actions → Variables; local js/config.js |
 | ADZUNA_APP_ID, ADZUNA_APP_KEY, RAPIDAPI_KEY, FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET | Supabase → Edge Functions → Secrets |
 | DEFAULT_PROVIDER, CACHE_TTL_HOURS, RATE_LIMIT_GUEST, RATE_LIMIT_USER (optional) | Supabase → Edge Functions → Secrets |
 | ANTHROPIC_API_KEY; CV_TAILOR_DAILY_LIMIT, CV_TAILOR_MODEL (optional) | Supabase → Edge Functions → Secrets (cv-tailor) |
@@ -103,6 +103,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
      signed-in user on the Account page after a notice; turning it off deletes the account copy;
   2. the AI rewrite / CV creation (js/tailor.js → cv-tailor function → Claude API), signed-in users only, after a notice
      shown before every send; the function stores and logs nothing.
+- Admin statistics (js/admin.js): totals only, through security-definer functions that check the admins table; never
+  list e-mails, names or CV text there. usage_daily holds day + kind + count only (bumped by job-search and cv-tailor).
+  Visitor counts: Cloudflare Web Analytics (cookie-free beacon, CF_ANALYTICS_TOKEN, never on preview builds).
 - Anonymous statistics (js/insights.js → log_insight()) only after the user said yes ("hk.insights"): skill names,
   course ids and the path id, never CV or offer text, account ids or IPs. Do not add identifiers or free text to them.
 - Keep the privacy policy (index.html, #/privacy) in sync when adding a provider or any new personal data.
@@ -137,6 +140,7 @@ Read the header comment of any file before modifying it; update the header if be
 - `#/interview` → interview → interview.js
 - `#/applications` → applications → applications.js + tracker.js, store.js
 - `#/account` → account → account.js
+- `#/admin` → admin → admin.js (site statistics; admins only: admins table + admin_stats(), migration 20261106000200)
 - `#/legal`, `#/privacy` → legal, privacy → static HTML in index.html
 - Anything else → home (keeps Supabase's `#access_token=` for supabase-js)
 
@@ -162,6 +166,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/insights.js — opt-in anonymous statistics (asked once under a CV check; Account page switch)
 - js/gaps.js — "Close the gaps": courses, roadmap steps and projects for the missing skills (#/cv, Tailor my CV)
 - js/learnsync.js — learning progress synced for signed-in users (learning_sync; merge per key, lib.js onStore watcher)
+- js/admin.js — admin page: admin_stats() totals (accounts, usage counters, applications, anonymous statistics, open
+  reports with Done / Ignore), link to Cloudflare Web Analytics for visitors; Admin link on the Account page via is_admin()
 - js/report.js — "⚑ Report a problem" on course and project pages (report_content(), e-mail fallback)
 - scripts/check-content.mjs — content checks run by CI (structure, French copies, identical code, skills, AI track,
   every runnable SQL answer executed on its dataset and accepted by the grader, every auto-graded exercise checked)

@@ -10,7 +10,11 @@
 //   - portfolio projects (content/projects): 3 per path, required fields, ids "<path>-…", http(s) data links;
 //   - AI track (content/ai): index entries, Arabic-letter and 3arbizi files with the same structure and identical code;
 //   - runnable SQL exercises (exercise.run, training step 2): the dataset exists, the course answer runs on it with
-//     SQLite (sql.js, the same engine as the browser) and returns rows, and the grader (js/sqlgrade.js) accepts it.
+//     SQLite (sql.js, the same engine as the browser) and returns rows, and the grader (js/sqlgrade.js) accepts it;
+//   - auto-graded exercise formats (exercise.type, training steps 2b + 2c, js/drills.js): the fields of each format,
+//     accepted answers that compile, "___" blanks = blanks, the bug line inside the snippet, scenario steps with a best
+//     choice; files (content/logs, content/data) that exist; regex / cron / jq answers that run (js/drillcheck.js) and
+//     give a result; French copies with the same type, counts, correct option, bug line, files and code.
 // The same rules as scripts/check-fr-content.ps1 (French) and the course smoke test, plus the structure rules above.
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -18,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { SKILLS } from "../js/ats.js";
 import { gradeResult } from "../js/sqlgrade.js";
+import { blanks as countBlanks, parseCron, regexRun, jq } from "../js/drillcheck.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const C = (...p) => join(ROOT, "content", ...p);
@@ -47,7 +52,11 @@ function checkCourse(where, c) {
     if (!str(g.group)) bad(where, `cheat sheet group ${i + 1}: no name`);
     arr(g.items).forEach((it, j) => { if (!Array.isArray(it) || it.length !== 2 || !it.every(str)) bad(where, `cheat sheet group ${i + 1} item ${j + 1}: must be [syntax, meaning]`); });
   });
-  arr(c.exercises).forEach((e, i) => { if (!str(e.q) || !str(e.answer)) bad(where, `exercise ${i + 1}: needs q and answer`); });
+  arr(c.exercises).forEach((e, i) => {
+    if (!str(e.q) || !str(e.answer)) bad(where, `exercise ${i + 1}: needs q and answer`);
+    if (e.explain != null && !str(e.explain)) bad(where, `exercise ${i + 1}: empty explain`);
+    if (e.type) checkDrill(`${where} exercise ${i + 1} (${e.type})`, e);
+  });
   arr(c.interview).forEach((q, i) => { if (!str(q.q) || !str(q.a)) bad(where, `interview question ${i + 1}: needs q and a`); });
 }
 
@@ -69,8 +78,91 @@ function sameShape(where, a, b, { translated = true } = {}) {
     const f = arr(b.exercises)[i] || {};
     if (e.code && (e.answer !== f.answer || e.code !== f.code)) bad(where, `exercise ${i + 1}: code answer differs`);
     if (JSON.stringify(e.run || null) !== JSON.stringify(f.run || null)) bad(where, `exercise ${i + 1}: run settings differ`);
+    if (e.type || f.type) sameDrill(`${where} exercise ${i + 1}`, e, f);
   });
   if (translated && a.why && a.why === b.why) bad(where, "why is not translated");
+}
+
+/* ---------- auto-graded exercise formats (js/drills.js) ---------- */
+const TYPES = new Set(["choice", "fill", "order", "match", "groups", "bug", "scenario", "logs", "regex", "cron", "json"]);
+const fileText = (f) => (/^(logs|data)\/[a-z0-9_.-]+$/.test(f || "") && existsSync(C(f)) ? readFileSync(C(f), "utf8") : null);
+const regexOk = (a) => { const m = /^\/(.+)\/([a-z]*)$/s.exec(a); if (!m) return true; try { new RegExp(m[1], m[2]); return true; } catch { return false; } };
+const acceptList = (where, list) => {
+  if (!arr(list).length || !arr(list).every(str)) { bad(where, "needs a list of accepted answers"); return; }
+  list.forEach((a) => { if (!regexOk(a)) bad(where, `accepted answer ${a} is not a valid /regex/`); });
+};
+const unique = (xs) => new Set(xs).size === xs.length;
+function checkDrill(where, e) {
+  if (!TYPES.has(e.type)) { bad(where, `unknown type (known: ${[...TYPES].join(", ")})`); return; }
+  const t = e.type;
+  if (t === "choice") {
+    if (arr(e.options).length < 2 || !e.options.every(str) || !unique(e.options)) bad(where, "needs 2+ different options");
+    if (!Number.isInteger(e.correct) || e.correct < 0 || e.correct >= arr(e.options).length) bad(where, "correct must be the index of an option");
+  }
+  if (t === "fill") {
+    if (!arr(e.blanks).length) bad(where, "needs blanks");
+    arr(e.blanks).forEach((b, k) => acceptList(`${where} blank ${k + 1}`, b));
+    if (e.snippet ? countBlanks(e.snippet) !== arr(e.blanks).length : arr(e.blanks).length !== 1)
+      bad(where, e.snippet ? `${countBlanks(e.snippet)} ___ in the snippet but ${arr(e.blanks).length} blanks` : "without a snippet, exactly one blank");
+  }
+  if (t === "order" && (arr(e.steps).length < 3 || !e.steps.every(str) || !unique(e.steps))) bad(where, "needs 3+ different steps");
+  if (t === "match" && (arr(e.pairs).length < 3 || !e.pairs.every((p) => Array.isArray(p) && p.length === 2 && p.every(str)) || !unique(e.pairs.map((p) => p[1])) || !unique(e.pairs.map((p) => p[0]))))
+    bad(where, "needs 3+ [left, right] pairs, each side different");
+  if (t === "groups") {
+    if (arr(e.groups).length < 2 || !e.groups.every((g) => str(g.name) && arr(g.items).length && g.items.every(str))) bad(where, "needs 2+ groups with a name and items");
+    else if (!unique(e.groups.flatMap((g) => g.items)) || !unique(e.groups.map((g) => g.name))) bad(where, "group names and items must be unique");
+  }
+  if (t === "bug") {
+    if (!str(e.snippet)) bad(where, "needs a snippet");
+    else if (!Number.isInteger(e.line) || e.line < 1 || e.line > e.snippet.split("\n").length || !e.snippet.split("\n")[e.line - 1].trim()) bad(where, "line must point at a non-empty line of the snippet");
+  }
+  if (t === "scenario") {
+    if (arr(e.steps).length < 2) bad(where, "needs 2+ steps");
+    arr(e.steps).forEach((s, k) => {
+      if (!str(s.text) || arr(s.choices).length < 2 || !s.choices.every((c) => str(c.label) && str(c.feedback))) bad(where, `step ${k + 1}: needs text and 2+ choices with label and feedback`);
+      else if (!s.choices.some((c) => c.best)) bad(where, `step ${k + 1}: no best choice`);
+    });
+  }
+  if (t === "logs") {
+    if (!fileText(e.file)) bad(where, `file "${e.file}" not found in content/logs or content/data`);
+    if (!arr(e.fields).length) bad(where, "needs fields");
+    arr(e.fields).forEach((f, k) => { if (!str(f.label)) bad(where, `field ${k + 1}: no label`); acceptList(`${where} field ${k + 1}`, f.accept); });
+  }
+  if (t === "regex") {
+    if (e.code !== "regex") bad(where, 'needs code: "regex"');
+    if (!["lines", "extract"].includes(e.mode)) bad(where, 'mode must be "lines" or "extract"');
+    const text = e.text != null ? e.text : fileText(e.file);
+    if (!str(text)) { bad(where, "needs text or a file"); return; }
+    try {
+      const got = regexRun(e.answer, e.flags, text, e.mode);
+      if (!got.length) bad(where, "the answer matches nothing in the sample");
+      if (e.mode === "lines" && got.length === text.split(/\r?\n/).filter((l) => l.length).length) bad(where, "the answer matches every line (nothing to tell apart)");
+    } catch (err) { bad(where, `the answer is not a valid pattern (${err.message})`); }
+  }
+  if (t === "cron") {
+    if (e.code !== "cron") bad(where, 'needs code: "cron"');
+    try { parseCron(e.answer); } catch (err) { bad(where, `the answer is not a valid cron expression (${err.message})`); }
+  }
+  if (t === "json") {
+    if (e.code !== "jq") bad(where, 'needs code: "jq"');
+    const text = fileText(e.file);
+    if (!text) { bad(where, `file "${e.file}" not found in content/data`); return; }
+    try {
+      const got = jq(e.answer, JSON.parse(text));
+      if (!got.length || got.every((x) => x == null)) bad(where, "the answer returns nothing (or only null) on the file");
+    } catch (err) { bad(where, `the answer fails on the file (${err.message})`); }
+  }
+}
+// The two languages of a typed exercise: same type and shape, same correct answer, files and code.
+function sameDrill(where, a, b) {
+  if (a.type !== b.type) { bad(where, `type ${a.type} vs ${b.type}`); return; }
+  for (const k of ["snippet", "lang", "correct", "line", "file", "mode", "flags", "text", "fix"]) if (JSON.stringify(a[k] ?? null) !== JSON.stringify(b[k] ?? null)) bad(where, `${k} differs between the two languages`);
+  for (const k of ["options", "blanks", "steps", "pairs", "groups", "fields"]) if (arr(a[k]).length !== arr(b[k]).length) bad(where, `${k}: ${arr(a[k]).length} vs ${arr(b[k]).length}`);
+  arr(a.groups).forEach((g, k) => { if (arr(g.items).length !== arr(arr(b.groups)[k]?.items).length) bad(where, `group ${k + 1}: item count differs`); });
+  if (a.type === "scenario") arr(a.steps).forEach((s, k) => {
+    const o = arr(b.steps)[k] || {};
+    if (arr(s.choices).length !== arr(o.choices).length || arr(s.choices).some((c, j) => !!c.best !== !!arr(o.choices)[j]?.best)) bad(where, `scenario step ${k + 1}: choices or best choice differ`);
+  });
 }
 
 /* ---------- courses ---------- */
@@ -197,7 +289,8 @@ if (runnable.length) {
 }
 
 /* ---------- result ---------- */
-const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${PATHS.size * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises`;
+const typed = index.reduce((n, e) => n + arr(existsSync(C("courses", `${e.id}.json`)) ? load(C("courses", `${e.id}.json`))?.exercises : []).filter((x) => x.type).length, 0);
+const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${PATHS.size * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises, ${typed} auto-graded exercises`;
 if (problems.length) {
   console.log(`Content check: ${problems.length} problem(s) (${counted})`);
   for (const p of problems) console.log(`  - ${p}`);

@@ -232,7 +232,35 @@
     { "q": "A Java app takes 90 seconds to start and gets restarted in a loop by its liveness probe. What do you change?", "hint": "Which probe exists for slow starts?",
       "answer": "Add a startupProbe on the same endpoint with periodSeconds: 10 and failureThreshold: 12 (up to 120 s). Liveness and readiness only start after it succeeds, so the container is no longer killed while starting. Check the events with kubectl describe pod to confirm the earlier failures were liveness failures." },
     { "q": "Your Ingress for shop.example.com returns 503. Where do you look?",
-      "answer": "503 from the controller usually means the backend has no ready endpoints. Check that the Service name and port in the Ingress are right, that the Service selector matches the pod labels (kubectl get endpoints or endpointslices for the Service), and that the pods are Ready (readiness probe failing?). Then read the ingress controller logs." }
+      "answer": "503 from the controller usually means the backend has no ready endpoints. Check that the Service name and port in the Ingress are right, that the Service selector matches the pod labels (kubectl get endpoints or endpointslices for the Service), and that the pods are Ready (readiness probe failing?). Then read the ingress controller logs." },
+    {
+      "q": "JSON: this is kubectl get pods -o json. Write a jq filter that returns the name of every pod whose phase is not Running.",
+      "type": "json",
+      "code": "jq",
+      "file": "data/k8s-pods.json",
+      "answer": ".items[] | select(.status.phase != \"Running\") | .metadata.name",
+      "hint": ".items[] goes through the pods; select(.status.phase != \"Running\") keeps the others; .metadata.name gives the name.",
+      "explain": "Two pods: frontend-6b8c9d7f4-x4pn2 (Pending: no node could take it, see kubectl describe pod) and migrate-db-58f6c9b7d-k2v9s (Failed). Note that worker-…-hq7wn is in CrashLoopBackOff but its phase is still Running: the phase alone hides crashing containers."
+    },
+    {
+      "q": "JSON: same pod list. Which pods restarted more than 3 times? Write the jq filter (each pod here has one container).",
+      "type": "json",
+      "code": "jq",
+      "file": "data/k8s-pods.json",
+      "answer": ".items[] | select(.status.containerStatuses[0].restartCount > 3) | .metadata.name",
+      "hint": ".status.containerStatuses[0].restartCount is a number: compare it with > 3.",
+      "explain": "worker-5c7d4f9d8-hq7wn (7 restarts, CrashLoopBackOff) and cache-84d5f6c7b-7wq3e (4). Next: kubectl logs <pod> --previous shows why the last container died, kubectl describe pod shows the exit reason (OOMKilled, Error…)."
+    },
+    {
+      "q": "Spot the bug: kubectl apply rejects this Deployment. Which line causes it?",
+      "type": "bug",
+      "lang": "yaml",
+      "line": 14,
+      "snippet": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: api\n  template:\n    metadata:\n      labels:\n        tier: backend\n        app: web\n    spec:\n      containers:\n        - name: api\n          image: shop/api:4.18.0\n          ports:\n            - containerPort: 8080",
+      "fix": "  selector:\n    matchLabels:\n      app: api\n  template:\n    metadata:\n      labels:\n        tier: backend\n        app: api",
+      "hint": "A Deployment finds its pods through spec.selector.",
+      "answer": "The selector looks for app: api but the pod template is labelled app: web, so the Deployment would own none of its own pods: the API server refuses it (“selector does not match template labels”). The template labels must include every label of the selector."
+    }
   ],
   "interview": [
     { "q": "What is the difference between a Deployment and a Service?", "a": "A Deployment manages the pods: how many replicas, which image, and how to roll out a new version. A Service gives those changing pods one stable name and IP and load-balances traffic to them by label. You usually need both: the Deployment runs the app, the Service makes it reachable." },

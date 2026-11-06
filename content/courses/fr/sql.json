@@ -481,6 +481,30 @@
       "hint": "INSERT ... SELECT avec ON CONFLICT ; products doit avoir une contrainte unique sur sku.",
       "code": "sql",
       "answer": "INSERT INTO products (sku, price, updated_at)\nSELECT sku, price, NOW()\nFROM staging_prices\nON CONFLICT (sku) DO UPDATE\nSET price = EXCLUDED.price,\n    updated_at = EXCLUDED.updated_at;"
+    },
+    {
+      "q": "Prédisez les deux nombres que renvoie cette requête.",
+      "type": "choice",
+      "lang": "sql",
+      "mono": true,
+      "correct": 2,
+      "options": [
+        "5 et 5",
+        "3 et 3",
+        "5 et 3",
+        "3 et 5"
+      ],
+      "snippet": "-- customers: 5 rows, and 2 of them have no phone number (NULL)\nSELECT COUNT(*), COUNT(phone)\nFROM customers;",
+      "answer": "COUNT(*) compte les lignes (5) ; COUNT(phone) compte les valeurs non NULL de la colonne (3). Toutes les agrégations sauf COUNT(*) ignorent les NULL : AVG(phone_bill) divise par les lignes qui ont une valeur."
+    },
+    {
+      "q": "Trouvez le bug : on veut les villes de plus de 10 clients. Quelle ligne fait échouer la requête ?",
+      "type": "bug",
+      "lang": "sql",
+      "line": 3,
+      "snippet": "SELECT city, COUNT(*) AS customers\nFROM customers\nWHERE COUNT(*) > 10\nGROUP BY city\nORDER BY customers DESC;",
+      "fix": "SELECT city, COUNT(*) AS customers\nFROM customers\nGROUP BY city\nHAVING COUNT(*) > 10\nORDER BY customers DESC;",
+      "answer": "WHERE filtre les lignes avant le regroupement : il ne peut pas utiliser d’agrégat. Une condition sur COUNT(*) va dans HAVING, après GROUP BY. Ordre d’évaluation : FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY."
     }
   ],
   "interview": [

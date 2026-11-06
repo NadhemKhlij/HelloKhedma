@@ -481,6 +481,30 @@
       "hint": "INSERT ... SELECT with ON CONFLICT; products needs a unique constraint on sku.",
       "code": "sql",
       "answer": "INSERT INTO products (sku, price, updated_at)\nSELECT sku, price, NOW()\nFROM staging_prices\nON CONFLICT (sku) DO UPDATE\nSET price = EXCLUDED.price,\n    updated_at = EXCLUDED.updated_at;"
+    },
+    {
+      "q": "Predict the two numbers this query returns.",
+      "type": "choice",
+      "lang": "sql",
+      "mono": true,
+      "correct": 2,
+      "options": [
+        "5 and 5",
+        "3 and 3",
+        "5 and 3",
+        "3 and 5"
+      ],
+      "snippet": "-- customers: 5 rows, and 2 of them have no phone number (NULL)\nSELECT COUNT(*), COUNT(phone)\nFROM customers;",
+      "answer": "COUNT(*) counts rows (5); COUNT(phone) counts non-NULL values in that column (3). Every aggregate except COUNT(*) ignores NULLs: AVG(phone_bill) divides by the rows that have a value."
+    },
+    {
+      "q": "Spot the bug: the goal is the cities with more than 10 customers. Which line makes the query fail?",
+      "type": "bug",
+      "lang": "sql",
+      "line": 3,
+      "snippet": "SELECT city, COUNT(*) AS customers\nFROM customers\nWHERE COUNT(*) > 10\nGROUP BY city\nORDER BY customers DESC;",
+      "fix": "SELECT city, COUNT(*) AS customers\nFROM customers\nGROUP BY city\nHAVING COUNT(*) > 10\nORDER BY customers DESC;",
+      "answer": "WHERE filters rows before grouping, so it cannot use an aggregate. A condition on COUNT(*) goes in HAVING, after GROUP BY. Order of evaluation: FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY."
     }
   ],
   "interview": [

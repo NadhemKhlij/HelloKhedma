@@ -225,6 +225,45 @@
       "q": "Write the same aggregation in Spark SQL: number of distinct customers and total amount per day for PAID orders, using a temporary view named orders.",
       "code": "python",
       "answer": "orders.createOrReplaceTempView(\"orders\")\ndaily = spark.sql(\"\"\"\n    SELECT CAST(order_ts AS DATE) AS day,\n           COUNT(DISTINCT customer_id) AS buyers,\n           SUM(amount) AS revenue\n    FROM orders\n    WHERE status = 'PAID'\n    GROUP BY CAST(order_ts AS DATE)\n\"\"\")"
+    },
+    {
+      "q": "Sort these DataFrame calls: lazy transformations, or actions that start a job.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Transformation (lazy)",
+          "items": [
+            "select()",
+            "filter()",
+            "groupBy().agg()",
+            "withColumn()"
+          ]
+        },
+        {
+          "name": "Action (runs a job)",
+          "items": [
+            "count()",
+            "show()",
+            "collect()",
+            "write.parquet()"
+          ]
+        }
+      ],
+      "answer": "Transformations only add steps to the plan; an action makes Spark optimise the whole plan and run it on the cluster. collect() brings every row to the driver: keep it for small results."
+    },
+    {
+      "q": "Predict: on which line does Spark actually run the filter and the select on the data?",
+      "type": "choice",
+      "lang": "python",
+      "correct": 3,
+      "snippet": "df = spark.read.parquet(\"s3://shop/orders/\")   # line 1\nbig = df.filter(df.amount > 100)               # line 2\nbig = big.select(\"order_id\", \"amount\")         # line 3\nprint(big.count())                              # line 4",
+      "options": [
+        "Line 1",
+        "Line 2",
+        "Line 3",
+        "Line 4"
+      ],
+      "answer": "filter and select are lazy: they only build the plan. count() is an action, so line 4 starts the job, and Spark reads only the order_id and amount columns of the Parquet files (column pruning) with the filter pushed down."
     }
   ],
   "pitfalls": [

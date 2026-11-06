@@ -334,6 +334,115 @@
       "q": "Rewrite this KB title so users and agents can find it: 'Procedure 14 - credential manager cleanup'.",
       "hint": "Use the words of the symptom.",
       "answer": "'Outlook keeps asking for your password after a password change (Windows)'. The title describes the symptom in the words users type in a search or say on the phone, and states the environment. The technical solution, clearing the cached credentials in Credential Manager, goes in the resolution steps."
+    },
+    {
+      "q": "Scenario: you are on call for an online shop. Make each decision; every choice shows its consequence.",
+      "type": "scenario",
+      "steps": [
+        {
+          "choices": [
+            {
+              "best": true,
+              "label": "Open a P1 incident, name an incident manager and post a first status message",
+              "feedback": "Payment is down for many users: that is high impact and high urgency. Declaring it early brings the right people in and stops the duplicate tickets."
+            },
+            {
+              "label": "Wait 15 minutes to see if it fixes itself",
+              "feedback": "Every minute of a broken checkout loses orders, and nobody is coordinating. Impact is already confirmed by users."
+            },
+            {
+              "label": "Log it as a P3 and assign it to the next available person",
+              "feedback": "Priority = impact × urgency. A checkout outage for half the users is not a P3; it would sit in a queue."
+            }
+          ],
+          "text": "09:43. Monitoring alerts: checkout returns 503 for about half of the requests. Three customers have already called."
+        },
+        {
+          "choices": [
+            {
+              "label": "Start a root-cause analysis of the new code before touching anything",
+              "feedback": "Understanding the cause matters, but in an incident service comes first. Root cause belongs to problem management, after recovery."
+            },
+            {
+              "best": true,
+              "label": "Propose a rollback to 4.18.0 as the workaround and get it approved",
+              "feedback": "A recent change lines up with the start of the errors: rolling back is the fastest safe way to restore service. Record the decision in the incident."
+            },
+            {
+              "label": "Restart the database server",
+              "feedback": "A database restart cuts every service that uses it and does not fix a connection leak in the new version."
+            }
+          ],
+          "text": "09:46. The logs show “db connection pool exhausted” since 09:41, just after version 4.19.0 was deployed at 09:40."
+        },
+        {
+          "choices": [
+            {
+              "label": "Close the incident at once",
+              "feedback": "Too fast: confirm with monitoring and real transactions, and tell the users first."
+            },
+            {
+              "label": "Delete the extra tickets the customers opened",
+              "feedback": "Link them to the incident instead: they show the impact and every customer must get an answer."
+            },
+            {
+              "best": true,
+              "label": "Check that it stays stable, confirm with the business, update users, then resolve",
+              "feedback": "Recovery must be verified and communicated. The incident gets resolved, with its timeline."
+            }
+          ],
+          "text": "09:53. The rollback is done and checkout answers 200 again."
+        },
+        {
+          "choices": [
+            {
+              "best": true,
+              "label": "Open a problem record and run a blameless post-incident review",
+              "feedback": "Problem management finds the root cause (here: connections not released) and the actions: a fix, a test, an alert on the pool."
+            },
+            {
+              "label": "Find out who wrote the code and report them",
+              "feedback": "Blame makes people hide information. Reviews focus on the system: why the tests and the canary did not catch it."
+            },
+            {
+              "label": "Nothing: the incident is closed",
+              "feedback": "Without a problem record the same failure comes back with the next deploy."
+            }
+          ],
+          "text": "Next day. The same deploy cannot go out again until the cause is known."
+        }
+      ],
+      "answer": "Incident management restores service fast (classify, coordinate, workaround, communicate); problem management finds and removes the cause later. A good P1 timeline records detection, the decision to roll back, recovery and its confirmation."
+    },
+    {
+      "q": "Incident timeline: from the API log, find when customers started to get errors and when it stopped. Filter on “503”.",
+      "type": "logs",
+      "file": "logs/web-outage.log",
+      "hint": "The first and the last line that contain status=503.",
+      "fields": [
+        {
+          "label": "First 503 answer (HH:MM:SS)",
+          "accept": [
+            "09:41:17",
+            "/^(2026-03-12T)?09:41:17Z?$/"
+          ]
+        },
+        {
+          "label": "Last 503 answer (HH:MM:SS)",
+          "accept": [
+            "09:52:02",
+            "/^(2026-03-12T)?09:52:02Z?$/"
+          ]
+        },
+        {
+          "label": "Customer impact, rounded to the minute",
+          "accept": [
+            "11",
+            "/^1[01] ?(min|mins|minutes)?$/i"
+          ]
+        }
+      ],
+      "answer": "First 503 at 09:41:17, last at 09:52:02: about 11 minutes of impact (10 min 45 s). Write the timeline with the log times, not with when the alert came in (09:43): the gap is your detection time, a figure the review tries to reduce."
     }
   ],
   "interview": [

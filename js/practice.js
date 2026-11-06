@@ -7,11 +7,14 @@
 //   Runnable SQL exercises (exercise.run = { db, ordered?, minColumns? }, training step 2): ▶ Run shows the result
 //   table on the practice dataset (sqlrun.js: SQLite in a Web Worker, nothing sent anywhere) and ✓ Check compares it
 //   with the result of the course answer (sqlgrade.js); a correct result marks the exercise solved.
+//   Auto-graded formats (exercise.type, training steps 2b + 2c, drills.js): choice, fill, order, match, groups, bug,
+//   scenario, logs, regex, cron, json; a correct answer marks the exercise solved, "Reveal" shows the worked answer.
 // - interviewCards(): think first, then reveal the model answer.
 // Everything stays in this browser (synced to the account when signed in, learnsync.js); each action adds XP (activity.js).
 import { h, ls } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { logActivity } from "./activity.js";
+import { drill, solution } from "./drills.js";
 
 const store = (key) => ({
   all() { try { return JSON.parse(ls.get(key) || "{}"); } catch { return {}; } },
@@ -140,7 +143,9 @@ export function exercises(root, c, codeBlock) {
       h("button", { type: "button", class: "btn", onClick: () => { if (!solved.has(i)) logActivity(3); solved.add(i); EX.set(c.id, [...solved]); status.hidden = false; upd(); } }, t("✓ I got it")),
       h("button", { type: "button", class: "btn-ghost", onClick: () => { solved.delete(i); EX.set(c.id, [...solved]); status.hidden = true; upd(); } }, t("↻ Not yet")));
     const answer = h("div", { class: "grid gap-3", hidden: true },
+      e.type ? solution(e) : null,
       e.code ? codeBlock(e.code, e.answer) : h("p", { class: "text-sm rounded-xl p-3", style: "background:var(--soft)" }, e.answer),
+      e.explain ? h("p", { class: "text-sm rounded-xl p-3", style: "background:var(--soft)" }, e.explain) : null,
       h("p", { class: "mute text-xs" }, t("Compare with your attempt. Did you get it?")), grade);
     const reveal = h("button", { type: "button", class: "btn-ghost", onClick: () => { answer.hidden = false; reveal.hidden = true; } }, t("Reveal the answer"));
     return h("li", { class: "panel !shadow-none grid gap-3" },
@@ -148,7 +153,7 @@ export function exercises(root, c, codeBlock) {
         h("span", { class: "w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold", style: "background:var(--soft)" }, String(i + 1)),
         h("p", { class: "font-medium flex-1" }, e.q), status),
       hint,
-      e.run ? sqlRunner(e, () => markSolved(i, status)) : h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
+      e.run ? sqlRunner(e, () => markSolved(i, status)) : e.type ? drill(e, () => markSolved(i, status)) : h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
         placeholder: t("Try it here first (not saved)…") }),
       h("div", { class: "flex flex-wrap gap-2" }, reveal,
         hint ? h("button", { type: "button", class: "btn-ghost", onClick: (ev) => { hint.hidden = false; ev.currentTarget.remove(); } }, t("💡 Show a hint")) : null),

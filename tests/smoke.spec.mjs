@@ -316,6 +316,112 @@ test("runnable SQL exercise: a correct query written differently is accepted, a 
   await expect(runner.locator("table")).toContainText("Paris");
 });
 
+// Auto-graded formats (training steps 2b + 2c, js/drills.js): a wrong answer is explained, a right one marks the
+// exercise solved.
+const practice = async (page, id) => {
+  await open(page, `#/course/${id}`);
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+};
+const solvedBadge = (drill) => drill.locator("xpath=ancestor::li[1]").locator(".badge", { hasText: "Solved" });
+
+test("practice formats for support and DevOps: regex, cron, log analysis, jq", async ({ page }) => {
+  await practice(page, "linux-bash");
+  const rx = page.locator('[data-drill="regex"]').first();
+  await rx.getByLabel("Your regular expression").fill("5\\d\\d");
+  await rx.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(rx).toContainText("should not be", { timeout: 10_000 });
+  await rx.getByLabel("Your regular expression").fill('" 5\\d{2} ');
+  await rx.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(rx).toContainText("Correct!", { timeout: 10_000 });
+  await expect(solvedBadge(rx)).toBeVisible();
+
+  const cron = page.locator('[data-drill="cron"]').first();
+  await cron.getByLabel("Your cron expression").fill("*/15 8-17 * * *");
+  await cron.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(cron).toContainText("other times");
+  await cron.getByLabel("Your cron expression").fill("0,15,30,45 8-17 * * mon-fri");
+  await cron.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(cron).toContainText("Same schedule");
+
+  const logs = page.locator('[data-drill="logs"]').first();
+  await logs.getByLabel("Filter the lines").fill("accepted");
+  await expect(logs).toContainText("1 of 65 lines");
+  await logs.getByLabel(/most failed logins/).fill("203.0.113.45");
+  await logs.getByLabel(/in total/).fill("62");
+  await logs.getByLabel(/logged in successfully/).fill("Deploy");
+  await logs.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(logs).toContainText("1 answer is not right yet");
+  await logs.getByLabel(/in total/).fill("63");
+  await logs.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(logs).toContainText("Correct!");
+
+  await practice(page, "kubernetes");
+  const jq = page.locator('[data-drill="json"]').first();
+  await jq.getByLabel("Your jq filter").fill(".items[] | .metadata.name");
+  await jq.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(jq).toContainText("returns 8 value(s), the expected answer returns 2");
+  await jq.getByLabel("Your jq filter").fill('[.items[] | select(.status.phase == "Running" | not)]');
+  await jq.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(jq).toContainText("could not read this filter");
+  await jq.getByLabel("Your jq filter").fill('.items[] | select(.status.phase != "Running") | .metadata.name');
+  await jq.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(jq).toContainText("Same output");
+});
+
+test("practice formats: order, match, spot the bug, scenario, fill in", async ({ page }) => {
+  await practice(page, "terraform");
+  const ord = page.locator('[data-drill="order"]').first();
+  const want = ["Write the configuration in .tf files", "terraform init", "terraform validate", "terraform plan", "terraform apply"];
+  for (let pos = 0; pos < want.length; pos++) { // move the right step up to each position
+    const texts = await ord.locator("li").allInnerTexts();
+    let from = texts.findIndex((x) => x.includes(want[pos]));
+    while (from > pos) { await ord.locator("li").nth(from).getByRole("button", { name: "Move up" }).click(); from--; }
+  }
+  await ord.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(ord).toContainText("right order");
+  const fill = page.locator('[data-drill="fill"]').first();
+  await fill.getByLabel("Blank 1").fill(" Resource ");
+  await fill.getByLabel("Blank 2").fill("aws_s3_bucket.logs.id");
+  await fill.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(fill).toContainText("Correct!");
+
+  await practice(page, "git");
+  const m = page.locator('[data-drill="match"]').first();
+  await m.getByLabel("git status").selectOption("Show what is staged, modified or untracked");
+  await m.getByLabel("git diff").selectOption("Show the changes not staged yet, line by line");
+  await m.getByLabel("git log --oneline").selectOption("Show the history, one commit per line");
+  await m.getByLabel("git restore app.py").selectOption("Put uncommitted changes aside to get a clean working tree");
+  await m.getByLabel("git stash").selectOption("Throw away the unstaged changes in app.py");
+  await m.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(m).toContainText("3 of 5 right");
+  await m.getByLabel("git restore app.py").selectOption("Throw away the unstaged changes in app.py");
+  await m.getByLabel("git stash").selectOption("Put uncommitted changes aside to get a clean working tree");
+  await m.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(m).toContainText("Every pair matches");
+
+  await practice(page, "docker");
+  const bug = page.locator('[data-drill="bug"]').first();
+  await bug.getByRole("button", { name: "Line 2", exact: true }).click();
+  await expect(bug).toContainText("Line 2 is fine");
+  await bug.getByRole("button", { name: "Line 3", exact: true }).click();
+  await expect(bug).toContainText("Found it");
+  const li = bug.locator("xpath=ancestor::li[1]");
+  await li.getByRole("button", { name: "Reveal the answer" }).click();
+  await expect(li).toContainText("WORKDIR /app");
+
+  await practice(page, "agile-scrum");
+  const sc = page.locator('[data-drill="scenario"]').first();
+  await sc.getByRole("button", { name: /starts on it right away/ }).click();
+  await expect(sc).toContainText("Risky.");
+  await sc.getByRole("button", { name: /Send the request to the Product Owner/ }).click();
+  await sc.getByRole("button", { name: "Next →" }).click();
+  await sc.getByRole("button", { name: /Add it to the Product Backlog/ }).click();
+  await sc.getByRole("button", { name: "Next →" }).click();
+  await sc.getByRole("button", { name: /Show the Increment/ }).click();
+  await sc.getByRole("button", { name: "Finish" }).click();
+  await expect(sc).toContainText("2 of 3 decisions right the first time");
+});
+
 test("French interface and back to English", async ({ page }) => {
   await open(page);
   await page.click("#langToggle");

@@ -241,6 +241,41 @@
       "q": "Votre facture Snowflake a doublé ce mois-ci. Listez, dans l’ordre, ce que vous vérifiez.",
       "hint": "Quels warehouses ont consommé les crédits, puis quelles requêtes, puis pourquoi.",
       "answer": "1) WAREHOUSE_METERING_HISTORY : quel warehouse a consommé les crédits supplémentaires et quand. 2) Ses paramètres : auto-suspend absent ou trop long, taille augmentée, maximum multi-cluster relevé. 3) QUERY_HISTORY pour ce warehouse : les requêtes les plus coûteuses ou les plus fréquentes, par query tag ou par utilisateur. 4) La cause : un tableau de bord rafraîchi trop souvent, une reconstruction complète qui devrait être incrémentale, un nouveau job planifié, un filtre manquant. 5) Corriger et ajouter des garde-fous : auto-suspend, resource monitor avec alerte et suspension, timeouts de requêtes."
+    },
+    {
+      "q": "Avec la tarification à la demande de BigQuery, qu’est-ce qui fait surtout le coût d’une requête ?",
+      "type": "choice",
+      "correct": 1,
+      "options": [
+        "Le nombre de lignes renvoyées",
+        "Le volume de données traitées par la requête",
+        "Le nombre de requêtes par jour",
+        "La durée de connexion de l’utilisateur"
+      ],
+      "answer": "Les requêtes à la demande sont facturées au volume traité, qui dépend des colonnes lues et des partitions parcourues, pas des lignes renvoyées. Regardez l’estimation affichée avant de lancer, et fixez un plafond d’octets facturés sur les grosses tables."
+    },
+    {
+      "q": "Sur un entrepôt cloud en colonnes, chaque habitude fait-elle économiser ou gaspiller ?",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Fait économiser",
+          "items": [
+            "Ne sélectionner que les colonnes utiles",
+            "Filtrer sur la colonne de partition (par ex. order_date)",
+            "Regrouper (cluster) la table sur les colonnes souvent filtrées"
+          ]
+        },
+        {
+          "name": "Fait gaspiller",
+          "items": [
+            "SELECT * … LIMIT 10 pour jeter un œil à une table",
+            "Entourer la colonne de partition d’une fonction dans le WHERE",
+            "Lancer la même requête lourde depuis plusieurs tableaux de bord"
+          ]
+        }
+      ],
+      "answer": "Le stockage en colonnes ne lit que les colonnes nommées : SELECT * lit tout, même avec LIMIT (utilisez l’aperçu de la table). Une fonction sur la colonne de partition peut empêcher le moteur d’écarter des partitions ; pour une requête lourde répétée, construisez une fois une table de synthèse."
     }
   ],
   "pitfalls": [

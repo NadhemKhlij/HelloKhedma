@@ -372,6 +372,41 @@
     {
       "q": "Un CRM envoie les clients et une boutique en ligne envoie les commandes. Esquissez un modèle Data Vault : quels hubs, links et satellites ?",
       "answer": "Hubs : hub_customer (clé métier du client) et hub_order (numéro de commande). Link : link_customer_order entre les deux. Satellites : sat_customer_crm pour les attributs clients venant du CRM, sat_order_details pour les attributs de commande (statut, montant), chacun avec horodatage de chargement et source. Une deuxième source de clients ajoutera plus tard son propre satellite sur hub_customer."
+    },
+    {
+      "q": "Schéma en étoile des ventes : chaque colonne est-elle une mesure de la table de faits ou un attribut d’une dimension ?",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Table de faits (mesure)",
+          "items": [
+            "amount_eur",
+            "quantity",
+            "discount_eur"
+          ]
+        },
+        {
+          "name": "Dimension (attribut)",
+          "items": [
+            "product_name",
+            "customer_city",
+            "category"
+          ]
+        }
+      ],
+      "answer": "Les mesures sont des nombres que l’on additionne par événement (une ligne de commande) ; les attributs décrivent qui, quoi, où, et servent à filtrer et regrouper. La table de faits contient les mesures plus les clés vers chaque dimension."
+    },
+    {
+      "q": "Une commande a plusieurs lignes et chaque ligne a un produit. Quel est le grain d’une table fact_order_lines ?",
+      "type": "choice",
+      "correct": 2,
+      "options": [
+        "Une ligne par commande",
+        "Une ligne par client et par jour",
+        "Une ligne par ligne de commande",
+        "Une ligne par produit"
+      ],
+      "answer": "Le grain est ce que représente une ligne, et il se fixe avant de choisir les colonnes. Une ligne par ligne de commande permet de sommer par produit, par commande et par client ; une table par commande ne distinguerait pas les produits."
     }
   ],
   "interview": [

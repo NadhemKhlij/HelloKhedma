@@ -220,6 +220,45 @@
     {
       "q": "Il vous faut un topic qui contienne toujours le statut courant de chaque commande (pour reconstruire un cache au redémarrage), pas tout l’historique. Comment le configurez-vous, et comment supprimez-vous une commande ?",
       "answer": "Créez le topic avec cleanup.policy=compact et utilisez l’identifiant de commande comme clé : Kafka conserve au moins le dernier record de chaque clé. Pour supprimer une commande, produisez un tombstone : un record avec cette clé et une valeur nulle ; il est supprimé après la compaction et delete.retention.ms."
+    },
+    {
+      "q": "Un topic a 6 partitions. Un groupe de consommateurs lance 8 consommateurs. Combien reçoivent des messages ?",
+      "type": "choice",
+      "correct": 2,
+      "options": [
+        "8, la charge est partagée",
+        "1, le leader du groupe",
+        "6, et 2 restent inactifs",
+        "4, deux par broker"
+      ],
+      "answer": "Dans un groupe, chaque partition n’est lue que par un seul consommateur. S’il y a plus de consommateurs que de partitions, les autres attendent (utile en secours). Pour lire plus vite au-delà de 6, il faut plus de partitions."
+    },
+    {
+      "q": "Associez chaque terme Kafka à sa définition.",
+      "type": "match",
+      "pairs": [
+        [
+          "Topic",
+          "Un flux de messages nommé"
+        ],
+        [
+          "Partition",
+          "Un journal ordonné, une tranche d’un topic"
+        ],
+        [
+          "Offset",
+          "La position d’un message dans une partition"
+        ],
+        [
+          "Consumer group",
+          "Des consommateurs qui se partagent les partitions d’un topic"
+        ],
+        [
+          "Replication factor",
+          "Le nombre de brokers qui gardent une copie de chaque partition"
+        ]
+      ],
+      "answer": "L’ordre n’est garanti qu’à l’intérieur d’une partition : les messages de même clé (par ex. un id de commande) vont dans la même partition. Les consommateurs enregistrent leurs offsets pour reprendre là où ils s’étaient arrêtés."
     }
   ],
   "pitfalls": [

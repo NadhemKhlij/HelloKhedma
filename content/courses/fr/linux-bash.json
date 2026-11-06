@@ -433,6 +433,51 @@
       "hint": "Jour de la semaine 1-5 ; flock empêche les chevauchements.",
       "code": "text",
       "answer": "0 7 * * 1-5 /usr/bin/flock -n /tmp/report.lock /opt/scripts/report.sh >> /var/log/report.log 2>&1"
+    },
+    {
+      "q": "Regex : dans ce journal d’accès, trouvez uniquement les lignes dont le statut HTTP est une erreur serveur (5xx). Attention aux pièges : un 500 dans une URL et des tailles qui commencent par 5.",
+      "type": "regex",
+      "code": "regex",
+      "mode": "lines",
+      "text": "10.0.0.5 - - [12/Mar/2026:09:41:02 +0000] \"GET /products HTTP/1.1\" 200 5120\n10.0.0.8 - - [12/Mar/2026:09:41:17 +0000] \"POST /checkout HTTP/1.1\" 503 512\n10.0.0.5 - - [12/Mar/2026:09:41:20 +0000] \"GET /status/500 HTTP/1.1\" 200 87\n10.0.0.9 - - [12/Mar/2026:09:41:25 +0000] \"GET /orders HTTP/1.1\" 502 498\n10.0.0.8 - - [12/Mar/2026:09:41:31 +0000] \"GET /cart HTTP/1.1\" 404 215\n10.0.0.7 - - [12/Mar/2026:09:41:40 +0000] \"POST /checkout HTTP/1.1\" 500 1033\n10.0.0.5 - - [12/Mar/2026:09:41:44 +0000] \"GET /img/logo.png HTTP/1.1\" 200 5004",
+      "answer": "\" 5\\d\\d ",
+      "hint": "Le statut suit le guillemet fermant de la requête : \" 503 ",
+      "explain": "\" 5\\d\\d  (guillemet, espace, 5, deux chiffres, espace) ne vise que le champ du statut. grep -E '\" 5[0-9]{2} ' access.log fait la même chose dans un terminal."
+    },
+    {
+      "q": "Cron : un script de vérification doit tourner toutes les 15 minutes de 08:00 à 17:45, du lundi au vendredi. Écrivez la planification crontab (les 5 champs).",
+      "type": "cron",
+      "code": "cron",
+      "answer": "*/15 8-17 * * 1-5",
+      "hint": "*/15 dans le champ minute veut dire toutes les 15 minutes ; 8-17 dans le champ heure couvre 08:00 à 17:59.",
+      "explain": "*/15 8-17 * * 1-5 → les minutes 0, 15, 30 et 45 de chaque heure de 8 à 17, du lundi (1) au vendredi (5). Vérifiez une planification sur crontab.guru avant de l’enregistrer."
+    },
+    {
+      "q": "Analyse de logs : voici /var/log/auth.log d’un serveur web après une nuit d’attaques SSH. Utilisez le filtre (essayez « Failed », puis « Accepted ») et répondez.",
+      "type": "logs",
+      "file": "logs/auth.log",
+      "hint": "Dans un terminal : grep \"Failed password\" auth.log | grep -oE \"from [0-9.]+\" | sort | uniq -c | sort -rn",
+      "fields": [
+        {
+          "label": "Quelle adresse IP a le plus d’échecs de connexion ?",
+          "accept": [
+            "203.0.113.45"
+          ]
+        },
+        {
+          "label": "Combien de tentatives de mot de passe ont échoué au total ?",
+          "accept": [
+            "63"
+          ]
+        },
+        {
+          "label": "Quel utilisateur s’est connecté avec succès ?",
+          "accept": [
+            "deploy"
+          ]
+        }
+      ],
+      "answer": "grep -c \"Failed password\" auth.log donne 63 ; grep \"Failed password\" auth.log | grep -oE \"from [0-9.]+\" | sort | uniq -c | sort -rn place 203.0.113.45 en tête (35 tentatives) ; grep Accepted auth.log montre la seule vraie connexion : deploy, par clé, depuis l’adresse interne 10.0.4.12. Ensuite : bloquer les IP en tête (fail2ban), désactiver la connexion SSH par mot de passe et pour root."
     }
   ],
   "interview": [

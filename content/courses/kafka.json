@@ -220,6 +220,45 @@
     {
       "q": "You need a topic that always holds the current status of each order (to rebuild a cache on restart), not the full history. How do you configure it, and how do you remove an order?",
       "answer": "Create the topic with cleanup.policy=compact and use the order id as the key: Kafka keeps at least the latest record per key. To remove an order, produce a tombstone: a record with that key and a null value; it is deleted after compaction and delete.retention.ms."
+    },
+    {
+      "q": "A topic has 6 partitions. A consumer group runs 8 consumers. How many of them receive messages?",
+      "type": "choice",
+      "correct": 2,
+      "options": [
+        "8, the load is shared evenly",
+        "1, the leader of the group",
+        "6, and 2 stay idle",
+        "4, two per broker"
+      ],
+      "answer": "Within a group, each partition is read by one consumer only. With more consumers than partitions, the extra ones wait (useful as standby). To scale reading beyond 6, the topic needs more partitions."
+    },
+    {
+      "q": "Match each Kafka word with its definition.",
+      "type": "match",
+      "pairs": [
+        [
+          "Topic",
+          "A named stream of messages"
+        ],
+        [
+          "Partition",
+          "An ordered log, one slice of a topic"
+        ],
+        [
+          "Offset",
+          "The position of a message in a partition"
+        ],
+        [
+          "Consumer group",
+          "Consumers that share the partitions of a topic"
+        ],
+        [
+          "Replication factor",
+          "How many brokers keep a copy of each partition"
+        ]
+      ],
+      "answer": "Order is guaranteed inside one partition only, so messages with the same key (e.g. an order id) go to the same partition. Consumers commit their offsets to resume where they stopped."
     }
   ],
   "pitfalls": [

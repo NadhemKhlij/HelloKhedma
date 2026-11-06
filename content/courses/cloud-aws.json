@@ -268,6 +268,46 @@
       "q": "Orders are sent by the website to a Lambda function that sometimes times out when the payment provider is slow, and orders are lost. Propose a more robust design.",
       "hint": "Decouple with a queue.",
       "answer": "The website (or API Gateway) writes each order to an SQS queue and answers immediately. A Lambda function consumes the queue in batches with partial batch responses, so a failed order is retried later instead of lost. After a few failed attempts the message goes to a dead-letter queue with an alarm. The consumer is idempotent (order id as key) because delivery is at least once, and CloudWatch alarms watch errors and the age of the oldest message."
+    },
+    {
+      "q": "JSON: this is aws ec2 describe-instances. Write a jq filter that returns the ID of every stopped instance (to review before the cost meeting).",
+      "type": "json",
+      "code": "jq",
+      "file": "data/ec2-instances.json",
+      "answer": ".Reservations[].Instances[] | select(.State.Name == \"stopped\") | .InstanceId",
+      "hint": "Instances sit inside Reservations: .Reservations[].Instances[] gives every instance.",
+      "explain": "i-04c5d6e7f8a9b0c1d (batch-reports) and i-0aa1bb2cc3dd4ee5f (test-runner). The AWS CLI can do it alone: aws ec2 describe-instances --filters Name=instance-state-name,Values=stopped --query \"Reservations[].Instances[].InstanceId\". A stopped instance costs no compute, but its EBS volumes are still billed."
+    },
+    {
+      "q": "Sort these AWS services into their family.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Compute",
+          "items": [
+            "EC2",
+            "Lambda",
+            "ECS"
+          ]
+        },
+        {
+          "name": "Storage",
+          "items": [
+            "S3",
+            "EBS",
+            "EFS"
+          ]
+        },
+        {
+          "name": "Database",
+          "items": [
+            "RDS",
+            "DynamoDB",
+            "Aurora"
+          ]
+        }
+      ],
+      "answer": "Compute runs code (virtual machines, functions, containers); storage keeps files and disks (objects in S3, block disks in EBS, a shared file system in EFS); databases are managed engines (RDS and Aurora for SQL, DynamoDB for key-value / NoSQL)."
     }
   ],
   "interview": [

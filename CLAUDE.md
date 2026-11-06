@@ -66,6 +66,11 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Runnable SQL exercises: add `"run": { "db": "shop", "ordered"?: true, "minColumns"?: n }` to an exercise with
   `"code": "sql"` (same in the French copy); the answer must run on content/sql/<db>.sql in SQLite (CI checks it).
   Datasets are fictional, small, and designed so each answer has one unambiguous result (no ties at a LIMIT).
+- Auto-graded exercises: add `"type"` to an exercise (same in the French copy): choice, fill, order, match, groups,
+  bug, scenario, logs, regex, cron, json (fields in the js/drills.js header). regex / cron / json keep the solution in
+  `answer` (code, identical in both languages) and the explanation in `explain`. Practice files go in content/logs/
+  and content/data/ (fictional, small); compute answers from the file, never guess them. CI runs every answer.
+  Append new exercises at the end (progress is stored by exercise index) and update `minutes` (course-times.ps1).
 - Courses are static JSON in content/courses/ (index.json + one file per course): keep `lessonCount` and `minutes`
   in sync (minutes = courseTime() from js/coursetime.js; a smoke test fails when they drift) and use skill names that
   exist in js/ats.js so missing skills link to the course. Lessons have no hand-written duration. To extend a course,
@@ -148,7 +153,11 @@ Read the header comment of any file before modifying it; update the header if be
 - js/learnsync.js — learning progress synced for signed-in users (learning_sync; merge per key, lib.js onStore watcher)
 - js/report.js — "⚑ Report a problem" on course and project pages (report_content(), e-mail fallback)
 - scripts/check-content.mjs — content checks run by CI (structure, French copies, identical code, skills, AI track,
-  and every runnable SQL answer executed on its dataset and accepted by the grader)
+  every runnable SQL answer executed on its dataset and accepted by the grader, every auto-graded exercise checked)
+- js/drills.js — auto-graded exercise formats in the Practice tab (predict the output, fill in, order, match, groups,
+  spot the bug, scenarios, log analysis, regex, cron, jq); js/drillcheck.js — their checks, shared with CI (no DOM);
+  js/regexrun.js + js/regexworker.js — the learner's regex runs in a Web Worker with a 2 s limit
+- content/logs/, content/data/ — fictional log and JSON files for the log analysis and jq exercises
 - js/sqlrun.js + js/sqlgrade.js — runnable SQL exercises: SQLite (sql.js, js/vendor) in a Web Worker with a 5 s limit on
   a fresh copy of content/sql/<db>.sql; the grader compares the learner's result with the course answer's result
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading

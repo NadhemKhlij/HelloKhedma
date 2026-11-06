@@ -225,6 +225,45 @@
       "q": "Écrivez la même agrégation en Spark SQL : nombre de clients distincts et montant total par jour pour les commandes PAID, avec une vue temporaire nommée orders.",
       "code": "python",
       "answer": "orders.createOrReplaceTempView(\"orders\")\ndaily = spark.sql(\"\"\"\n    SELECT CAST(order_ts AS DATE) AS day,\n           COUNT(DISTINCT customer_id) AS buyers,\n           SUM(amount) AS revenue\n    FROM orders\n    WHERE status = 'PAID'\n    GROUP BY CAST(order_ts AS DATE)\n\"\"\")"
+    },
+    {
+      "q": "Classez ces appels de DataFrame : transformations paresseuses, ou actions qui lancent un job.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Transformation (paresseuse)",
+          "items": [
+            "select()",
+            "filter()",
+            "groupBy().agg()",
+            "withColumn()"
+          ]
+        },
+        {
+          "name": "Action (lance un job)",
+          "items": [
+            "count()",
+            "show()",
+            "collect()",
+            "write.parquet()"
+          ]
+        }
+      ],
+      "answer": "Les transformations ne font qu’ajouter des étapes au plan ; une action pousse Spark à optimiser tout le plan et à l’exécuter sur le cluster. collect() ramène toutes les lignes au driver : à garder pour les petits résultats."
+    },
+    {
+      "q": "Prédisez : à quelle ligne Spark applique-t-il vraiment le filtre et le select aux données ?",
+      "type": "choice",
+      "lang": "python",
+      "correct": 3,
+      "snippet": "df = spark.read.parquet(\"s3://shop/orders/\")   # line 1\nbig = df.filter(df.amount > 100)               # line 2\nbig = big.select(\"order_id\", \"amount\")         # line 3\nprint(big.count())                              # line 4",
+      "options": [
+        "Ligne 1",
+        "Ligne 2",
+        "Ligne 3",
+        "Ligne 4"
+      ],
+      "answer": "filter et select sont paresseux : ils ne construisent que le plan. count() est une action : la ligne 4 lance le job, et Spark ne lit que les colonnes order_id et amount des fichiers Parquet (élagage des colonnes), avec le filtre poussé à la lecture."
     }
   ],
   "pitfalls": [

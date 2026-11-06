@@ -268,6 +268,46 @@
       "q": "Le site envoie les commandes à une fonction Lambda qui dépasse parfois son timeout quand le prestataire de paiement est lent, et des commandes sont perdues. Proposez une conception plus robuste.",
       "hint": "Découpler avec une file.",
       "answer": "Le site (ou API Gateway) écrit chaque commande dans une file SQS et répond immédiatement. Une fonction Lambda consomme la file par lots avec des réponses de lot partielles : une commande en échec est réessayée plus tard au lieu d’être perdue. Après quelques échecs, le message part dans une dead-letter queue surveillée par une alarme. Le consommateur est idempotent (identifiant de commande comme clé) car la livraison est au moins une fois, et des alarmes CloudWatch surveillent les erreurs et l’âge du plus ancien message."
+    },
+    {
+      "q": "JSON : voici aws ec2 describe-instances. Écrivez un filtre jq qui renvoie l’ID de chaque instance arrêtée (à revoir avant la réunion sur les coûts).",
+      "type": "json",
+      "code": "jq",
+      "file": "data/ec2-instances.json",
+      "answer": ".Reservations[].Instances[] | select(.State.Name == \"stopped\") | .InstanceId",
+      "hint": "Les instances sont dans Reservations : .Reservations[].Instances[] donne chaque instance.",
+      "explain": "i-04c5d6e7f8a9b0c1d (batch-reports) et i-0aa1bb2cc3dd4ee5f (test-runner). L’AWS CLI sait le faire seule : aws ec2 describe-instances --filters Name=instance-state-name,Values=stopped --query \"Reservations[].Instances[].InstanceId\". Une instance arrêtée ne coûte plus de calcul, mais ses volumes EBS restent facturés."
+    },
+    {
+      "q": "Classez ces services AWS dans leur famille.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Calcul",
+          "items": [
+            "EC2",
+            "Lambda",
+            "ECS"
+          ]
+        },
+        {
+          "name": "Stockage",
+          "items": [
+            "S3",
+            "EBS",
+            "EFS"
+          ]
+        },
+        {
+          "name": "Base de données",
+          "items": [
+            "RDS",
+            "DynamoDB",
+            "Aurora"
+          ]
+        }
+      ],
+      "answer": "Le calcul exécute du code (machines virtuelles, fonctions, conteneurs) ; le stockage garde fichiers et disques (objets dans S3, disques bloc dans EBS, système de fichiers partagé dans EFS) ; les bases de données sont des moteurs gérés (RDS et Aurora pour le SQL, DynamoDB pour le clé-valeur / NoSQL)."
     }
   ],
   "interview": [

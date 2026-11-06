@@ -256,6 +256,35 @@
       "q": "Votre équipe veut gérer dev, staging et prod avec Terraform. Faut-il utiliser des workspaces ou des dossiers séparés ? Justifiez en quelques lignes.",
       "hint": "Isolation, identifiants, versions.",
       "answer": "Des dossiers séparés (ou des configurations racines séparées), avec une clé de backend, un fichier tfvars et un jeu d’identifiants par environnement, qui appellent tous les mêmes modules versionnés. La prod est isolée des erreurs faites en dev, elle peut rester sur une ancienne version de module pendant que la dev en teste une nouvelle, et le pipeline peut exiger une validation uniquement pour la prod. Les workspaces partagent le même code, le même backend et en général les mêmes identifiants : ils conviennent mieux aux copies éphémères qu’aux environnements de production durables."
+    },
+    {
+      "q": "Remettez dans l’ordre les étapes d’un premier déploiement Terraform.",
+      "type": "order",
+      "steps": [
+        "Écrire la configuration dans des fichiers .tf",
+        "terraform init : télécharger les providers et préparer le backend",
+        "terraform validate : vérifier la syntaxe",
+        "terraform plan : relire ce qui va changer",
+        "terraform apply : appliquer les changements"
+      ],
+      "answer": "init vient toujours en premier dans un nouveau dossier (et après l’ajout d’un provider ou un changement de backend) ; plan montre les changements avant qu’apply les fasse. En CI, enregistrez le plan (terraform plan -out=tfplan) et appliquez exactement ce fichier."
+    },
+    {
+      "q": "Complétez : déclarez un bucket S3, puis affichez son ID en sortie.",
+      "type": "fill",
+      "lang": "hcl",
+      "snippet": "___ \"aws_s3_bucket\" \"logs\" {\n  bucket = \"hk-logs-demo\"\n}\n\noutput \"bucket_id\" {\n  value = ___\n}",
+      "blanks": [
+        [
+          "resource"
+        ],
+        [
+          "aws_s3_bucket.logs.id",
+          "/^aws_s3_bucket\\.logs\\.(id|bucket)$/"
+        ]
+      ],
+      "hint": "Une référence s’écrit <type de ressource>.<nom>.<attribut>.",
+      "answer": "resource déclare un objet géré par Terraform ; aws_s3_bucket.logs.id désigne un attribut de cette ressource. La référence donne aussi l’ordre à Terraform : la sortie attend le bucket."
     }
   ],
   "interview": [

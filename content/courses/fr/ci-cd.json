@@ -234,7 +234,25 @@
     { "q": "Un test échoue environ une fois sur dix sur main, et l’équipe clique simplement sur « Re-run ». Que faites-vous ?", "hint": "Rétablir la confiance d’abord, puis corriger la cause.",
       "answer": "Le déclarer comme test instable avec un responsable, le reproduire en le lançant en boucle ou dans un ordre aléatoire, et chercher les causes habituelles : timing et sleeps, état partagé, ordre des tests, fuseaux horaires, appels externes. S’il ne peut pas être corrigé rapidement, le mettre en quarantaine dans un job non bloquant avec une échéance, pour que l’on fasse de nouveau confiance au pipeline principal. Ne pas ajouter de relances générales qui le masquent." },
     { "q": "La version 3.0 doit renommer la colonne users.fullname en users.display_name. Comment la déployer pour que chaque version puisse être annulée ?", "hint": "Expand and contract.",
-      "answer": "Version A : ajouter display_name, écrire dans les deux colonnes, remplir les lignes existantes. Version B : lire display_name (en écrivant toujours dans les deux). Version C, une fois B stable : arrêter d’écrire fullname. Version D : supprimer fullname. À chaque étape, la version précédente fonctionne encore avec le schéma, donc un rollback est sans risque." }
+      "answer": "Version A : ajouter display_name, écrire dans les deux colonnes, remplir les lignes existantes. Version B : lire display_name (en écrivant toujours dans les deux). Version C, une fois B stable : arrêter d’écrire fullname. Version D : supprimer fullname. À chaque étape, la version précédente fonctionne encore avec le schéma, donc un rollback est sans risque." },
+    {
+      "q": "Cron : un workflow GitHub Actions doit lancer toute la suite de tests à 02:15 UTC, du lundi au vendredi. Écrivez la valeur de on.schedule.cron.",
+      "type": "cron",
+      "code": "cron",
+      "answer": "15 2 * * 1-5",
+      "hint": "Ordre : minute heure jour-du-mois mois jour-de-la-semaine. GitHub utilise toujours l’heure UTC.",
+      "explain": "on: schedule: - cron: \"15 2 * * 1-5\". GitHub exécute les planifications en UTC (02:15 UTC = 03:15 à Paris en hiver), sur la branche par défaut, et peut les lancer avec quelques minutes de retard aux heures chargées."
+    },
+    {
+      "q": "Trouvez le bug : ce workflow échoue dès qu’il est poussé (le job deploy ne démarre jamais). Quelle ligne ?",
+      "type": "bug",
+      "lang": "yaml",
+      "line": 22,
+      "snippet": "name: deploy\non:\n  push:\n    branches: [main]\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 20\n      - run: npm ci\n      - run: npm test\n\n  deploy:\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./scripts/deploy.sh \"${{ secret.DEPLOY_TOKEN }}\"",
+      "fix": "      - run: ./scripts/deploy.sh\n        env:\n          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}",
+      "hint": "Regardez comment le jeton est lu.",
+      "answer": "Le contexte s’appelle secrets, pas secret : ${{ secret.DEPLOY_TOKEN }} est un contexte inconnu et le workflow est invalide. Mieux encore, passez le secret par env: plutôt que sur la ligne de commande, pour qu’il ne fasse jamais partie du texte de la commande."
+    }
   ],
   "interview": [
     { "q": "Quelle est la différence entre livraison continue et déploiement continu ?", "a": "Les deux construisent et testent chaque changement automatiquement. En livraison continue, un changement validé est prêt à être livré mais une personne décide quand ; en déploiement continu, chaque changement validé part automatiquement en production. Le déploiement continu exige des tests automatisés et une supervision solides." },

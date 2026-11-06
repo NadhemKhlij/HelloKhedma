@@ -234,7 +234,25 @@
     { "q": "A test fails about one run in ten on main, and people just click 'Re-run'. What do you do?", "hint": "Restore trust first, then fix the cause.",
       "answer": "Record it as a flaky test with an owner, reproduce it by running it in a loop or in random order, and look for the usual causes: timing and sleeps, shared state, test order, time zones, external calls. If it cannot be fixed quickly, quarantine it in a non-blocking job with a deadline, so the main pipeline is trusted again. Do not add blanket retries that hide it." },
     { "q": "Release 3.0 must rename the column users.fullname to users.display_name. How do you deploy it so every release can be rolled back?", "hint": "Expand and contract.",
-      "answer": "Release A: add display_name, write to both columns, backfill existing rows. Release B: read from display_name (still writing both). Release C, once B is stable: stop writing fullname. Release D: drop fullname. At each step the previous version still works with the schema, so a rollback is safe." }
+      "answer": "Release A: add display_name, write to both columns, backfill existing rows. Release B: read from display_name (still writing both). Release C, once B is stable: stop writing fullname. Release D: drop fullname. At each step the previous version still works with the schema, so a rollback is safe." },
+    {
+      "q": "Cron: a GitHub Actions workflow must run the full test suite at 02:15 UTC, Monday to Friday. Write the value of on.schedule.cron.",
+      "type": "cron",
+      "code": "cron",
+      "answer": "15 2 * * 1-5",
+      "hint": "Order: minute hour day-of-month month day-of-week. GitHub schedules always use UTC.",
+      "explain": "on: schedule: - cron: \"15 2 * * 1-5\". GitHub runs schedules in UTC (02:15 UTC is 03:15 in Paris in winter), on the default branch, and may start them a few minutes late when it is busy."
+    },
+    {
+      "q": "Spot the bug: this workflow fails as soon as it is pushed (the deploy job never starts). Which line?",
+      "type": "bug",
+      "lang": "yaml",
+      "line": 22,
+      "snippet": "name: deploy\non:\n  push:\n    branches: [main]\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 20\n      - run: npm ci\n      - run: npm test\n\n  deploy:\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: ./scripts/deploy.sh \"${{ secret.DEPLOY_TOKEN }}\"",
+      "fix": "      - run: ./scripts/deploy.sh\n        env:\n          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}",
+      "hint": "Look at how the token is read.",
+      "answer": "The context is secrets, not secret: ${{ secret.DEPLOY_TOKEN }} is an unknown context and the workflow is invalid. Better still, pass the secret through env: rather than on the command line, so it is never part of the command text."
+    }
   ],
   "interview": [
     { "q": "What is the difference between continuous delivery and continuous deployment?", "a": "Both build and test every change automatically. With continuous delivery, a passing change is ready to release but a person decides when; with continuous deployment, every passing change goes to production automatically. Deployment needs strong automated tests and monitoring." },

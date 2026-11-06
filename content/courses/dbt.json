@@ -382,6 +382,48 @@
     {
       "q": "The unique test on an incremental model started failing after a reload of the source. What do you check?",
       "answer": "Whether unique_key is set and matches the real grain, and whether the strategy deduplicates (append does not). Whether the source itself now sends duplicate keys within one batch, which merge cannot resolve: deduplicate in the model with row_number(). Then fix the existing rows with dbt run --full-refresh -s model if the table is affordable to rebuild."
+    },
+    {
+      "q": "Fill in the blanks: read another dbt model, then a raw table declared in sources.yml.",
+      "type": "fill",
+      "lang": "sql",
+      "snippet": "with orders as (\n    select * from {{ ___('stg_orders') }}\n),\ncustomers as (\n    select * from {{ ___('shop', 'customers') }}\n)\nselect ...",
+      "blanks": [
+        [
+          "ref"
+        ],
+        [
+          "source"
+        ]
+      ],
+      "answer": "ref('stg_orders') points to another model; source('shop', 'customers') points to a raw table declared in a sources .yml file. Both resolve to the right schema in each environment and draw the lineage graph; never hard-code schema.table."
+    },
+    {
+      "q": "Match each dbt command with what it does.",
+      "type": "match",
+      "pairs": [
+        [
+          "dbt run",
+          "Build the models in the warehouse"
+        ],
+        [
+          "dbt test",
+          "Run the data tests"
+        ],
+        [
+          "dbt seed",
+          "Load the CSV files of the project into tables"
+        ],
+        [
+          "dbt build",
+          "Run, test, seed and snapshot everything in dependency order"
+        ],
+        [
+          "dbt docs generate",
+          "Build the documentation and the lineage graph"
+        ]
+      ],
+      "answer": "In CI, dbt build is the usual choice: a model whose tests fail stops the models built on top of it. Add --select (e.g. --select stg_orders+) to work on one model and everything after it."
     }
   ],
   "interview": [

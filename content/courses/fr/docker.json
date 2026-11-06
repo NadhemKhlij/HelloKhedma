@@ -385,6 +385,29 @@
       "q": "Taguez l’image locale report:2.0.0 pour la registry ghcr.io/acme avec la version et le commit Git court, puis poussez les deux tags.",
       "code": "bash",
       "answer": "SHA=$(git rev-parse --short HEAD)\ndocker tag report:2.0.0 ghcr.io/acme/report:2.0.0\ndocker tag report:2.0.0 ghcr.io/acme/report:sha-$SHA\ndocker push ghcr.io/acme/report:2.0.0\ndocker push ghcr.io/acme/report:sha-$SHA"
+    },
+    {
+      "q": "Trouvez le bug : docker build s’arrête avec « Could not open requirements file ». Quelle ligne en est la cause ?",
+      "type": "bug",
+      "lang": "dockerfile",
+      "line": 3,
+      "snippet": "FROM python:3.12-slim\nCOPY . /app\nRUN cd /app\nRUN pip install --no-cache-dir -r requirements.txt\nEXPOSE 8000\nCMD [\"python\", \"app.py\"]",
+      "fix": "FROM python:3.12-slim\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nEXPOSE 8000\nCMD [\"python\", \"app.py\"]",
+      "hint": "Chaque RUN démarre un nouveau shell.",
+      "answer": "Chaque RUN tourne dans son propre shell : cd /app est oublié à la ligne suivante et pip cherche requirements.txt dans /. Utilisez WORKDIR /app (qui vaut aussi pour CMD). La version corrigée copie aussi requirements.txt d’abord, pour que la couche pip reste en cache quand seul le code change."
+    },
+    {
+      "q": "Quelle instruction de Dockerfile s’exécute au démarrage d’un conteneur, et non à la construction de l’image ?",
+      "type": "choice",
+      "mono": true,
+      "correct": 1,
+      "options": [
+        "RUN",
+        "CMD",
+        "COPY",
+        "ENV"
+      ],
+      "answer": "CMD (ou ENTRYPOINT) fixe la commande lancée au démarrage du conteneur. RUN et COPY s’exécutent à la construction et leur résultat est enregistré dans une couche ; ENV définit une variable pour les deux."
     }
   ],
   "interview": [

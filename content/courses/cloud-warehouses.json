@@ -241,6 +241,41 @@
       "q": "Your Snowflake bill doubled this month. List, in order, what you would check.",
       "hint": "Think about which warehouses spent the credits, then which queries, then why.",
       "answer": "1) WAREHOUSE_METERING_HISTORY: which warehouse consumed the extra credits and when. 2) Its settings: auto-suspend missing or too long, size increased, multi-cluster maximum raised. 3) QUERY_HISTORY for that warehouse: the most expensive or most frequent queries, by query tag or user. 4) The cause: a dashboard refreshing too often, a full rebuild that should be incremental, a new scheduled job, a missing filter. 5) Fix it and add guardrails: auto-suspend, a resource monitor with notify and suspend triggers, statement timeouts."
+    },
+    {
+      "q": "With BigQuery on-demand pricing, what mainly drives the cost of a query?",
+      "type": "choice",
+      "correct": 1,
+      "options": [
+        "The number of rows returned",
+        "The bytes of data the query processes",
+        "The number of queries per day",
+        "How long the user stays connected"
+      ],
+      "answer": "On-demand queries are billed by bytes processed, which depends on the columns read and the partitions scanned, not on the rows returned. Check the estimate shown before running, and set a maximum bytes billed on large tables."
+    },
+    {
+      "q": "On a columnar cloud warehouse, does each habit save money or waste it?",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Saves money",
+          "items": [
+            "Select only the columns you need",
+            "Filter on the partition column (e.g. order_date)",
+            "Cluster the table on columns often filtered"
+          ]
+        },
+        {
+          "name": "Wastes money",
+          "items": [
+            "SELECT * … LIMIT 10 to have a look at a table",
+            "Wrap the partition column in a function in WHERE",
+            "Run the same heavy query from many dashboards"
+          ]
+        }
+      ],
+      "answer": "Columnar storage reads only the columns named, so SELECT * reads everything even with LIMIT (use the table preview instead). A function on the partition column can stop the engine from skipping partitions; for repeated heavy queries, build a summary table once."
     }
   ],
   "pitfalls": [

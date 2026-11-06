@@ -256,6 +256,35 @@
       "q": "Your team wants to manage dev, staging and prod with Terraform. Should they use workspaces or separate folders? Justify in a few lines.",
       "hint": "Isolation, credentials, versions.",
       "answer": "Separate folders (or separate root configurations) with one backend key, one tfvars file and one set of credentials per environment, all calling the same versioned modules. Prod is isolated from mistakes in dev, can stay on an older module version while dev tests a new one, and the pipeline can require an approval only for prod. Workspaces share the same code, backend and usually the same credentials, so they fit short-lived copies better than long-lived production environments."
+    },
+    {
+      "q": "Put the steps of a first Terraform deployment in order.",
+      "type": "order",
+      "steps": [
+        "Write the configuration in .tf files",
+        "terraform init: download the providers and set up the backend",
+        "terraform validate: check the syntax",
+        "terraform plan: review what will change",
+        "terraform apply: make the changes"
+      ],
+      "answer": "init is always first in a new folder (and after adding a provider or changing the backend); plan shows the changes before apply makes them. In CI, save the plan (terraform plan -out=tfplan) and apply exactly that file."
+    },
+    {
+      "q": "Fill in the blanks: declare an S3 bucket, then output its ID.",
+      "type": "fill",
+      "lang": "hcl",
+      "snippet": "___ \"aws_s3_bucket\" \"logs\" {\n  bucket = \"hk-logs-demo\"\n}\n\noutput \"bucket_id\" {\n  value = ___\n}",
+      "blanks": [
+        [
+          "resource"
+        ],
+        [
+          "aws_s3_bucket.logs.id",
+          "/^aws_s3_bucket\\.logs\\.(id|bucket)$/"
+        ]
+      ],
+      "hint": "A reference is <resource type>.<name>.<attribute>.",
+      "answer": "resource declares something Terraform manages; aws_s3_bucket.logs.id refers to an attribute of that resource. The reference also tells Terraform the order: the output waits for the bucket."
     }
   ],
   "interview": [

@@ -385,6 +385,29 @@
       "q": "Tag the local image report:2.0.0 for the registry ghcr.io/acme with the version and the short Git commit, then push both tags.",
       "code": "bash",
       "answer": "SHA=$(git rev-parse --short HEAD)\ndocker tag report:2.0.0 ghcr.io/acme/report:2.0.0\ndocker tag report:2.0.0 ghcr.io/acme/report:sha-$SHA\ndocker push ghcr.io/acme/report:2.0.0\ndocker push ghcr.io/acme/report:sha-$SHA"
+    },
+    {
+      "q": "Spot the bug: docker build stops with “Could not open requirements file”. Which line is the cause?",
+      "type": "bug",
+      "lang": "dockerfile",
+      "line": 3,
+      "snippet": "FROM python:3.12-slim\nCOPY . /app\nRUN cd /app\nRUN pip install --no-cache-dir -r requirements.txt\nEXPOSE 8000\nCMD [\"python\", \"app.py\"]",
+      "fix": "FROM python:3.12-slim\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nEXPOSE 8000\nCMD [\"python\", \"app.py\"]",
+      "hint": "Each RUN starts a new shell.",
+      "answer": "Each RUN runs in its own shell, so cd /app is forgotten at the next line and pip looks for requirements.txt in /. Use WORKDIR /app (it also applies to CMD). The fixed version also copies requirements.txt first, so the pip layer stays cached when only the code changes."
+    },
+    {
+      "q": "Which Dockerfile instruction runs when a container starts, not when the image is built?",
+      "type": "choice",
+      "mono": true,
+      "correct": 1,
+      "options": [
+        "RUN",
+        "CMD",
+        "COPY",
+        "ENV"
+      ],
+      "answer": "CMD (or ENTRYPOINT) sets the command run when the container starts. RUN and COPY run at build time and their result is saved in a layer; ENV sets a variable for both."
     }
   ],
   "interview": [

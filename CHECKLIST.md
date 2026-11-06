@@ -1,10 +1,12 @@
 # HelloKhedma: launch checklist
 
-## 👉 Next session (written 2026-11-06, end of a long session)
-- **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 and 2 are done. The owner's open question: build **2b
-  (generic exercise formats for every course) + 2c (log analysis, regex, cron for App Support / DevOps)** next.
-  Then 2d/2e, 3 (spaced repetition + placement test), 4 (AI "explain my mistake", Sonnet 5.5), 5 (Python / Excel),
-  6 (project repos + public portfolio), 7 (content from data, expert review).
+## 👉 Next session (written 2026-11-06)
+- **Start here:** ROADMAP "Phase 4b: training plan". Steps 1, 2, 2b and 2c are done (2b + 2c on branch
+  `practice-formats`, see the Done log). Next: 2d (Kubernetes / GitHub Actions / Dockerfile validators) and 2e (more
+  SQL datasets, take-home cases), then 3 (spaced repetition + placement test), 4 (AI "explain my mistake", Sonnet 5.5),
+  5 (Python / Excel), 6 (project repos + public portfolio), 7 (content from data, expert review).
+- **New exercise content is part of O11:** the 53 auto-graded exercises (EN + FR) were written by Claude; answers of the
+  log / regex / cron / jq exercises are computed from the files and checked in CI, the wording is unreviewed.
 - **Done on 2026-11-06 (all live on hellokhedma.io):** custom domain + Resend email sender + contact address; legal
   review (FR + EN, LCEN / GDPR) with fonts and supabase-js self-hosted, IPs hashed with HMAC; CV maker rebuilt
   (owner's layout, "Download PDF" built in the app with pdf-lib, 4 render rounds + independent review); PDF CV reading
@@ -79,6 +81,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-06 | Training steps 2b + 2c: auto-graded exercises in the Practice tab of every course (53, EN + FR): predict the output, fill in the blanks, put steps in order, match pairs, sort into groups, spot the bug, branching scenarios (incident on call, sprint, dashboard request); for App Support / DevOps: log analysis on real-looking logs (SSH attacks, checkout outage), regex on access logs, cron schedules (crontab, GitHub Actions, Airflow), jq on kubectl / AWS CLI / Prometheus JSON. Checked in the browser, nothing sent anywhere; CI checks every answer. No setup needed |
 | 2026-11-06 | Training step 2: runnable SQL exercises (SQL course, 7 exercises): ▶ Run shows the result on a practice database, ✓ Check compares it with the expected result (same result written differently passes); SQLite in the browser, nothing sent anywhere; CI runs every answer. No setup needed |
 | 2026-11-06 | O23 done: learning_sync / content_reports migration run by the owner (progress sync and problem reports live) |
 | 2026-11-06 | Training step 1: learning progress synced between devices for signed-in users (merge, nothing lost), "⚑ Report a problem" on courses and projects, content checks in CI (a broken course stops the deploy). Needs O23 (run the migration) |

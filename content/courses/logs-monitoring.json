@@ -333,6 +333,55 @@
     {
       "q": "A developer wants to add a user_id label to http_requests_total. What do you answer?",
       "answer": "No: every user would create new time series, with thousands or millions of series, high memory use and slow queries in Prometheus. Keep labels with small fixed sets of values (route, method, code). Per-user details belong in logs or traces, which are made for high-cardinality data."
+    },
+    {
+      "q": "Log analysis: users said checkout was broken this morning. Here is the shop API log. Filter it (try “ERROR”, “503”, “deploy”) and answer.",
+      "type": "logs",
+      "file": "logs/web-outage.log",
+      "hint": "Find the first ERROR line, then look at what happened just before it.",
+      "fields": [
+        {
+          "label": "At what time did the first ERROR appear? (HH:MM:SS)",
+          "accept": [
+            "09:41:12",
+            "/^(2026-03-12T)?09:41:12Z?$/"
+          ]
+        },
+        {
+          "label": "Which error message appears most often?",
+          "accept": [
+            "db connection pool exhausted",
+            "/connection pool/i"
+          ]
+        },
+        {
+          "label": "Which version was deployed just before the errors?",
+          "accept": [
+            "4.19.0",
+            "v4.19.0"
+          ]
+        }
+      ],
+      "answer": "The first ERROR is at 09:41:12, 14 seconds after “deploy finished” for version 4.19.0. “db connection pool exhausted” appears 30 times (grep -o 'msg=\"[^\"]*\"' | sort | uniq -c | sort -rn), ahead of “upstream timeout” (13). The rollback to 4.18.0 at 09:52 ends the 503s: the new version most likely holds database connections too long."
+    },
+    {
+      "q": "Regex: extract the duration (only the number) of every request to /checkout. Requests to /checkout/help do not count.",
+      "type": "regex",
+      "code": "regex",
+      "mode": "extract",
+      "text": "09:41:01 INFO method=GET path=/products status=200 duration_ms=48\n09:41:03 INFO method=POST path=/checkout status=200 duration_ms=212\n09:41:09 INFO method=GET path=/checkout/help status=200 duration_ms=35\n09:41:17 INFO method=POST path=/checkout status=503 duration_ms=3004\n09:41:22 INFO method=GET path=/orders status=200 duration_ms=97\n09:41:30 INFO method=POST path=/checkout status=503 duration_ms=3011\n09:41:41 INFO method=POST path=/cart status=200 duration_ms=64\n09:41:52 INFO method=POST path=/checkout status=200 duration_ms=388",
+      "answer": "path=/checkout status=\\d+ duration_ms=(\\d+)",
+      "hint": "Put the number in a group: duration_ms=(\\d+). Make sure /checkout is followed by a space.",
+      "explain": "path=/checkout status=\\d+ duration_ms=(\\d+) keeps 212, 3004, 3011 and 388. The group ( ) keeps only the number; the space after /checkout leaves out /checkout/help. The two 3-second values are the 503 timeouts."
+    },
+    {
+      "q": "JSON: this is Prometheus’ answer to the query up (1 = target reachable, 0 = down). Write a jq filter that returns the instance of every target that is down.",
+      "type": "json",
+      "code": "jq",
+      "file": "data/prom-up.json",
+      "answer": ".data.result[] | select(.value[1] == \"0\") | .metric.instance",
+      "hint": "The value is a pair [timestamp, \"value\"], and the value is a string: compare .value[1] with \"0\".",
+      "explain": "jq '.data.result[] | select(.value[1] == \"0\") | .metric.instance' returns \"db-1:9100\" and \"api-2:8080\". The same question in PromQL is up == 0, and the alert rule is usually up == 0 for 5 minutes."
     }
   ],
   "interview": [

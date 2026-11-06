@@ -361,6 +361,28 @@
       "hint": "airflow backfill create avec un comportement de retraitement.",
       "code": "bash",
       "answer": "airflow backfill create --dag-id sales_daily \\\n  --from-date 2026-03-01 --to-date 2026-03-07 \\\n  --reprocess-behavior failed"
+    },
+    {
+      "q": "Cron : un DAG produit le rapport mensuel à 06:00 le premier jour de chaque mois. Écrivez sa planification en expression cron.",
+      "type": "cron",
+      "code": "cron",
+      "answer": "0 6 1 * *",
+      "hint": "Minute 0, heure 6, jour du mois 1.",
+      "explain": "schedule=\"0 6 1 * *\". Rappel : Airflow lance un DAG planifié à la fin de son intervalle de données : l’exécution qui démarre le 1er mars à 06:00 couvre février."
+    },
+    {
+      "q": "Prédisez : que fait le scheduler une fois ce DAG activé ?",
+      "type": "choice",
+      "lang": "python",
+      "correct": 1,
+      "snippet": "with DAG(\n    \"daily_sales\",\n    start_date=datetime(2026, 1, 1),\n    schedule=\"@daily\",\n    catchup=True,\n):\n    ...\n# The DAG file is deployed and switched on at noon on 5 January 2026.",
+      "options": [
+        "Rien avant minuit ce soir",
+        "Il crée 4 exécutions, une pour chaque jour du 1er au 4 janvier",
+        "Une seule exécution pour le 5 janvier",
+        "Il échoue : start_date est dans le passé"
+      ],
+      "answer": "Avec catchup=True, le scheduler rattrape chaque intervalle complet depuis start_date qui n’a jamais tourné : 1er, 2, 3 et 4 janvier (l’intervalle du 5 n’est pas terminé). Mettez catchup=False si un DAG ne doit pas rattraper, et rendez les tâches idempotentes pour qu’une relance donne le même résultat."
     }
   ],
   "interview": [

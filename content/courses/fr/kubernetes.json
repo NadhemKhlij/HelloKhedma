@@ -232,7 +232,35 @@
     { "q": "Une application Java met 90 secondes à démarrer et sa liveness probe la redémarre en boucle. Que changez-vous ?", "hint": "Quelle probe existe pour les démarrages lents ?",
       "answer": "Ajouter une startupProbe sur le même endpoint avec periodSeconds: 10 et failureThreshold: 12 (jusqu’à 120 s). Liveness et readiness ne commencent qu’après sa réussite : le conteneur n’est plus tué pendant son démarrage. Vérifier les événements avec kubectl describe pod pour confirmer que les échecs précédents venaient bien de la liveness." },
     { "q": "Votre Ingress pour shop.example.com renvoie une 503. Où regardez-vous ?",
-      "answer": "Une 503 du controller signifie généralement que le backend n’a aucun endpoint prêt. Vérifier que le nom et le port du Service dans l’Ingress sont corrects, que le sélecteur du Service correspond aux labels des pods (kubectl get endpoints ou endpointslices du Service), et que les pods sont Ready (readiness probe en échec ?). Lire ensuite les logs de l’ingress controller." }
+      "answer": "Une 503 du controller signifie généralement que le backend n’a aucun endpoint prêt. Vérifier que le nom et le port du Service dans l’Ingress sont corrects, que le sélecteur du Service correspond aux labels des pods (kubectl get endpoints ou endpointslices du Service), et que les pods sont Ready (readiness probe en échec ?). Lire ensuite les logs de l’ingress controller." },
+    {
+      "q": "JSON : voici kubectl get pods -o json. Écrivez un filtre jq qui renvoie le nom de chaque pod dont la phase n’est pas Running.",
+      "type": "json",
+      "code": "jq",
+      "file": "data/k8s-pods.json",
+      "answer": ".items[] | select(.status.phase != \"Running\") | .metadata.name",
+      "hint": ".items[] parcourt les pods ; select(.status.phase != \"Running\") garde les autres ; .metadata.name donne le nom.",
+      "explain": "Deux pods : frontend-6b8c9d7f4-x4pn2 (Pending : aucun nœud n’a pu le prendre, voir kubectl describe pod) et migrate-db-58f6c9b7d-k2v9s (Failed). Notez que worker-…-hq7wn est en CrashLoopBackOff mais sa phase reste Running : la phase seule cache les conteneurs qui plantent."
+    },
+    {
+      "q": "JSON : même liste de pods. Quels pods ont redémarré plus de 3 fois ? Écrivez le filtre jq (chaque pod a ici un seul conteneur).",
+      "type": "json",
+      "code": "jq",
+      "file": "data/k8s-pods.json",
+      "answer": ".items[] | select(.status.containerStatuses[0].restartCount > 3) | .metadata.name",
+      "hint": ".status.containerStatuses[0].restartCount est un nombre : comparez-le avec > 3.",
+      "explain": "worker-5c7d4f9d8-hq7wn (7 redémarrages, CrashLoopBackOff) et cache-84d5f6c7b-7wq3e (4). Ensuite : kubectl logs <pod> --previous montre pourquoi le dernier conteneur s’est arrêté, kubectl describe pod donne la raison (OOMKilled, Error…)."
+    },
+    {
+      "q": "Trouvez le bug : kubectl apply refuse ce Deployment. Quelle ligne en est la cause ?",
+      "type": "bug",
+      "lang": "yaml",
+      "line": 14,
+      "snippet": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: api\n  template:\n    metadata:\n      labels:\n        tier: backend\n        app: web\n    spec:\n      containers:\n        - name: api\n          image: shop/api:4.18.0\n          ports:\n            - containerPort: 8080",
+      "fix": "  selector:\n    matchLabels:\n      app: api\n  template:\n    metadata:\n      labels:\n        tier: backend\n        app: api",
+      "hint": "Un Deployment retrouve ses pods grâce à spec.selector.",
+      "answer": "Le sélecteur cherche app: api mais le modèle de pod porte app: web : le Deployment ne posséderait aucun de ses propres pods, l’API le refuse (« selector does not match template labels »). Les labels du modèle doivent contenir tous ceux du sélecteur."
+    }
   ],
   "interview": [
     { "q": "Quelle est la différence entre un Deployment et un Service ?", "a": "Un Deployment gère les pods : combien de réplicas, quelle image, et comment déployer une nouvelle version. Un Service donne à ces pods changeants un nom et une IP stables et répartit le trafic entre eux selon leurs labels. On a généralement besoin des deux : le Deployment fait tourner l’application, le Service la rend joignable." },

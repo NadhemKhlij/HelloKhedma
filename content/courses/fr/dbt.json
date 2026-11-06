@@ -382,6 +382,48 @@
     {
       "q": "Le test unique d’un model incrémental échoue depuis un rechargement de la source. Que vérifiez-vous ?",
       "answer": "Que unique_key est définie et correspond à la vraie granularité, et que la stratégie déduplique (append ne le fait pas). Que la source n’envoie pas désormais des clés en double dans un même lot, ce que merge ne sait pas résoudre : dédupliquez dans le model avec row_number(). Puis corrigez les lignes existantes avec dbt run --full-refresh -s model si la table peut être reconstruite à un coût raisonnable."
+    },
+    {
+      "q": "Complétez : lisez un autre modèle dbt, puis une table brute déclarée dans sources.yml.",
+      "type": "fill",
+      "lang": "sql",
+      "snippet": "with orders as (\n    select * from {{ ___('stg_orders') }}\n),\ncustomers as (\n    select * from {{ ___('shop', 'customers') }}\n)\nselect ...",
+      "blanks": [
+        [
+          "ref"
+        ],
+        [
+          "source"
+        ]
+      ],
+      "answer": "ref('stg_orders') désigne un autre modèle ; source('shop', 'customers') désigne une table brute déclarée dans un fichier .yml de sources. Les deux pointent vers le bon schéma dans chaque environnement et dessinent le graphe de dépendances ; n’écrivez jamais schema.table en dur."
+    },
+    {
+      "q": "Associez chaque commande dbt à ce qu’elle fait.",
+      "type": "match",
+      "pairs": [
+        [
+          "dbt run",
+          "Construire les modèles dans l’entrepôt"
+        ],
+        [
+          "dbt test",
+          "Lancer les tests de données"
+        ],
+        [
+          "dbt seed",
+          "Charger les fichiers CSV du projet dans des tables"
+        ],
+        [
+          "dbt build",
+          "Tout lancer, tester, charger et capturer dans l’ordre des dépendances"
+        ],
+        [
+          "dbt docs generate",
+          "Générer la documentation et le graphe de dépendances"
+        ]
+      ],
+      "answer": "En CI, dbt build est le choix habituel : un modèle dont les tests échouent arrête les modèles construits dessus. Ajoutez --select (par ex. --select stg_orders+) pour travailler sur un modèle et tout ce qui en dépend."
     }
   ],
   "interview": [

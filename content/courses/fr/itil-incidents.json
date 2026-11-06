@@ -334,6 +334,115 @@
       "q": "Réécrivez ce titre d’article pour que les utilisateurs et les agents le trouvent : « Procédure 14 - nettoyage du gestionnaire d’identification ».",
       "hint": "Utilisez les mots du symptôme.",
       "answer": "« Outlook redemande sans cesse votre mot de passe après un changement de mot de passe (Windows) ». Le titre décrit le symptôme avec les mots que les utilisateurs tapent dans une recherche ou disent au téléphone, et précise l’environnement. La solution technique, vider les identifiants en cache dans le Gestionnaire d’identification, va dans les étapes de résolution."
+    },
+    {
+      "q": "Scénario : vous êtes d’astreinte pour une boutique en ligne. Prenez chaque décision ; chaque choix montre sa conséquence.",
+      "type": "scenario",
+      "steps": [
+        {
+          "choices": [
+            {
+              "best": true,
+              "label": "Ouvrir un incident P1, nommer un responsable d’incident et publier un premier message d’état",
+              "feedback": "Le paiement est en panne pour beaucoup d’utilisateurs : impact et urgence élevés. Le déclarer tôt mobilise les bonnes personnes et évite les tickets en double."
+            },
+            {
+              "label": "Attendre 15 minutes pour voir si ça se règle tout seul",
+              "feedback": "Chaque minute de paiement en panne fait perdre des commandes, et personne ne coordonne. L’impact est déjà confirmé par les utilisateurs."
+            },
+            {
+              "label": "L’enregistrer en P3 et l’attribuer à la prochaine personne disponible",
+              "feedback": "Priorité = impact × urgence. Une panne du paiement pour la moitié des utilisateurs n’est pas un P3 ; il attendrait dans une file."
+            }
+          ],
+          "text": "09:43. Alerte du monitoring : le paiement renvoie 503 pour environ la moitié des requêtes. Trois clients ont déjà appelé."
+        },
+        {
+          "choices": [
+            {
+              "label": "Lancer une analyse de la cause du nouveau code avant de toucher à quoi que ce soit",
+              "feedback": "Comprendre la cause compte, mais pendant un incident le service passe d’abord. La cause racine relève de la gestion des problèmes, après le rétablissement."
+            },
+            {
+              "best": true,
+              "label": "Proposer un retour à la 4.18.0 comme solution de contournement et le faire valider",
+              "feedback": "Un changement récent coïncide avec le début des erreurs : revenir en arrière est le moyen sûr le plus rapide de rétablir le service. Notez la décision dans l’incident."
+            },
+            {
+              "label": "Redémarrer le serveur de base de données",
+              "feedback": "Redémarrer la base coupe tous les services qui l’utilisent et ne corrige pas une fuite de connexions dans la nouvelle version."
+            }
+          ],
+          "text": "09:46. Les logs montrent « db connection pool exhausted » depuis 09:41, juste après le déploiement de la version 4.19.0 à 09:40."
+        },
+        {
+          "choices": [
+            {
+              "label": "Clôturer l’incident tout de suite",
+              "feedback": "Trop rapide : confirmez avec le monitoring et de vraies transactions, et prévenez d’abord les utilisateurs."
+            },
+            {
+              "label": "Supprimer les tickets en plus ouverts par les clients",
+              "feedback": "Rattachez-les plutôt à l’incident : ils montrent l’impact et chaque client doit recevoir une réponse."
+            },
+            {
+              "best": true,
+              "label": "Vérifier que ça reste stable, confirmer avec le métier, informer les utilisateurs, puis résoudre",
+              "feedback": "Le rétablissement doit être vérifié et communiqué. L’incident est résolu, avec sa chronologie."
+            }
+          ],
+          "text": "09:53. Le retour arrière est fait et le paiement répond de nouveau 200."
+        },
+        {
+          "choices": [
+            {
+              "best": true,
+              "label": "Ouvrir un enregistrement de problème et mener une revue post-incident sans recherche de coupable",
+              "feedback": "La gestion des problèmes trouve la cause racine (ici : des connexions non libérées) et les actions : un correctif, un test, une alerte sur le pool."
+            },
+            {
+              "label": "Trouver qui a écrit le code et le signaler",
+              "feedback": "Chercher un coupable pousse à cacher l’information. Les revues portent sur le système : pourquoi les tests et le canary ne l’ont pas vu."
+            },
+            {
+              "label": "Rien : l’incident est clôturé",
+              "feedback": "Sans enregistrement de problème, la même panne revient au prochain déploiement."
+            }
+          ],
+          "text": "Le lendemain. Le même déploiement ne peut pas repartir tant que la cause n’est pas connue."
+        }
+      ],
+      "answer": "La gestion des incidents rétablit vite le service (classer, coordonner, contourner, communiquer) ; la gestion des problèmes trouve et supprime la cause ensuite. Une bonne chronologie de P1 note la détection, la décision de retour arrière, le rétablissement et sa confirmation."
+    },
+    {
+      "q": "Chronologie d’incident : à partir du journal de l’API, trouvez quand les clients ont commencé à recevoir des erreurs et quand cela s’est arrêté. Filtrez sur « 503 ».",
+      "type": "logs",
+      "file": "logs/web-outage.log",
+      "hint": "La première et la dernière ligne qui contiennent status=503.",
+      "fields": [
+        {
+          "label": "Première réponse 503 (HH:MM:SS)",
+          "accept": [
+            "09:41:17",
+            "/^(2026-03-12T)?09:41:17Z?$/"
+          ]
+        },
+        {
+          "label": "Dernière réponse 503 (HH:MM:SS)",
+          "accept": [
+            "09:52:02",
+            "/^(2026-03-12T)?09:52:02Z?$/"
+          ]
+        },
+        {
+          "label": "Impact client, arrondi à la minute",
+          "accept": [
+            "11",
+            "/^1[01] ?(min|mins|minutes)?$/i"
+          ]
+        }
+      ],
+      "answer": "Premier 503 à 09:41:17, dernier à 09:52:02 : environ 11 minutes d’impact (10 min 45 s). Écrivez la chronologie avec les heures des logs, pas avec l’heure de l’alerte (09:43) : l’écart est votre délai de détection, un chiffre que la revue cherche à réduire."
     }
   ],
   "interview": [

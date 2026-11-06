@@ -4,7 +4,9 @@
 //                     lessonCount, summary }]   (minutes = courseTime() of the course file, checked by a smoke test)
 //   <id>.json   -> { why, outcome, lessons: [{ title, text: [..], points: [..], example?: { lang, code, note? } }],
 //                    cheatsheet: [{ group, items: [[syntax, meaning]] }],
-//                    exercises: [{ q, hint?, answer, code?: "sql" | "python" | ... (answer shown as code) }],
+//                    exercises: [{ q, hint?, answer, code?: "sql" | "python" | ... (answer shown as code),
+//                                  run?: { db, … } (runnable SQL), type?: "choice" | "fill" | … (auto-graded, drills.js),
+//                                  explain? (text under a code answer) }],
 //                    pitfalls: [..], interview: [{ q, a }] }
 // French: content/courses/fr/<id>.json (same structure and lesson order: progress is stored by lesson index) and
 // fr/index.json ([{ id, name, summary }], merged over index.json). Missing French files fall back to English.

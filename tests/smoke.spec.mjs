@@ -203,6 +203,30 @@ test("CV maker: the form fills the preview, saves a CV version, and the ATS scor
   await expect(page.locator("#atsOut")).toContainText("Standard sections");
 });
 
+// "Create my CV for this offer" needs sign-in and the Claude API, so the function's answer is fed to the CV maker directly.
+test("CV for an offer: an AI CV fills the CV maker with its notes and saves as a version named after the offer", async ({ page }) => {
+  await open(page, "#/cv/maker");
+  await page.evaluate(async () => {
+    const { loadAiCv, renderCvMaker } = await import("./js/cvmaker.js");
+    loadAiCv({ lang: "fr", name: "Test Person", headline: "Application Support Engineer", email: "test@example.com", phone: "", location: "Paris",
+      links: "", summary: "Support L2/L3 en production.", skills: "SQL, Linux, Control-M",
+      experience: [{ role: "Support Engineer", company: "Acme", location: "Paris", start: "06/2024", end: "",
+        bullets: "Gestion des incidents via SQL et ELK ([number?] incidents par semaine)\nAutomatisation en Python" }],
+      education: [{ degree: "Diplôme d'ingénieur", school: "EFREI", location: "", start: "", end: "2020", details: "" }],
+      projects: [], certifications: "", languages: "Français, Anglais",
+      notes: ["AWS: not shown in your CV.", "How many incidents a week?"], unknown: "ignored" }, "Support Engineer · LSEG");
+    renderCvMaker();
+  });
+  await expect(page.locator("#cvmForm")).toContainText("Written by AI for: Support Engineer · LSEG");
+  await expect(page.locator("#cvmForm")).toContainText("AWS: not shown in your CV.");
+  await expect(page.locator("#cvmForm")).toContainText("[number?]");
+  await expect(page.locator("#cvPreview")).toContainText("Expérience professionnelle");
+  await expect(page.locator("#cvPreview")).toContainText("Gestion des incidents via SQL et ELK");
+  await page.locator("#cvmActions").getByRole("button", { name: "Use as a CV version" }).click();
+  await page.locator("#cvTabCheck").click();
+  await expect(page.locator("#cvVersions")).toContainText("CV · Support Engineer · LSEG");
+});
+
 test("AI track projects: both scripts match and a project page works", async ({ page }) => {
   await open(page, "#/ai");
   const problems = await page.evaluate(async () => {

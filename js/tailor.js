@@ -6,12 +6,14 @@
 //   The prompt templates (PROMPTS) are content, written in English and French like the interface.
 // - "Rewrite with AI" (aiSection): signed-in users only. After a notice shown before every send, the CV and the offer
 //   go to the cv-tailor Edge Function (Claude API, daily limit per account), which stores nothing. This is the only
-//   place where the CV text leaves the browser, and only on that explicit click.
-import { $, h, copyText } from "./lib.js";
+//   place where the CV text leaves the browser, and only on that explicit click. "Create my CV for this offer" (same
+//   notice, same limit) gets the whole CV back as structured data and opens it in the CV maker (cvmaker.js).
+import { $, h, copyText, toast } from "./lib.js";
 import { t, lang } from "./i18n.js";
 import { sb } from "./supabase.js";
 import { state, path, fitColor, skillChip } from "./state.js";
 import { extractSkills, matchSkills } from "./ats.js";
+import { loadAiCv, renderCvMaker } from "./cvmaker.js";
 
 const PROMPTS = {
   en: ({ role, matched, missing, title, company, offer, cv }) => `You are an experienced recruiter and CV coach for ${role} roles. Help me tailor my CV to the job offer below, honestly.
@@ -83,9 +85,14 @@ const AI_ERRORS = {
   too_long: "Your CV or the offer is too long for AI rewriting. Use the prompt to copy.",
   busy: "The AI service is busy. Try again in a minute.",
   unreachable: "The AI service can't be reached (no connection, or not set up yet). Use the prompt to copy meanwhile.",
+  truncated: "The CV was too long to finish. Try again.",
+  outdated: "This needs the latest cv-tailor function: it is not deployed yet.",
 };
 
-// "Rewrite with AI": signed-in users only, a notice before every send, then the answer with a copy button.
+// "Rewrite with AI": signed-in users only, a notice before every send. Two actions, one daily limit:
+// - "Rewrite with AI": rewritten bullet points, gaps and questions as text, with a copy button;
+// - "Create my CV for this offer": the whole CV for the offer, loaded into the CV maker (cvmaker.js, #/cv/maker),
+//   where the user checks it, fills in each [number?] and prints it or saves it as a CV version.
 // The CV and the offer go to the cv-tailor function (Claude API) only when the user confirms the notice.
 function aiSection({ offer, r }) {
   const box = h("div", { class: "grid gap-2 pt-3", style: "border-top:1px solid var(--line)" },
@@ -97,23 +104,26 @@ function aiSection({ offer, r }) {
     return box;
   }
   const out = h("div", { class: "grid gap-2", "aria-live": "polite" });
-  const start = h("button", { type: "button", class: "btn justify-self-start", onClick: () => showNotice() }, t("✨ Rewrite with AI"));
+  const start = h("button", { type: "button", class: "btn", onClick: () => showNotice("rewrite") }, t("✨ Rewrite with AI"));
+  const makeCv = h("button", { type: "button", class: "btn-ghost", onClick: () => showNotice("cv") }, t("📄 Create my CV for this offer"));
 
-  function showNotice() {
+  function showNotice(mode) {
     out.replaceChildren(h("div", { class: "rounded-lg p-3 text-sm grid gap-2", style: "background:var(--bg);border:1px solid var(--accent)" },
       h("p", {}, t("Your CV and this offer will be sent to Claude, Anthropic's AI, to write the suggestions. HelloKhedma does not store them. Up to 5 rewrites a day.")),
+      mode === "cv" ? h("p", { class: "mute text-xs" }, t("The CV is opened in the CV maker, in place of the form's current content. Your saved CV versions are kept.")) : null,
       h("div", { class: "flex flex-wrap gap-2" },
-        h("button", { type: "button", class: "btn", onClick: run }, t("Send and rewrite")),
+        h("button", { type: "button", class: "btn", onClick: () => run(mode) }, mode === "cv" ? t("Send and create the CV") : t("Send and rewrite")),
         h("button", { type: "button", class: "btn-ghost", onClick: () => out.replaceChildren() }, t("Cancel")))));
   }
 
-  async function run() {
-    start.disabled = true;
-    out.replaceChildren(h("p", { class: "mute text-sm" }, t("Rewriting… this can take up to a minute.")));
+  async function run(mode) {
+    start.disabled = makeCv.disabled = true;
+    out.replaceChildren(h("p", { class: "mute text-sm" }, mode === "cv"
+      ? t("Writing your CV for this offer… this can take up to two minutes.") : t("Rewriting… this can take up to a minute.")));
     try {
       const { data, error } = await sb.functions.invoke("cv-tailor", { body: {
         cv: state.cv.text.slice(0, 12000), offer: { title: offer.title, company: offer.company, text: String(offer.text || "").slice(0, 6000) },
-        matched: r.matched, missing: r.missing, role: path()?.name || offer.title, lang,
+        matched: r.matched, missing: r.missing, role: path()?.name || offer.title, lang, mode,
       } });
       if (error) {
         let msg = error.message, code;
@@ -121,6 +131,15 @@ function aiSection({ offer, r }) {
         if (error.context?.status === 404) code = "not_configured"; // function not deployed yet
         if (error.name === "FunctionsFetchError") code = "unreachable"; // no connection, or not deployed (no CORS answer)
         throw Object.assign(new Error(msg), { code });
+      }
+      if (mode === "cv") {
+        // An older cv-tailor (deployed before this feature) ignores mode and answers with text.
+        if (!data?.cv) throw Object.assign(new Error(t("Update the cv-tailor function to use this.")), { code: "outdated" });
+        if (!loadAiCv(data.cv, [offer.title, offer.company].filter(Boolean).join(" · "))) { out.replaceChildren(); return; }
+        $("#tailorDialog").close();
+        if (location.hash === "#/cv/maker") renderCvMaker(); else location.hash = "#/cv/maker";
+        toast(t("Your CV for this offer is in the CV maker. Check every line before using it."));
+        return;
       }
       const result = h("div", { class: "rounded-lg p-3 text-sm whitespace-pre-wrap", style: "background:var(--bg);border:1px solid var(--line)" }, data.text);
       // replaceChildren() would print a null argument as the text "null": drop the optional parts first.
@@ -133,10 +152,11 @@ function aiSection({ offer, r }) {
     } catch (e) {
       out.replaceChildren(h("p", { class: "text-sm", style: "color:#e0508b" },
         AI_ERRORS[e.code] ? t(AI_ERRORS[e.code]) : t("AI rewriting failed: {msg}", { msg: e.message })));
-    } finally { start.disabled = false; }
+    } finally { start.disabled = makeCv.disabled = false; }
   }
 
-  box.append(h("p", { class: "mute text-xs" }, t("Claude rewrites your bullet points for this offer, with the same honesty rules.")), start, out);
+  box.append(h("p", { class: "mute text-xs" }, t("Claude rewrites your bullet points for this offer, or writes your whole CV for it in the CV maker, with the same honesty rules.")),
+    h("div", { class: "flex flex-wrap gap-2" }, start, makeCv), out);
   return box;
 }
 

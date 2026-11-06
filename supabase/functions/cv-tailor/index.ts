@@ -10,8 +10,10 @@
 //   CV_TAILOR_MODEL          optional, Claude model id (default claude-opus-5-5; claude-sonnet-5-5 costs about half)
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 //
-// Request  (POST JSON, user session in Authorization): { cv, offer: { title, company, text }, matched[], missing[], role, lang }
-// Response (JSON): { text, model } · 401 not signed in · 429 daily limit · 503 not configured · 4xx/5xx { error, code }
+// Request  (POST JSON, user session in Authorization): { cv, offer: { title, company, text }, matched[], missing[], role, lang, mode }
+// Response (JSON): mode "rewrite" (default) → { text, model }; mode "cv" → { cv, model }: the whole CV for this offer, as
+// structured output in the CV maker's format (js/cvmaker.js), plus notes (gaps, numbers to add) for the user.
+// Errors: 401 not signed in · 429 daily limit (shared by both modes) · 503 not configured · 4xx/5xx { error, code }
 // The daily limit reuses job_search_hit() and job_search_hits (migration 20261028000200), bucket "tailor:<user id>".
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
@@ -50,6 +52,32 @@ Answer with exactly these four sections, each starting with its title on its own
 2. Rewritten bullet points (grouped by job, most relevant first)
 3. Gaps (requirement, then how to address it honestly)
 4. Questions (missing numbers or details that would make the CV stronger)`;
+
+// Mode "cv": the full CV rebuilt for the offer, in the CV maker's fields (structured output, so the app can fill the form).
+const SYSTEM_CV = `You are an experienced recruiter and CV writer. You turn a job seeker's CV into a complete, ATS-friendly CV for one job offer, honestly.
+
+Rules:
+- Never invent experience, employers, dates, degrees, schools, skills, tools, certifications, languages, links or numbers. Use only what the CV says; leave a field empty when the CV does not give it.
+- Keep every job and degree of the CV with its real dates. Order the bullet points of each job so the ones that match the offer come first, rewrite them with strong verbs and the offer's wording only where it is true for this person, and drop bullets that add nothing for this offer (at most 6 per job).
+- When a bullet would be stronger with a number the CV does not give, do not make one up: write [number?] in the bullet and add a note asking for it.
+- Headline: the offer's job title if the CV supports it, otherwise the closest honest title.
+- Summary: 2-3 lines for this offer. Skills: the skills the CV really shows, those the offer asks for first, comma-separated, using the offer's exact words when they mean the same thing.
+- Write the CV in the language of the job offer (lang "fr" for French, "en" otherwise), translating the CV content faithfully when needed.
+- Bullets, details, links and certifications: one per line, with no leading dash. Dates as written in the CV (e.g. "03/2023" or "2019"); end is empty for a current job.
+- notes: short notes for the job seeker, in the language given in the request: each requirement of the offer the CV does not show (with an honest way to address it) and each [number?] to fill in.`;
+
+const STR = { type: "string" } as const;
+const obj = (props: Record<string, unknown>) =>
+  ({ type: "object", properties: props, required: Object.keys(props), additionalProperties: false });
+const CV_SCHEMA = obj({
+  lang: { type: "string", enum: ["en", "fr"] },
+  name: STR, headline: STR, email: STR, phone: STR, location: STR, links: STR, summary: STR, skills: STR,
+  experience: { type: "array", items: obj({ role: STR, company: STR, location: STR, start: STR, end: STR, bullets: STR }) },
+  education: { type: "array", items: obj({ degree: STR, school: STR, location: STR, start: STR, end: STR, details: STR }) },
+  projects: { type: "array", items: obj({ name: STR, link: STR, bullets: STR }) },
+  certifications: STR, languages: STR,
+  notes: { type: "array", items: STR },
+});
 
 const str = (v: unknown, max: number) => String(v ?? "").slice(0, max + 1);
 const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x)).slice(0, 40).join(", ") : "");
@@ -96,14 +124,15 @@ Deno.serve(async (req) => {
     "</cv>",
   ].join("\n");
 
+  const asCv = body.mode === "cv";
   try {
     const response = await claude.beta.messages.create({
       model: MODEL,
       max_tokens: 16000,
-      output_config: { effort: "medium" },
+      output_config: asCv ? { effort: "medium", format: { type: "json_schema", schema: CV_SCHEMA } } : { effort: "medium" },
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default", // a declined request is retried on Anthropic's recommended model
-      system: SYSTEM,
+      system: asCv ? SYSTEM_CV : SYSTEM,
       messages: [{ role: "user", content: prompt }],
     });
     if (response.stop_reason === "refusal") {
@@ -111,6 +140,11 @@ Deno.serve(async (req) => {
     }
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n").trim();
     if (!text) return json({ error: "The AI returned no text. Try again.", code: "empty" }, 502);
+    if (asCv) {
+      if (response.stop_reason === "max_tokens") return json({ error: "The CV was too long to finish. Try again.", code: "truncated" }, 502);
+      try { return json({ cv: JSON.parse(text), model: response.model }); }
+      catch { return json({ error: "The AI returned an unreadable CV. Try again.", code: "empty" }, 502); }
+    }
     return json({ text, model: response.model, truncated: response.stop_reason === "max_tokens" });
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) return json({ error: "The AI service is busy. Try again in a minute.", code: "busy" }, 503);

@@ -5,6 +5,9 @@
 // - "Print / save as PDF" prints the preview only (text PDF, readable by ATS). "Use as a CV version" saves the plain
 //   text as a CV version (cvs.js), linked to the draft so later saves update it; it then scores offers like any CV.
 // - "Download .txt" gives the same plain text.
+// - loadAiCv() fills the form with a CV written by AI for one offer ("Create my CV for this offer" in tailor.js, via the
+//   cv-tailor function): the AI's notes (gaps, [number?] to fill in) are shown above the form until hidden, and
+//   "Use as a CV version" then saves it as a new version named after the offer.
 import { $, h, ls, toast, download } from "./lib.js";
 import { t } from "./i18n.js";
 import { path, byKind } from "./state.js";
@@ -23,7 +26,8 @@ const EMPTY = { experience: { role: "", company: "", location: "", start: "", en
   education: { degree: "", school: "", location: "", start: "", end: "", details: "" },
   projects: { name: "", link: "", bullets: "" } };
 const blank = () => ({ lang: "en", name: "", headline: "", email: "", phone: "", location: "", links: "", summary: "", skills: "",
-  experience: [{ ...EMPTY.experience }], education: [{ ...EMPTY.education }], projects: [], certifications: "", languages: "", cvId: null });
+  experience: [{ ...EMPTY.experience }], education: [{ ...EMPTY.education }], projects: [], certifications: "", languages: "", cvId: null,
+  aiFor: "", aiNotes: [] });
 
 let cv = load(), onSaved = () => {}, timer = 0;
 function load() {
@@ -34,6 +38,29 @@ const lines = (s) => (s || "").split(/\r?\n/).map((x) => x.replace(/^\s*[-•*]\
 const skillsOf = (s) => (s || "").split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
 const dates = (e, H) => [e.start, e.end || (e.start ? H.present : "")].filter(Boolean).join(" – ");
 const join = (...xs) => xs.filter(Boolean).join(", ");
+
+// Fills the form with a CV from the cv-tailor function (mode "cv"). Only known fields are kept, as plain strings.
+// Asks first when the form holds a CV that is not saved as a version. Returns false if the user cancels.
+export function loadAiCv(data, forOffer) {
+  const hasDraft = cv.name.trim() || cv.experience.some((e) => e.role || e.company);
+  const saved = cv.cvId && loadCvs().some((c) => c.id === cv.cvId);
+  if (hasDraft && !saved && !confirm(t("Replace the CV maker form with the CV for this offer? The current form is not saved as a CV version."))) return false;
+  const text = (v, max = 4000) => String(v ?? "").slice(0, max);
+  const pick = (kind, arr) => (Array.isArray(arr) ? arr.slice(0, 20) : [])
+    .map((x) => Object.fromEntries(Object.keys(EMPTY[kind]).map((k) => [k, text(x?.[k])])));
+  const next = blank();
+  for (const k of ["name", "headline", "email", "phone", "location", "links", "summary", "skills", "certifications", "languages"]) next[k] = text(data?.[k]);
+  next.lang = data?.lang === "fr" ? "fr" : "en";
+  next.experience = pick("experience", data?.experience);
+  next.education = pick("education", data?.education);
+  next.projects = pick("projects", data?.projects);
+  if (!next.experience.length) next.experience = [{ ...EMPTY.experience }];
+  if (!next.education.length) next.education = [{ ...EMPTY.education }];
+  next.aiFor = text(forOffer, 200);
+  next.aiNotes = (Array.isArray(data?.notes) ? data.notes : []).slice(0, 20).map((n) => text(n, 600)).filter(Boolean);
+  cv = next; save();
+  return true;
+}
 
 // Plain text of the CV: what an ATS reads, what is saved as a CV version and downloaded.
 export function cvText(c = cv) {
@@ -120,7 +147,8 @@ function skillSuggestions() {
 
 function drawForm() {
   const bulletHint = t("One achievement per line. Start with a verb, add a number: \"Automated the monthly report, from 2 days to 2 hours\".");
-  $("#cvmForm").replaceChildren(
+  $("#cvmForm").replaceChildren(...[ // filter: replaceChildren() would print null as text
+    aiPanel(),
     h("div", { class: "flex flex-wrap items-center gap-2" },
       h("label", { class: "text-sm mute flex items-center gap-2" }, t("CV language"),
         h("select", { class: "input !py-1", onChange: (e) => { cv.lang = e.target.value; save(); redraw(); } },
@@ -140,7 +168,21 @@ function drawForm() {
     list("projects", t("Projects"), (p) => [field(t("Project name"), "name", p), field(t("Link (GitHub, demo)"), "link", p),
       field(t("What you built and the result"), "bullets", p, { rows: 3, wide: true })]),
     group(t("Certifications and languages"), field(t("Certifications (one per line)"), "certifications", cv, { rows: 2 }),
-      field(t("Languages (e.g. French: native, English: C1)"), "languages", cv, { rows: 2 })));
+      field(t("Languages (e.g. French: native, English: C1)"), "languages", cv, { rows: 2 })),
+  ].filter(Boolean));
+}
+
+// Shown after "Create my CV for this offer": what to check before using the CV.
+function aiPanel() {
+  if (!cv.aiFor && !cv.aiNotes?.length) return null;
+  const todo = cvText().includes("[number?]");
+  return h("div", { class: "rounded-xl p-4 grid gap-2 text-sm", style: "border:1px solid var(--accent);background:var(--soft)" },
+    h("p", { class: "font-semibold" }, t("✨ Written by AI for: {offer}", { offer: cv.aiFor || t("this offer") })),
+    h("p", { class: "text-xs", style: "color:#f08a24" }, t("Check every line before using it: the AI can make mistakes, and only you know what is true.")),
+    todo ? h("p", { class: "text-xs font-medium" }, t("Replace each [number?] with a real number, or delete it, before printing.")) : null,
+    cv.aiNotes?.length ? h("ul", { class: "grid gap-1 list-disc pl-5" }, cv.aiNotes.map((n) => h("li", {}, n))) : null,
+    h("button", { type: "button", class: "btn-ghost justify-self-start !py-1 text-xs",
+      onClick: () => { cv.aiFor = ""; cv.aiNotes = []; save(); drawForm(); } }, t("Hide these notes")));
 }
 
 /* ---------- actions ---------- */
@@ -151,7 +193,7 @@ function useAsVersion() {
   }
   const existing = cv.cvId && loadCvs().find((c) => c.id === cv.cvId);
   if (existing) { updateCv(existing.id, { text }); setActiveCv(existing.id); toast(t("CV version \"{name}\" updated.", { name: existing.name })); }
-  else { const c = addCv({ name: t("CV maker · {title}", { title: cv.headline.trim() || path()?.name || "" }), text }); cv.cvId = c.id; save(); toast(t("Saved as a new CV version. It now scores offers.")); }
+  else { const c = addCv({ name: cv.aiFor ? t("CV · {title}", { title: cv.aiFor }) : t("CV maker · {title}", { title: cv.headline.trim() || path()?.name || "" }), text }); cv.cvId = c.id; save(); toast(t("Saved as a new CV version. It now scores offers.")); }
   onSaved();
 }
 function printCv() {

@@ -5,7 +5,7 @@
 // - Data: path content from Supabase (career_paths, path_resources here; tracks in training.js); applications through
 //   state.store (LocalStore for guests, CloudStore when signed in, see store.js); onUser() imports guest data on sign-in.
 // - selectPath() reloads the path content and redraws every page; the CV version linked to the path becomes active.
-// - Also here: theme toggle ("hk.theme"), FR / EN button, error toasts + optional Sentry (CONFIG.SENTRY_DSN),
+// - Also here: theme toggle ("hk.theme", shows the current theme), EN / FR button (both shown, the current one highlighted), error toasts + optional Sentry (CONFIG.SENTRY_DSN),
 //   PWA registration (sw.js) and the "Install the app" link.
 // - Every user-facing text goes through t() / tn(). i18n.js is imported first so the static page is translated
 //   before anything renders; the FR / EN button reloads the page in the other language.
@@ -33,7 +33,7 @@ const THEME_KEY = "hk.theme";
 function renderThemeToggle() {
   const light = document.documentElement.dataset.theme === "light";
   const btn = $("#themeToggle");
-  btn.textContent = light ? "☾" : "☀";
+  btn.textContent = light ? "☀" : "☾"; // the theme in use (not the one a click switches to)
   btn.title = light ? t("Switch to dark theme") : t("Switch to light theme");
   btn.setAttribute("aria-label", btn.title);
 }
@@ -43,10 +43,10 @@ function toggleTheme() {
   ls.set(THEME_KEY, next);
   renderThemeToggle();
 }
-// Shows the other language; the page reloads in it.
+// Shows both languages, the current one highlighted; a click reloads the page in the other one.
 function renderLangToggle() {
   const btn = $("#langToggle");
-  btn.textContent = lang === "fr" ? "EN" : "FR";
+  btn.replaceChildren(...["EN", "FR"].map((x) => h("span", { class: `lang-opt${x.toLowerCase() === lang ? " on" : ""}`, "aria-hidden": "true" }, x)));
   btn.title = lang === "fr" ? "Switch to English" : "Passer en français";
   btn.setAttribute("aria-label", btn.title);
   btn.setAttribute("lang", lang === "fr" ? "en" : "fr");

@@ -1,5 +1,5 @@
-// Home page (#/): greeting (time of day + first name when signed in), the summary cards for Training (progress ring, streak),
-// Applications and Offers, then "Next actions" (follow-ups due, interviews this week, from tracker.js; an empty state
+// Home page (#/): greeting (time of day + first name when signed in), the summary cards for Offers, Training (progress
+// ring, streak) and Applications (same order as the nav), then "Next actions" (follow-ups due, interviews this week, from tracker.js; an empty state
 // when nothing is due). A follow-up of a sent application gets "Write the email" (letters.js). Last, the market
 // pulse for the path (pulse.js). The path cards are drawn by app.js (renderPaths).
 import { $, h } from "./lib.js";
@@ -40,6 +40,8 @@ export function renderHome() {
       side),
     h("span", { class: "btn-ghost !py-1.5 self-start mt-2" }, `${t(cta)} →`));
   $("#homeSummary").replaceChildren(
+    card(t("Offers"), path()?.name || t("Offers"),
+      t("Live {title} offers by city and country.", { title: path()?.job_titles?.[0] || t("job") }), "#/offers", "Find offers"),
     card(t("Training"), all.length ? t("{done}/{all} steps", { done, all: all.length }) : t("No tracks yet"),
       [next ? t("Next up: {title}", { title: next.title }) : all.length ? t("Every step is done. Time to apply!") : "",
         streak() ? `🔥 ${tn(streak(), "{n} day", "{n} days")}` : ""].filter(Boolean).join(" · "), "#/training", "Continue learning",
@@ -47,8 +49,6 @@ export function renderHome() {
     card(t("Applications"), String(state.cards.length),
       t("{applied} applied · {interview} interview · {offer} offer", { applied: count("applied"), interview: count("interview"), offer: count("offer") }),
       "#/applications", "Open tracker"),
-    card(t("Offers"), path()?.name || t("Offers"),
-      t("Live {title} offers by city and country.", { title: path()?.job_titles?.[0] || t("job") }), "#/offers", "Find offers"),
   );
   // Follow-ups due and interviews this week; an empty state otherwise, so the page keeps its shape.
   const actions = nextActions(state.cards).slice(0, 6);

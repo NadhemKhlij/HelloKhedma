@@ -1,8 +1,26 @@
 # HelloKhedma: launch checklist
 
-## 👉 Next session (written 2026-11-06)
-- **Just finished (2026-11-06):** the site is live at **https://hellokhedma.io** (O8 done). Next for the owner: the
-  O5 done too (emails sent as no-reply@mail.hellokhedma.io) and "Confirm email" is back on.
+## 👉 Next session (written 2026-11-06, end of a long session)
+- **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 and 2 are done. The owner's open question: build **2b
+  (generic exercise formats for every course) + 2c (log analysis, regex, cron for App Support / DevOps)** next.
+  Then 2d/2e, 3 (spaced repetition + placement test), 4 (AI "explain my mistake", Sonnet 5.5), 5 (Python / Excel),
+  6 (project repos + public portfolio), 7 (content from data, expert review).
+- **Done on 2026-11-06 (all live on hellokhedma.io):** custom domain + Resend email sender + contact address; legal
+  review (FR + EN, LCEN / GDPR) with fonts and supabase-js self-hosted, IPs hashed with HMAC; CV maker rebuilt
+  (owner's layout, "Download PDF" built in the app with pdf-lib, 4 render rounds + independent review); PDF CV reading
+  fixed; "Correct, tailor and create my CV" (one AI call, cv-tailor deployed via GitHub Actions); "Close the gaps"
+  trainings under missing skills; opt-in "Save my CVs to my account" (cv_sync) and anonymous statistics (insights);
+  learning progress synced (learning_sync) + "Report a problem" + content checks in CI; runnable SQL exercises.
+- **How things are shipped now:** work on a branch, CI runs `node scripts/check-content.mjs` + smoke tests, then
+  fast-forward main. Functions deploy from GitHub: Actions → "Deploy Supabase function" (or ask Claude to run it).
+  Migrations: test on a local PostgreSQL 16 with anon/authenticated roles and a stub auth schema, then give the owner
+  a commit-pinned raw link to run in the SQL editor.
+- **Owner's data views (Supabase SQL editor):** `insights_skill_gaps`, `insights_offer_skills`, `insights_courses_done`
+  (anonymous statistics), `content_reports_open` (problem reports).
+- **Owner context:** personal project for now, wants to go pro (O21: company details, terms, DPA; ROADMAP 6.5 opt-in
+  recruiter profile only then). Works from an iPhone (installed app) and Safari; no Node on the owner's machine.
+- **Still open for the owner:** O12 (check the French), O18 (Tunisian AI track review), O11 (expert content review),
+  O9 (double-check GitHub's phone number in the legal notice), O7 (Sentry, optional), delete merged test branches.
 - **Just finished (2026-11-05, later):** CV maker and ATS score on the CV page (two tabs). CV maker (#/cv/maker,
   js/cvmaker.js): form → one-column ATS-friendly preview in EN or FR, print / save as PDF, download .txt, "Use as a CV
   version" (then it scores offers), live ATS score; draft kept in this browser ("hk.cvmaker"), privacy policy updated.

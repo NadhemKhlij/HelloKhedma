@@ -123,6 +123,31 @@ Done (2026-10-29): 4.3 weekly study plan on the Training page (courses for CV ga
 | 4.6 | Certifications tracker (planned, booked, passed) | Clear goals | S |
 | 4.7 | Skill check per path: a short placement test built from the course quizzes; passed skills count as known and the study plan skips them | Learn only what you are missing | M |
 
+## Phase 4b: training plan (owner-approved direction, 2026-11-06)
+Steps 1 and 2 are done; continue in this order unless the owner chooses otherwise. Each step: branch → CI (content
+check + smoke tests) → publish; migrations tested on a local PostgreSQL 16 with Supabase-like roles first; EN + FR.
+
+| Step | What | How | Owner part | Status |
+|---|---|---|---|---|
+| 1 | Learning progress synced, "⚑ Report a problem", content checks in CI | learnsync.js, report.js, scripts/check-content.mjs | Migration (O23) | **Done 2026-11-06** |
+| 2 | Runnable SQL exercises checked against the expected result | sqlrun.js (sql.js in a Worker), sqlgrade.js, content/sql/shop.sql | — | **Done 2026-11-06** (7 SQL-course exercises) |
+| 2b | Generic exercise formats for every course (no engine): predict the output, fill in the blank (accepted answers / regex), put steps in order (drag & drop), match pairs, sort into groups, spot the bug, branching scenarios | New `practice` item types in course JSON + one renderer module; check-content validates them | — | **Next (owner asked about it)** |
+| 2c | App Support / DevOps practice: log analysis on real log files ("top 5 errors", "when did the outage start"), regex extraction, cron expressions, JSON/API parsing | Plain JS checks (no engine), log files in content/ | — | Next with 2b |
+| 2d | DevOps validators: fix a Kubernetes manifest / GitHub Actions workflow (YAML parser + rule checks), Dockerfile review (lint rules in JS) | Self-hosted YAML parser (MIT) | — | Later |
+| 2e | More SQL: star-schema dataset for data modeling, data-quality checks, "fix this query", EXPLAIN QUERY PLAN; take-home cases per path (DA sales analysis, Support incident from logs) | New content/sql datasets + run specs | — | Later |
+| 3 | Learn smarter: spaced-repetition flashcards ("Review today" on Home), placement test per path (4.7) from the quizzes; passed skills skipped by the study plan and Close the gaps | Local + learnsync | — | Planned |
+| 4 | AI help: "Explain my mistake" on exercises (Claude **Sonnet 5.5**, ~0.5 ct; keep Opus 5.5 for the CV rewrite), later "Ask about this lesson" | New cv-tailor mode or function, daily limit, notice | Deploy function (button) | Planned |
+| 5 | Runnable Python / pandas (Pyodide, ~15 MB first load, hidden tests); Excel formulas with formula.js (MIT; **not** HyperFormula: GPL) | Self-hosted, loaded on demand | — | Planned |
+| 6 | Projects that prove something: starter GitHub repos per project with automatic checks (badge), opt-in public portfolio page `#/p/<name>`, optional AI project review | GitHub org + migration | Create GitHub org, run migration | Planned |
+| 7 | Content from data: insights_skill_gaps → which courses to write; advanced levels; capstone per path; expert review (O11: volunteers via Report a problem, paid freelancers, or credited reviewers) | Ongoing | Find reviewers | Ongoing |
+
+AI-feedback exercises (later, signed-in, daily limit, Sonnet 5.5): BA user stories + Given/When/Then (format checked
+free, content by AI), App Support incident message / post-mortem, interview answers (5.3), AI-track prompts checked
+against a JSON schema. Engagement add-ons: weekly study goal with .ics sessions, badges, streak freeze, push reminders
+(needs a server part). Bigger formats: App Support incident simulator (timeline of alerts / logs / tickets), Git
+branching playground. Things that cannot run in a browser (Docker, Kubernetes, Terraform, real shells) stay as
+fill-in / scenario exercises.
+
 ## Phase 5: apply faster with AI (Claude API through an Edge Function)
 | # | Item | Why | Effort |
 |---|---|---|---|

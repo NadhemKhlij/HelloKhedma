@@ -11,8 +11,9 @@
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 //
 // Request  (POST JSON, user session in Authorization): { cv, offer: { title, company, text }, matched[], missing[], role, lang, mode }
-// Response (JSON): mode "rewrite" (default) → { text, model }; mode "cv" → { cv, model }: the whole CV for this offer, as
-// structured output in the CV maker's format (js/cvmaker.js), plus notes (gaps, numbers to add) for the user.
+// Response (JSON): mode "rewrite" (default) → { text, model }; mode "cv" → { cv, model }: the whole CV corrected and
+// tailored to this offer, as structured output in the CV maker's format (js/cvmaker.js), with changes (what was corrected
+// and tailored) and notes (gaps, numbers to add) for the user.
 // Errors: 401 not signed in · 429 daily limit (shared by both modes) · 503 not configured · 4xx/5xx { error, code }
 // The daily limit reuses job_search_hit() and job_search_hits (migration 20261028000200), bucket "tailor:<user id>".
 
@@ -53,11 +54,13 @@ Answer with exactly these four sections, each starting with its title on its own
 3. Gaps (requirement, then how to address it honestly)
 4. Questions (missing numbers or details that would make the CV stronger)`;
 
-// Mode "cv": the full CV rebuilt for the offer, in the CV maker's fields (structured output, so the app can fill the form).
-const SYSTEM_CV = `You are an experienced recruiter and CV writer. You turn a job seeker's CV into a complete, ATS-friendly CV for one job offer, honestly.
+// Mode "cv": the full CV corrected, tailored to the offer and rebuilt in the CV maker's fields (structured output, so the
+// app can fill the form), with the list of changes and the notes (gaps, numbers to add).
+const SYSTEM_CV = `You are an experienced recruiter and CV writer. You correct a job seeker's CV, tailor it to one job offer and turn it into a complete, ATS-friendly CV, honestly.
 
 Rules:
 - Never invent experience, employers, dates, degrees, schools, skills, tools, certifications, languages, links or numbers. Use only what the CV says; leave a field empty when the CV does not give it.
+- Correct the CV: spelling, grammar, punctuation, typos, verb tense (past for past jobs, present for the current one), consistent date format, consistent capitalisation of tools and companies, vague or repeated wording, and anything that hurts ATS parsing (symbols, text in odd places).
 - Keep every job and degree of the CV with its real dates. Order the bullet points of each job so the ones that match the offer come first, rewrite them with strong verbs and the offer's wording only where it is true for this person, and drop bullets that add nothing for this offer (at most 6 per job).
 - When a bullet would be stronger with a number the CV does not give, do not make one up: write [number?] in the bullet and add a note asking for it.
 - Headline: the offer's job title if the CV supports it, otherwise the closest honest title.
@@ -67,6 +70,7 @@ Rules:
 - skills: when the CV groups its skills, keep one group per line ("Databases: SQL, Oracle"); otherwise a comma-separated list.
 - involvement: volunteering, associations and events from the CV (organisation, role, dates); empty if none.
 - Bullets, details, links and certifications: one per line, with no leading dash. Dates as written in the CV (e.g. "03/2023" or "2019"); end is empty for a current job.
+- changes: short notes for the job seeker, in the language given in the request, listing what you corrected (e.g. "Fixed 3 spelling mistakes", "Put every date as Mon. YYYY") and the main ways you tailored the CV to the offer (bullets moved up, wording aligned, bullets dropped).
 - notes: short notes for the job seeker, in the language given in the request: each requirement of the offer the CV does not show (with an honest way to address it) and each [number?] to fill in.`;
 
 const STR = { type: "string" } as const;
@@ -80,6 +84,7 @@ const CV_SCHEMA = obj({
   projects: { type: "array", items: obj({ name: STR, link: STR, bullets: STR }) },
   involvement: { type: "array", items: obj({ org: STR, role: STR, start: STR, end: STR }) },
   certifications: STR, languages: STR,
+  changes: { type: "array", items: STR },
   notes: { type: "array", items: STR },
 });
 

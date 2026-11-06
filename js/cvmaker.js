@@ -9,8 +9,9 @@
 // - "Print / save as PDF" prints the preview only (text PDF, readable by ATS). "Use as a CV version" saves the plain
 //   text as a CV version (cvs.js), linked to the draft so later saves update it; it then scores offers like any CV.
 // - "Download .txt" gives the same plain text.
-// - loadAiCv() fills the form with a CV written by AI for one offer ("Create my CV for this offer" in tailor.js, via the
-//   cv-tailor function): the AI's notes (gaps, [number?] to fill in) are shown above the form until hidden, and
+// - loadAiCv() fills the form with a CV corrected and tailored by AI for one offer ("Correct, tailor and create my CV" in
+//   tailor.js, via the cv-tailor function): what was changed and the AI's notes (gaps, [number?] to fill in) are shown
+//   above the form until hidden, and
 //   "Use as a CV version" then saves it as a new version named after the offer.
 import { $, h, ls, toast, download } from "./lib.js";
 import { t } from "./i18n.js";
@@ -32,7 +33,7 @@ const EMPTY = { experience: { role: "", company: "", location: "", start: "", en
   involvement: { org: "", role: "", start: "", end: "" } };
 const blank = () => ({ lang: "en", name: "", headline: "", email: "", phone: "", location: "", links: "", summary: "", skills: "",
   experience: [{ ...EMPTY.experience }], education: [{ ...EMPTY.education }], projects: [], involvement: [], certifications: "", languages: "", cvId: null,
-  aiFor: "", aiNotes: [] });
+  aiFor: "", aiChanges: [], aiNotes: [] });
 
 let cv = load(), onSaved = () => {}, timer = 0;
 function load() {
@@ -71,7 +72,9 @@ export function loadAiCv(data, forOffer) {
   if (!next.experience.length) next.experience = [{ ...EMPTY.experience }];
   if (!next.education.length) next.education = [{ ...EMPTY.education }];
   next.aiFor = text(forOffer, 200);
-  next.aiNotes = (Array.isArray(data?.notes) ? data.notes : []).slice(0, 20).map((n) => text(n, 600)).filter(Boolean);
+  const notes = (a) => (Array.isArray(a) ? a : []).slice(0, 20).map((n) => text(n, 600)).filter(Boolean);
+  next.aiChanges = notes(data?.changes);
+  next.aiNotes = notes(data?.notes);
   cv = next; save();
   return true;
 }
@@ -198,15 +201,18 @@ function drawForm() {
 
 // Shown after "Create my CV for this offer": what to check before using the CV.
 function aiPanel() {
-  if (!cv.aiFor && !cv.aiNotes?.length) return null;
+  if (!cv.aiFor && !cv.aiNotes?.length && !cv.aiChanges?.length) return null;
+  const list = (title, items) => (items?.length ? h("div", {}, h("p", { class: "font-medium" }, title),
+    h("ul", { class: "grid gap-1 list-disc pl-5" }, items.map((n) => h("li", {}, n)))) : null);
   const todo = cvText().includes("[number?]");
   return h("div", { class: "rounded-xl p-4 grid gap-2 text-sm", style: "border:1px solid var(--accent);background:var(--soft)" },
     h("p", { class: "font-semibold" }, t("✨ Written by AI for: {offer}", { offer: cv.aiFor || t("this offer") })),
     h("p", { class: "text-xs", style: "color:#f08a24" }, t("Check every line before using it: the AI can make mistakes, and only you know what is true.")),
     todo ? h("p", { class: "text-xs font-medium" }, t("Replace each [number?] with a real number, or delete it, before printing.")) : null,
-    cv.aiNotes?.length ? h("ul", { class: "grid gap-1 list-disc pl-5" }, cv.aiNotes.map((n) => h("li", {}, n))) : null,
+    list(t("What was corrected and tailored"), cv.aiChanges),
+    list(t("Gaps and questions"), cv.aiNotes),
     h("button", { type: "button", class: "btn-ghost justify-self-start !py-1 text-xs",
-      onClick: () => { cv.aiFor = ""; cv.aiNotes = []; save(); drawForm(); } }, t("Hide these notes")));
+      onClick: () => { cv.aiFor = ""; cv.aiChanges = []; cv.aiNotes = []; save(); drawForm(); } }, t("Hide these notes")));
 }
 
 /* ---------- actions ---------- */

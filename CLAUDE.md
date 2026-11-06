@@ -139,8 +139,9 @@ Read the header comment of any file before modifying it; update the header if be
 - js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
 - js/offercheck.js — age of an offer, level (Junior…Lead) and trust warnings (scam signals, stale, no company)
 - js/pulse.js — path market pulse on Home, from the offers seen on the Offers page (local only, "hk.pulse.<path>")
-- js/tailor.js — "Tailor my CV" dialog: honest gap analysis, prompt to copy for the user's own AI, "Rewrite with AI" and
-  "Create my CV for this offer" (cv-tailor function, signed-in users, after a notice; the CV opens in the CV maker)
+- js/tailor.js — "Tailor my CV" dialog: honest gap analysis, prompt to copy for the user's own AI, "Correct, tailor and
+  create my CV" (one AI call: corrected + tailored CV opens in the CV maker with the changes and gaps) and "Rewrite
+  only" (text) (cv-tailor function, signed-in users, after a notice)
 - js/letters.js — letters pack: cover letter prompt to copy (offers, CV match), thank-you / follow-up emails from a
   tracker card (templates EN + FR, copy or open in the email app; nothing is sent by HelloKhedma)
 - js/courses.js — course list and course page (tabs: lessons one at a time, quiz, flashcards, practice, interview, cheat sheet)

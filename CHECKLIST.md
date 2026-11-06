@@ -63,6 +63,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-06 | "Correct, tailor and create my CV": one button, one AI call: the CV corrected (spelling, grammar, tense, dates, wording), tailored to the offer and opened in the CV maker in the new layout, with "What was corrected and tailored" and "Gaps and questions". "Rewrite only (text)" kept. cv-tailor redeployed from GitHub |
 | 2026-11-06 | CV maker layout rebuilt on the owner's CV framework (centered header, uppercase titles over a rule, title / company + dates on the right, context line, grouped skills, new Involvement section), Arial, no icons; printed PDF checked: text reads back cleanly. "Print / save as PDF" no longer adds blank pages. cv-tailor fills the context line and Involvement once redeployed (Actions → Deploy Supabase function → cv-tailor) |
 | 2026-11-06 | SUPABASE_ACCESS_TOKEN secret added (token scoped to HelloKhedma: Edge Functions read-write, project settings read). "Deploy Supabase function" workflow works: cv-tailor deployed from GitHub. Function updates no longer need copying code |
 | 2026-11-06 | "Create my CV for this offer" (Tailor my CV → the whole CV for the offer, written by AI, opens in the CV maker with notes; saved as a version named after the offer). Needs O20 (cv-tailor redeploy). New workflow to deploy functions from GitHub |

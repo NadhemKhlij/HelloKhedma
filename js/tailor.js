@@ -90,9 +90,10 @@ const AI_ERRORS = {
 };
 
 // "Rewrite with AI": signed-in users only, a notice before every send. Two actions, one daily limit:
-// - "Rewrite with AI": rewritten bullet points, gaps and questions as text, with a copy button;
-// - "Create my CV for this offer": the whole CV for the offer, loaded into the CV maker (cvmaker.js, #/cv/maker),
-//   where the user checks it, fills in each [number?] and prints it or saves it as a CV version.
+// - "Correct, tailor and create my CV" (main action, one AI call): the whole CV corrected and tailored to the offer,
+//   loaded into the CV maker (cvmaker.js, #/cv/maker) with what was changed, the gaps and the [number?] to fill in;
+//   the user checks it there and prints it or saves it as a CV version;
+// - "Rewrite with AI": rewritten bullet points, gaps and questions as text only, with a copy button.
 // The CV and the offer go to the cv-tailor function (Claude API) only when the user confirms the notice.
 function aiSection({ offer, r }) {
   const box = h("div", { class: "grid gap-2 pt-3", style: "border-top:1px solid var(--line)" },
@@ -104,8 +105,8 @@ function aiSection({ offer, r }) {
     return box;
   }
   const out = h("div", { class: "grid gap-2", "aria-live": "polite" });
-  const start = h("button", { type: "button", class: "btn", onClick: () => showNotice("rewrite") }, t("✨ Rewrite with AI"));
-  const makeCv = h("button", { type: "button", class: "btn-ghost", onClick: () => showNotice("cv") }, t("📄 Create my CV for this offer"));
+  const makeCv = h("button", { type: "button", class: "btn", onClick: () => showNotice("cv") }, t("✨ Correct, tailor and create my CV"));
+  const start = h("button", { type: "button", class: "btn-ghost", onClick: () => showNotice("rewrite") }, t("✍ Rewrite only (text)"));
 
   function showNotice(mode) {
     out.replaceChildren(h("div", { class: "rounded-lg p-3 text-sm grid gap-2", style: "background:var(--bg);border:1px solid var(--accent)" },
@@ -119,7 +120,7 @@ function aiSection({ offer, r }) {
   async function run(mode) {
     start.disabled = makeCv.disabled = true;
     out.replaceChildren(h("p", { class: "mute text-sm" }, mode === "cv"
-      ? t("Writing your CV for this offer… this can take up to two minutes.") : t("Rewriting… this can take up to a minute.")));
+      ? t("Correcting and tailoring your CV for this offer… this can take up to two minutes.") : t("Rewriting… this can take up to a minute.")));
     try {
       const { data, error } = await sb.functions.invoke("cv-tailor", { body: {
         cv: state.cv.text.slice(0, 12000), offer: { title: offer.title, company: offer.company, text: String(offer.text || "").slice(0, 6000) },
@@ -138,7 +139,7 @@ function aiSection({ offer, r }) {
         if (!loadAiCv(data.cv, [offer.title, offer.company].filter(Boolean).join(" · "))) { out.replaceChildren(); return; }
         $("#tailorDialog").close();
         if (location.hash === "#/cv/maker") renderCvMaker(); else location.hash = "#/cv/maker";
-        toast(t("Your CV for this offer is in the CV maker. Check every line before using it."));
+        toast(t("Your corrected CV for this offer is in the CV maker, with what was changed. Check every line before using it."));
         return;
       }
       const result = h("div", { class: "rounded-lg p-3 text-sm whitespace-pre-wrap", style: "background:var(--bg);border:1px solid var(--line)" }, data.text);
@@ -155,8 +156,8 @@ function aiSection({ offer, r }) {
     } finally { start.disabled = makeCv.disabled = false; }
   }
 
-  box.append(h("p", { class: "mute text-xs" }, t("Claude rewrites your bullet points for this offer, or writes your whole CV for it in the CV maker, with the same honesty rules.")),
-    h("div", { class: "flex flex-wrap gap-2" }, start, makeCv), out);
+  box.append(h("p", { class: "mute text-xs" }, t("One click: Claude corrects your CV (spelling, grammar, dates, wording), tailors it to this offer and opens the finished CV in the CV maker, with the list of changes and the gaps. Same honesty rules: nothing invented.")),
+    h("div", { class: "flex flex-wrap gap-2" }, makeCv, start), out);
   return box;
 }
 

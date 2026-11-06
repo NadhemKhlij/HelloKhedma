@@ -203,7 +203,7 @@ test("CV maker: the form fills the preview, saves a CV version, and the ATS scor
   await expect(page.locator("#atsOut")).toContainText("Standard sections");
 });
 
-// "Create my CV for this offer" needs sign-in and the Claude API, so the function's answer is fed to the CV maker directly.
+// "Correct, tailor and create my CV" needs sign-in and the Claude API, so the function's answer is fed to the CV maker directly.
 test("CV for an offer: an AI CV fills the CV maker with its notes and saves as a version named after the offer", async ({ page }) => {
   await open(page, "#/cv/maker");
   await page.evaluate(async () => {
@@ -214,11 +214,14 @@ test("CV for an offer: an AI CV fills the CV maker with its notes and saves as a
         bullets: "Gestion des incidents via SQL et ELK ([number?] incidents par semaine)\nAutomatisation en Python" }],
       education: [{ degree: "Diplôme d'ingénieur", school: "EFREI", location: "", start: "", end: "2020", details: "" }],
       projects: [], certifications: "", languages: "Français, Anglais",
+      changes: ["Fixed 2 spelling mistakes", "Moved incident bullets first"],
       notes: ["AWS: not shown in your CV.", "How many incidents a week?"], unknown: "ignored" }, "Support Engineer · LSEG");
     renderCvMaker();
   });
   await expect(page.locator("#cvmForm")).toContainText("Written by AI for: Support Engineer · LSEG");
   await expect(page.locator("#cvmForm")).toContainText("AWS: not shown in your CV.");
+  await expect(page.locator("#cvmForm")).toContainText("What was corrected and tailored");
+  await expect(page.locator("#cvmForm")).toContainText("Fixed 2 spelling mistakes");
   await expect(page.locator("#cvmForm")).toContainText("[number?]");
   await expect(page.locator("#cvPreview")).toContainText("Expérience professionnelle");
   await expect(page.locator("#cvPreview")).toContainText("Gestion des incidents via SQL et ELK");

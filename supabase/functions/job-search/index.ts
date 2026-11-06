@@ -79,11 +79,15 @@ const admin = supabaseUrl && serviceKey
   ? createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } })
   : null;
 
-// Signed-in users are limited per account, guests (anon key) per IP. IPs are stored only as a SHA-256 hash
-// (privacy policy: no raw IP addresses kept), and rows older than 24 h are purged.
-async function sha256(text: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+// Signed-in users are limited per account, guests (anon key) per IP. IPs are stored only as a keyed hash
+// (HMAC-SHA-256 with a server-only key): a plain hash of an IPv4 address could be reversed by trying them all, a keyed
+// one cannot without the key (privacy policy: no raw IP addresses kept). Rows older than 24 h are purged on every call.
+let hmacKey: Promise<CryptoKey> | null = null;
+async function ipHash(ip: string): Promise<string> {
+  hmacKey ||= crypto.subtle.importKey("raw", new TextEncoder().encode(`hk-rate-limit:${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", await hmacKey, new TextEncoder().encode(ip));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 async function rateBucket(req: Request): Promise<{ bucket: string; limit: number }> {
   const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
@@ -92,7 +96,7 @@ async function rateBucket(req: Request): Promise<{ bucket: string; limit: number
     if (data?.user) return { bucket: `user:${data.user.id}`, limit: LIMIT_USER };
   }
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
-  return { bucket: `ip:${await sha256(ip)}`, limit: LIMIT_GUEST };
+  return { bucket: `ip:${await ipHash(ip)}`, limit: LIMIT_GUEST };
 }
 
 // deno-lint-ignore no-explicit-any
@@ -292,7 +296,9 @@ Deno.serve(async (req) => {
       p_bucket: bucket, p_limit: limit, p_window_seconds: 3600,
     });
     if (error) console.error("rate limit check failed:", error.message);
-    else if (allowed === false) {
+    // Rate-limit rows (keyed hashes, account ids) are kept 24 h at most: purged on every call.
+    await admin.from("job_search_hits").delete().lt("window_start", new Date(Date.now() - 24 * 3600_000).toISOString());
+    if (!error && allowed === false) {
       return json({ error: "Too many searches in the last hour. Please try again later." }, 429);
     }
 
@@ -332,7 +338,6 @@ Deno.serve(async (req) => {
       .upsert({ key: cacheKey, results: { jobs, warnings }, created_at: new Date().toISOString() });
     if (error) console.error("cache write failed:", error.message);
     await admin.from("job_search_cache").delete().lt("created_at", new Date(Date.now() - CACHE_TTL_MS).toISOString());
-    await admin.from("job_search_hits").delete().lt("window_start", new Date(Date.now() - 24 * 3600_000).toISOString());
   }
   return json({ jobs, warnings });
 });

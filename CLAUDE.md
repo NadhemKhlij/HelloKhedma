@@ -151,6 +151,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/activity.js — XP, study streak, 7-day strip, last course for "Resume" (local only, "hk.activity")
 - js/interview.js — interview prep page
 - sw.js, manifest.json, icons/ — installable app and offline cache
+- fonts/ (Inter, Source Serif 4) and js/vendor/ (supabase-js, pdf-lib): self-hosted, so a page load reaches no third party
+  but Supabase; do not add CDN scripts, fonts or trackers without updating the privacy policy (both languages)
 - js/coursetime.js — lesson and course durations computed from the content (reading + practice)
 - js/projects.js — portfolio projects: Training panel, AI track projects (#/ai) and the project page (#/project/<id>)
 - js/aitrack.js — AI engineer track in Tunisian: track page, Arabic / 3arbizi switch, content and RTL for its courses

@@ -2,7 +2,9 @@
 // scripts/write-config.mjs from GitHub Actions variables, or copied by hand from config.example.js for local work.
 // Only the public anon key belongs here; RLS protects the data. `configured` is false until the config is filled,
 // and the app then shows a setup banner instead of loading.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+// supabase-js 2.45.4 is self-hosted (js/vendor/supabase-js.esm.js, one ESM file built with esbuild): no third-party CDN
+// receives the visitor's IP on every visit (it used to come from esm.sh).
+import { createClient } from "./vendor/supabase-js.esm.js";
 
 let CONFIG = {};
 try {

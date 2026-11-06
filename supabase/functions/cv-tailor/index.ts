@@ -115,6 +115,8 @@ Deno.serve(async (req) => {
   const { data: allowed, error: limitErr } = await admin.rpc("job_search_hit", {
     p_bucket: `tailor:${data.user.id}`, p_limit: DAILY_LIMIT, p_window_seconds: 86400,
   });
+  // Rate-limit rows are kept 24 h at most (privacy policy): purged on every call, here and in job-search.
+  await admin.from("job_search_hits").delete().lt("window_start", new Date(Date.now() - 24 * 3600_000).toISOString());
   if (limitErr) return json({ error: "Could not check the daily limit.", code: "limit_check" }, 500);
   if (!allowed) return json({ error: `Daily limit reached (${DAILY_LIMIT} AI rewrites a day). Try again tomorrow.`, code: "limit" }, 429);
 

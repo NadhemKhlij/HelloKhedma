@@ -168,7 +168,7 @@ normal project page. Next: owner review of the Derja of the courses and projects
   applications, account); app.js keeps start-up, path selection and sign-in (~200 lines).
 - Sync the data that is still local-only to the account: followed companies, saved searches, hidden/seen offers,
   lesson progress, interview ratings and STAR stories, weekly goal (needs a migration with RLS per table). CV versions stay local by design.
-- Self-host the Bricolage Grotesque font instead of Google Fonts (removes a third party from the privacy policy).
+- Done (2026-11-06): fonts and supabase-js self-hosted (no Google Fonts, no esm.sh); a page load reaches only Supabase.
 - Database backups (Supabase Pro) once real users rely on it.
 - Watch API quotas (JSearch free plan, Adzuna) and the rate limits in the Supabase dashboard.
 - supabase/setup-all.sql (one-shot setup for a new project) stops at the first three migrations: add the two

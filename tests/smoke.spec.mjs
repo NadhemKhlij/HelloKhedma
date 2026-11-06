@@ -198,8 +198,10 @@ test("CV maker: the form fills the preview, saves a CV version, and the ATS scor
   const [pdf] = await Promise.all([page.waitForEvent("download"), page.locator("#cvmActions").getByRole("button", { name: "Download PDF" }).click()]);
   expect(pdf.suggestedFilename()).toBe("Test-Person-CV.pdf");
   const bytes = await (await import("node:fs/promises")).readFile(await pdf.path());
+  // A complete PDF: header and end-of-file marker (standard fonts are not embedded, so even a full CV is small).
   expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
-  expect(bytes.length).toBeGreaterThan(1500);
+  expect(bytes.subarray(-8).toString()).toContain("%%EOF");
+  expect(bytes.length).toBeGreaterThan(800);
   await page.locator("#cvmActions").getByRole("button", { name: "Use as a CV version" }).click();
   await page.locator("#cvTabCheck").click();
   await expect(page.locator("#cv")).toHaveValue(/Test Person/);

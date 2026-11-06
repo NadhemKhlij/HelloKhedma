@@ -3,8 +3,9 @@
 // One layout model (cvModel) feeds the preview, the PDF and the plain text, so the three always match. Layout, from the
 // owner's CV framework and the usual ATS guidance: one column; centered name, headline and plain contact line (no
 // icons); standard section titles in capitals over a rule, in this order: Summary, Skills (grouped, one "Group: a, b"
-// per line), Experience, Education, Certifications, Projects, Involvement, Languages; each entry = bold title with the
-// dates on the right, organisation and place below, an optional context line, bullets. Arial / Helvetica only.
+// per line), Experience, Certifications (year on the right), Education, Projects, Volunteering, Languages; each entry =
+// bold title with the dates on the right, bold organisation and grey place below, a grey context line, bullets.
+// Arial / Helvetica only. Checked by an independent recruiter / ATS review (2026-11-06).
 // - The draft is kept in this browser only ("hk.cvmaker"), like every CV text (never sent to Supabase or any API).
 // - CV language (EN / FR) is separate from the interface language: it sets the headings and date words.
 // - "Download PDF" builds the PDF in the browser (cvpdf.js; falls back to printing the page if it cannot load).
@@ -24,9 +25,9 @@ import { cvPdf } from "./cvpdf.js";
 const KEY = "hk.cvmaker";
 const HEAD = {
   en: { summary: "Summary", skills: "Skills", experience: "Experience", education: "Education", projects: "Projects",
-    certifications: "Certifications", languages: "Languages", involvement: "Involvement", present: "Present" },
+    certifications: "Certifications", languages: "Languages", involvement: "Volunteering", present: "Present" },
   fr: { summary: "Profil", skills: "Compétences", experience: "Expérience professionnelle", education: "Formation", projects: "Projets",
-    certifications: "Certifications", languages: "Langues", involvement: "Engagements", present: "Aujourd’hui" },
+    certifications: "Certifications", languages: "Langues", involvement: "Bénévolat", present: "Aujourd’hui" },
 };
 const EMPTY = { experience: { role: "", company: "", location: "", start: "", end: "", context: "", bullets: "" },
   education: { degree: "", school: "", location: "", start: "", end: "", details: "" },
@@ -52,6 +53,13 @@ const join = (...xs) => xs.filter(Boolean).join(", ");
 // Skills: grouped ("Databases: SQL, Oracle", one group per line) or a plain comma-separated list.
 const skillLines = (s) => (s || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
 const grouped = (s) => skillLines(s).some((l) => /^[^:,]{2,40}:\s*\S/.test(l));
+// "2025 - Name" or "Name (2025)" / "Name - 2025" → { text: "Name", right: "2025" }; other lines stay as they are.
+const certLine = (l) => {
+  let m = l.match(/^((?:19|20)\d{2})\s*[-–—:|]\s*(.+)$/);
+  if (m) return { text: m[2].trim(), right: m[1] };
+  m = l.match(/^(.+?)\s*(?:[-–—,|]\s*|\()((?:19|20)\d{2})\)?$/);
+  return m ? { text: m[1].trim(), right: m[2] } : l;
+};
 
 // Fills the form with a CV from the cv-tailor function (mode "cv"). Only known fields are kept, as plain strings.
 // Asks first when the form holds a CV that is not saved as a version. Returns false if the user cancels.
@@ -80,7 +88,7 @@ export function loadAiCv(data, forOffer) {
 }
 
 // The CV as a layout model: { lang, name, headline, contact[], sections: [{ title, blocks }] }. Blocks: { type: "p", text },
-// { type: "label", label, text } (a skill group), { type: "bullets", items }, { type: "entry", title, right, org, place,
+// { type: "label", label, text } (a skill group), { type: "bullets", items: [text | { text, right }] }, { type: "entry", title, right, org, place,
 // context[], bullets[] } (org in bold under the title, place after it). Used by the preview, the PDF (cvpdf.js) and the plain text (what ATS read).
 export function cvModel(c = cv) {
   const H = HEAD[c.lang] || HEAD.en, sections = [];
@@ -92,9 +100,11 @@ export function cvModel(c = cv) {
     : skillsOf(c.skills).length ? [{ type: "p", text: skillsOf(c.skills).join(", ") }] : []);
   add(H.experience, c.experience.filter((e) => e.role || e.company).map((e) =>
     entry(e.role || e.company, dates(e, H), e.role ? e.company : "", e.location, lines(e.context), lines(e.bullets))));
+  // Certifications before Education (screening keywords for experienced candidates); a year at the start or the end of
+  // a line ("2025 - DP-700", "DP-700 (2025)") is shown on the right.
+  add(H.certifications, lines(c.certifications).length ? [{ type: "bullets", items: lines(c.certifications).map(certLine) }] : []);
   add(H.education, c.education.filter((e) => e.degree || e.school).map((e) =>
     entry(e.degree || e.school, dates(e, H), e.degree ? e.school : "", e.location, [], lines(e.details))));
-  add(H.certifications, lines(c.certifications).length ? [{ type: "bullets", items: lines(c.certifications) }] : []);
   add(H.projects, c.projects.filter((p) => p.name).map((p) => entry(p.name, "", "", p.link, [], lines(p.bullets))));
   add(H.involvement, c.involvement.filter((v) => v.org || v.role).map((v) => entry([v.org, v.role].filter(Boolean).join(" – "), dates(v, H), "", "", [], [])));
   add(H.languages, lines(c.languages).length ? [{ type: "p", text: lines(c.languages).join(", ") }] : []);
@@ -110,7 +120,7 @@ export function cvText(c = cv) {
     for (const b of sec.blocks) {
       if (b.type === "p") out.push(b.text);
       else if (b.type === "label") out.push(`${b.label}: ${b.text}`);
-      else if (b.type === "bullets") out.push(...b.items.map((x) => `• ${x}`));
+      else if (b.type === "bullets") out.push(...b.items.map((x) => (typeof x === "string" ? `• ${x}` : `• ${x.text} | ${x.right}`)));
       else out.push([b.title, b.right].filter(Boolean).join(" | "), ...(b.org || b.place ? [join(b.org, b.place)] : []), ...b.context, ...b.bullets.map((x) => `• ${x}`));
     }
   }
@@ -124,7 +134,8 @@ function preview() {
   const block = (b) => {
     if (b.type === "p") return h("p", {}, b.text);
     if (b.type === "label") return h("p", {}, h("b", {}, `${b.label}: `), b.text);
-    if (b.type === "bullets") return ul(b.items);
+    if (b.type === "bullets") return b.items.length ? h("ul", {}, b.items.map((x) => (typeof x === "string" ? h("li", {}, x)
+      : h("li", { class: "cvp-dated" }, h("span", {}, x.text), h("span", { class: "cvp-when" }, x.right))))) : null;
     return h("div", { class: "cvp-entry" },
       h("div", { class: "cvp-row" }, h("span", { class: "cvp-title" }, b.title), b.right ? h("span", { class: "cvp-when" }, b.right) : null),
       b.org || b.place ? h("div", { class: "cvp-sub" }, b.org ? h("b", {}, b.org) : null, b.org && b.place ? ", " : "", b.place ? h("span", { class: "cvp-place" }, b.place) : null) : null,
@@ -203,7 +214,7 @@ function drawForm() {
       field(t("Details (optional, one per line)"), "details", e, { rows: 2, wide: true })]),
     list("projects", t("Projects"), (p) => [field(t("Project name"), "name", p), field(t("Link (GitHub, demo)"), "link", p),
       field(t("What you built and the result"), "bullets", p, { rows: 3, wide: true })]),
-    list("involvement", t("Involvement"), (v) => [field(t("Organisation"), "org", v), field(t("Role"), "role", v),
+    list("involvement", t("Volunteering"), (v) => [field(t("Organisation"), "org", v), field(t("Role"), "role", v),
       h("div", { class: "grid grid-cols-2 gap-2 sm:col-span-2" }, field(t("Start"), "start", v, { ph: "2017" }), field(t("End"), "end", v, { ph: "2018" }))]),
     group(t("Certifications and languages"), field(t("Certifications (one per line)"), "certifications", cv, { rows: 2 }),
       field(t("Languages (e.g. French: native, English: C1)"), "languages", cv, { rows: 2 })),

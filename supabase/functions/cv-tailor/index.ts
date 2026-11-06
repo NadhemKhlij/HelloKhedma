@@ -69,8 +69,8 @@ Rules:
 - Write the CV in the language of the job offer (lang "fr" for French, "en" otherwise), translating the CV content faithfully when needed.
 - context: an optional one-line description of the team, product or scope of a job, taken from the CV (e.g. "Within the regulatory reporting team…"); when the CV lists the tools of a job, end the context with them ("… Tools: Snowflake, SQL, Git") instead of making a bullet of them; empty if the CV has none of this.
 - skills: always grouped, one group per line ("Databases: SQL, Oracle"), 4 to 7 lines, the groups the offer cares about first; each skill once.
-- involvement: volunteering, associations and events from the CV (organisation, role, dates); empty if none.
-- Bullets, details, links and certifications: one per line, with no leading dash. Dates as written in the CV (e.g. "03/2023" or "2019"); end is empty for a current job.
+- involvement: volunteering, associations and events from the CV (organisation, role, dates); empty if none. Never put a paid job here.
+- Bullets, details, links and certifications: one per line, with no leading dash. Certifications: "Name (Issuer), YYYY", most recent first. Dates as MM/YYYY (e.g. "03/2023"), or YYYY alone when the CV gives only the year; never abbreviated month names; end is empty for a current job.
 - changes: short notes for the job seeker, in the language given in the request, listing what you corrected (e.g. "Fixed 3 spelling mistakes", "Put every date as Mon. YYYY") and the main ways you tailored the CV to the offer (bullets moved up, wording aligned, bullets dropped).
 - notes: short notes for the job seeker, in the language given in the request: each requirement of the offer the CV does not show (with an honest way to address it) and each [number?] to fill in.`;
 

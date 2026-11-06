@@ -776,7 +776,7 @@ export default {
   "Skills": "Compétences",
   "One group per line (\"Databases: SQL, Oracle\") or a comma-separated list, with the exact words recruiters use": "Un groupe par ligne (« Bases de données : SQL, Oracle ») ou une liste séparée par des virgules, avec les mots exacts des recruteurs",
   "Context (optional): team, product, scope": "Contexte (facultatif) : équipe, produit, périmètre",
-  "Involvement": "Engagements",
+  "Volunteering": "Bénévolat",
   "Organisation": "Organisation",
   "Role": "Rôle",
   "Experience": "Expérience",

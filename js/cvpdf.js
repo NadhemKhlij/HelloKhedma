@@ -4,27 +4,50 @@
 // differ between phones and computers. Here the file is the same everywhere, with exact margins and page breaks.
 // ATS rules followed: one column, Helvetica (the PDF standard font, metrically identical to Arial), no images, icons,
 // tables, headers or footers; text drawn left to right and top to bottom so it is extracted in reading order; standard
-// section titles; a section title never ends a page, an entry's title lines stay together, a bullet is never split.
+// section titles. Page breaks: a section title never ends a page, an entry's title lines stay with what follows, a
+// bullet is never split, an entry's last two bullets stay together. When the last page would be mostly empty, compact
+// passes (smaller gaps, then slightly smaller type, never under 10 pt body text) are tried and kept if they save it.
+// Text widths are summed per character: pdf-lib's widthOfTextAtSize adds kerning that drawText does not apply.
 // Characters outside the standard font (WinAnsi) are replaced by their closest plain form.
 
 const MM = 72 / 25.4;
 const PAGE = { w: 210 * MM, h: 297 * MM };
-const M = { top: 14 * MM, bottom: 14 * MM, side: 16 * MM };
-const SIZE = { name: 20, head: 11.5, contact: 9.5, h2: 11.5, body: 10.5, when: 10 };
-const LEAD = 1.27; // line height, times the font size
-const COLOR = { ink: [0.12, 0.176, 0.302], text: [0.1, 0.1, 0.1], mute: [0.3, 0.3, 0.3] };
+// Sizes in pt. "compact" and "tight" are only used when they save a page (see cvPdf); body text stays >= 10 pt.
+const STYLES = {
+  normal: { name: 20, head: 11.5, contact: 9.5, h2: 11.5, title: 11, body: 10.5, when: 10, lead: 1.22,
+    marginY: 14 * MM, marginX: 16 * MM, secGap: 14, ruleGap: 3.5, afterRule: 6, entryGap: 6, bulletGap: 2.5, paraGap: 2 },
+  compact: { name: 19, head: 11, contact: 9.5, h2: 11, title: 10.5, body: 10, when: 9.5, lead: 1.18,
+    marginY: 12 * MM, marginX: 15 * MM, secGap: 10, ruleGap: 3, afterRule: 4.5, entryGap: 4, bulletGap: 1.5, paraGap: 1.5 },
+  tight: { name: 18, head: 10.5, contact: 9, h2: 10.5, title: 10.5, body: 10, when: 9.5, lead: 1.14,
+    marginY: 11 * MM, marginX: 14 * MM, secGap: 8, ruleGap: 2.5, afterRule: 4, entryGap: 3.5, bulletGap: 1, paraGap: 1 },
+};
+const COLOR = { ink: [0.12, 0.176, 0.302], text: [0.1, 0.1, 0.1], mute: [0.33, 0.33, 0.33] };
+const BULLET_INDENT = 11;
 
 let libPromise;
 const loadLib = () => (libPromise ||= import(new URL("./vendor/pdf-lib.esm.min.js", import.meta.url).href));
 
 // Returns the PDF bytes (Uint8Array) for a cvModel() result.
 export async function cvPdf(model) {
-  const { PDFDocument, StandardFonts, rgb } = await loadLib();
+  const lib = await loadLib();
+  const normal = await build(lib, model, STYLES.normal);
+  // A last page under 40% full looks unfinished: try the compact styles and keep the first one that saves that page.
+  if (normal.pages > 1 && normal.lastFill < 0.4) {
+    for (const style of [STYLES.compact, STYLES.tight]) {
+      const fit = await build(lib, model, style);
+      if (fit.pages < normal.pages) return fit.doc.save();
+    }
+  }
+  return normal.doc.save();
+}
+
+async function build({ PDFDocument, StandardFonts, rgb }, model, S) {
   const doc = await PDFDocument.create();
   const F = { reg: await doc.embedFont(StandardFonts.Helvetica), bold: await doc.embedFont(StandardFonts.HelveticaBold) };
   const supported = new Set(F.reg.getCharacterSet());
   const color = (c) => rgb(...COLOR[c]);
-  const W = PAGE.w - 2 * M.side, X0 = M.side, X1 = PAGE.w - M.side;
+  const W = PAGE.w - 2 * S.marginX, X0 = S.marginX, X1 = PAGE.w - S.marginX;
+  const lh = (size) => size * S.lead;
 
   // Plain-form fallback for characters the standard font cannot draw.
   const MAP = { "→": "->", "←": "<-", "⇒": "=>", "≥": ">=", "≤": "<=", "✓": "-", " ": " ", " ": " ", " ": " ", "‑": "-", "‐": "-" };
@@ -34,9 +57,19 @@ export async function cvPdf(model) {
     const base = ch.normalize("NFKD").replace(/[̀-ͯ]/g, "");
     return [...base].every((c) => supported.has(c.codePointAt(0))) ? base : "";
   }).join("").replace(/\s+/g, " ").trim();
-  const width = (text, font, size) => font.widthOfTextAtSize(text, size);
+  // Width as drawn (no kerning): sum of the character widths.
+  const cache = new Map();
+  const width = (text, font, size) => {
+    let w = 0;
+    for (const ch of text) {
+      const key = `${font === F.bold ? "b" : "r"}${ch}`;
+      if (!cache.has(key)) cache.set(key, font.widthOfTextAtSize(ch, 1000));
+      w += cache.get(key);
+    }
+    return (w * size) / 1000;
+  };
 
-  // Word wrap of runs [{ text, font }] into lines of runs within maxW. A word longer than a line (a URL) is cut.
+  // Word wrap of runs [{ text, font, color }] into lines of runs within maxW. A word longer than a line (a URL) is cut.
   function wrap(runs, size, maxW) {
     const lines = [];
     let line = [], x = 0;
@@ -67,96 +100,99 @@ export async function cvPdf(model) {
     return lines;
   }
 
-  let page, y;
-  const newPage = () => { page = doc.addPage([PAGE.w, PAGE.h]); y = PAGE.h - M.top; };
-  const room = (hgt) => y - hgt >= M.bottom;
-  const ensure = (hgt) => { if (!room(hgt)) newPage(); };
-  const lh = (size) => size * LEAD;
-  // Draws one line of runs with its baseline at the current line; x from the left margin (or centered).
-  function drawRuns(runs, size, x, c, { center = false } = {}) {
+  let page, y, pages = 0;
+  const newPage = () => { page = doc.addPage([PAGE.w, PAGE.h]); y = PAGE.h - S.marginY; pages++; };
+  const ensure = (hgt) => { if (y - hgt < S.marginY) newPage(); };
+  // Draws one line of runs. The baseline is y - base (base = the size of the line's main text), so text of another
+  // size on the same line (the dates) shares the baseline.
+  function drawRuns(runs, size, x, c, { center = false, base = size } = {}) {
     const total = runs.reduce((s, r) => s + width(r.text, r.font, size), 0);
     let cx = center ? X0 + (W - total) / 2 : x;
-    for (const r of runs) { page.drawText(r.text, { x: cx, y: y - size, size, font: r.font, color: color(r.color || c) }); cx += width(r.text, r.font, size); }
+    for (const r of runs) { page.drawText(r.text, { x: cx, y: y - base, size, font: r.font, color: color(r.color || c) }); cx += width(r.text, r.font, size); }
   }
-  const linesOf = (runs, size, maxW) => wrap(runs, size, maxW);
 
   newPage();
 
-  // Header: name, headline, contact line (items never broken: wrapped at the " | " between items).
-  y -= 2;
-  drawRuns([{ text: clean(model.name), font: F.bold }], SIZE.name, X0, "ink", { center: true });
-  y -= lh(SIZE.name);
+  // Header: name, headline, contact line (items never broken: wrapped at the separators between items).
+  drawRuns([{ text: clean(model.name), font: F.bold }], S.name, X0, "ink", { center: true });
+  y -= lh(S.name) + 1;
   if (model.headline) {
-    for (const line of linesOf([{ text: model.headline, font: F.bold }], SIZE.head, W)) { drawRuns(line, SIZE.head, X0, "text", { center: true }); y -= lh(SIZE.head); }
+    for (const line of wrap([{ text: model.headline, font: F.reg }], S.head, W)) { drawRuns(line, S.head, X0, "text", { center: true }); y -= lh(S.head); }
   }
   if (model.contact.length) {
     const items = model.contact.map(clean).filter(Boolean), sep = "  |  ", rows = [[]];
     for (const it of items) {
-      const row = rows[rows.length - 1], test = [...row, it].join(sep);
-      if (row.length && width(test, F.reg, SIZE.contact) > W) rows.push([it]); else row.push(it);
+      const row = rows[rows.length - 1];
+      if (row.length && width([...row, it].join(sep), F.reg, S.contact) > W) rows.push([it]); else row.push(it);
     }
     y -= 1;
-    for (const row of rows) { drawRuns([{ text: row.join(sep), font: F.reg }], SIZE.contact, X0, "mute", { center: true }); y -= lh(SIZE.contact); }
+    for (const row of rows) { drawRuns([{ text: row.join(sep), font: F.reg }], S.contact, X0, "mute", { center: true }); y -= lh(S.contact); }
   }
 
-  const B = SIZE.body, BL = lh(B);
-  const bulletIndent = 11;
-  for (const [si, sec] of model.sections.entries()) {
-    // Section title: never alone at the bottom of a page (title + rule + first two lines must fit).
-    const gapBefore = si ? 12 : 10;
-    ensure(gapBefore + lh(SIZE.h2) + 4 + 2 * BL);
-    y -= gapBefore;
-    drawRuns([{ text: clean(sec.title).toUpperCase(), font: F.bold }], SIZE.h2, X0, "ink");
-    y -= lh(SIZE.h2) - 1;
-    page.drawLine({ start: { x: X0, y }, end: { x: X1, y }, thickness: 0.9, color: color("ink") });
-    y -= 5;
+  const B = S.body, BL = lh(B);
+  const bulletLines = (item) => wrap([{ text: item.text, font: F.reg }], B, W - BULLET_INDENT - (item.right ? width(item.right, F.reg, S.when) + 12 : 0));
+  const bulletHeight = (item) => bulletLines(item).length * BL + S.bulletGap;
 
+  function bullets(items) {
+    items.forEach((item, i) => {
+      const lines = bulletLines(item);
+      // A bullet is never split; the last two bullets of a list stay together (no lone bullet on a new page).
+      ensure(i === items.length - 2 ? bulletHeight(item) + bulletHeight(items[i + 1]) : lines.length * BL);
+      lines.forEach((line, j) => {
+        if (!j) {
+          drawRuns([{ text: "•", font: F.reg }], B, X0 + 2, "text");
+          if (item.right) drawRuns([{ text: clean(item.right), font: F.reg }], S.when, X1 - width(clean(item.right), F.reg, S.when), "text", { base: B });
+        }
+        drawRuns(line, B, X0 + BULLET_INDENT, "text"); y -= BL;
+      });
+      y -= S.bulletGap;
+    });
+  }
+
+  // Entry: title (bold, ink) with the dates on the right on the same baseline; organisation (bold) and place (grey)
+  // below; context (grey); bullets.
+  function entry(e) {
+    const whenText = clean(e.right), whenW = whenText ? width(whenText, F.reg, S.when) : 0;
+    const TL = lh(S.title);
+    const titleLines = wrap([{ text: e.title, font: F.bold }], S.title, W - (whenW ? whenW + 14 : 0));
+    const subRuns = [...(e.org ? [{ text: e.org, font: F.bold }] : []), ...(e.place ? [{ text: `${e.org ? ", " : ""}${e.place}`, font: F.reg, color: "mute" }] : [])];
+    const subLines = subRuns.length ? wrap(subRuns, B, W) : [];
+    const ctxLines = e.context.flatMap((c) => wrap([{ text: c, font: F.reg }], B, W));
+    const items = e.bullets.map((text) => ({ text }));
+    // Title lines + at least two lines of what follows stay on the same page.
+    const follow = Math.min(2, ctxLines.length + items.reduce((n, it) => n + bulletLines(it).length, 0));
+    ensure(S.entryGap + titleLines.length * TL + (subLines.length + follow) * BL);
+    y -= S.entryGap;
+    titleLines.forEach((line, i) => {
+      drawRuns(line, S.title, X0, "ink");
+      if (!i && whenText) drawRuns([{ text: whenText, font: F.reg }], S.when, X1 - whenW, "text", { base: S.title });
+      y -= TL;
+    });
+    for (const line of subLines) { drawRuns(line, B, X0, "text"); y -= BL; }
+    for (const line of ctxLines) { ensure(BL); drawRuns(line, B, X0, "mute"); y -= BL; }
+    if (items.length) { y -= 1; bullets(items); }
+  }
+
+  for (const [si, sec] of model.sections.entries()) {
+    // Section title: never alone at the bottom of a page (title + rule + two lines must fit).
+    const gap = si ? S.secGap : S.secGap - 2;
+    ensure(gap + lh(S.h2) + S.ruleGap + S.afterRule + 2 * BL);
+    y -= gap;
+    drawRuns([{ text: clean(sec.title).toUpperCase(), font: F.bold }], S.h2, X0, "ink");
+    y -= S.h2 + S.ruleGap;
+    page.drawLine({ start: { x: X0, y }, end: { x: X1, y }, thickness: 0.5, color: color("ink") });
+    y -= S.afterRule;
     for (const blk of sec.blocks) {
       if (blk.type === "p" || blk.type === "label") {
         const runs = blk.type === "p" ? [{ text: blk.text, font: F.reg }] : [{ text: `${blk.label}:`, font: F.bold }, { text: ` ${blk.text}`, font: F.reg }];
-        const lines = linesOf(runs, B, W);
-        for (const line of lines) { ensure(BL); drawRuns(line, B, X0, "text"); y -= BL; }
-        y -= 1.5;
+        for (const line of wrap(runs, B, W)) { ensure(BL); drawRuns(line, B, X0, "text"); y -= BL; }
+        y -= S.paraGap;
       } else if (blk.type === "bullets") {
-        bullets(blk.items);
+        bullets(blk.items.map((it) => (typeof it === "string" ? { text: it } : it)));
       } else if (blk.type === "entry") {
         entry(blk);
       }
     }
-  }
-
-  function bullets(items) {
-    for (const item of items) {
-      const lines = linesOf([{ text: item, font: F.reg }], B, W - bulletIndent);
-      ensure(lines.length * BL); // a bullet is never split across pages
-      lines.forEach((line, i) => {
-        if (!i) drawRuns([{ text: "•", font: F.reg }], B, X0 + 2, "text");
-        drawRuns(line, B, X0 + bulletIndent, "text"); y -= BL;
-      });
-      y -= 0.8;
-    }
-  }
-
-  // Entry: title (bold) with dates on the right; organisation and place below; context; bullets.
-  function entry(e) {
-    const whenText = clean(e.right), whenW = whenText ? width(whenText, F.reg, SIZE.when) : 0;
-    const titleLines = linesOf([{ text: e.title, font: F.bold }], B, W - (whenW ? whenW + 14 : 0));
-    const subRuns = [...(e.org ? [{ text: e.org, font: F.bold }] : []), ...(e.place ? [{ text: `${e.org ? ", " : ""}${e.place}`, font: F.reg, color: "mute" }] : [])];
-    const subLines = subRuns.length ? linesOf(subRuns, B, W) : [];
-    const ctxLines = e.context.flatMap((c) => linesOf([{ text: c, font: F.reg }], B, W));
-    const firstBullet = e.bullets[0] ? linesOf([{ text: e.bullets[0], font: F.reg }], B, W - bulletIndent).length : 0;
-    // Title, organisation and at least the first line of what follows stay on the same page.
-    ensure((titleLines.length + subLines.length + Math.min(1, ctxLines.length + firstBullet)) * BL + 5);
-    y -= 5;
-    titleLines.forEach((line, i) => {
-      drawRuns(line, B, X0, "ink");
-      if (!i && whenText) drawRuns([{ text: whenText, font: F.reg }], SIZE.when, X1 - whenW, "mute");
-      y -= BL;
-    });
-    for (const line of subLines) { drawRuns(line, B, X0, "text"); y -= BL; }
-    for (const line of ctxLines) { ensure(BL); drawRuns(line, B, X0, "mute"); y -= BL; }
-    if (e.bullets.length) { y -= 0.5; bullets(e.bullets); }
-    y -= 1;
   }
 
   doc.setTitle(clean(`${model.name} - CV`));
@@ -165,5 +201,6 @@ export async function cvPdf(model) {
   doc.setLanguage(model.lang === "fr" ? "fr-FR" : "en-GB");
   doc.setCreator("HelloKhedma");
   doc.setProducer("HelloKhedma");
-  return doc.save();
+  const usable = PAGE.h - 2 * S.marginY;
+  return { doc, pages, lastFill: (PAGE.h - S.marginY - y) / usable };
 }

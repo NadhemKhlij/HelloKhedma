@@ -26,9 +26,10 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   Failures show as annotations on the run, readable without signing in:
   api.github.com/repos/NadhemKhlij/HelloKhedma/check-runs/<job id>/annotations. No Node on the owner's machine:
   check changes on a branch first.
-- Deploy: push to `main`; .github/workflows/deploy.yml builds, runs the smoke tests and publishes to GitHub Pages.
+- Deploy: push to `main`; .github/workflows/deploy.yml builds, runs the smoke tests and publishes to GitHub Pages,
+  live at https://hellokhedma.io (custom domain set in GitHub → Settings → Pages; DNS at Cloudflare, "DNS only").
 - Preview branches: a branch listed in PREVIEW_BRANCHES (deploy.yml) is published with main under
-  `preview/<branch>/` (e.g. nadhemkhlij.github.io/HelloKhedma/preview/<branch>/). Pushing it runs its tests,
+  `preview/<branch>/` (e.g. hellokhedma.io/preview/<branch>/). Pushing it runs its tests,
   then a publish run on main. A preview build keeps its own browser data ("preview:hk.*", js/lib.js), registers no
   service worker and shows a banner. Remove the branch from PREVIEW_BRANCHES once merged.
 

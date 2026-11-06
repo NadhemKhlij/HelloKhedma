@@ -3,7 +3,7 @@
 **A job hunting companion for tech careers.** Pick a career path and the whole app adapts to it: live job
 offers, learning tracks and courses, CV tools with an ATS score, interview prep and a Kanban application tracker.
 
-Live: **https://nadhemkhlij.github.io/HelloKhedma/** · English and French · installable on phone and desktop (PWA)
+Live: **https://hellokhedma.io** · English and French · installable on phone and desktop (PWA)
 
 Career paths: **Data Engineer · Business Analyst · Application Support · Data Analyst · DevOps Engineer**,
 plus an **AI engineer track in Tunisian Derja** (Arabic letters or 3arbizi).
@@ -106,6 +106,9 @@ remote boards are called from the browser and need no setup.
 2. **Settings → Secrets and variables → Actions → Variables:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`; optional
    `DEFAULT_COUNTRY`, `CONTACT_EMAIL`, `SENTRY_DSN`.
 3. Push to `main`, then add the site URL to Supabase **Auth → Redirect URLs**.
+
+The live site uses a custom domain: DNS at Cloudflare (4 `A` records to GitHub Pages, `www` CNAME to
+`<user>.github.io`, all "DNS only"), then **Settings → Pages → Custom domain** + **Enforce HTTPS**.
 
 Branches listed in `PREVIEW_BRANCHES` (deploy.yml) are also published under `preview/<branch>/`.
 Other static hosts work too: build command `npm run build`, output directory `/`, same environment variables.

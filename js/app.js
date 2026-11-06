@@ -156,9 +156,10 @@ function initMonitoring() {
 }
 
 // Visitor counts (CONFIG.CF_ANALYTICS_TOKEN, 2026-11-06): Cloudflare Web Analytics, cookie-free, aggregated page views
-// only (privacy policy); never on a preview build, so test visits are not counted.
+// only (privacy policy); never on a preview build or a local / test server (localhost, 127.x: the smoke tests in CI),
+// so test visits are not counted (and Cloudflare refuses those origins anyway).
 function initWebAnalytics() {
-  if (!CONFIG.CF_ANALYTICS_TOKEN || PREVIEW) return;
+  if (!CONFIG.CF_ANALYTICS_TOKEN || PREVIEW || /^(localhost|127\.|\[?::1\]?$|0\.0\.0\.0)/.test(location.hostname)) return;
   const s = document.createElement("script");
   s.defer = true;
   s.src = "https://static.cloudflareinsights.com/beacon.min.js";

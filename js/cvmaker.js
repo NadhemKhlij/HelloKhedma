@@ -114,7 +114,7 @@ function preview() {
     : skillsOf(cv.skills).length ? h("p", {}, skillsOf(cv.skills).join(", ")) : null;
   return h("article", { id: "cvPreview", class: "cvp", lang: cv.lang },
     h("header", {}, h("h1", {}, cv.name || t("Your name")), cv.headline ? h("p", { class: "cvp-head" }, cv.headline) : null,
-      contact.length ? h("p", { class: "cvp-contact" }, contact.join(" | ")) : null),
+      contact.length ? h("p", { class: "cvp-contact" }, contact.flatMap((x, i) => [i ? " | " : "", h("span", {}, x)])) : null),
     sec(H.summary, lines(cv.summary).map((x) => h("p", {}, x))),
     sec(H.experience, cv.experience.filter((e) => e.role || e.company).map((e) => entry(e.role, e.company, when(e, H), lines(e.context), lines(e.bullets)))),
     sec(H.education, cv.education.filter((e) => e.degree || e.school).map((e) => entry(e.degree, e.school, when(e, H), [], lines(e.details)))),

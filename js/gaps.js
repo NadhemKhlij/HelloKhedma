@@ -5,7 +5,8 @@
 // 2. unfinished steps of the path's learning tracks (Supabase training_steps in state.tracks) whose title or
 //    description names a missing skill: provider, hours, free or paid, external link;
 // 3. portfolio projects of the path (content/projects) that use a missing skill, to prove it on the CV (async).
-// Skills with nothing to learn here are listed too. Everything runs in the browser; nothing is sent anywhere.
+// Skills with nothing to learn here are listed too. Courses whose skill check was passed (srs.js) are not proposed:
+// those skills are known, so the box says to put them on the CV instead. Everything runs in the browser.
 import { h, safeUrl } from "./lib.js";
 import { t } from "./i18n.js";
 import { state, path } from "./state.js";
@@ -14,6 +15,7 @@ import { courseForSkill, courseMeta } from "./courses.js";
 import { formatMinutes } from "./coursetime.js";
 import { loadProjects } from "./projects.js";
 import { stepsOf } from "./training.js";
+import { passedCourses } from "./srs.js";
 
 const MAX_COURSES = 5, MAX_STEPS = 3, MAX_PROJECTS = 2;
 
@@ -29,7 +31,8 @@ export function gapTrainings(missing, { onOpen = () => {} } = {}) {
     const id = courseForSkill(skill);
     if (id) byCourse.set(id, [...(byCourse.get(id) || []), skill]);
   }
-  const courses = [...byCourse].map(([id, skills]) => ({ c: courseMeta(id), skills })).filter((x) => x.c && x.c.done < 1)
+  const known = passedCourses(), knownSkills = [...byCourse].filter(([id]) => known.has(id)).flatMap(([, skills]) => skills);
+  const courses = [...byCourse].filter(([id]) => !known.has(id)).map(([id, skills]) => ({ c: courseMeta(id), skills })).filter((x) => x.c && x.c.done < 1)
     .sort((a, b) => b.skills.length - a.skills.length || a.c.minutes - b.c.minutes);
   const covered = new Set([...byCourse.values()].flat());
 
@@ -79,6 +82,7 @@ export function gapTrainings(missing, { onOpen = () => {} } = {}) {
           h("span", { class: "ml-auto text-xs font-medium", style: "color:var(--accent)" }, url ? "↗" : "→"));
       })) : null,
     projectsBox,
+    knownSkills.length ? h("p", { class: "text-xs", style: "color:#18a999" }, t("✓ Skill check passed for {list}: you know them, so write them on your CV.", { list: knownSkills.join(", ") })) : null,
     uncovered.length ? h("p", { class: "mute text-xs" }, t("No HelloKhedma training yet for: {list}. Learn them from the job's documentation or a course you trust.", { list: uncovered.join(", ") })) : null,
     h("a", { href: "#/training", class: "text-sm underline justify-self-start", style: "color:var(--accent)", onClick: onOpen }, t("See your study plan on Training →")));
 

@@ -19,7 +19,7 @@ import { addKeywords } from "./ats.js";
 import { initAuth } from "./auth.js";
 import { state, path, byKind, fail } from "./state.js";
 import { pathArt } from "./icons.js";
-import { showRoute, refreshInterview, coursesReady } from "./router.js";
+import { showRoute, refreshInterview, refreshSkillCheck, coursesReady } from "./router.js";
 import { PROG_KEY, loadTracks, loadProgress, renderLearn, initTraining } from "./training.js";
 import { renderSearchControls, renderOffers, resetOffers, loadCompanyJobs, initOffers } from "./offers.js";
 import { renderCvVersions, renderCvSkills, useCvForPath, initCvPage } from "./cvpage.js";
@@ -99,7 +99,7 @@ async function selectPath(id) {
   useCvForPath(id); // skills are re-extracted with the new path keywords
   renderAll(); renderCvSkills(); renderOffers();
   if (state.offerMode === "companies") loadCompanyJobs(); // "only roles for my path" depends on the path
-  refreshInterview();
+  refreshInterview(); refreshSkillCheck();
   if (state.user) sb.from("profiles").upsert({ user_id: state.user.id, selected_path: id });
 }
 
@@ -223,7 +223,7 @@ async function init() {
   refreshInterview();
 
   await loadProgress();
-  renderAll();
+  renderAll(); refreshSkillCheck();
   await refreshTracker();
   initAuth({ onUser });
 }

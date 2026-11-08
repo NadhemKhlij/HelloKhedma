@@ -12,13 +12,15 @@ import { renderAiTrack } from "./aitrack.js";
 import { refreshLearning } from "./training.js";
 import { renderHome } from "./home.js";
 import { renderAdmin } from "./admin.js";
+import { renderReview } from "./review.js";
+import { renderSkillCheck } from "./skillcheck.js";
 
 const ROUTES = {
   home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course",
   account: "Your account & data", legal: "Legal notice", privacy: "Privacy policy", interview: "Interview prep",
-  project: "Portfolio project", ai: "AI engineer in Tunisian", admin: "Site statistics",
+  project: "Portfolio project", ai: "AI engineer in Tunisian", admin: "Site statistics", review: "Review today", skillcheck: "Skill check",
 };
-const NAV_OF = { course: "training", project: "training", ai: "training", admin: "account" }; // which nav tab is highlighted for sub-pages
+const NAV_OF = { course: "training", project: "training", ai: "training", admin: "account", review: "training", skillcheck: "training" }; // which nav tab is highlighted for sub-pages
 export const coursesReady = loadCourseIndex();
 
 const routeOf = () => {
@@ -39,6 +41,10 @@ export function showRoute(moveFocus) {
     coursesReady.then(() => renderCourse(param)).then(() => { if (moveFocus) $("#h-course")?.focus({ preventScroll: true }); });
   } else if (r === "ai") {
     renderAiTrack().then(() => { if (moveFocus) $("#h-ai")?.focus({ preventScroll: true }); });
+  } else if (r === "review") {
+    renderReview(param).then(() => { if (moveFocus) $("#h-review")?.focus({ preventScroll: true }); });
+  } else if (r === "skillcheck") {
+    if (path()) renderSkillCheck().then(() => { if (moveFocus) $("#h-skillcheck")?.focus({ preventScroll: true }); });
   } else if (r === "project") {
     renderProject(param).then(() => { if (moveFocus) $("#h-project")?.focus({ preventScroll: true }); });
   } else if (moveFocus) $(`#h-${r}`)?.focus({ preventScroll: true });
@@ -47,6 +53,11 @@ export function showRoute(moveFocus) {
   if (r === "cv" && path()) showCvTab(param); // #/cv/maker opens the CV maker tab
   if (r === "training" && path()) refreshLearning(); // lessons, quiz scores and XP may have changed on a course page
   if (r === "home" && path()) renderHome(); // streak
+}
+
+// The skill check lists the courses of the selected path: drawn again once the path is loaded or changed.
+export function refreshSkillCheck() {
+  if (routeOf().r === "skillcheck" && path()) renderSkillCheck();
 }
 
 // The interview page depends on the path (role questions, courses) and the tracker (upcoming interviews).

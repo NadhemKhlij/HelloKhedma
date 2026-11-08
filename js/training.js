@@ -2,7 +2,8 @@
 // (guests: "hk.progress.v2"; signed in: step_progress, guest progress imported on sign-in by app.js), the weekly
 // study plan ("hk.hours" h/week), tools, tips, the course list (courses.js) and the portfolio projects (projects.js).
 // Tracks are drawn as a roadmap (done / current / upcoming nodes); "My learning" shows the streak, XP and the course to
-// resume (activity.js). Ticking a step adds XP.
+// resume (activity.js), then "Learn smarter": the flashcards due for review (#/review) and the skill check
+// (#/skillcheck), srs.js. The study plan leaves out the courses whose skill check was passed. Ticking a step adds XP.
 import { $, h, safeUrl, ls } from "./lib.js";
 import { activityStrip, lastCourse, logActivity, streak } from "./activity.js";
 import { t, tn, LOCALE, localize } from "./i18n.js";
@@ -12,6 +13,7 @@ import { extractSkills } from "./ats.js";
 import { renderCourseList, courseForSkill, courseMeta } from "./courses.js";
 import { renderHome } from "./home.js";
 import { renderProjectList } from "./projects.js";
+import { dueCards, passedCourses } from "./srs.js";
 
 export const PROG_KEY = "hk.progress.v2";
 const LEVEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
@@ -130,7 +132,21 @@ function renderHub() {
         h("span", { class: "mute text-xs" }, t("Lesson {n} · {p}% done", { n: (last.lesson || 0) + 1, p: Math.round(c.done * 100) }))),
       h("span", { class: "ml-auto", style: "color:var(--accent)" }, "→"))
       : h("p", { class: "mute text-sm max-w-xs" }, streak() ? t("Keep the streak going: one lesson or ten flashcards is enough today.")
-        : t("Study a little every day: lessons, quizzes and flashcards all count toward your streak."))));
+        : t("Study a little every day: lessons, quizzes and flashcards all count toward your streak."))),
+  learnSmarter());
+}
+// Two shortcuts: today's reviews and the skill check.
+function learnSmarter() {
+  const due = dueCards().length, known = passedCourses().size;
+  const tile = (href, icon, title, text, attrs = {}) => h("a", { href, class: "panel !shadow-none flex items-center gap-3 !py-3 !px-4", ...attrs },
+    h("span", { class: "text-2xl", "aria-hidden": "true" }, icon),
+    h("span", { class: "min-w-0 flex-1" }, h("b", { class: "block" }, title), h("span", { class: "mute text-xs" }, text)),
+    h("span", { style: "color:var(--accent)" }, "→"));
+  return h("div", { class: "grid gap-3 sm:grid-cols-2 mt-4" },
+    tile("#/review", "🔁", due ? tn(due, "Review {n} card today", "Review {n} cards today") : t("Reviews"),
+      due ? t("Cards come back just before you would forget them.") : t("Nothing due today. Answer flashcards in a course to fill your reviews."), { "data-review-tile": "" }),
+    tile("#/skillcheck", "🎯", t("Skill check"),
+      known ? tn(known, "{n} skill known: its course is skipped.", "{n} skills known: their courses are skipped.") : t("Prove what you already know and skip those courses.")));
 }
 
 // Weekly study plan: courses for skills the CV lacks (path keywords) first, then unfinished track steps,
@@ -138,12 +154,13 @@ function renderHub() {
 export function renderStudyPlan() {
   const perWeek = Math.max(1, Number($("#hoursPerWeek").value) || 5);
   const items = [];
+  const skipped = passedCourses(); // skill check passed: nothing to learn there
   if (state.cv.skills.length) {
     const required = extractSkills(byKind("keyword").map((k) => k.title).join(" ; ")).map((s) => s.name);
     const seen = new Set();
     for (const skill of required.filter((s) => !state.cv.names.has(s))) {
       const id = courseForSkill(skill), c = id && courseMeta(id);
-      if (!c || seen.has(id) || c.done >= 1) continue;
+      if (!c || seen.has(id) || c.done >= 1 || skipped.has(id)) continue;
       seen.add(id);
       items.push({ title: c.name, hours: Math.max(0.5, Math.round((c.minutes / 60) * (1 - c.done) * 2) / 2), href: `#/course/${id}`, why: t("missing in your CV: {skill}", { skill }), gap: true });
     }

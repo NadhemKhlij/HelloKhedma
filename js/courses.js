@@ -28,6 +28,7 @@ import { quiz, flashcards, exercises, interviewCards, quizBest, exercisesSolved 
 import { lessonTime, courseTime, formatMinutes } from "./coursetime.js";
 import { logInsight } from "./insights.js";
 import { reportBox } from "./report.js";
+import { passedCourses } from "./srs.js";
 
 const BASE = "content/courses/";
 const LESSONS_KEY = "hk.lessons";
@@ -66,7 +67,7 @@ export function courseForSkill(name) {
 function lessonCount(c) { return c.lessonCount || 0; }
 const lessonsDone = (id, done = doneSet()) => [...done].filter((k) => k.startsWith(`${id}:`)).length;
 
-function courseCard(c, done) {
+function courseCard(c, done, known = new Set()) {
   const n = lessonCount(c), d = lessonsDone(c.id, done), best = quizBest(c.id);
   const complete = n && d >= n;
   return h("a", { href: `#/course/${c.id}`, class: "panel flex flex-col gap-2 !p-4" },
@@ -80,25 +81,26 @@ function courseCard(c, done) {
     h("div", { class: "flex items-center gap-2 text-xs" },
       h("span", { class: "font-medium", style: complete ? "color:#18a999" : d ? "color:var(--accent)" : "" },
         complete ? t("✓ Completed") : d ? t("Continue · {d}/{n} lessons", { d, n }) : t("Start →")),
-      best != null ? h("span", { class: "mute ml-auto" }, t("Quiz best {s}", { s: best })) : null));
+      known.has(c.id) ? h("span", { class: "ml-auto", style: "color:#18a999", title: t("Skill check passed: the study plan skips this course") }, t("🎯 Known")) : null,
+      best != null ? h("span", { class: `mute ${known.has(c.id) ? "" : "ml-auto"}` }, t("Quiz best {s}", { s: best })) : null));
 }
 
 // Courses for the current path first; the others in a collapsible block.
 export function renderCourseList(root, pathId) {
   if (!index.length) { root.replaceChildren(h("p", { class: "mute text-sm" }, t("Courses could not be loaded."))); return; }
-  const done = doneSet();
+  const done = doneSet(), known = passedCourses();
   const mine = index.filter((c) => c.paths.includes(pathId));
   const others = index.filter((c) => !c.paths.includes(pathId));
   root.replaceChildren(...[ // filter: replaceChildren() would print null as text
-    h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }, mine.map((c) => courseCard(c, done))),
+    h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }, mine.map((c) => courseCard(c, done, known))),
     others.length ? h("details", { class: "mt-3" },
       h("summary", { class: "cursor-pointer mute text-sm" }, t("Other courses ({n})", { n: others.length })),
-      h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-3" }, others.map((c) => courseCard(c, done)))) : null,
+      h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-3" }, others.map((c) => courseCard(c, done, known)))) : null,
   ].filter(Boolean));
 }
 
 // AI track courses ("ai-…", aitrack.js) come from content/ai/<script>/, cached per script.
-async function loadCourse(id) {
+export async function loadCourse(id) {
   const key = isAiCourse(id) ? `${id}@${aiScript()}` : id;
   if (cache.has(key)) return cache.get(key);
   const c = isAiCourse(id) ? await loadAiCourse(id)

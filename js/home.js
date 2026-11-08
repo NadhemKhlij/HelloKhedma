@@ -1,6 +1,7 @@
 // Home page (#/): greeting (time of day + first name when signed in), the summary cards for Offers, Training (progress
 // ring, streak) and Applications (same order as the nav), then "Next actions" (follow-ups due, interviews this week, from tracker.js; an empty state
-// when nothing is due). A follow-up of a sent application gets "Write the email" (letters.js). Last, the market
+// when nothing is due), led by the flashcards due for review today (srs.js → #/review). A follow-up of a sent
+// application gets "Write the email" (letters.js). Last, the market
 // pulse for the path (pulse.js). The path cards are drawn by app.js (renderPaths).
 import { $, h } from "./lib.js";
 import { t, tn } from "./i18n.js";
@@ -11,6 +12,7 @@ import { renderPulse } from "./pulse.js";
 import { stepsOf } from "./training.js";
 import { progressRing } from "./icons.js";
 import { streak } from "./activity.js";
+import { dueCards } from "./srs.js";
 
 // First name from the account: profile name if the provider gave one, else the start of the email address.
 function firstName(user) {
@@ -51,12 +53,16 @@ export function renderHome() {
       "#/applications", "Open tracker"),
   );
   // Follow-ups due and interviews this week; an empty state otherwise, so the page keeps its shape.
-  const actions = nextActions(state.cards).slice(0, 6);
+  const actions = nextActions(state.cards).slice(0, 6), due = dueCards().length;
+  const reviewItem = due ? h("li", { class: "flex flex-wrap items-baseline gap-2 rounded-xl px-3 py-2 -mx-3 hover:bg-[var(--soft)]", "data-review-due": "" },
+    h("span", { style: "color:var(--accent)" }, `🔁 ${tn(due, "{n} flashcard to review today", "{n} flashcards to review today")}`),
+    h("span", { class: "mute" }, t("≈ {m} min", { m: Math.max(1, Math.round(Math.min(due, 20) / 3)) })),
+    h("a", { href: "#/review", class: "underline text-xs", style: "color:var(--accent)" }, t("Review now →"))) : null;
   const ICON = { overdue: ["⏰", "#e0508b"], today: ["⏰", "#f08a24"], soon: ["⏰", "var(--accent)"], interview: ["📅", "var(--accent)"] };
   $("#homeActions").replaceChildren(h("div", { class: "panel" },
     h("span", { class: "eyebrow mb-3" }, t("Next actions")),
-    actions.length
-      ? h("ul", { class: "grid gap-1 text-sm" }, actions.map(({ c, kind, text }) => h("li", { class: "flex flex-wrap items-baseline gap-2 rounded-xl px-3 py-2 -mx-3 hover:bg-[var(--soft)]" },
+    actions.length || reviewItem
+      ? h("ul", { class: "grid gap-1 text-sm" }, reviewItem, ...actions.map(({ c, kind, text }) => h("li", { class: "flex flex-wrap items-baseline gap-2 rounded-xl px-3 py-2 -mx-3 hover:bg-[var(--soft)]" },
         h("span", { style: `color:${ICON[kind][1]}` }, `${ICON[kind][0]} ${kind === "overdue" ? t("Overdue · ") : kind === "today" ? t("Today · ") : ""}${text}`),
         h("a", { href: "#/applications", class: "mute underline" }, [c.title, c.company].filter(Boolean).join(" · ")),
         kind === "interview" ? h("a", { href: "#/interview", class: "underline text-xs", style: "color:var(--accent)" }, t("Prepare →"))

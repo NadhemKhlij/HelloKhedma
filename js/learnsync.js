@@ -1,11 +1,13 @@
 // Learning progress synced between the devices of a signed-in user (training step 1, 2026-11-06): lessons done,
 // quiz best scores, flashcards known, exercises solved, project steps, XP and study days, last course, interview
-// ratings, STAR stories and checklist, study and application goals. Guests keep everything in this browser only.
+// ratings, STAR stories and checklist, study and application goals, flashcard reviews and skill checks (srs.js). Guests keep everything in this browser only.
 // Storage: the user's own row of learning_sync (RLS; migration 20261106000100_learning_sync_reports.sql): data =
 // the stored strings by localStorage key, stamps = when each key last changed. CVs are not here (opt-in cvsync.js).
 // Merge, key by key, so progress made on two devices is never lost:
 //   - lists of ids (lessons, projects, checklist…): union; inside objects, numbers keep the highest (quiz best, XP,
 //     activity per day) and lists are united (flashcards known, exercises solved);
+//   - records with a numeric "at" on both sides (a card's review, a skill check, srs.js): the later "at" wins whole,
+//     so a card missed on one device really goes back to box 1;
 //   - anything else (stories, ratings values, goals, last course): the most recent change wins.
 //   Consequence: something un-ticked on one device can come back from another; ticking is what matters for progress.
 // Runs on sign-in, when the app comes back to the foreground and 2 s after a local change (lib.js onStore). After a
@@ -14,7 +16,7 @@ import { ls, onStore } from "./lib.js";
 import { sb } from "./supabase.js";
 
 export const LEARNING_KEYS = ["hk.lessons", "hk.quiz", "hk.cards", "hk.exercises", "hk.projects", "hk.activity",
-  "hk.lastCourse", "hk.iv.ratings", "hk.iv.stories", "hk.iv.checklist", "hk.hours", "hk.weeklyGoal"];
+  "hk.lastCourse", "hk.iv.ratings", "hk.iv.stories", "hk.iv.checklist", "hk.hours", "hk.weeklyGoal", "hk.srs", "hk.placement"];
 const WATCHED = new Set(LEARNING_KEYS), STAMPS = "hk.learnsync.stamps";
 let user = null, timer = 0, applying = false, available = true;
 
@@ -27,6 +29,7 @@ const primitives = (arr) => arr.every((x) => x === null || typeof x !== "object"
 // Deep merge of two stored values (see the header). aNewer: a changed more recently than b.
 function mergeDeep(a, b, aNewer) {
   if (Array.isArray(a) && Array.isArray(b)) return primitives(a) && primitives(b) ? [...new Set([...a, ...b])] : aNewer ? a : b;
+  if (isObj(a) && isObj(b) && typeof a.at === "number" && typeof b.at === "number") return a.at >= b.at ? a : b;
   if (isObj(a) && isObj(b)) {
     const out = {};
     for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {

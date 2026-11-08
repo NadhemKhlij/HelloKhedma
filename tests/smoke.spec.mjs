@@ -510,6 +510,64 @@ test("practice formats: order, match, spot the bug, scenario, fill in", async ({
   await expect(sc).toContainText("2 of 3 decisions right the first time");
 });
 
+// Learn smarter (training step 3): spaced-repetition reviews and the skill check (js/srs.js, review.js, skillcheck.js).
+test("reviews: flashcards are scheduled, due cards show on Home and come back in a review session", async ({ page }) => {
+  // Grading a card in a course's Flashcards schedules it.
+  await open(page, "#/course/git");
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Flashcards" }).click();
+  await page.locator(".flip").first().click();
+  await page.getByRole("button", { name: "✓ I knew it" }).click();
+  const srs = await page.evaluate(() => JSON.parse(localStorage.getItem("hk.srs") || "{}"));
+  expect(Object.values(srs.git || {})[0]).toMatchObject({ box: 2 });
+  // Two SQL cards overdue: Home lists them, the review session asks them, "Again" brings one back once more.
+  await page.evaluate(() => localStorage.setItem("hk.srs", JSON.stringify({ sql: { "0:0": { box: 2, due: 0, at: 1 }, "0:1": { box: 2, due: 0, at: 1 } } })));
+  await open(page, "#/");
+  await expect(page.locator("[data-review-due]")).toContainText("2 flashcards to review today");
+  await page.locator("[data-review-due]").getByRole("link", { name: /Review now/ }).click();
+  const body = page.locator("#reviewBody");
+  await expect(body).toContainText("Card 1 of 2");
+  await body.locator(".flip").click();
+  await body.getByRole("button", { name: "↻ Again" }).click();
+  await body.locator(".flip").click();
+  await body.getByRole("button", { name: "✓ I knew it" }).click();
+  await expect(body).toContainText("Once more");
+  await body.locator(".flip").click();
+  await body.getByRole("button", { name: "✓ I knew it" }).click();
+  await expect(body).toContainText("Review done");
+  await expect(body).toContainText("1 of 2 cards known the first time");
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem("hk.srs")).sql);
+  expect(Object.values(after).map((x) => x.box).sort()).toEqual([1, 3]); // missed → box 1, known → box 3
+  await body.getByRole("link", { name: "Back home" }).click();
+  await expect(page.locator("[data-review-due]")).toHaveCount(0);
+  await page.evaluate(() => { location.hash = "#/review"; });
+  await expect(page.locator("#reviewBody")).toContainText("Nothing to review today");
+  await expect(page.locator("#reviewBody")).toContainText("come back tomorrow");
+});
+
+test("skill check: a skill proved with 3 of 4 right is marked known and skipped", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("hk.path", "de"));
+  await open(page, "#/skillcheck");
+  const body = page.locator("#skillcheckBody");
+  await body.getByRole("button", { name: "Clear" }).click();
+  await expect(body.getByRole("button", { name: "Pick at least one skill" })).toBeDisabled();
+  await body.locator('input[type=checkbox][value="sql"]').check();
+  await body.getByRole("button", { name: "Start the check (1 skill)" }).click();
+  // Answer from the course's cheat sheet (the right answer every time).
+  const pairs = await page.evaluate(async () => (await (await fetch("content/courses/sql.json")).json()).cheatsheet.flatMap((g) => g.items));
+  for (let i = 0; i < 4; i++) {
+    await expect(body).toContainText(`Question ${i + 1} of 4`);
+    const toMeaning = (await body.locator(".eyebrow").innerText()).includes("What does this do");
+    const prompt = (await body.locator("p.text-lg").innerText()).trim();
+    const want = toMeaning ? pairs.find(([f]) => f === prompt)[1] : pairs.find(([, b]) => b === prompt)[0];
+    await body.locator("button.opt", { hasText: want }).filter({ hasText: new RegExp(`^${want.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) }).first().click();
+    await body.getByRole("button", { name: i < 3 ? "Next question →" : "See my results" }).click();
+  }
+  await expect(body).toContainText("1 skill you already know");
+  await expect(body).toContainText("4 of 4 right");
+  await open(page, "#/training");
+  await expect(page.locator('#courseList a[href="#/course/sql"]')).toContainText("Known");
+});
+
 test("French interface and back to English", async ({ page }) => {
   await open(page);
   await page.click("#langToggle");

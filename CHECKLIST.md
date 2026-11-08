@@ -1,7 +1,7 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-11-06)
-- **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 to 2e are done (see the Done log). Next: 3 (spaced repetition + placement test), 4 (AI "explain my mistake", Sonnet 5.5),
+- **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 to 3 are done (see the Done log). Next: 4 (AI "explain my mistake", Sonnet 5.5),
   5 (Python / Excel), 6 (project repos + public portfolio), 7 (content from data, expert review).
 - **New exercise content is part of O11:** the 70 auto-graded exercises and the 28 step-2e exercises (EN + FR) were written by Claude; answers of the
   log / regex / cron / jq exercises are computed from the files and checked in CI, the "fix this file" answers pass
@@ -83,6 +83,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-08 | Training step 3, learn smarter: spaced-repetition reviews (every flashcard answer schedules the card: back in 1, 3, 7, 14, 30 then 60 days, or tomorrow when missed; "🔁 N flashcards to review today" in Home's Next actions, #/review session with "Again" once more at the end, a link in each course's Flashcards) and a skill check per path (#/skillcheck: pick the skills you think you know, CV skills ticked first, 4 questions each from the cheat sheet, 3 right = known; known courses get "🎯 Known" and leave the study plan and "Close the gaps", which reminds to put them on the CV). Synced for signed-in users (learning_sync; the latest review of a card wins). Privacy policy updated (FR + EN). No setup needed |
 | 2026-11-08 | O31 done: job-search redeployed from GitHub Actions ("Deploy Supabase function", commit fc197ad): offer filters sent to the sources, smarter duplicates, Adzuna salary statistics on Home |
 | 2026-11-08 | Offers filters (contract, remote, posted within) sent to Adzuna / JSearch / France Travail, a change searches again; smarter duplicates across sources; Adzuna salary statistics on Home (median, middle half, 12-month trend, distribution; cached 24 h; privacy policy FR + EN); ROADMAP Phase 3b: prioritised job sources plan. Needs O31 |
 | 2026-11-08 | O30 done: JOOBLE_API_KEY set, job-search redeployed, Jooble returns offers on hellokhedma.io. JOOBLE_HOST must stay unset (fr.jooble.org answers 403 to this key) |

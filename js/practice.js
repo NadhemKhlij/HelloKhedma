@@ -2,7 +2,9 @@
 // without extra content:
 // - quiz(): multiple-choice questions generated from the cheat sheet (syntax → meaning or meaning → syntax, distractors
 //   from the same course), instant feedback, best score per course ("hk.quiz").
-// - flashcards(): the cheat sheet as flip cards; "I knew it" cards are remembered per course ("hk.cards").
+// - flashcards(): the cheat sheet as flip cards; "I knew it" cards are remembered per course ("hk.cards") and every
+//   answer schedules the card for spaced-repetition reviews (srs.js, #/review); a link shows the cards due in the course.
+//   flipCard() and makeQuestions() are shared with the review page (review.js) and the skill check (skillcheck.js).
 // - exercises(): try first in a scratch box (not saved), reveal the answer, then grade yourself ("hk.exercises").
 //   Runnable SQL exercises (exercise.run = { db, ordered?, minColumns?, plan? }, training step 2): ▶ Run shows the result
 //   table on the practice dataset (sqlrun.js: SQLite in a Web Worker, nothing sent anywhere) and ✓ Check compares it
@@ -18,6 +20,7 @@ import { h, ls } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { logActivity } from "./activity.js";
 import { drill, solution } from "./drills.js";
+import { grade, dueCards } from "./srs.js";
 
 const store = (key) => ({
   all() { try { return JSON.parse(ls.get(key) || "{}"); } catch { return {}; } },
@@ -29,13 +32,13 @@ export const quizBest = (id) => QUIZ.get(id) ?? null;
 export const exercisesSolved = (id) => (EX.get(id) || []).length;
 
 const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
-const items = (c) => (c.cheatsheet || []).flatMap((g, gi) => g.items.map(([front, back], i) => ({ key: `${gi}:${i}`, group: g.group, front, back })));
+export const items = (c) => (c.cheatsheet || []).flatMap((g, gi) => g.items.map(([front, back], i) => ({ key: `${gi}:${i}`, group: g.group, front, back })));
 const code = (s) => h("code", { class: "inline-code !text-[.85rem]" }, s);
 const bar = (pct) => h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
   h("div", { class: "h-1.5 rounded-full", style: `width:${pct}%;background:var(--accent);transition:width .3s ease` }));
 
 /* ---------- quiz ---------- */
-function makeQuestions(c, n = 8) {
+export function makeQuestions(c, n = 8) {
   const all = items(c);
   return shuffle(all).slice(0, Math.min(n, all.length)).map((it, qi) => {
     const toMeaning = qi % 2 === 0; // alternate the direction
@@ -102,33 +105,47 @@ export function quiz(root, c, { onReview } = {}) {
 }
 
 /* ---------- flashcards ---------- */
+// One flip card (front: syntax, back: meaning). onFlip(flipped) after each tap.
+export function flipCard(card, onFlip, { label = card.group } = {}) {
+  let flipped = false;
+  const el = h("button", { type: "button", class: "flip w-full", "aria-label": t("Show the answer"),
+    onClick: () => { flipped = !flipped; el.classList.toggle("on", flipped); el.setAttribute("aria-label", flipped ? t("Show the front") : t("Show the answer")); onFlip(flipped); } },
+    h("div", { class: "flip-inner" },
+      h("div", { class: "face" }, h("span", { class: "eyebrow" }, label), h("code", { class: "text-lg font-mono break-words" }, card.front),
+        h("span", { class: "mute text-xs" }, t("Tap to flip"))),
+      h("div", { class: "face back" }, h("span", { class: "eyebrow" }, label), h("p", { class: "text-lg font-medium" }, card.back))));
+  return el;
+}
+
 export function flashcards(root, c) {
   const all = items(c);
-  let known = new Set(CARDS.get(c.id) || []), deck = shuffle(all.filter((x) => !known.has(x.key))), flipped = false;
+  let known = new Set(CARDS.get(c.id) || []), deck = shuffle(all.filter((x) => !known.has(x.key)));
   const save = () => CARDS.set(c.id, [...known]);
+  // Cards of this course due for review (spaced repetition, #/review).
+  const dueLink = () => {
+    const n = dueCards(c.id).filter((d) => all.some((x) => x.key === d.key)).length;
+    return n ? h("a", { href: `#/review/${c.id}`, class: "text-sm underline justify-self-start", style: "color:var(--accent)" },
+      tn(n, "🔁 {n} card of this course to review today →", "🔁 {n} cards of this course to review today →")) : null;
+  };
   const draw = () => {
     const head = h("div", { class: "grid gap-2" },
       h("div", { class: "flex justify-between text-sm mute" }, h("span", {}, t("Known {k}/{n}", { k: known.size, n: all.length })),
-        h("button", { type: "button", class: "underline", onClick: () => { known = new Set(); save(); deck = shuffle(all); flipped = false; draw(); } }, t("Reset"))),
+        h("button", { type: "button", class: "underline", onClick: () => { known = new Set(); save(); deck = shuffle(all); draw(); } }, t("Reset"))),
       bar(all.length ? (known.size / all.length) * 100 : 0));
     if (!deck.length) {
       root.replaceChildren(h("div", { class: "grid gap-4 max-w-xl" }, head,
         h("div", { class: "panel !shadow-none text-center grid gap-2 py-10" }, h("b", { class: "serif text-2xl" }, t("You know every card 🎉")),
-          h("p", { class: "mute text-sm" }, t("Come back in a few days, or reset to go through them again.")))));
+          h("p", { class: "mute text-sm" }, t("They come back in your reviews just before you would forget them. Reset to go through them all now."))),
+        dueLink()));
       return;
     }
     const card = deck[0];
-    const flip = h("button", { type: "button", class: `flip w-full ${flipped ? "on" : ""}`, "aria-label": flipped ? t("Show the front") : t("Show the answer"),
-      onClick: () => { flipped = !flipped; flip.classList.toggle("on", flipped); flip.setAttribute("aria-label", flipped ? t("Show the front") : t("Show the answer")); actions.hidden = !flipped; } },
-      h("div", { class: "flip-inner" },
-        h("div", { class: "face" }, h("span", { class: "eyebrow" }, card.group), h("code", { class: "text-lg font-mono break-words" }, card.front),
-          h("span", { class: "mute text-xs" }, t("Tap to flip"))),
-        h("div", { class: "face back" }, h("span", { class: "eyebrow" }, card.group), h("p", { class: "text-lg font-medium" }, card.back))));
-    const actions = h("div", { class: "grid grid-cols-2 gap-2", hidden: !flipped },
-      h("button", { type: "button", class: "btn-ghost", onClick: () => { deck.push(deck.shift()); flipped = false; logActivity(1); draw(); } }, t("↻ Again")),
-      h("button", { type: "button", class: "btn", onClick: () => { known.add(card.key); save(); deck.shift(); flipped = false; logActivity(1); draw(); } }, t("✓ I knew it")));
+    const actions = h("div", { class: "grid grid-cols-2 gap-2", hidden: true },
+      h("button", { type: "button", class: "btn-ghost", onClick: () => { grade(c.id, card.key, false); deck.push(deck.shift()); logActivity(1); draw(); } }, t("↻ Again")),
+      h("button", { type: "button", class: "btn", onClick: () => { grade(c.id, card.key, true); known.add(card.key); save(); deck.shift(); logActivity(1); draw(); } }, t("✓ I knew it")));
+    const flip = flipCard(card, (on) => { actions.hidden = !on; });
     root.replaceChildren(h("div", { class: "grid gap-4 max-w-xl" }, head, flip, actions,
-      h("p", { class: "mute text-xs" }, tn(deck.length, "{n} card left in this round.", "{n} cards left in this round."))));
+      h("p", { class: "mute text-xs" }, tn(deck.length, "{n} card left in this round.", "{n} cards left in this round.")), dueLink()));
   };
   draw();
 }

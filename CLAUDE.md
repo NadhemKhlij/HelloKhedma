@@ -138,6 +138,8 @@ Read the header comment of any file before modifying it; update the header if be
 - `#/training` → training → training.js (My learning, roadmap of tracks, study plan) + courses.js (course list)
 - `#/course/<id>` → course → courses.js
 - `#/project/<id>` → project → projects.js
+- `#/review[/<course id>]` → review → review.js (flashcards due today, spaced repetition, srs.js)
+- `#/skillcheck` → skillcheck → skillcheck.js (placement test for the path; passed courses are skipped)
 - `#/ai` → ai → aitrack.js (AI engineer track in Tunisian; its courses open in `#/course/ai-…`)
 - `#/cv` → cv → cvpage.js + cvs.js, ats.js, atsscore.js (tab CV check & ATS score); `#/cv/maker` → CV maker tab (cvmaker.js)
 - `#/interview` → interview → interview.js
@@ -199,6 +201,8 @@ Read the header comment of any file before modifying it; update the header if be
   tracker card (templates EN + FR, copy or open in the email app; nothing is sent by HelloKhedma)
 - js/courses.js — course list and course page (tabs: lessons one at a time, quiz, flashcards, practice, interview, cheat sheet)
 - js/practice.js — quiz (generated from the cheat sheet), flashcards, self-graded exercises, interview reveal
+- js/srs.js — spaced-repetition schedule of flashcards ("hk.srs") and skill check results ("hk.placement"), no DOM;
+  js/review.js — "Review today" page; js/skillcheck.js — placement test (passed courses leave the study plan and gaps)
 - js/activity.js — XP, study streak, 7-day strip, last course for "Resume" (local only, "hk.activity")
 - js/interview.js — interview prep page
 - sw.js, manifest.json, icons/ — installable app and offline cache

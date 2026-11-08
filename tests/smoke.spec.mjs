@@ -455,6 +455,35 @@ test("explain my mistake: the answer is saved on the device and reused for the s
   expect(calls[1].fresh).toBe(true);
 });
 
+// "Ask about this lesson" (asklesson.js): a guest is asked to sign in; a signed-in learner (simulated; the function is
+// answered by the test, nothing reaches Claude) gets the notice, then the answer; the same question is answered from
+// this device without a new call.
+test("ask about this lesson: sign-in for guests, answer for signed-in learners, saved on the device", async ({ page }) => {
+  const calls = [];
+  await page.route("**/functions/v1/explain-mistake", async (route) => {
+    calls.push(route.request().postDataJSON());
+    await route.fulfill({ status: 200, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ text: `Answer number ${calls.length}.`, model: "test", truncated: false }) });
+  });
+  await open(page, "#/course/sql");
+  const box = page.locator("[data-ask]");
+  await box.getByRole("button", { name: /Ask about this lesson/ }).click();
+  await box.locator("textarea").fill("Why use WHERE before GROUP BY?");
+  await box.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(box).toContainText("Sign in to ask the AI about this lesson");
+  expect(calls).toHaveLength(0);
+  await page.evaluate(async () => { (await import("/js/state.js")).state.user = { id: "test-user" }; });
+  await box.getByRole("button", { name: "Ask", exact: true }).click();
+  await box.getByRole("button", { name: "Send my question" }).click();
+  await expect(box).toContainText("Answer number 1.");
+  expect(calls[0]).toMatchObject({ mode: "ask", lang: "en", question: "Why use WHERE before GROUP BY?" });
+  expect(calls[0].lesson.length).toBeGreaterThan(100);
+  await box.locator("textarea").fill("  why use where before group by? ");
+  await box.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(box).toContainText("Saved on this device");
+  expect(calls).toHaveLength(1);
+});
+
 // Password reset (js/auth.js): no e-mail is sent here (Supabase rate-limits them); the checks before sending and the
 // new-password form are tested.
 test("forgot password asks for the e-mail first; the new-password form checks length and match", async ({ page }) => {

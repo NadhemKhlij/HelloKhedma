@@ -21,6 +21,7 @@
 // ("ai"), with their names in the track's current language, so Training, "Close the gaps" and Interview prep list them.
 // Course page: header with progress, then tabs: Lessons (one lesson at a time, lesson list + "Mark as done & continue"),
 // Quiz, Flashcards, Practice, Interview (practice.js) and the printable Cheat sheet. XP and "Resume" via activity.js.
+// Under each lesson, "💬 Ask about this lesson" (asklesson.js: Claude answers from the lesson, signed-in users).
 // At the bottom, "⚑ Report a problem" (report.js), preset to the open lesson or tab.
 import { $, h, ls, toast, safeUrl } from "./lib.js";
 import { t, lang, fetchContent } from "./i18n.js";
@@ -30,6 +31,7 @@ import { quiz, flashcards, exercises, interviewCards, quizBest, exercisesSolved 
 import { lessonTime, courseTime, formatMinutes } from "./coursetime.js";
 import { logInsight } from "./insights.js";
 import { reportBox } from "./report.js";
+import { askBox } from "./asklesson.js";
 import { passedCourses } from "./srs.js";
 
 const BASE = "content/courses/";
@@ -240,6 +242,7 @@ export async function renderCourse(id) {
           h("p", { class: "eyebrow" }, t("Example")),
           codeBlock(l.example.lang, l.example.code, l.example.try && c.playground),
           l.example.note ? h("p", { class: "mute text-xs" }, l.example.note) : null) : null,
+        askBox(c, l, cur),
         h("div", { class: "flex flex-wrap items-center gap-2 pt-3 mt-1", style: "border-top:1px solid var(--line)" },
           cur > 0 ? h("button", { type: "button", class: "btn-ghost", onClick: () => go(cur - 1) }, t("← Previous")) : null,
           done ? h("button", { type: "button", class: "mute text-xs underline", onClick: () => { toggle(false); drawLessons(); } }, t("Mark as not done")) : null,

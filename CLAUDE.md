@@ -70,7 +70,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 | ADZUNA_APP_ID, ADZUNA_APP_KEY, RAPIDAPI_KEY, JOOBLE_API_KEY (+ optional JOOBLE_HOST), FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET | Supabase → Edge Functions → Secrets |
 | DEFAULT_PROVIDER, CACHE_TTL_HOURS, RATE_LIMIT_GUEST, RATE_LIMIT_USER (optional) | Supabase → Edge Functions → Secrets |
 | ANTHROPIC_API_KEY; CV_TAILOR_DAILY_LIMIT, CV_TAILOR_MODEL (optional) | Supabase → Edge Functions → Secrets (cv-tailor) |
-| EXPLAIN_DAILY_LIMIT, EXPLAIN_MODEL (optional; uses ANTHROPIC_API_KEY) | Supabase → Edge Functions → Secrets (explain-mistake) |
+| EXPLAIN_DAILY_LIMIT, EXPLAIN_MODEL, ASK_DAILY_LIMIT (optional; uses ANTHROPIC_API_KEY) | Supabase → Edge Functions → Secrets (explain-mistake) |
 | RESEND_API_KEY, CRON_SECRET; REMINDERS_FROM, SITE_URL (optional) | Supabase → Edge Functions → Secrets (follow-up-reminders) |
 | REMINDERS_CRON_SECRET (same value as CRON_SECRET) | GitHub → Actions → Secrets (reminders.yml only) |
 | SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (functions) | Provided automatically by Supabase; never in frontend |
@@ -210,6 +210,9 @@ Read the header comment of any file before modifying it; update the header if be
   to a learner. Saved answers: on the device ("hk.explainSaved", newest 150) and, for fixed-choice formats only (choice,
   order, match, groups, bug), shared in explain_cache (SHA-256 of the full request, no account id, 180 days unused; never
   free-text answers; usage kind "explain_saved", not counted in the daily limit)
+- js/asklesson.js — "💬 Ask about this lesson" under each lesson: explain-mistake function, mode "ask" (lesson text +
+  question → Claude Sonnet 5.5, ASK_DAILY_LIMIT default 20, usage kind "ask_lesson"), signed-in users, notice before the first
+  question ("hk.askOk"), answer in the course's language; answers kept on the device only ("hk.askSaved", newest 100)
 - content/logs/, content/data/ — fictional log and JSON files for the log analysis and jq exercises
 - js/filecheck.js — "fix this file" checks (Kubernetes manifests, GitHub Actions workflows, Dockerfiles), shared with CI;
   YAML read by js/vendor/js-yaml.esm.min.js (self-hosted, loaded on demand)
@@ -250,7 +253,7 @@ Read the header comment of any file before modifying it; update the header if be
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)
 - supabase/functions/job-search/, delete-account/, cv-tailor/, explain-mistake/, follow-up-reminders/ — Edge Functions
-  (cv-tailor: AI CV rewrite with Claude; explain-mistake: why a course answer is wrong, Claude Sonnet 5.5; follow-up-reminders: the opt-in daily e-mail, called by .github/workflows/reminders.yml)
+  (cv-tailor: AI CV rewrite with Claude; explain-mistake: why a course answer is wrong and "Ask about this lesson" (mode "ask"), Claude Sonnet 5.5; follow-up-reminders: the opt-in daily e-mail, called by .github/workflows/reminders.yml)
 - scripts/whats-new.sh — before a deploy: what main got since your branch started, shared files, other branches
 - scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node),
   gen-practice-2e.mjs (rebuilds the dwh / payments datasets and the payments log, fixed seed)

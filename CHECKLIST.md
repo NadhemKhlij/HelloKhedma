@@ -7,6 +7,8 @@
   main (CLAUDE.md "Working in parallel").
 - **Just finished (2026-11-08, later):** "Explain my mistake" (step 4). Owner: O36 (migration) and O37 (deploy the
   explain-mistake function from Actions), then try it signed in.
+- **Next to do (owner request 2026-11-08):** ROADMAP 4b row "4c": save "Explain my mistake" answers, on the device
+  for every exercise and shared on the server for fixed-choice exercises only (privacy policy FR + EN to update).
 - **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 to 4 are done (see the Done log). Next: later in 4, "Ask about this lesson";
   5 (Python / Excel), 6 (project repos + public portfolio), 7 (content from data, expert review).
 - **New exercise content is part of O11:** the 70 auto-graded exercises and the 28 step-2e exercises (EN + FR) were written by Claude; answers of the

@@ -94,7 +94,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   (incident case, consistent with content/logs/payments-api.log). "Fix this query": `"start"` = the broken query the
   editor opens on (identical in French; CI checks it is not accepted). Query plans: `"run": { "db", "plan": "<index>" }`
   passes when EXPLAIN QUERY PLAN uses that index and scans no table. Take-home cases are consecutive exercises
-  "Take-home case, <path> (n/N)" ending with a written answer (plain exercise, model answer).
+  "Take-home case, <path> (n/N)" (French "Cas pratique, …") ending with a written answer (plain exercise, model answer):
+  Data Analyst (sql), Data Engineer (airflow), Application Support (itil-incidents), Business Analyst (requirements),
+  DevOps (ci-cd; log content/logs/checkout-deploy.log).
 - Auto-graded exercises: add `"type"` to an exercise (same in the French copy): choice, fill, order, match, groups,
   bug, scenario, logs, regex, cron, json, fixfile (fields in the js/drills.js header). regex / cron / json / fixfile keep
   the solution in `answer` (code, identical in both languages) and the explanation in `explain`. fixfile ("fix this

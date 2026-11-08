@@ -1,6 +1,6 @@
 // Offers page (#/offers): three tabs feeding one results list (state.jobs), each keeping its own results and
 // message (state.<mode>Jobs / state.<mode>Msg, mode "company" for the companies tab):
-// - Job search: jobs.js → job-search Edge Function (France Travail, Adzuna, JSearch); job-board links as fallback.
+// - Job search: jobs.js → job-search Edge Function (France Travail, Adzuna, JSearch, Jooble); job-board links as fallback.
 // - Companies I follow: companies.js (career-page APIs, watchlist in this browser, "New since last visit").
 // - Remote jobs: remote.js (Jobicy, Remotive; titles filtered to the path).
 // Every offer gets its skills, contract / remote tags (from the text), a fit score against the active CV and its salary
@@ -168,7 +168,7 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
       h("span", { class: "mute text-xs ml-auto" },
         SOURCE_NAMES[j.source] || (PROVIDER_NAMES[j.source] ? t("Careers page") : j.source))));
 }
-const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch", remotive: "Remotive", jobicy: "Jobicy" };
+const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch", jooble: "Jooble", remotive: "Remotive", jobicy: "Jobicy" };
 
 export function renderOffers() {
   const hasCv = state.cv.skills.length > 0;
@@ -247,6 +247,7 @@ const CREDITS = {
   adzuna: ["Jobs by Adzuna", "https://www.adzuna.fr"], // provider's required wording: not translated
   jsearch: ["JSearch by OpenWeb Ninja", "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch"],
   francetravail: ["France Travail", "https://www.francetravail.fr"],
+  jooble: ["Jooble", "https://jooble.org"],
 };
 function renderSourceCredits() {
   const used = [...new Set(state.jobs.map((j) => j.source))].filter((s) => CREDITS[s]);

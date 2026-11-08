@@ -40,7 +40,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 ## Tech stack
 - Frontend: HTML, Tailwind CSS 3 (css/input.css → css/app.css), vanilla JS ES modules, no bundler; installable PWA.
 - Backend: Supabase (PostgreSQL, Auth, Row Level Security, Edge Functions `job-search`, `delete-account`, `cv-tailor`).
-- Job data: France Travail, Adzuna and JSearch through the `job-search` function (only providers with secrets set run);
+- Job data: France Travail, Adzuna, JSearch and Jooble through the `job-search` function (only providers with secrets set
+  run; France Travail's API is closed to new users, its option is hidden until keys exist);
   company career pages (Greenhouse, Lever, Ashby, Workable, SmartRecruiters) and remote boards (Jobicy, Remotive)
   are called directly from the browser (public, key-less APIs).
 
@@ -50,7 +51,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 | SUPABASE_URL, SUPABASE_ANON_KEY | GitHub → Actions → Variables (build writes js/config.js); local js/config.js |
 | SUPABASE_ACCESS_TOKEN | GitHub → Actions → Secrets (deploy-functions.yml only); never in code |
 | DEFAULT_COUNTRY, CONTACT_EMAIL, SENTRY_DSN, CF_ANALYTICS_TOKEN (optional) | GitHub → Actions → Variables; local js/config.js |
-| ADZUNA_APP_ID, ADZUNA_APP_KEY, RAPIDAPI_KEY, FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET | Supabase → Edge Functions → Secrets |
+| ADZUNA_APP_ID, ADZUNA_APP_KEY, RAPIDAPI_KEY, JOOBLE_API_KEY (+ optional JOOBLE_HOST), FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET | Supabase → Edge Functions → Secrets |
 | DEFAULT_PROVIDER, CACHE_TTL_HOURS, RATE_LIMIT_GUEST, RATE_LIMIT_USER (optional) | Supabase → Edge Functions → Secrets |
 | ANTHROPIC_API_KEY; CV_TAILOR_DAILY_LIMIT, CV_TAILOR_MODEL (optional) | Supabase → Edge Functions → Secrets (cv-tailor) |
 | SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (functions) | Provided automatically by Supabase; never in frontend |

@@ -1,12 +1,14 @@
 // Supabase Edge Function: job-search
-// Proxies France Travail, Adzuna and RapidAPI JSearch so API keys never reach the browser.
+// Proxies France Travail, Adzuna, RapidAPI JSearch and Jooble so API keys never reach the browser.
 //
 // Secrets (supabase secrets set ...), each source is optional:
 //   FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET
 //                                   (francetravail.io, API "Offres d'emploi v2"; France only, full descriptions)
 //   ADZUNA_APP_ID, ADZUNA_APP_KEY   (https://developer.adzuna.com)
 //   RAPIDAPI_KEY                    (subscribe to "JSearch" on RapidAPI)
-//   DEFAULT_PROVIDER                optional: all | francetravail | adzuna | jsearch (default all)
+//   JOOBLE_API_KEY                  (jooble.org/api/about, free key by e-mail; aggregator, short snippets)
+//   JOOBLE_HOST                     optional: the Jooble site the key belongs to (default jooble.org; e.g. fr.jooble.org)
+//   DEFAULT_PROVIDER                optional: all | francetravail | adzuna | jsearch | jooble (default all)
 //                                   "all" uses every source whose secrets are set.
 //   CACHE_TTL_HOURS                 optional: how long identical searches are served from cache (default 6)
 //   RATE_LIMIT_GUEST                optional: searches per hour per IP for guests (default 20)
@@ -30,7 +32,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Source = "francetravail" | "adzuna" | "jsearch";
+type Source = "francetravail" | "adzuna" | "jsearch" | "jooble";
 type Job = {
   id: string;
   title: string;
@@ -113,6 +115,7 @@ const configured: Record<Source, () => boolean> = {
   francetravail: () => Boolean(Deno.env.get("FRANCE_TRAVAIL_CLIENT_ID") && Deno.env.get("FRANCE_TRAVAIL_CLIENT_SECRET")),
   adzuna: () => Boolean(Deno.env.get("ADZUNA_APP_ID") && Deno.env.get("ADZUNA_APP_KEY")),
   jsearch: () => Boolean(Deno.env.get("RAPIDAPI_KEY")),
+  jooble: () => Boolean(Deno.env.get("JOOBLE_API_KEY")),
 };
 
 // France Travail: OAuth2 client-credentials token, reused until shortly before it expires.
@@ -263,6 +266,42 @@ async function jsearch(q: string, where: string, country: string, page: number):
   }));
 }
 
+// Jooble: an aggregator (many job boards and countries). POST https://<host>/api/<key> with { keywords, location, page };
+// answers { totalCount, jobs: [{ id, title, company, location, snippet, salary, type, link, updated, source }] }.
+// The location decides the country: without a city, the country's name is sent. Snippets are short (~250 chars), so
+// Jooble comes last in the dedupe (a longer description from another source wins). Salary is free text ("€45k"…): it
+// goes into the text, where the app's salary reader looks for it.
+const COUNTRY_NAMES: Record<string, string> = {
+  fr: "France", gb: "United Kingdom", us: "USA", de: "Germany", nl: "Netherlands", ca: "Canada", au: "Australia",
+  at: "Austria", be: "Belgium", ch: "Switzerland", es: "Spain", it: "Italy", pl: "Poland", br: "Brazil", in: "India",
+  nz: "New Zealand", sg: "Singapore", za: "South Africa", mx: "Mexico",
+};
+async function jooble(q: string, where: string, country: string, page: number): Promise<Job[]> {
+  const key = Deno.env.get("JOOBLE_API_KEY");
+  if (!key) throw new Error("Jooble is not configured (JOOBLE_API_KEY).");
+  const host = (Deno.env.get("JOOBLE_HOST") || "jooble.org").replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const location = where ? (country === "fr" || !COUNTRY_NAMES[country] ? where : `${where}, ${COUNTRY_NAMES[country]}`) : COUNTRY_NAMES[country] ?? "";
+  const res = await fetch(`https://${host}/api/${encodeURIComponent(key)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ keywords: q, location, page: String(page) }),
+  });
+  if (!res.ok) throw new Error(`Jooble returned ${res.status}: ${await providerMessage(res)}`);
+  const data = await res.json();
+  return (data.jobs ?? []).map((x: Raw): Job => ({
+    id: String(x.id ?? x.link),
+    title: strip(x.title),
+    company: strip(x.company, 120),
+    location: strip(x.location, 120),
+    url: x.link,
+    posted: x.updated ?? null,
+    snippet: strip(x.snippet),
+    text: strip([x.snippet, x.type, x.salary].filter(Boolean).join(" "), 2000),
+    source: "jooble",
+    salary: "",
+  }));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Use POST." }, 405);
@@ -282,7 +321,7 @@ Deno.serve(async (req) => {
   const page = Math.min(Math.max(parseInt(body.page, 10) || 1, 1), 5);
   const wanted = String(body.provider ?? Deno.env.get("DEFAULT_PROVIDER") ?? "all");
   // France Travail comes first so that, for an offer listed on several sources, its full description wins the dedupe.
-  const ALL: Source[] = ["francetravail", "adzuna", "jsearch"];
+  const ALL: Source[] = ["francetravail", "adzuna", "jsearch", "jooble"];
   const providers: Source[] = wanted === "all" || wanted === "both"
     ? ALL.filter((p) => configured[p]() && !(p === "francetravail" && country !== "fr"))
     : ALL.includes(wanted as Source) ? [wanted as Source] : ["adzuna"];
@@ -312,7 +351,7 @@ Deno.serve(async (req) => {
     else if (hit) return json({ ...hit.results, cached: true });
   }
 
-  const fetchers = { francetravail: franceTravail, adzuna, jsearch };
+  const fetchers = { francetravail: franceTravail, adzuna, jsearch, jooble };
   const results = await Promise.allSettled(providers.map((p) => fetchers[p](query, where, country, page)));
 
   const warnings: string[] = [];

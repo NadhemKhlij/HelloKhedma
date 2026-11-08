@@ -1,5 +1,5 @@
-// Job search ("Job search" tab): calls the job-search Edge Function, which queries France Travail, Adzuna and
-// JSearch server-side (only the providers whose secrets are set), so API keys never reach the browser.
+// Job search ("Job search" tab): calls the job-search Edge Function, which queries France Travail, Adzuna, JSearch and
+// Jooble server-side (only the providers whose secrets are set), so API keys never reach the browser.
 // boardLinks() builds direct links to job boards as a fallback when the function is unavailable.
 import { sb } from "./supabase.js";
 

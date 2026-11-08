@@ -4,7 +4,8 @@
 #   (PREVIEW_BRANCHES) under preview/<branch>/, e.g. https://hellokhedma.io/preview/<branch>/
 #   GitHub Pages hosts one site per repository, so the preview is published together with main by this run.
 # - Push to a preview branch: tests that branch, then asks for a run on main (workflow_dispatch) to republish both.
-# - Push to any other branch: build and tests only, nothing published.
+# - Push to any other branch: build and tests only, nothing published. A first step warns when the branch is behind
+#   main (someone deployed meanwhile) and writes scripts/whats-new.sh's report to the run summary.
 # Test failures show as annotations on the run (Playwright "github" reporter), readable without signing in.
 # One-time setup in the repo:
 #   Settings → Pages → Build and deployment → Source: "GitHub Actions"
@@ -35,6 +36,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # whole history: the branch is compared with main below
+
+      # Several sessions work in parallel: say what was deployed on main since this branch started, and which files
+      # both changed (warning only; rebase on main and test again before merging).
+      - name: Up to date with main?
+        if: github.ref != 'refs/heads/main'
+        run: |
+          out=$(sh scripts/whats-new.sh --report 2>&1) || true
+          { echo "### What is new on main since this branch started"; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          echo "$out"
+          behind=$(git rev-list --count HEAD..origin/main)
+          if [ "$behind" -gt 0 ]; then
+            echo "::warning::This branch is $behind commit(s) behind main: rebase on origin/main (sh scripts/whats-new.sh lists what changed) and test again before merging."
+          fi
 
       - uses: actions/setup-node@v4
         with:

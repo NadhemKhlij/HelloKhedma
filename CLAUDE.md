@@ -37,6 +37,18 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   then a publish run on main. A preview build keeps its own browser data ("preview:hk.*", js/lib.js), registers no
   service worker and shows a banner. Remove the branch from PREVIEW_BRANCHES once merged.
 
+## Working in parallel (several Claude sessions, the owner's and a friend's)
+- Never commit on main directly: one branch per feature, pushed so CI tests it, then fast-forwarded into main.
+- At the start of a session and before every merge into main: `sh scripts/whats-new.sh`. It fetches GitHub, lists what
+  was deployed on main since your branch started, the files changed on both sides and the other branches in progress.
+  When main moved: `git rebase origin/main`, run the checks again, then merge; tell the owner what the others shipped.
+  CI repeats the warning on every branch push ("Up to date with main?", summary of the run).
+- Conflict-prone files: js/i18n-fr.js (keep both French blocks when rebasing), CHECKLIST.md / ROADMAP.md (keep both
+  rows), sw.js (VERSION: take the higher number + 1, keep every SHELL file), js/router.js ROUTES, index.html.
+- In progress elsewhere (2026-11-08): a new **AI Engineer** career path, by another session. Until it is merged, do not
+  edit what it owns: supabase/seed.sql path rows, the AI skills in js/ats.js, its courses and projects
+  (content/courses/, content/projects/ for that path) and its interview questions. Coordinate through the owner.
+
 ## Tech stack
 - Frontend: HTML, Tailwind CSS 3 (css/input.css → css/app.css), vanilla JS ES modules, no bundler; installable PWA.
 - Backend: Supabase (PostgreSQL, Auth, Row Level Security, Edge Functions `job-search`, `delete-account`, `cv-tailor`).
@@ -215,6 +227,7 @@ Read the header comment of any file before modifying it; update the header if be
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)
 - supabase/functions/job-search/, delete-account/, cv-tailor/ — Edge Functions (cv-tailor: AI CV rewrite with Claude)
+- scripts/whats-new.sh — before a deploy: what main got since your branch started, shared files, other branches
 - scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node),
   gen-practice-2e.mjs (rebuilds the dwh / payments datasets and the payments log, fixed seed)
 - .github/workflows/deploy.yml — build, smoke tests, publish to GitHub Pages (main only)

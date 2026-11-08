@@ -1,6 +1,9 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-11-06)
+- **Parallel work (2026-11-08):** a friend's Claude session builds a new AI Engineer career path on its own branch.
+  Every session runs `sh scripts/whats-new.sh` at the start and before each merge into main (CLAUDE.md "Working in
+  parallel"); do not edit that path's seed rows, AI skills in js/ats.js, courses or projects meanwhile.
 - **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 to 3 are done (see the Done log). Next: 4 (AI "explain my mistake", Sonnet 5.5),
   5 (Python / Excel), 6 (project repos + public portfolio), 7 (content from data, expert review).
 - **New exercise content is part of O11:** the 70 auto-graded exercises and the 28 step-2e exercises (EN + FR) were written by Claude; answers of the

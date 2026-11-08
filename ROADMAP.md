@@ -266,3 +266,6 @@ normal project page. Next: owner review of the Derja of the courses and projects
 - 2026-10-30: LinkedIn (3.10): no API connection. "Sign In with LinkedIn" (OpenID) only gives name, email and photo;
   positions and skills need LinkedIn partner programs, closed to small apps; scraping breaks LinkedIn's terms. Use the
   user's own "Save to PDF" or data export, read in the browser.
+- 2026-11-08: Owner chose to make AI Engineer a 6th career path (id "ai") whose courses are the AI engineer track, and
+  to offer the track in English and French as well as Derja: English or French follow the interface language by
+  default, with a switch to Derja in Arabic letters or 3arbizi. The Derja (Arabic letters) files stay the reference.

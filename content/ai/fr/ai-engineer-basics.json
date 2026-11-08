@@ -1,0 +1,391 @@
+{
+  "why": "L’AI engineer est devenu l’un des profils les plus recherchés en Tunisie et à l’étranger, surtout en télétravail avec des entreprises européennes. Avant de construire des applications, vous devez comprendre ce qu’est ce métier et comment un LLM fonctionne de l’intérieur : tokens, coût, limites.",
+  "outcome": "expliquer ce que fait un AI engineer, comprendre les tokens, la fenêtre de contexte et les hallucinations, calculer le coût d’une requête avec les bons prix, choisir un modèle, et faire votre premier appel à Claude en Python de façon sûre.",
+  "lessons": [
+    {
+      "title": "Que fait un AI engineer ?",
+      "text": [
+        "Un AI engineer est un développeur qui construit des applications avec de l’intelligence artificielle dedans : un chatbot qui répond aux clients, un outil qui lit des factures et en extrait des données, un assistant qui aide une équipe support… Il n’entraîne pas le modèle à partir de zéro : il utilise des modèles existants comme Claude via une API, et pense au produit entier : le prompt, les données envoyées, le code autour du modèle, le coût, la sécurité, et la façon dont tout cela fonctionne bien en production et s’améliore avec le temps.",
+        "Les métiers se confondent souvent. Le data scientist analyse des données et construit des modèles statistiques pour répondre à des questions métier. Le ML engineer entraîne et déploie des modèles de machine learning (parfois à partir de zéro) et travaille beaucoup avec des pipelines de données et des GPU. Le développeur logiciel construit des applications classiques. L’AI engineer est au milieu : il a les réflexes d’un développeur (code propre, tests, API, déploiement) et y ajoute la compréhension des LLM : prompts, évaluation, coût et limites.",
+        "Les compétences demandées : un bon Python (un peu de JavaScript aide), les API REST et le JSON, Git, un peu de SQL, et la compréhension des LLM. Ensuite viennent : le tool use et les agents, le RAG et les bases vectorielles, l’évaluation, la supervision. Les soft skills comptent aussi : expliquer au client ce que l’IA peut faire et ce qu’elle ne peut pas faire, et écrire clairement, car même un prompt, c’est de l’écriture.",
+        "Le marché : en Tunisie, des startups et des ESN travaillent sur des projets d’IA pour des clients européens, et des entreprises européennes travaillent à distance avec des juniors tunisiens. Le freelance marche aussi (chatbots, automatisation, intégrations), mais il vous faut un portfolio qui se démarque. Ce parcours avance pas à pas : d’abord les bases, puis le prompt engineering, puis l’API Claude en détail, le tool use et les agents, le RAG, et enfin la production : supervision, coût et évaluation."
+      ],
+      "points": [
+        "AI engineer = un développeur qui construit des produits avec des modèles existants, pas un chercheur qui entraîne des modèles.",
+        "Le ML engineer entraîne et déploie des modèles ; le data scientist analyse des données ; l’AI engineer intègre un LLM dans un produit.",
+        "Python, les API, le JSON et Git sont la base ; la compréhension des LLM vient par-dessus.",
+        "Un portfolio de vrais projets vous sert plus qu’une longue liste de certificats."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Track: Tunisian AI Teacher (indicative order)\n1. AI engineer basics            <- you are here\n2. Prompt engineering\n3. Claude API in Python\n4. Tool use and agents\n5. RAG and vector databases\n6. Production: monitoring, cost, evaluation",
+        "note": "La feuille de route du parcours : chaque cours s’appuie sur le précédent."
+      }
+    },
+    {
+      "title": "Comment fonctionne un LLM : les tokens et le token suivant",
+      "text": [
+        "Un LLM (Large Language Model) est un modèle entraîné sur une très grande quantité de texte. L’idée de base est simple : vous lui donnez le début d’un texte, et il prédit le morceau qui vient ensuite. Il ne comprend pas comme un humain : il calcule des probabilités, donne un score à chaque morceau possible, et en choisit un. Puis il ajoute ce morceau au texte et recommence, morceau par morceau, jusqu’à ce que la réponse soit complète.",
+        "Ce morceau s’appelle un token. Un token n’est pas toujours un mot : ce peut être un mot entier, une moitié de mot, quelques caractères ou une ponctuation. Le modèle ne lit pas directement les caractères : le texte est découpé en tokens, et chaque token a un numéro. La plupart du temps, un texte dans une autre langue que l’anglais, comme la derja ou l’arabe, prend plus de tokens pour le même sens, et cela pèse sur le coût et sur la place disponible dans le prompt.",
+        "Il y a deux étapes. L’entraînement : l’entreprise qui fait le modèle lui fait lire d’énormes quantités de texte et ajuste des milliards de paramètres jusqu’à ce qu’il prédise bien le token suivant, puis ajoute une étape pour qu’il suive les instructions et soit utile et sûr. C’est très coûteux, et ce n’est pas vous qui le faites. L’inférence : quand vous envoyez un prompt via l’API et que le modèle produit une réponse. Le modèle n’apprend pas de votre conversation : ses paramètres ne changent pas.",
+        "Cela explique pourquoi le modèle peut se tromper. Il choisit le texte qui paraît plausible d’après ce qu’il a appris, pas ce qui a été vérifié. Si l’information n’était pas dans les données d’entraînement, si elle est ancienne ou si la question est vague, il vous donne une réponse bien écrite et assurée… et fausse. De plus, le modèle a une date limite de connaissances (knowledge cutoff), et ne sait rien de ce qui s’est passé après, sauf si vous le lui donnez dans le prompt."
+      ],
+      "points": [
+        "Un LLM prédit le token suivant, token par token, jusqu’à ce que la réponse soit complète.",
+        "Token = un morceau de texte ; le coût et les limites se comptent en tokens, pas en mots.",
+        "L’entraînement est fait une fois par le fournisseur ; l’inférence, c’est vous à chaque requête.",
+        "Une réponse bien écrite et assurée n’est pas forcément une réponse juste."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Prompt: \"The capital of Tunisia is\"\n\nScores for the next token (illustration, not real numbers):\n  \" Tunis\"   0.92\n  \" a\"       0.03\n  \" the\"     0.02\n  ...\n\nChosen: \" Tunis\" -> appended to the text,\nthen the model predicts the next token again.",
+        "note": "Le modèle ne « connaît » pas la réponse : il choisit le token le plus probable d’après ce qu’il a appris."
+      }
+    },
+    {
+      "title": "Fenêtre de contexte, tokens et coût",
+      "text": [
+        "La fenêtre de contexte est le plus grand nombre de tokens que le modèle peut voir dans une requête : le system prompt, l’historique de la conversation, les documents que vous avez ajoutés, et la réponse qu’il va écrire. Dans Claude Opus 5.5, Sonnet 5.5 et Haiku 5.5, la fenêtre de contexte est de 1M (un million) de tokens, et la sortie peut aller jusqu’à 128K tokens. Mais « pouvoir » ne veut pas dire « devoir » : vous payez chaque token envoyé.",
+        "L’API ne se souvient de rien : chaque requête doit renvoyer toute la conversation depuis le début. Donc, dans un chatbot, chaque nouveau message fait grossir l’entrée, et le coût augmente avec. La facturation repose sur deux nombres : les tokens d’entrée (ce que vous envoyez) et les tokens de sortie (ce que le modèle produit), et la sortie coûte toujours plus cher. Les prix sont en dollars par million de tokens (entrée / sortie) : Opus 5.5 4 $ / 20 $, Sonnet 5.5 2 $ / 10 $, Haiku 5.5 0,10 $ / 0,50 $ (pour des prompts jusqu’à 100K tokens ; au-delà 0,50 $ / 2,50 $), et Fable 5.1, le plus puissant, 10 $ / 50 $.",
+        "Le calcul est simple : coût = input_tokens × prix_entrée / 1 000 000 + output_tokens × prix_sortie / 1 000 000. Exemple : une requête avec 2 000 tokens en entrée et 500 en sortie sur Opus 5.5 : 2 000 × 4 / 1M = 0,008 $, et 500 × 20 / 1M = 0,010 $, soit 0,018 $ au total. Cela semble négligeable ? Mais avec 10 000 requêtes par jour, cela fait 180 $ par jour. Le même travail sur Haiku 5.5 revient à 4,50 $ par jour. C’est pourquoi le choix du modèle et la longueur du prompt comptent autant.",
+        "Pour connaître les chiffres exacts, ne devinez pas : la réponse contient response.usage.input_tokens et response.usage.output_tokens, et avant l’envoi vous pouvez utiliser client.messages.count_tokens. N’utilisez pas tiktoken : c’est le tokenizer d’OpenAI, et il donne de mauvais comptes pour Claude. Sachez aussi que la réflexion du modèle (thinking, avant la réponse) fait partie de la sortie et compte dans max_tokens, et que vous pouvez la contrôler avec output_config effort. Dans les prochains cours, nous verrons le prompt caching et la Batches API (50 % moins cher) pour réduire la facture."
+      ],
+      "points": [
+        "Fenêtre de contexte = entrée + sortie dans une requête ; 1M de tokens dans les nouveaux modèles.",
+        "L’API est stateless : chaque requête renvoie tout l’historique.",
+        "Chez Claude, un token de sortie coûte 5 fois plus qu’un token d’entrée.",
+        "Mesurez avec usage et count_tokens, ne devinez pas, et n’utilisez pas tiktoken."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# Prices in USD per million tokens (input, output)\nPRICES = {\n    \"claude-opus-5-5\": (4.00, 20.00),\n    \"claude-sonnet-5-5\": (2.00, 10.00),\n    \"claude-haiku-5-5\": (0.10, 0.50),  # prompts up to 100K tokens\n}\n\ndef cost_usd(model, input_tokens, output_tokens):\n    price_in, price_out = PRICES[model]\n    return (input_tokens * price_in + output_tokens * price_out) / 1_000_000\n\n# A support chatbot: 2,000 tokens in, 500 tokens out, 10,000 requests per day\nfor model in PRICES:\n    per_day = cost_usd(model, 2_000, 500) * 10_000\n    print(f\"{model}: {per_day:.2f} USD per day\")",
+        "note": "Résultat : Opus 5.5 180,00, Sonnet 5.5 90,00, Haiku 5.5 4,50 dollars par jour."
+      }
+    },
+    {
+      "title": "Les familles de modèles : comment choisir",
+      "text": [
+        "Anthropic propose Claude en plusieurs niveaux. Opus 5.5 (claude-opus-5-5) est le modèle par défaut : très fort en code, en raisonnement et sur les tâches longues. Sonnet 5.5 (claude-sonnet-5-5) offre une bonne qualité à moitié prix. Haiku 5.5 (claude-haiku-5-5) est le plus rapide et le moins cher, adapté aux gros volumes : classification, extraction, routage. Et Fable 5.1 (claude-fable-5-1) est le plus puissant, pour les tâches les plus difficiles, mais plus cher. Utilisez ces identifiants tels quels, sans date à la fin.",
+        "Il existe d’autres fournisseurs : OpenAI (GPT), Google (Gemini), Mistral (une entreprise française), et des modèles « open weights » comme Llama ou Mistral, que vous pouvez faire tourner sur votre machine ou votre serveur, par exemple avec Ollama. Les modèles ouverts sont utiles quand les données ne doivent pas sortir de chez vous ou quand vous voulez tout contrôler, mais il vous faut des GPU et du travail d’hébergement, et la plupart du temps la qualité est inférieure à celle des grands modèles.",
+        "Le choix est toujours un compromis entre 5 choses : la qualité (comprend-il et raisonne-t-il bien ?), la vitesse (la latence, importante pour un chatbot), le coût (le prix du token et le nombre de tokens utilisés), la confidentialité (où vont les données et qui peut les voir), et l’hébergement (API cloud ou votre propre serveur). Il n’y a pas de « meilleur modèle » dans l’absolu : il y a le meilleur modèle pour une tâche donnée avec un budget donné.",
+        "Une méthode pratique : commencez par un modèle puissant (Opus 5.5) pour voir le plafond de qualité. Puis construisez un petit jeu de test avec de vrais exemples (20 ou 50 cas) et essayez-y Sonnet 5.5 et Haiku 5.5. Si le modèle bon marché obtient le même résultat sur votre cas, prenez-le. Et vous pouvez combiner : Haiku classe les tickets et Opus répond aux plus difficiles. Rappelez-vous aussi que le vrai coût est celui de la tâche entière : un modèle bon marché qui se trompe et doit recommencer 3 fois peut finir plus cher."
+      ],
+      "points": [
+        "Opus 5.5 = le défaut ; Sonnet 5.5 = le milieu ; Haiku 5.5 = rapide et bon marché ; Fable 5.1 = le plus puissant.",
+        "Modèles ouverts = contrôle et confidentialité, mais GPU et maintenance.",
+        "Testez sur vos propres exemples, pas sur les classements d’internet.",
+        "Mesurez le coût de la tâche entière, pas seulement le prix du token."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# Pick the model per task: start strong, then test cheaper models on your own examples\nMODEL_FOR_TASK = {\n    \"classify_ticket\": \"claude-haiku-5-5\",   # high volume, simple task: cheap and fast\n    \"answer_customer\": \"claude-sonnet-5-5\",  # good quality at a mid price\n    \"review_contract\": \"claude-opus-5-5\",    # long documents, hard reasoning\n}\n\ndef pick_model(task: str) -> str:\n    # Unknown task: fall back to the default, strongest general model\n    return MODEL_FOR_TASK.get(task, \"claude-opus-5-5\")\n\nprint(pick_model(\"classify_ticket\"))  # claude-haiku-5-5",
+        "note": "Un routage simple : chaque tâche reçoit le modèle qui lui suffit, et le choix se fait par des tests."
+      }
+    },
+    {
+      "title": "Les hallucinations : pourquoi le modèle se trompe et comment le limiter",
+      "text": [
+        "Une hallucination, c’est quand le modèle vous donne une information fausse avec une assurance totale : une référence qui n’existe pas, une fonction qu’une bibliothèque n’a pas, des chiffres inventés, une loi inexacte. La cause tient à son fonctionnement : il prédit un texte plausible, il ne consulte pas une base de données. Quand l’information manque, le modèle comble souvent le vide avec quelque chose qui semble juste au lieu de dire « je ne sais pas ».",
+        "Les cas les plus fréquents : les questions sur des sujets petits et peu connus (une petite entreprise tunisienne, une loi récente), les chiffres et dates exacts, les sources et références, et les informations postérieures au knowledge cutoff. Ajoutez à cela un prompt vague : si vous ne lui avez pas dit quoi utiliser et quoi ne pas utiliser, il complète de lui-même.",
+        "Comment le limiter : d’abord, le grounding : mettez les bons documents dans le prompt et demandez-lui de répondre uniquement à partir de ces documents. C’est l’idée du RAG, que nous verrons plus tard. Ensuite : donnez-lui la permission de dire « je ne sais pas » et dites-lui exactement quoi répondre. Puis : demandez-lui de citer la phrase du document sur laquelle il s’appuie, pour que vous puissiez vérifier. Enfin : quand c’est possible, vérifiez avec du code : le JSON est-il valide ? la fonction existe-t-elle ? le calcul est-il juste ?",
+        "La règle d’or : ne faites pas confiance aveuglément à la réponse, surtout pour ce qui touche à l’argent, à la santé, au droit ou aux décisions sur des personnes. Un bon AI engineer construit un système avec de la vérification : des tests, une évaluation sur des exemples, et une personne qui relit quand le risque est élevé. Et dites la vérité aux utilisateurs : l’IA peut se tromper."
+      ],
+      "points": [
+        "Hallucination = une réponse fausse donnée avec assurance ; normal pour un LLM, pas un bug rare.",
+        "Grounding : donnez-lui la source et demandez-lui de répondre uniquement à partir d’elle.",
+        "Permission de dire « je ne sais pas » + citation de la source = vérification plus facile.",
+        "Vérifiez par le code et par une personne, selon le risque."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "System:\nYou answer questions about our company's leave policy.\nUse ONLY the document between <policy> tags.\nIf the answer is not in the document, say exactly:\n\"I don't know, please ask HR.\"\nQuote the sentence of the document you used.\n\n<policy>\n...the current HR policy text...\n</policy>\n\nUser:\nHow many days of annual leave do I get after 3 years?",
+        "note": "Grounding + permission de dire « I don’t know » + citation : trois techniques dans un seul prompt."
+      }
+    },
+    {
+      "title": "Votre premier appel à Claude en Python",
+      "text": [
+        "L’installation : pip install anthropic (de préférence dans un environnement virtuel). Il vous faut ensuite une clé API depuis la Console d’Anthropic. Pour payer, le compte demande une carte de paiement internationale ; en Tunisie, beaucoup utilisent la carte technologique internationale ou une carte d’entreprise. Cette clé est un secret comme un mot de passe : qui l’obtient peut utiliser votre compte à vos frais.",
+        "Pourquoi une variable d’environnement ? Parce que le code part dans Git, chez les collègues, sur GitHub, et une clé écrite dans le code est vite volée. Le SDK lit tout seul ANTHROPIC_API_KEY dans l’environnement. Sous Linux ou macOS : export ANTHROPIC_API_KEY=... ; sous PowerShell : $env:ANTHROPIC_API_KEY = \"...\" ; ou un fichier .env que vous ajoutez au .gitignore.",
+        "L’appel : client = anthropic.Anthropic(), puis client.messages.create avec model, max_tokens (la longueur maximale de la sortie) et messages : une liste de dictionnaires {role, content}, le premier toujours 'user'. Vous pouvez ajouter system pour donner le rôle et les règles. L’API ne se souvient de rien : pour une conversation, vous ajoutez la réponse avec le rôle 'assistant' et vous renvoyez tout. Ne mettez pas de temperature ni de prefill copiés d’anciens tutoriels : les nouveaux modèles les refusent avec une erreur 400. Pour contrôler la profondeur et le coût, il y a output_config={\"effort\": ...} (medium par défaut sur Opus 5.5).",
+        "La réponse : response.content est une liste de blocs (text, thinking, tool_use…), donc vérifiez block.type avant de lire .text. response.usage contient input_tokens et output_tokens. Et surtout, regardez response.stop_reason : 'end_turn' s’est terminé normalement, 'max_tokens' la réponse a été coupée (augmentez max_tokens), 'tool_use' il veut utiliser un outil, 'refusal' il a refusé. Le SDK réessaie tout seul sur les erreurs 429 ou 5xx, et vous pouvez intercepter des erreurs comme anthropic.AuthenticationError ou anthropic.RateLimitError."
+      ],
+      "points": [
+        "pip install anthropic, et la clé dans ANTHROPIC_API_KEY, jamais dans le code.",
+        "messages.create = model + max_tokens + messages (+ system).",
+        "Vérifiez stop_reason avant de lire le contenu, et block.type avant .text.",
+        "usage vous dit combien vous avez payé : enregistrez-le dès le premier jour."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# pip install anthropic\n# The key is read from the ANTHROPIC_API_KEY environment variable (never hard-code it).\nimport anthropic\n\nclient = anthropic.Anthropic()\n\nresponse = client.messages.create(\n    model=\"claude-opus-5-5\",\n    max_tokens=4096,\n    system=\"You are a patient teacher. Answer in Tunisian Derja.\",\n    messages=[\n        {\"role\": \"user\", \"content\": \"Explain what a token is in two sentences.\"}\n    ],\n)\n\nif response.stop_reason == \"refusal\":\n    print(\"The model refused this request.\")\nelse:\n    for block in response.content:\n        if block.type == \"text\":\n            print(block.text)\n    if response.stop_reason == \"max_tokens\":\n        print(\"Warning: the answer was cut, increase max_tokens.\")\n\nprint(\"input tokens:\", response.usage.input_tokens)\nprint(\"output tokens:\", response.usage.output_tokens)",
+        "note": "Un appel complet : system, message, vérification de stop_reason, lecture du texte et de l’usage."
+      }
+    },
+    {
+      "title": "Données, confidentialité et responsabilité",
+      "text": [
+        "Tout ce que vous envoyez à l’API sort de chez vous et va sur les serveurs d’un fournisseur. Avant d’envoyer, demandez-vous : le modèle a-t-il besoin de voir ces données ? Les données personnelles (noms, numéros de téléphone, adresses, numéro de CIN, données de santé ou bancaires), les secrets (clés API, mots de passe), et le code ou les documents confidentiels de l’entreprise : on ne les envoie pas sans besoin et sans autorisation.",
+        "Les entreprises ont des règles : certaines n’autorisent aucun outil d’IA, d’autres autorisent un fournisseur sous contrat, d’autres exigent un modèle ouvert sur leurs propres serveurs. En Europe, il y a le RGPD, et en Tunisie la loi sur la protection des données personnelles et l’INPDP. En tant que junior, ne mettez pas les données d’un client dans un outil d’IA « pour essayer » sans demander. Demandez avant, toujours.",
+        "Une méthode pratique : réduisez les données (n’envoyez que le nécessaire), masquez les données personnelles avec des marqueurs comme [EMAIL] et [PHONE] avant l’appel, ne gardez pas dans les logs les textes complets des utilisateurs sans raison, et sachez ce que le fournisseur fait des données (conservation, contrat). Le masquage par regex est un bon début, mais il n’est pas complet : les noms, par exemple, sont difficiles à repérer avec une regex.",
+        "La responsabilité aussi : les modèles peuvent reproduire des biais présents dans leurs données d’entraînement (genre, origine, langue…). Ne laissez pas un modèle prendre seul une décision sur des personnes (recrutement, crédit) sans contrôle humain. Et soyez clair avec les utilisateurs : dites-leur qu’ils parlent à une IA, pas à un humain, et que la réponse peut être fausse. Cette transparence crée la confiance, et à beaucoup d’endroits elle est devenue une obligation."
+      ],
+      "points": [
+        "Envoyez le minimum ; masquez les données personnelles avant l’API.",
+        "Renseignez-vous sur les règles de l’entreprise avant d’utiliser un outil d’IA.",
+        "Les biais existent : les décisions sensibles ont besoin d’un humain.",
+        "Dites aux utilisateurs qu’ils parlent à une IA."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import re\n\ndef mask_personal_data(text: str) -> str:\n    # Replace e-mails and Tunisian phone numbers before sending text to an external API\n    text = re.sub(r\"[\\w.+-]+@[\\w-]+\\.[\\w.]+\", \"[EMAIL]\", text)\n    text = re.sub(r\"(\\+216\\s?)?\\b\\d{2}\\s?\\d{3}\\s?\\d{3}\\b\", \"[PHONE]\", text)\n    return text\n\nticket = \"Client Sami, sami.benali@example.com, tel +216 22 123 456, cannot log in.\"\nprint(mask_personal_data(ticket))\n# Client Sami, [EMAIL], tel [PHONE], cannot log in.",
+        "note": "Le nom « Sami » est toujours là : la regex est un début, pas une protection complète."
+      }
+    },
+    {
+      "title": "Apprendre et progresser : projets et portfolio",
+      "text": [
+        "L’IA évolue vite : nouveaux modèles, nouvelles fonctionnalités, et les tutoriels se périment en quelques mois. La compétence la plus importante est donc d’apprendre seul. Lisez la documentation officielle du fournisseur avant les articles et les vidéos, car c’est elle qui suit l’évolution de l’API. Quand vous tombez sur un tutoriel qui utilise un paramètre qui ne marche plus (comme temperature sur le nouveau Claude), vous savez pourquoi.",
+        "La pratique : de petits projets terminés valent mieux qu’un grand projet jamais fini. Exemples : un classifieur de tickets de support (derja, français, arabe), un outil qui extrait des informations de factures PDF vers du JSON, un chatbot qui répond à partir de la documentation d’un produit, un script qui compare le coût de 3 modèles sur la même tâche. Chaque projet montre une compétence : prompt, API, évaluation, coût.",
+        "Le portfolio : chaque projet sur GitHub avec un README clair : le problème, le fonctionnement, les résultats (combien de réponses justes sur combien d’exemples, combien cela coûte), les limites, et comment le lancer. Ne mettez pas la clé API dans le dépôt : .env dans .gitignore. Un recruteur en Europe préfère un petit projet mesuré avec des chiffres à 10 projets de chatbot sans un seul test.",
+        "L’organisation : 5 à 7 heures par semaine sur ce parcours vous font bien progresser. Pour chaque cours : lisez les leçons, faites les exercices à la main, et ajoutez une petite chose de votre cru. Coupure d’internet ? Préparez le code et les prompts hors ligne et testez les appels quand la connexion revient. Et pour ne pas trop dépenser en apprenant : Haiku 5.5 pour les essais, un petit max_tokens, et surveillez l’usage. N’oubliez pas la communauté : les meetups et les groupes tech tunisiens peuvent vous aider à trouver un mentor, des retours sur vos projets et des opportunités."
+      ],
+      "points": [
+        "La documentation officielle avant tout tutoriel.",
+        "De petits projets terminés, chacun avec une compétence claire.",
+        "Un README avec des résultats mesurés et des limites = un portfolio qui se démarque.",
+        "Des essais avec Haiku 5.5 et un petit max_tokens pour limiter le coût."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# Support ticket classifier (Claude API)\n\n## Problem\nClassify customer tickets written in Derja, French or Arabic into 5 categories.\n\n## How it works\nPython + anthropic SDK, model claude-haiku-5-5, prompt in prompts/classify.txt.\nPersonal data is masked before each API call.\n\n## Results\nTested on 100 labelled tickets: accuracy, cost per 1,000 tickets, average latency.\n\n## Limits\nTickets mixing languages and slang are harder to classify.\n\n## Run it\npip install -r requirements.txt\nSet ANTHROPIC_API_KEY in your environment, then run: python classify.py",
+        "note": "Un squelette de README : le recruteur lit le problème, les résultats et les limites en une minute."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Le métier",
+      "items": [
+        [
+          "AI engineer",
+          "Construit des produits avec des LLM existants : prompt, API, évaluation, coût, production"
+        ],
+        [
+          "ML engineer",
+          "Entraîne et déploie des modèles de machine learning"
+        ],
+        [
+          "Data scientist",
+          "Analyse des données et construit des modèles statistiques pour des questions métier"
+        ],
+        [
+          "Portfolio",
+          "De petits projets sur GitHub avec un README, des résultats et des limites"
+        ]
+      ]
+    },
+    {
+      "group": "LLM : les bases",
+      "items": [
+        [
+          "LLM",
+          "Un modèle qui prédit le token suivant, token par token"
+        ],
+        [
+          "Token",
+          "Un morceau de texte : un mot, une partie de mot ou une ponctuation"
+        ],
+        [
+          "Training",
+          "Le fournisseur entraîne le modèle sur de grandes quantités de texte, une fois"
+        ],
+        [
+          "Inference",
+          "Le modèle produit une réponse à votre requête"
+        ],
+        [
+          "Knowledge cutoff",
+          "La date après laquelle le modèle ne sait rien, sauf si vous le lui donnez"
+        ]
+      ]
+    },
+    {
+      "group": "Tokens et coût",
+      "items": [
+        [
+          "Context window",
+          "Tous les tokens d’une requête : system + historique + documents + sortie"
+        ],
+        [
+          "input_tokens / output_tokens",
+          "Les deux nombres facturés"
+        ],
+        [
+          "cost = in × p_in / 1M + out × p_out / 1M",
+          "La formule du coût en dollars"
+        ],
+        [
+          "client.messages.count_tokens(...)",
+          "Connaître le nombre de tokens avant d’envoyer"
+        ],
+        [
+          "Batches API",
+          "Asynchrone, 50 % moins cher"
+        ]
+      ]
+    },
+    {
+      "group": "Modèles Claude (prix entrée / sortie pour 1M de tokens)",
+      "items": [
+        [
+          "claude-opus-5-5",
+          "Opus 5.5, le défaut : 4 $ / 20 $"
+        ],
+        [
+          "claude-sonnet-5-5",
+          "Sonnet 5.5, le milieu : 2 $ / 10 $"
+        ],
+        [
+          "claude-haiku-5-5",
+          "Haiku 5.5, rapide et bon marché : 0,10 $ / 0,50 $ (prompt ≤ 100K)"
+        ],
+        [
+          "claude-fable-5-1",
+          "Fable 5.1, le plus puissant : 10 $ / 50 $"
+        ]
+      ]
+    },
+    {
+      "group": "L’API Claude en Python",
+      "items": [
+        [
+          "pip install anthropic",
+          "Installer le SDK"
+        ],
+        [
+          "ANTHROPIC_API_KEY",
+          "Variable d’environnement lue par le SDK ; la clé ne va jamais dans le code"
+        ],
+        [
+          "client.messages.create(model, max_tokens, messages)",
+          "L’appel de base"
+        ],
+        [
+          "response.stop_reason",
+          "end_turn, max_tokens, tool_use, refusal…"
+        ],
+        [
+          "response.usage",
+          "Les input_tokens et output_tokens de la requête"
+        ],
+        [
+          "output_config={\"effort\": \"low\"}",
+          "Moins de réflexion = plus rapide et moins cher (Opus 5.5 : medium par défaut)"
+        ]
+      ]
+    },
+    {
+      "group": "Limites et responsabilité",
+      "items": [
+        [
+          "Hallucination",
+          "Une réponse fausse donnée avec assurance"
+        ],
+        [
+          "Grounding",
+          "Lui donner les documents et lui demander de répondre uniquement à partir d’eux"
+        ],
+        [
+          "Masking",
+          "Masquer les données personnelles avant l’API"
+        ],
+        [
+          "Transparence",
+          "Dire à l’utilisateur qu’il parle à une IA"
+        ]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "Une requête a 3 000 tokens en entrée et 800 en sortie sur claude-sonnet-5-5. Combien coûte-t-elle ? Et combien avec 5 000 requêtes par jour ?",
+      "hint": "Sonnet 5.5 : 2 $ en entrée et 10 $ en sortie par million de tokens.",
+      "answer": "Entrée : 3 000 × 2 / 1 000 000 = 0,006 $. Sortie : 800 × 10 / 1 000 000 = 0,008 $. Une requête = 0,014 $. 5 000 requêtes = 70 $ par jour, soit environ 2 100 $ par mois (30 jours)."
+    },
+    {
+      "q": "Écrivez une fonction read_answer(response) qui renvoie le texte de la réponse, renvoie None en cas de refus, et affiche un avertissement quand la réponse a été coupée.",
+      "hint": "Vérifiez stop_reason, et ne joignez que les blocs dont le type est 'text'.",
+      "code": "python",
+      "answer": "def read_answer(response):\n    # Check why the model stopped before reading the content\n    if response.stop_reason == \"refusal\":\n        return None\n    if response.stop_reason == \"max_tokens\":\n        print(\"Warning: the answer was cut, increase max_tokens\")\n    return \"\".join(b.text for b in response.content if b.type == \"text\")"
+    },
+    {
+      "q": "Expliquez en 3 phrases la différence entre un AI engineer et un ML engineer, comme en entretien.",
+      "answer": "Le ML engineer entraîne des modèles (parfois à partir de zéro) et les déploie, en travaillant sur les données, les features et les GPU. L’AI engineer utilise des modèles existants comme Claude via une API et construit un produit avec : prompts, intégration, évaluation, coût et production. Les deux sont développeurs, mais l’AI engineer pense davantage au produit et au comportement du LLM qu’à l’entraînement."
+    },
+    {
+      "q": "Choisissez un modèle pour chaque cas et justifiez : (a) classer 200 000 emails par jour, (b) un assistant qui relit des contrats longs, (c) un chatbot de support classique.",
+      "hint": "Pensez au volume, à la difficulté et au coût.",
+      "answer": "(a) claude-haiku-5-5 : gros volume et tâche simple, le coût et la vitesse comptent le plus. (b) claude-opus-5-5 : documents longs et raisonnement difficile ; claude-fable-5-1 si la qualité ne suffit pas. (c) claude-sonnet-5-5 pour commencer, puis essayez Haiku 5.5 sur vos propres exemples. Dans tous les cas, décidez avec des tests sur vos données, pas au feeling."
+    },
+    {
+      "q": "Ce prompt produit des hallucinations : « Donne-moi le prix de l’abonnement Pro de notre entreprise. » Réécrivez le prompt pour réduire le risque.",
+      "hint": "Grounding, permission de dire je ne sais pas, et citation.",
+      "code": "text",
+      "answer": "System:\nYou answer questions about our products using ONLY the price list below.\nIf the answer is not in the price list, say exactly: \"I don't have this information.\"\nQuote the line of the price list you used.\n\n<price_list>\n...paste the current official price list here...\n</price_list>\n\nUser:\nWhat is the price of the Pro subscription?"
+    },
+    {
+      "q": "Écrivez du code qui compte les tokens d’un fichier report.txt avant de l’envoyer et estime le coût de l’entrée sur Opus 5.5.",
+      "hint": "client.messages.count_tokens avec le même modèle, et 4 $ par million de tokens en entrée.",
+      "code": "python",
+      "answer": "import anthropic\n\nclient = anthropic.Anthropic()\n\nwith open(\"report.txt\", encoding=\"utf-8\") as f:\n    text = f.read()\n\ncount = client.messages.count_tokens(\n    model=\"claude-opus-5-5\",\n    messages=[{\"role\": \"user\", \"content\": text}],\n)\ninput_cost = count.input_tokens * 4 / 1_000_000  # Opus 5.5: 4 USD per million input tokens\nprint(count.input_tokens, \"tokens, about\", round(input_cost, 4), \"USD of input\")"
+    },
+    {
+      "q": "Un ticket de support contient : le nom du client, son email, son numéro de téléphone, son numéro de carte bancaire et la description du problème. Qu’envoyez-vous à l’API pour le classer ?",
+      "answer": "Uniquement la description du problème, après y avoir masqué toute donnée personnelle avec des marqueurs (email, téléphone, nom). Le numéro de carte bancaire n’est jamais envoyé. Le nom, l’email et le téléphone ne sont pas utiles à la classification : gardez-les de votre côté et reliez-les au résultat avec l’identifiant du ticket."
+    }
+  ],
+  "pitfalls": [
+    "Écrire la clé API dans le code ou la pousser sur GitHub : la clé est volée et la facture est pour vous. Toujours une variable d’environnement et .env dans .gitignore.",
+    "Lire directement response.content[0].text : le premier bloc n’est pas toujours du texte, et si stop_reason vaut 'refusal' ou 'max_tokens', la réponse n’est pas complète.",
+    "Faire confiance aveuglément à la réponse : les chiffres, les références et les fonctions doivent être vérifiés, surtout pour les sujets sensibles.",
+    "Envoyer un document entier ou un long historique à chaque requête sans mesurer : le coût grimpe vite. Surveillez usage dès le premier jour.",
+    "Envoyer des données personnelles ou du code confidentiel à l’API sans besoin et sans l’accord de l’entreprise.",
+    "Copier du code d’un ancien tutoriel (temperature, prefill, un identifiant de modèle daté) : les nouveaux modèles le refusent avec une erreur 400.",
+    "Compter les tokens de Claude avec tiktoken : le compte est faux ; utilisez usage ou count_tokens."
+  ],
+  "interview": [
+    {
+      "q": "Quelle est la différence entre un AI engineer et un ML engineer ?",
+      "a": "Le ML engineer entraîne et déploie des modèles, en travaillant sur les données et l’entraînement. L’AI engineer construit des produits avec des modèles existants via une API : prompts, intégration dans l’application, évaluation, coût et supervision. Au niveau junior, l’AI engineer a plus besoin des réflexes d’un ingénieur logiciel que des mathématiques de l’entraînement."
+    },
+    {
+      "q": "Qu’est-ce qu’un token et pourquoi est-ce important ?",
+      "a": "Un token est un morceau de texte (un mot, une partie de mot, une ponctuation) que le modèle lit et écrit. La fenêtre de contexte, max_tokens et la facturation sont tous en tokens, donc la longueur du prompt et de la réponse pèse directement sur le coût et la latence. Un texte dans une autre langue que l’anglais prend généralement plus de tokens."
+    },
+    {
+      "q": "Pourquoi un LLM hallucine-t-il, et comment réduire le risque ?",
+      "a": "Parce qu’il prédit le texte le plus proche de ce qu’il a appris, il ne vérifie pas une source. On le réduit avec le grounding (mettre les documents dans le prompt et lui demander de répondre uniquement à partir d’eux), la permission de dire « je ne sais pas », une citation de la source, et une vérification par le code ou par une personne selon le risque. Et on évalue sur des exemples avant la production."
+    },
+    {
+      "q": "Comment estimez-vous le coût mensuel d’un chatbot ?",
+      "a": "Je mesure la moyenne des tokens d’entrée et de sortie par requête (avec usage sur un prototype, ou count_tokens), je multiplie par le prix du modèle (par exemple Opus 5.5 à 4 $ / 20 $ par million), puis par le nombre de requêtes par mois. Je n’oublie pas que l’historique grossit à chaque message. Ensuite, je regarde les leviers : un modèle moins cher pour certaines tâches, un prompt plus court, le caching, le batch."
+    },
+    {
+      "q": "Comment choisissez-vous entre un grand modèle et un petit ?",
+      "a": "Je commence par un modèle puissant pour connaître le plafond de qualité, je construis un jeu de test à partir de cas réels et j’y essaie les modèles moins chers. Je prends le moins cher qui atteint le niveau demandé. Je compte le coût de la tâche entière : un modèle bon marché qui se trompe et recommence peut coûter plus cher."
+    },
+    {
+      "q": "Qu’est-ce que la fenêtre de contexte, et que se passe-t-il quand la conversation devient très longue ?",
+      "a": "C’est le nombre maximal de tokens dans une requête : system, historique, documents et sortie. Quand la conversation s’allonge, le coût et la latence augmentent, et si on dépasse la limite, la requête est refusée. On s’organise : on coupe ou on résume l’ancien historique, et on n’envoie que les documents nécessaires."
+    },
+    {
+      "q": "Comment protégez-vous la clé API et les données des utilisateurs ?",
+      "a": "La clé va dans une variable d’environnement ou un gestionnaire de secrets, jamais dans le code ni dans le dépôt, avec une clé par environnement. Pour les données : j’envoie le minimum, je masque les données personnelles avant l’appel, je ne journalise pas de textes complets sans raison, et je respecte les règles de l’entreprise et les lois comme le RGPD."
+    },
+    {
+      "q": "L’API Claude se souvient-elle de la conversation ? Comment faire un chatbot avec plusieurs messages ?",
+      "a": "Non, la Messages API est stateless. C’est l’application qui garde l’historique et l’envoie en entier à chaque requête : des messages avec les rôles 'user' et 'assistant' dans l’ordre. L’entrée grossit donc à chaque tour, et il faut en tenir compte dans le coût."
+    }
+  ]
+}

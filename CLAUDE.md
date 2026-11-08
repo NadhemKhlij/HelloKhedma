@@ -1,7 +1,8 @@
 # HelloKhedma
 
 ## Project overview
-A multi-path job hunting web app targeting Data Engineers, Business Analysts, Application Support, Data Analysts and DevOps Engineers.
+A multi-path job hunting web app targeting Data Engineers, Business Analysts, Application Support, Data Analysts, DevOps Engineers
+and AI Engineers.
 The selected path adapts the job search, trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 
 ## Commands
@@ -45,9 +46,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   CI repeats the warning on every branch push ("Up to date with main?", summary of the run).
 - Conflict-prone files: js/i18n-fr.js (keep both French blocks when rebasing), CHECKLIST.md / ROADMAP.md (keep both
   rows), sw.js (VERSION: take the higher number + 1, keep every SHELL file), js/router.js ROUTES, index.html.
-- In progress elsewhere (2026-11-08): a new **AI Engineer** career path, by another session. Until it is merged, do not
-  edit what it owns: supabase/seed.sql path rows, the AI skills in js/ats.js, its courses and projects
-  (content/courses/, content/projects/ for that path) and its interview questions. Coordinate through the owner.
+- The **AI Engineer** career path ("ai") was merged on 2026-11-08: its courses and projects are the AI track
+  (content/ai/, four languages); a change to an AI course goes into all four languages (see "Rules for Claude Code").
 
 ## Tech stack
 - Frontend: HTML, Tailwind CSS 3 (css/input.css → css/app.css), vanilla JS ES modules, no bundler; installable PWA.
@@ -103,12 +103,16 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   exist in js/ats.js so missing skills link to the course. Lessons have no hand-written duration. To extend a course,
   append lessons (progress is stored by lesson index).
 - Portfolio projects are static JSON in content/projects/<path id>.json (+ fr/): 3 per path, real URLs checked with curl.
-- AI engineer track in Tunisian ("Tunisian AI Teacher", js/aitrack.js): content/ai/index.json + content/ai/ar/ (Arabic
-  letters, shown right to left) and content/ai/lat/ (3arbizi), same course format, same structure and identical code in
-  both scripts (smoke test). Writer guide: Derja as a Tunisian trainer speaks, technical terms in English/French,
+- AI engineer track (first "Tunisian AI Teacher", js/aitrack.js), also the courses of the AI Engineer path (id "ai"):
+  content/ai/index.json (name and summary in en, fr, ar, lat) + content/ai/en/, content/ai/fr/, content/ai/ar/ (Derja in
+  Arabic letters, shown right to left) and content/ai/lat/ (Derja in 3arbizi), same course format, same structure and
+  identical code in all four (check-content + smoke test). English or French follow the interface language; "hk.aiScript"
+  ("ar" | "lat") switches to Derja. The Arabic-letter file is the reference (times, structure): a change goes into all
+  four languages. Derja writer guide: Derja as a Tunisian trainer speaks, technical terms in English/French,
   3arbizi 3=ع 7=ح 9=ق 5=خ 8=غ ch=ش; Claude API facts only from the official reference. Times: course-times.ps1 -Catalog ai.
-  Its portfolio projects: content/ai/ar/projects.json + content/ai/lat/projects.json (project format, ids "ai-…", same
-  structure and links in both scripts, CV line in English), listed on #/ai and opened in #/project/<id> (smoke test).
+  Its portfolio projects: content/ai/<en|fr|ar|lat>/projects.json (project format, ids "ai-…", same structure and links
+  in every language, CV line in English, French in fr/), listed on #/ai and on Training for the ai path, opened in
+  #/project/<id> (smoke test). The ai path has no content/projects/ai.json and no course in content/courses/ of its own.
 - Never put API keys (RapidAPI, Adzuna, France Travail) or the service_role key in frontend code. The anon key is
   public by design; RLS protects the data.
 - Every user-owned table needs RLS policies scoped to auth.uid(); add schema changes as a new migration file.
@@ -155,7 +159,7 @@ Read the header comment of any file before modifying it; update the header if be
 - `#/project/<id>` → project → projects.js
 - `#/review[/<course id>]` → review → review.js (flashcards due today, spaced repetition, srs.js)
 - `#/skillcheck` → skillcheck → skillcheck.js (placement test for the path; passed courses are skipped)
-- `#/ai` → ai → aitrack.js (AI engineer track in Tunisian; its courses open in `#/course/ai-…`)
+- `#/ai` → ai → aitrack.js (AI engineer track in English, French or Derja; its courses open in `#/course/ai-…`)
 - `#/cv` → cv → cvpage.js + cvs.js, ats.js, atsscore.js (tab CV check & ATS score); `#/cv/maker` → CV maker tab (cvmaker.js)
 - `#/interview` → interview → interview.js
 - `#/applications` → applications → applications.js + tracker.js, store.js
@@ -227,7 +231,7 @@ Read the header comment of any file before modifying it; update the header if be
   but Supabase; do not add CDN scripts, fonts or trackers without updating the privacy policy (both languages)
 - js/coursetime.js — lesson and course durations computed from the content (reading + practice)
 - js/projects.js — portfolio projects: Training panel, AI track projects (#/ai) and the project page (#/project/<id>)
-- js/aitrack.js — AI engineer track in Tunisian: track page, Arabic / 3arbizi switch, content and RTL for its courses
+- js/aitrack.js — AI engineer track: track page, language switch (interface language / عربي / 3arbizi), content and RTL for its courses
 - content/courses/, content/interview/, content/projects/ — course, interview and project content (JSON)
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)

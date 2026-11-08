@@ -246,6 +246,345 @@ alter table public.training_steps
   add column if not exists title_fr       text,
   add column if not exists description_fr text;
 
+-- ================= supabase/migrations/20261106000000_cv_sync_insights.sql =================
+
+-- Two opt-in features chosen by the owner on 2026-11-06 (privacy policy updated the same day, both languages).
+--
+-- 1. cv_sync: "Save my CVs to my account" (js/cvsync.js), off by default. One row per user who turned it on: the row's
+--    existence is the switch. It holds the CV versions (localStorage "hk.cvs"), the active version id and the CV maker
+--    draft ("hk.cvmaker"), merged per version between devices. RLS: a user reads and writes only their own row. The row is deleted when the user turns the
+--    switch off, and with the account (on delete cascade).
+--
+-- 2. insights_events: "Help improve HelloKhedma" (js/insights.js), anonymous statistics sent only after the user said
+--    yes. No user id, no IP address, the day only (no time). Written only through log_insight(), which validates,
+--    trims and caps the input; RLS on with no policy, so the anon and user keys can neither read nor write the table.
+--    The owner reads the insights_* views in the Supabase dashboard (SQL editor). Rows older than 2 years are deleted.
+
+-- 1. CV sync ---------------------------------------------------------------------------------------------------------
+create table public.cv_sync (
+  user_id    uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  versions   jsonb not null default '[]'::jsonb,   -- [{ id, name, text, path_id, updated_at }]
+  active_id  text,
+  maker      jsonb,                                -- CV maker draft
+  deleted_ids jsonb not null default '[]'::jsonb,  -- ids of versions deleted on a device (so a merge does not bring them back)
+  updated_at timestamptz not null default now(),
+  constraint cv_sync_versions_array check (jsonb_typeof(versions) = 'array'),
+  constraint cv_sync_size check (pg_column_size(versions) + coalesce(pg_column_size(maker), 0) < 1000000)
+);
+alter table public.cv_sync enable row level security;
+create policy "own cv sync" on public.cv_sync for all to authenticated
+  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+-- 2. Anonymous insights -----------------------------------------------------------------------------------------------
+create table public.insights_events (
+  id      bigint generated always as identity primary key,
+  day     date not null default current_date,
+  kind    text not null check (kind in ('offer_skills', 'gaps', 'course_done')),
+  path_id text check (path_id is null or char_length(path_id) <= 20),
+  items   text[] not null default '{}' check (cardinality(items) <= 40)
+);
+create index insights_events_day on public.insights_events (day);
+alter table public.insights_events enable row level security; -- no policy on purpose
+
+-- kind: 'offer_skills' (skills an offer asks for), 'gaps' (those missing from the CV), 'course_done' (course id).
+-- At most 20,000 events a day in total, to bound abuse of this anonymous endpoint.
+create or replace function public.log_insight(p_kind text, p_path text, p_items text[])
+returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if p_kind not in ('offer_skills', 'gaps', 'course_done') then return; end if;
+  if (select count(*) from public.insights_events where day = current_date) >= 20000 then return; end if;
+  insert into public.insights_events (kind, path_id, items)
+  values (p_kind, left(nullif(p_path, ''), 20),
+    coalesce((select array_agg(left(x, 60)) from unnest((p_items)[1:40]) as x where x is not null and x <> ''), '{}'));
+  delete from public.insights_events where day < current_date - 730;
+end;
+$$;
+revoke execute on function public.log_insight(text, text, text[]) from public;
+grant execute on function public.log_insight(text, text, text[]) to anon, authenticated;
+
+-- Owner's views (dashboard only): what offers ask for, what CVs lack, which courses get finished, last 90 days.
+create view public.insights_offer_skills with (security_invoker = true) as
+  select path_id, skill, count(*) as offers
+  from public.insights_events, unnest(items) as skill
+  where kind = 'offer_skills' and day > current_date - 90
+  group by path_id, skill order by offers desc;
+create view public.insights_skill_gaps with (security_invoker = true) as
+  select path_id, skill, count(*) as times_missing
+  from public.insights_events, unnest(items) as skill
+  where kind = 'gaps' and day > current_date - 90
+  group by path_id, skill order by times_missing desc;
+create view public.insights_courses_done with (security_invoker = true) as
+  select items[1] as course_id, path_id, count(*) as finished
+  from public.insights_events
+  where kind = 'course_done' and day > current_date - 90
+  group by items[1], path_id order by finished desc;
+revoke all on public.insights_offer_skills, public.insights_skill_gaps, public.insights_courses_done from anon, authenticated;
+
+-- ================= supabase/migrations/20261106000100_learning_sync_reports.sql =================
+
+-- Training step 1 (owner request 2026-11-06; privacy policy updated the same day, both languages).
+--
+-- 1. learning_sync: learning progress of signed-in users, synced between their devices (js/learnsync.js): lessons
+--    done, quiz best scores, flashcards known, exercises solved, project steps, XP / streak days, last course,
+--    interview ratings, STAR stories and checklist, study and application goals. One row per user: data holds the
+--    stored values by key ({ "hk.lessons": "<json>", … }), stamps the time each key last changed. RLS: own row only.
+--    Deleted with the account (on delete cascade). CVs are NOT here (opt-in cv_sync).
+--
+-- 2. content_reports: "Report a problem" on lessons, exercises, quizzes… (js/courses.js). The course, the part, its
+--    position, the language and the user's message; no account id, no IP. Written only through report_content()
+--    (validates, caps); RLS on with no policy, so nobody can read it with the anon or user keys. The owner reads the
+--    content_reports_open view in the dashboard and marks rows done (update status). Reports are kept 1 year at most.
+
+-- 1. Learning progress -------------------------------------------------------------------------------------------------
+create table public.learning_sync (
+  user_id    uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  data       jsonb not null default '{}'::jsonb,
+  stamps     jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now(),
+  constraint learning_sync_objects check (jsonb_typeof(data) = 'object' and jsonb_typeof(stamps) = 'object'),
+  constraint learning_sync_size check (pg_column_size(data) < 2000000)
+);
+alter table public.learning_sync enable row level security;
+create policy "own learning sync" on public.learning_sync for all to authenticated
+  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+-- 2. Content reports ---------------------------------------------------------------------------------------------------
+create table public.content_reports (
+  id         bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  course_id  text not null check (char_length(course_id) between 1 and 80),
+  part       text not null check (part in ('lesson', 'exercise', 'quiz', 'flashcard', 'interview', 'cheatsheet', 'project', 'other')),
+  position   int check (position is null or position between 0 and 999),
+  lang       text check (lang is null or char_length(lang) <= 5),
+  message    text not null check (char_length(message) between 3 and 1000),
+  status     text not null default 'new' check (status in ('new', 'done', 'ignored'))
+);
+create index content_reports_new on public.content_reports (status, created_at);
+alter table public.content_reports enable row level security; -- no policy on purpose
+
+-- At most 300 reports a day in total, to bound abuse of this anonymous endpoint.
+create or replace function public.report_content(p_course text, p_part text, p_position int, p_lang text, p_message text)
+returns boolean
+language plpgsql security definer set search_path = '' as $$
+begin
+  if p_part not in ('lesson', 'exercise', 'quiz', 'flashcard', 'interview', 'cheatsheet', 'project', 'other') then return false; end if;
+  if char_length(coalesce(trim(p_message), '')) < 3 or char_length(coalesce(p_course, '')) = 0 then return false; end if;
+  if (select count(*) from public.content_reports where created_at > now() - interval '1 day') >= 300 then return false; end if;
+  insert into public.content_reports (course_id, part, position, lang, message)
+  values (left(p_course, 80), p_part, case when p_position between 0 and 999 then p_position end, left(p_lang, 5), left(trim(p_message), 1000));
+  delete from public.content_reports where created_at < now() - interval '365 days'; -- kept 1 year at most
+  return true;
+end;
+$$;
+revoke execute on function public.report_content(text, text, int, text, text) from public;
+grant execute on function public.report_content(text, text, int, text, text) to anon, authenticated;
+
+-- Owner's view (dashboard only): reports to look at, newest first.
+create view public.content_reports_open with (security_invoker = true) as
+  select id, created_at, course_id, part, position + 1 as number, lang, message
+  from public.content_reports where status = 'new' order by created_at desc;
+revoke all on public.content_reports_open from anon, authenticated;
+
+-- ================= supabase/migrations/20261106000200_admin_stats.sql =================
+
+-- Admin statistics page (#/admin, js/admin.js), 2026-11-06.
+-- - admins: the accounts allowed to read the statistics (added by hand, see the end of this file). RLS on, no policy:
+--   nobody reads or writes it through the API; only the security-definer functions below look at it.
+-- - usage_daily: anonymous daily counters (day, kind, count; no account, no IP), bumped by the job-search and cv-tailor
+--   Edge Functions through count_usage() (service role only).
+-- - is_admin(): true for an admin (used by the app to show the Admin link and page).
+-- - admin_stats(): one JSON object with totals only (no email, no name, no CV text), for admins; anyone else gets an
+--   error 42501. admin_report_status(): an admin marks a problem report done or ignored.
+-- Safe to run twice.
+
+create table if not exists public.admins (
+  user_id  uuid primary key references auth.users(id) on delete cascade,
+  added_at timestamptz not null default now()
+);
+alter table public.admins enable row level security; -- no policy on purpose
+
+create table if not exists public.usage_daily (
+  day  date not null default current_date,
+  kind text not null check (kind in ('job_search', 'cv_tailor')),
+  n    integer not null default 0,
+  primary key (day, kind)
+);
+alter table public.usage_daily enable row level security; -- no policy on purpose
+
+create or replace function public.count_usage(p_kind text)
+returns void language sql security definer set search_path = '' as $$
+  insert into public.usage_daily (day, kind, n) values (current_date, p_kind, 1)
+  on conflict (day, kind) do update set n = public.usage_daily.n + 1;
+$$;
+revoke all on function public.count_usage(text) from public, anon, authenticated;
+grant execute on function public.count_usage(text) to service_role;
+
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.admins where user_id = auth.uid());
+$$;
+revoke all on function public.is_admin() from public, anon;
+grant execute on function public.is_admin() to authenticated;
+
+create or replace function public.admin_stats()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception 'admin only' using errcode = '42501';
+  end if;
+  select jsonb_build_object(
+    'generated_at', now(),
+    'accounts', (select jsonb_build_object(
+        'total', count(*),
+        'confirmed', count(*) filter (where email_confirmed_at is not null),
+        'new_7d', count(*) filter (where created_at > now() - interval '7 days'),
+        'new_30d', count(*) filter (where created_at > now() - interval '30 days'),
+        'active_7d', count(*) filter (where last_sign_in_at > now() - interval '7 days'),
+        'active_30d', count(*) filter (where last_sign_in_at > now() - interval '30 days'))
+      from auth.users),
+    'signups_weekly', coalesce((select jsonb_agg(jsonb_build_object('week', w.week, 'n', w.n) order by w.week)
+      from (select date_trunc('week', created_at)::date as week, count(*) as n from auth.users
+            where created_at > now() - interval '12 weeks' group by 1) w), '[]'::jsonb),
+    'applications', (select jsonb_build_object(
+        'total', count(*),
+        'accounts', count(distinct user_id),
+        'by_stage', coalesce((select jsonb_object_agg(stage, n) from
+          (select stage::text as stage, count(*) as n from public.applications group by 1) s), '{}'::jsonb))
+      from public.applications),
+    'paths', coalesce((select jsonb_agg(jsonb_build_object('path_id', p.path_id, 'n', p.n) order by p.n desc)
+      from (select selected_path as path_id, count(*) as n from public.profiles where selected_path is not null group by 1) p), '[]'::jsonb),
+    'cv_sync_accounts', (select count(*) from public.cv_sync),
+    'learning_sync_accounts', (select count(*) from public.learning_sync),
+    'usage_daily', coalesce((select jsonb_agg(jsonb_build_object('day', day, 'kind', kind, 'n', n) order by day)
+      from public.usage_daily where day > current_date - 30), '[]'::jsonb),
+    'insights', jsonb_build_object(
+      'events_90d', (select count(*) from public.insights_events where day > current_date - 90),
+      'gaps', coalesce((select jsonb_agg(jsonb_build_object('skill', g.skill, 'n', g.n) order by g.n desc, g.skill)
+        from (select skill, count(*) as n from public.insights_events, unnest(items) as skill
+              where kind = 'gaps' and day > current_date - 90 group by skill order by count(*) desc, skill limit 10) g), '[]'::jsonb),
+      'offer_skills', coalesce((select jsonb_agg(jsonb_build_object('skill', g.skill, 'n', g.n) order by g.n desc, g.skill)
+        from (select skill, count(*) as n from public.insights_events, unnest(items) as skill
+              where kind = 'offer_skills' and day > current_date - 90 group by skill order by count(*) desc, skill limit 10) g), '[]'::jsonb),
+      'courses_done', coalesce((select jsonb_agg(jsonb_build_object('course_id', c.course_id, 'n', c.n) order by c.n desc, c.course_id)
+        from (select items[1] as course_id, count(*) as n from public.insights_events
+              where kind = 'course_done' and day > current_date - 90 group by 1 order by count(*) desc, 1 limit 10) c), '[]'::jsonb)),
+    'reports', jsonb_build_object(
+      'open', (select count(*) from public.content_reports where status = 'new'),
+      'items', coalesce((select jsonb_agg(to_jsonb(r) order by r.created_at desc)
+        from (select id, created_at, course_id, part, position, lang, message from public.content_reports
+              where status = 'new' order by created_at desc limit 50) r), '[]'::jsonb))
+  ) into result;
+  return result;
+end;
+$$;
+revoke all on function public.admin_stats() from public, anon;
+grant execute on function public.admin_stats() to authenticated;
+
+create or replace function public.admin_report_status(p_id bigint, p_status text)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then
+    raise exception 'admin only' using errcode = '42501';
+  end if;
+  if p_status not in ('new', 'done', 'ignored') then
+    raise exception 'bad status' using errcode = '22023';
+  end if;
+  update public.content_reports set status = p_status where id = p_id;
+end;
+$$;
+revoke all on function public.admin_report_status(bigint, text) from public, anon;
+grant execute on function public.admin_report_status(bigint, text) to authenticated;
+
+-- Make yourself admin (once, in the SQL editor, with the e-mail you sign in with):
+--   insert into public.admins (user_id) select id from auth.users where email = 'you@example.com' on conflict do nothing;
+
+-- ================= supabase/migrations/20261106000300_ai_usage.sql =================
+
+-- Claude API usage on the admin page (#/admin, js/admin.js), 2026-11-06.
+-- - ai_usage_daily: tokens used by the cv-tailor function per day and model (calls, input, output, cache read, cache
+--   write). Numbers only: no account, no CV text. Filled by count_ai_tokens() (service role only) after every Claude
+--   reply. The admin page turns them into an estimated cost with Anthropic's price list.
+-- - admin_settings: small key → JSON settings for the admin page; "claude_credit" = { amount_usd, since } (the owner's
+--   last top-up), used to estimate the remaining credit (Anthropic has no API for the real balance).
+-- - admin_ai_usage(): admins only (error 42501 otherwise): the credit setting and the usage rows since the top-up or
+--   the last 30 days, whichever is longer. admin_set_credit(amount, since): admins only.
+-- RLS on both tables with no policy: no direct API access. Safe to run twice.
+
+create table if not exists public.ai_usage_daily (
+  day          date not null default current_date,
+  model        text not null check (char_length(model) between 1 and 80),
+  calls        integer not null default 0,
+  input_tokens bigint not null default 0,
+  output_tokens bigint not null default 0,
+  cache_read_tokens bigint not null default 0,
+  cache_write_tokens bigint not null default 0,
+  primary key (day, model)
+);
+alter table public.ai_usage_daily enable row level security; -- no policy on purpose
+
+create table if not exists public.admin_settings (
+  key        text primary key,
+  value      jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.admin_settings enable row level security; -- no policy on purpose
+
+create or replace function public.count_ai_tokens(p_model text, p_input bigint, p_output bigint, p_cache_read bigint, p_cache_write bigint)
+returns void language sql security definer set search_path = '' as $$
+  insert into public.ai_usage_daily as u (day, model, calls, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens)
+  values (current_date, left(coalesce(nullif(p_model, ''), 'unknown'), 80), 1,
+          greatest(coalesce(p_input, 0), 0), greatest(coalesce(p_output, 0), 0),
+          greatest(coalesce(p_cache_read, 0), 0), greatest(coalesce(p_cache_write, 0), 0))
+  on conflict (day, model) do update set
+    calls = u.calls + 1,
+    input_tokens = u.input_tokens + excluded.input_tokens,
+    output_tokens = u.output_tokens + excluded.output_tokens,
+    cache_read_tokens = u.cache_read_tokens + excluded.cache_read_tokens,
+    cache_write_tokens = u.cache_write_tokens + excluded.cache_write_tokens;
+$$;
+revoke all on function public.count_ai_tokens(text, bigint, bigint, bigint, bigint) from public, anon, authenticated;
+grant execute on function public.count_ai_tokens(text, bigint, bigint, bigint, bigint) to service_role;
+
+create or replace function public.admin_ai_usage()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  credit jsonb;
+  since date;
+begin
+  if not public.is_admin() then
+    raise exception 'admin only' using errcode = '42501';
+  end if;
+  select value into credit from public.admin_settings where key = 'claude_credit';
+  since := least(current_date - 30, coalesce((credit->>'since')::date, current_date - 30));
+  return jsonb_build_object(
+    'credit', credit,
+    'rows', coalesce((select jsonb_agg(to_jsonb(u) order by u.day, u.model)
+      from public.ai_usage_daily u where u.day >= since), '[]'::jsonb));
+end;
+$$;
+revoke all on function public.admin_ai_usage() from public, anon;
+grant execute on function public.admin_ai_usage() to authenticated;
+
+create or replace function public.admin_set_credit(p_amount numeric, p_since date)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then
+    raise exception 'admin only' using errcode = '42501';
+  end if;
+  if p_amount is null or p_amount < 0 or p_amount > 100000 or p_since is null or p_since > current_date then
+    raise exception 'bad credit' using errcode = '22023';
+  end if;
+  insert into public.admin_settings (key, value, updated_at)
+  values ('claude_credit', jsonb_build_object('amount_usd', p_amount, 'since', p_since), now())
+  on conflict (key) do update set value = excluded.value, updated_at = now();
+end;
+$$;
+revoke all on function public.admin_set_credit(numeric, date) from public, anon;
+grant execute on function public.admin_set_credit(numeric, date) to authenticated;
+
 -- ================= supabase/seed.sql =================
 
 -- Idempotent seed: safe to re-run. Resource ids are derived from (path, kind, title),
@@ -279,7 +618,9 @@ insert into public.career_paths (id, name, blurb, color, job_titles, sort_order)
  ('da','Data Analyst','Insights, dashboards, storytelling','#e0508b',
    array['Data Analyst','Analyste de Données','BI Analyst','Reporting Analyst'],4),
  ('do','DevOps Engineer','CI/CD, containers, cloud, automation','#3b82f6',
-   array['DevOps Engineer','Ingénieur DevOps','Site Reliability Engineer','Platform Engineer','Cloud Engineer'],5)
+   array['DevOps Engineer','Ingénieur DevOps','Site Reliability Engineer','Platform Engineer','Cloud Engineer'],5),
+ ('ai','AI Engineer','LLM apps, agents, RAG, evals','#16a34a',
+   array['AI Engineer','Ingénieur IA','LLM Engineer','Generative AI Engineer','Applied AI Engineer'],6)
 on conflict (id) do update set
   name = excluded.name, blurb = excluded.blurb, color = excluded.color,
   job_titles = excluded.job_titles, sort_order = excluded.sort_order;
@@ -338,6 +679,20 @@ select pg_temp.seed('do','tip','[
  "Talk about incidents you handled and what you automated afterwards; DevOps interviews test judgement as much as tools.",
  "Quantify your impact: deployment time cut, releases per week, incidents avoided, cloud costs saved."]'::jsonb);
 select pg_temp.seed('do','keyword','["CI/CD","Docker","Kubernetes","Terraform","AWS","Azure","GCP","Linux","Bash","Python","Git","Ansible","Helm","Prometheus","Grafana","Monitoring"]'::jsonb);
+
+-- AI Engineer ---------------------------------------------------------------------------
+-- Its nine courses are the AI engineer track (content/ai: English, French, Derja in Arabic letters and 3arbizi).
+select pg_temp.seed('ai','tool','[
+ ["Claude API + Python SDK","Build features with Claude: messages, streaming, tools, structured outputs"],
+ ["Claude Code","A coding agent for the terminal, the IDE and the desktop"],
+ ["pgvector","Vector search inside PostgreSQL, for RAG"],
+ ["FastAPI","A small backend that keeps the API key and calls the model"],
+ ["MCP (Model Context Protocol)","Connect ready-made tools and data sources to an agent"]]'::jsonb);
+select pg_temp.seed('ai','tip','[
+ "Show numbers, not demos: an eval set, the score, the cost per task and the limits in every project README.",
+ "Build one project with Derja, French and Arabic users in mind: few candidates in Europe can show that, and Tunisian clients need it.",
+ "In interviews, tell the story of a mistake the model made, how you measured it and how you fixed it."]'::jsonb);
+select pg_temp.seed('ai','keyword','["LLM","Prompt engineering","Claude API","OpenAI API","AI agents","RAG","Vector database","LLMOps","LangChain","AI coding tools","Python","REST API","Docker","Git","SQL"]'::jsonb);
 
 -- =====================================================================================
 -- Learning tracks. Step = [title, description, kind, provider, url, est_hours, is_free?]
@@ -490,6 +845,35 @@ select pg_temp.track('do','do-cloud','Cloud, Infrastructure as Code and reliabil
  ["Project: infrastructure as code","Create the cloud resources of your API with Terraform from a pipeline, with remote state, a dashboard and one alert.","project","Your repo","",15],
  ["AWS Certified Cloud Practitioner or CKA","Pick one: cloud fundamentals (AWS) or Kubernetes administration (CNCF). Check current exam details.","certification","AWS / CNCF","https://aws.amazon.com/certification/",25,false]]'::jsonb);
 
+-- AI Engineer ---------------------------------------------------------------------------------
+-- The nine HelloKhedma AI courses show under these tracks (course list of the path); steps point to official material.
+select pg_temp.track('ai','ai-foundations','LLM basics, prompting and the Claude API','beginner',
+ 'How LLMs work, how to write prompts for an app, and how to call Claude from Python safely.',
+ 'Explain tokens, cost and hallucinations, write a system prompt with examples, and build a small Python app that returns JSON you can trust.',1,'[
+ ["Anthropic courses: API fundamentals","Free notebooks from Anthropic: first calls, messages, models and parameters.","learn","Anthropic","https://github.com/anthropics/courses",6],
+ ["Prompt engineering interactive tutorial","Chapters of exercises on clear prompts, roles, examples and avoiding hallucinations.","practice","Anthropic","https://github.com/anthropics/prompt-eng-interactive-tutorial",8],
+ ["Anthropic Python SDK","Read the README and run the examples: client, streaming, errors and retries.","learn","GitHub","https://github.com/anthropics/anthropic-sdk-python",3],
+ ["Structured outputs","Get JSON that follows your schema, and know what the schema does not guarantee.","learn","Claude docs","https://platform.claude.com/docs/en/build-with-claude/structured-outputs",2],
+ ["Project: a ticket classifier for Derja, French and Arabic","Classify 30 real-looking support messages into a JSON ticket, with a small test set and the cost per message in the README.","project","Your repo","",10]]'::jsonb);
+select pg_temp.track('ai','ai-build','Tools, agents and RAG','intermediate',
+ 'Give the model your functions and your data: tool use, MCP, embeddings and answers with sources.',
+ 'Build an agent loop with budgets and a RAG assistant that cites its sources and says when it does not know.',2,'[
+ ["Tool use overview","Define tools, run the loop, return results and errors.","learn","Claude docs","https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",3],
+ ["MCP Python SDK","Write a small MCP server and connect it to a client.","practice","GitHub","https://github.com/modelcontextprotocol/python-sdk",4],
+ ["Embeddings","What embeddings are and where to get them (Claude has no embeddings endpoint).","learn","Claude docs","https://platform.claude.com/docs/en/build-with-claude/embeddings",2],
+ ["pgvector","Store embeddings in PostgreSQL, search them and index them.","learn","GitHub","https://github.com/pgvector/pgvector",3],
+ ["Citations","Answers that quote the passages they come from.","learn","Claude docs","https://platform.claude.com/docs/en/build-with-claude/citations",2],
+ ["Claude cookbooks","Worked notebooks on RAG, tool use, agents and evaluation to read and adapt.","practice","Anthropic","https://github.com/anthropics/claude-cookbooks",8],
+ ["Project: a documentation assistant with citations","RAG over a public documentation, with sources, an I do not know path and an eval set (see the portfolio projects below).","project","Your repo","",16]]'::jsonb);
+select pg_temp.track('ai','ai-production','Evaluation, production and maintenance','advanced',
+ 'Measure quality, run the feature safely in production and keep it working when models change.',
+ 'Ship an AI feature with an eval in CI, logs, budgets, a canary and a rollback, and migrate it to a new model without breaking it.',3,'[
+ ["Prompt caching","Lower cost and latency on the fixed part of the prompt, and check that it works.","learn","Claude docs","https://platform.claude.com/docs/en/build-with-claude/prompt-caching",2],
+ ["Rate limits","How limits work and what to do when you reach them.","learn","Claude docs","https://platform.claude.com/docs/en/api/rate-limits",1],
+ ["Practice: an eval set for your project","Write 30 to 50 real cases with the expected answer, grade them in code or with a calibrated judge, and run them after every change.","practice","Your repo","",6],
+ ["Project: a support agent ready for production","Tools, guardrails, logs, cost per ticket, an eval in GitHub Actions and Docker (see the portfolio projects below).","project","Your repo","",20],
+ ["Project: a documented model migration","Move one of your projects to a newer model or SDK version with an eval, a canary and a CHANGELOG entry with the numbers.","project","Your repo","",6]]'::jsonb);
+
 -- =====================================================================================
 -- French texts (shown when the interface is French). Needs migration 20261029000200_content_fr.sql.
 -- Rows are matched on their English title (the id key): when you rename an English title, update it here too.
@@ -503,7 +887,8 @@ from (values
   ('ba', 'Business Analyst', 'Besoins, processus, parties prenantes'),
   ('as', 'Support applicatif', 'Incidents, supervision, run'),
   ('da', 'Data Analyst', 'Analyses, tableaux de bord, storytelling'),
-  ('do', 'DevOps Engineer', 'CI/CD, conteneurs, cloud, automatisation')
+  ('do', 'DevOps Engineer', 'CI/CD, conteneurs, cloud, automatisation'),
+  ('ai', 'AI Engineer', 'Applications LLM, agents, RAG, évaluations')
 ) as v(id, n, b)
 where p.id = v.id;
 
@@ -699,3 +1084,43 @@ select pg_temp.track_fr('do-cloud','Cloud, Infrastructure as Code et fiabilité'
  ["SRE book: service level objectives","Livre SRE : les objectifs de niveau de service","Définir SLI, SLO et budgets d’erreur."],
  ["Project: infrastructure as code","Projet : infrastructure as code","Créez les ressources cloud de votre API avec Terraform depuis un pipeline, avec un état distant, un tableau de bord et une alerte."],
  ["AWS Certified Cloud Practitioner or CKA","AWS Certified Cloud Practitioner ou CKA","Choisissez-en une : fondamentaux du cloud (AWS) ou administration Kubernetes (CNCF). Vérifiez les détails actuels de l’examen."]]'::jsonb);
+
+-- AI Engineer ----------------------------------------------------------------------------
+select pg_temp.res_fr('ai','tool','[
+ ["Claude API + Python SDK","Claude API + SDK Python","Construire des fonctionnalités avec Claude : messages, streaming, outils, sorties structurées"],
+ ["Claude Code","Claude Code","Un agent de code pour le terminal, l’IDE et le bureau"],
+ ["pgvector","pgvector","La recherche vectorielle dans PostgreSQL, pour le RAG"],
+ ["FastAPI","FastAPI","Un petit backend qui garde la clé API et appelle le modèle"],
+ ["MCP (Model Context Protocol)","MCP (Model Context Protocol)","Brancher des outils et des sources de données prêts à l’emploi sur un agent"]]'::jsonb);
+select pg_temp.res_fr('ai','tip','[
+ ["Show numbers, not demos: an eval set, the score, the cost per task and the limits in every project README.","Montrez des chiffres, pas des démos : un jeu d’évaluation, le score, le coût par tâche et les limites dans le README de chaque projet."],
+ ["Build one project with Derja, French and Arabic users in mind: few candidates in Europe can show that, and Tunisian clients need it.","Construisez un projet pensé pour des utilisateurs en derja, en français et en arabe : peu de candidats en Europe peuvent le montrer, et les clients tunisiens en ont besoin."],
+ ["In interviews, tell the story of a mistake the model made, how you measured it and how you fixed it.","En entretien, racontez une erreur du modèle, comment vous l’avez mesurée et comment vous l’avez corrigée."]]'::jsonb);
+
+-- Learning tracks: AI Engineer -----------------------------------------------------------
+select pg_temp.track_fr('ai-foundations','Les bases des LLM, le prompting et l’API Claude',
+ 'Comment fonctionnent les LLM, comment écrire des prompts pour une application et comment appeler Claude en Python en toute sécurité.',
+ 'Expliquer les tokens, le coût et les hallucinations, écrire un system prompt avec des exemples et construire une petite application Python qui renvoie un JSON fiable.','[
+ ["Anthropic courses: API fundamentals","Cours Anthropic : les fondamentaux de l’API","Des notebooks gratuits d’Anthropic : premiers appels, messages, modèles et paramètres."],
+ ["Prompt engineering interactive tutorial","Tutoriel interactif de prompt engineering","Des chapitres d’exercices sur les prompts clairs, les rôles, les exemples et la prévention des hallucinations."],
+ ["Anthropic Python SDK","Le SDK Python d’Anthropic","Lisez le README et lancez les exemples : client, streaming, erreurs et nouvelles tentatives."],
+ ["Structured outputs","Les sorties structurées","Obtenir un JSON qui suit votre schéma, et savoir ce que le schéma ne garantit pas."],
+ ["Project: a ticket classifier for Derja, French and Arabic","Projet : un classifieur de tickets en derja, français et arabe","Classez 30 messages de support réalistes en ticket JSON, avec un petit jeu de test et le coût par message dans le README."]]'::jsonb);
+select pg_temp.track_fr('ai-build','Outils, agents et RAG',
+ 'Donner au modèle vos fonctions et vos données : tool use, MCP, embeddings et réponses sourcées.',
+ 'Construire une boucle d’agent avec des budgets et un assistant RAG qui cite ses sources et dit quand il ne sait pas.','[
+ ["Tool use overview","Présentation du tool use","Définir des outils, faire tourner la boucle, renvoyer les résultats et les erreurs."],
+ ["MCP Python SDK","Le SDK Python de MCP","Écrire un petit serveur MCP et le connecter à un client."],
+ ["Embeddings","Les embeddings","Ce que sont les embeddings et où les obtenir (Claude n’a pas d’endpoint d’embeddings)."],
+ ["pgvector","pgvector","Stocker des embeddings dans PostgreSQL, les rechercher et les indexer."],
+ ["Citations","Les citations","Des réponses qui citent les passages dont elles viennent."],
+ ["Claude cookbooks","Les Claude cookbooks","Des notebooks commentés sur le RAG, le tool use, les agents et l’évaluation, à lire et à adapter."],
+ ["Project: a documentation assistant with citations","Projet : un assistant de documentation avec citations","Un RAG sur une documentation publique, avec les sources, une réponse « je ne sais pas » et un jeu d’évaluation (voir les projets de portfolio plus bas)."]]'::jsonb);
+select pg_temp.track_fr('ai-production','Évaluation, production et maintenance',
+ 'Mesurer la qualité, faire tourner la fonctionnalité en production en toute sécurité et la garder fonctionnelle quand les modèles changent.',
+ 'Livrer une fonctionnalité IA avec une évaluation en CI, des logs, des budgets, un canary et un retour arrière, puis la migrer vers un nouveau modèle sans la casser.','[
+ ["Prompt caching","Le prompt caching","Réduire le coût et la latence sur la partie fixe du prompt, et vérifier que cela fonctionne."],
+ ["Rate limits","Les limites de débit","Comment fonctionnent les limites et que faire quand vous les atteignez."],
+ ["Practice: an eval set for your project","Pratique : un jeu d’évaluation pour votre projet","Écrivez 30 à 50 cas réels avec la réponse attendue, notez-les en code ou avec un juge calibré, et relancez-les après chaque changement."],
+ ["Project: a support agent ready for production","Projet : un agent de support prêt pour la production","Outils, garde-fous, logs, coût par ticket, une évaluation dans GitHub Actions et Docker (voir les projets de portfolio plus bas)."],
+ ["Project: a documented model migration","Projet : une migration de modèle documentée","Passez l’un de vos projets à un modèle ou à une version de SDK plus récents avec une évaluation, un canary et une entrée de CHANGELOG avec les chiffres."]]'::jsonb);

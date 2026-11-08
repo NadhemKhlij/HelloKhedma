@@ -5,8 +5,8 @@ offers, learning tracks and courses, CV tools with an ATS score, interview prep 
 
 Live: **https://hellokhedma.io** · English and French · installable on phone and desktop (PWA)
 
-Career paths: **Data Engineer · Business Analyst · Application Support · Data Analyst · DevOps Engineer**,
-plus an **AI engineer track in Tunisian Derja** (Arabic letters or 3arbizi).
+Career paths: **Data Engineer · Business Analyst · Application Support · Data Analyst · DevOps Engineer · AI Engineer**.
+The AI Engineer courses form the **AI engineer track**, in English, French or Tunisian Derja (Arabic letters or 3arbizi).
 
 ## What it does
 
@@ -15,7 +15,7 @@ plus an **AI engineer track in Tunisian Derja** (Arabic letters or 3arbizi).
 | **Home** | Path cards, greeting and summary, "Your market" pulse (typical salary, % remote, top skills with your CV gaps, levels), study streak and "Resume" |
 | **Offers** | Live search (France Travail, Adzuna, JSearch), "Companies I follow" (Greenhouse, Lever, Ashby, Workable, SmartRecruiters career pages) and "Remote jobs" (Jobicy, Remotive). CV fit score and skill highlights, salary chip / filter / sort, posted date, level (Junior…Lead), "⚠ Check this offer" scam and stale warnings, cover letter prompt, one-click add to the tracker |
 | **Training** | Roadmap of tracks per path with progress, weekly study plan, 25 courses (7-10 lessons each) with quiz, flashcards, exercises, interview questions and cheat sheet, honest time estimates, 15 portfolio projects, XP and streak |
-| **AI track** (`#/ai`) | "Tunisian AI Teacher": 9 courses and 3 portfolio projects on building with LLMs and the Claude API, in Derja, right to left in Arabic letters or in 3arbizi |
+| **AI track** (`#/ai`) | 9 courses and 3 portfolio projects on building with LLMs and the Claude API (the AI Engineer path's courses), in English or French with the interface, or in Derja: right to left in Arabic letters or in 3arbizi |
 | **CV** | Several CV versions (one per path), CV keyword check against an offer, **ATS score /100** with the fixes to make, **CV maker** (ATS-friendly one-column CV in EN or FR, print to PDF), "Tailor my CV" (honest gap analysis, prompt for your own AI, or for signed-in users "Correct, tailor and create my CV": one click corrects the CV, tailors it to the offer and opens it in the CV maker with the list of changes; or "Rewrite only") |
 | **Interview** | Questions and model answers per path, STAR stories, checklist |
 | **Applications** | Kanban tracker with details, notes, follow-up dates, contacts, salary, "CV sent", stats, CSV export, calendar files, thank-you / follow-up email templates |

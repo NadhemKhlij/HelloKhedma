@@ -56,17 +56,17 @@ export function scriptSwitch(onChange) {
 const DERJA_TEXT = {
   ar: { title: "ولّي AI engineer، بالتونسي",
     intro: "كورسات بالدارجة باش تتعلّم تبني applications بالـ AI (Claude و غيرو)، تحطّها في الـ production، تحافظ عليها و تحسّنها ديما.",
-    soon: "قريب", start: "ابدا", lessons: "دروس",
+    soon: "قريب", start: "ابدا →", lessons: "دروس",
     projects: "مشاريع للـ portfolio", projectsIntro: "بعد الكورسات، ابني مشروع حقيقي و حطّو على GitHub: هذا اللي يحب يشوفو الـ recruiter." },
   lat: { title: "Walli AI engineer, bel tounsi",
     intro: "Courset bel derja bech tet3allem tabni applications bel AI (Claude w 8irou), t7ottha fel production, t7afedh 3liha w t7assenha dima.",
-    soon: "9rib", start: "Ebda", lessons: "drous",
+    soon: "9rib", start: "Ebda →", lessons: "drous",
     projects: "Machari3 lel portfolio", projectsIntro: "Ba3d el courset, ebni machrou3 7a9i9i w 7ottou 3la GitHub: hedha elli y7eb ychoufou el recruiter." },
 };
 const trackText = (s) => DERJA_TEXT[s] || {
   title: t("Become an AI engineer"),
   intro: t("Courses to learn to build applications with AI (Claude and others), put them in production, maintain them and keep improving them."),
-  soon: t("Soon"), start: t("Start"), lessons: t("lessons"),
+  soon: t("Soon"), start: t("Start →"), lessons: t("lessons"),
   projects: t("Portfolio projects"),
   projectsIntro: t("After the courses, build a real project and put it on GitHub: that is what recruiters want to see."),
 };
@@ -87,7 +87,7 @@ export async function renderAiTrack() {
       h("p", { class: "mute text-sm flex-1" }, aiText(c.summary, s)),
       ready && c.lessonCount ? h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
         h("div", { class: "h-1.5 rounded-full", style: `width:${Math.round((d / c.lessonCount) * 100)}%;background:var(--accent)` })) : null,
-      ready ? h("span", { class: "text-xs font-medium", style: "color:var(--accent)" }, d ? `${d}/${c.lessonCount}` : `${tx.start} →`) : null,
+      ready ? h("span", { class: "text-xs font-medium", style: "color:var(--accent)" }, d ? `${d}/${c.lessonCount}` : tx.start) : null,
     ];
     return ready ? h("a", { href: `#/course/${c.id}`, class: "panel flex flex-col gap-2 !p-4" }, ...inner)
       : h("div", { class: "panel flex flex-col gap-2 !p-4", style: "opacity:.6" }, ...inner);

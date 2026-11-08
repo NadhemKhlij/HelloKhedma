@@ -287,7 +287,7 @@ async function jooble(q: string, where: string, country: string, page: number): 
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ keywords: q, location: loc, page: String(page) }),
     });
-    if (!res.ok) throw new Error(`Jooble returned ${res.status}: ${await providerMessage(res)}`);
+    if (!res.ok) throw new Error(`Jooble (${host}) returned ${res.status}: ${(await providerMessage(res)).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 100)}`);
     return await res.json();
   };
   let data = await call(location);

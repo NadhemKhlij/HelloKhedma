@@ -167,7 +167,7 @@ export default {
   // "Explain my mistake" (explain.js, training step 4) and its admin counters
   "🤖 Explain my mistake": "🤖 Expliquer mon erreur",
   "Sign in to get an AI explanation of your mistake (up to {n} a day).": "Connectez-vous pour obtenir une explication de votre erreur par l’IA (jusqu’à {n} par jour).",
-  "Your answer and this exercise will be sent to Claude, Anthropic's AI, to write the explanation. HelloKhedma does not store them. Up to {n} explanations a day.": "Votre réponse et cet exercice seront envoyés à Claude, l’IA d’Anthropic, pour écrire l’explication. HelloKhedma ne les enregistre pas. Jusqu’à {n} explications par jour.",
+  "Your answer and this exercise will be sent to Claude, Anthropic's AI, to write the explanation. HelloKhedma keeps nothing linked to you; explanations of multiple-choice answers are saved without your account, to answer the same mistake again. Up to {n} explanations a day.": "Votre réponse et cet exercice seront envoyés à Claude, l’IA d’Anthropic, pour écrire l’explication. HelloKhedma ne garde rien qui soit lié à vous ; les explications des réponses à choix sont enregistrées sans votre compte, pour répondre à la même erreur la fois suivante. Jusqu’à {n} explications par jour.",
   "Send and explain": "Envoyer et expliquer",
   "Looking at your answer…": "Analyse de votre réponse…",
   "The explanation was cut short.": "L’explication a été coupée.",
@@ -181,4 +181,9 @@ export default {
   "This answer is too long to explain.": "Cette réponse est trop longue pour être expliquée.",
   "AI explanations": "Explications par IA",
   "AI explanations per day": "Explications par IA par jour",
+  // Saved explanations (explain.js, ROADMAP 4b row 4c) and their admin counter
+  "Saved on this device: shown again without asking the AI.": "Enregistrée sur cet appareil : affichée à nouveau sans interroger l’IA.",
+  "Saved from an earlier identical answer: not counted in your daily limit.": "Reprise d’une réponse identique déjà expliquée : non comptée dans votre limite du jour.",
+  "Ask the AI again": "Redemander à l’IA",
+  "Saved explanations reused": "Explications enregistrées réutilisées",
 };

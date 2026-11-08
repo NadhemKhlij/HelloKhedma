@@ -394,6 +394,52 @@ test("explain my mistake: offered after a wrong answer, sign-in asked for guests
   await expect(drill.locator("[data-explain]").getByRole("button", { name: /Explain my mistake/ })).toBeVisible();
 });
 
+// Saved explanations (explain.js, ROADMAP 4b row 4c): a signed-in learner (simulated; the explain-mistake function is
+// answered by the test, nothing reaches Claude) gets the notice, then the answer; the same mistake later shows the copy
+// saved on this device without a new call; "Ask the AI again" calls again with fresh: true.
+test("explain my mistake: the answer is saved on the device and reused for the same mistake", async ({ page }) => {
+  const calls = [];
+  await page.route("**/functions/v1/explain-mistake", async (route) => {
+    calls.push(route.request().postDataJSON());
+    await route.fulfill({ status: 200, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ text: `Explanation number ${calls.length}.`, model: "test", truncated: false, saved: false }) });
+  });
+  const pick = await (async () => {
+    await open(page, "#/");
+    return page.evaluate(async () => {
+      const c = await (await fetch("/content/courses/python.json")).json();
+      const i = c.exercises.findIndex((x) => x.type === "choice");
+      return { i, wrong: (c.exercises[i].correct + 1) % c.exercises[i].options.length };
+    });
+  })();
+  await open(page, "#/course/python");
+  await page.evaluate(async () => { (await import("/js/state.js")).state.user = { id: "test-user" }; });
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+  const drill = page.locator('section[data-page="course"] [role=tabpanel] ol.grid > li').nth(pick.i);
+  const help = drill.locator("[data-explain]");
+  await drill.locator("[data-drill] .opt").nth(pick.wrong).click();
+  await help.getByRole("button", { name: /Explain my mistake/ }).click();
+  await help.getByRole("button", { name: "Send and explain" }).click();
+  await expect(help).toContainText("Explanation number 1.");
+  expect(calls).toHaveLength(1);
+  expect(calls[0]).toMatchObject({ kind: "choice", lang: "en" });
+  expect(calls[0].fresh).toBeUndefined();
+  // Same mistake on a fresh page: shown from this device, no new call.
+  await page.reload();
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await page.evaluate(async () => { (await import("/js/state.js")).state.user = { id: "test-user" }; });
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+  await drill.locator("[data-drill] .opt").nth(pick.wrong).click();
+  await help.getByRole("button", { name: /Explain my mistake/ }).click();
+  await expect(help).toContainText("Explanation number 1.");
+  await expect(help).toContainText("Saved on this device");
+  expect(calls).toHaveLength(1);
+  await help.getByRole("button", { name: "Ask the AI again" }).click();
+  await expect(help).toContainText("Explanation number 2.");
+  expect(calls).toHaveLength(2);
+  expect(calls[1].fresh).toBe(true);
+});
+
 // Password reset (js/auth.js): no e-mail is sent here (Supabase rate-limits them); the checks before sending and the
 // new-password form are tested.
 test("forgot password asks for the e-mail first; the new-password form checks length and match", async ({ page }) => {

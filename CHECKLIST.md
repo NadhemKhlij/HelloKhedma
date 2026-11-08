@@ -7,8 +7,7 @@
   main (CLAUDE.md "Working in parallel").
 - **Just finished (2026-11-08, later):** "Explain my mistake" (step 4). Owner: O36 (migration) and O37 (deploy the
   explain-mistake function from Actions), then try it signed in.
-- **Next to do (owner request 2026-11-08):** ROADMAP 4b row "4c": save "Explain my mistake" answers, on the device
-  for every exercise and shared on the server for fixed-choice exercises only (privacy policy FR + EN to update).
+- **Just finished (2026-11-08, night):** ROADMAP 4b row "4c", saved "Explain my mistake" answers. Owner: O38.
 - **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 to 4 are done (see the Done log). Next: later in 4, "Ask about this lesson";
   5 (Python / Excel), 6 (project repos + public portfolio), 7 (content from data, expert review).
 - **New exercise content is part of O11:** the 70 auto-graded exercises and the 28 step-2e exercises (EN + FR) were written by Claude; answers of the
@@ -77,6 +76,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | # | Where | Task | Why it matters | Links / details |
 |---|---|---|---|---|
+| O38 | Supabase → SQL Editor, then GitHub → Actions | **1.** Run the migration `supabase/migrations/20261109000100_explain_cache.sql` (Claude gives a commit-pinned link); **2.** "Deploy Supabase function" → Run workflow → **explain-mistake** | Shared saved explanations for multiple-choice type exercises (no AI call, not counted in the limit). The device-saved answers already work without it | supabase/functions/explain-mistake |
 | O34 | Resend, Supabase, GitHub | **1.** Resend → API Keys → create a key with "Sending access" for mail.hellokhedma.io; **2.** Supabase → Edge Functions → Secrets: `RESEND_API_KEY` = that key and `CRON_SECRET` = a long random text (e.g. 40 letters and digits); **3.** GitHub → Settings → Secrets → Actions: `REMINDERS_CRON_SECRET` = the same random text; **4.** Actions → "Deploy Supabase function" → follow-up-reminders (or ask Claude); **5.** sign in, Account → "E-mail me my follow-ups" → "Send me a test e-mail now" with a follow-up due today | Daily e-mail reminders (ROADMAP 2.2). Resend's free plan: 100 e-mails a day | .github/workflows/reminders.yml, supabase/functions/follow-up-reminders |
 | O29 | Supabase → Authentication → URL Configuration, then the live site | Reset e-mail template pasted by the owner (2026-11-08). Still: check Site URL `https://hellokhedma.io` and `https://hellokhedma.io/**` in Redirect URLs, then try "Mot de passe oublié ?" once with your own address on hellokhedma.io | The reset link must come back to the site to open "Choose a new password" | supabase/templates/reset-password.html |
 | O32 | api.apprentissage.beta.gouv.fr | Optional, for ROADMAP 3b priority 1: create an account and an API token for La bonne alternance, add it as Supabase secret `LBA_API_TOKEN`, tell Claude | Work-study offers in the search | ROADMAP Phase 3b |
@@ -92,6 +92,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-08 | Saved "Explain my mistake" answers (ROADMAP 4b row 4c): every explanation kept on the device (same mistake → shown at once, no AI call, "Ask the AI again"); fixed-choice formats shared between learners in explain_cache (no account id, 180 days); admin tile "Saved explanations reused"; privacy policy FR + EN. Owner: O38 |
 | 2026-11-08 | French interface texts split by area into js/fr/ (shell, offers, learning, exercises, cv, tracker, interview), merged by js/i18n-fr.js: the same 1,266 texts, checked identical. Fewer merge conflicts between sessions; scripts/check-i18n.pl now also reports a key found in two files and runs in CI ("Check translations"). No setup needed |
 | 2026-11-08 | O37 done: explain-mistake deployed from GitHub Actions ("Deploy Supabase function", run 17, commit 8e90bbe). "Explain my mistake" is live for signed-in users |
 | 2026-11-08 | O33 + O36 done: the e-mail reminders migration (20261108000100) and the explain usage migration (20261108000200) run by the owner in the SQL editor. Still: O34 (Resend key + secrets, then deploy follow-up-reminders) and O37 (deploy explain-mistake) |

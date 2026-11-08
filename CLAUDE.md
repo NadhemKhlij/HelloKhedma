@@ -206,7 +206,10 @@ Read the header comment of any file before modifying it; update the header if be
   onWrong) reports a wrong check (attempt + verdict) for "Explain my mistake"
 - js/explain.js — "🤖 Explain my mistake" under a course exercise after a wrong answer (runnable SQL, auto-graded formats,
   written answers after Reveal): explain-mistake function → Claude Sonnet 5.5, signed-in users, notice before the first
-  send, answer in the course's language (AI track: its own language, Derja included); the function stores nothing
+  send, answer in the course's language (AI track: its own language, Derja included); the function stores nothing linked
+  to a learner. Saved answers: on the device ("hk.explainSaved", newest 150) and, for fixed-choice formats only (choice,
+  order, match, groups, bug), shared in explain_cache (SHA-256 of the full request, no account id, 180 days unused; never
+  free-text answers; usage kind "explain_saved", not counted in the daily limit)
 - content/logs/, content/data/ — fictional log and JSON files for the log analysis and jq exercises
 - js/filecheck.js — "fix this file" checks (Kubernetes manifests, GitHub Actions workflows, Dockerfiles), shared with CI;
   YAML read by js/vendor/js-yaml.esm.min.js (self-hosted, loaded on demand)

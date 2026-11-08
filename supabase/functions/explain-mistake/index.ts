@@ -14,8 +14,14 @@
 //   { course, question, snippet?, expected, explain?, kind, attempt, verdict?, lang: "en" | "fr" | "ar" | "lat" }
 //   kind: "written", "sql", "code:<lang>" or a drill type (choice, fill, regex, cron, …, js/drills.js)
 //   verdict: what the in-browser grader said (e.g. "returns 3 rows, the expected result has 5")
-// Response (JSON): { text, model }
+//   fresh: true asks Claude again instead of the saved answer ("Ask the AI again")
+// Response (JSON): { text, model, truncated, saved }   saved: true when it comes from the shared saved answers
+// Saved answers (table explain_cache, migration 20261109000100): for fixed-choice formats only (SHARED below), the
+// reply is kept under a SHA-256 of everything sent to Claude (model, instructions, prompt), with no account id. The
+// same request from anyone gets it back without a Claude call and without counting in the daily limit (usage kind
+// "explain_saved"). Free-text answers (SQL, regex, written…) are never saved. Rows unused for 180 days are deleted.
 // Errors: 401 not signed in · 429 daily limit · 413 too long · 503 not configured · 4xx/5xx { error, code }
+// Order: sign-in, request checks, shared saved answer, daily limit, Claude.
 // The daily limit reuses job_search_hit() and job_search_hits (migration 20261028000200), bucket "explain:<user id>".
 // Each allowed call bumps the anonymous daily counter usage_daily kind "explain" (count_usage(), migration
 // 20261108000200), and each Claude reply adds its token counts to ai_usage_daily (count_ai_tokens()): numbers only.
@@ -62,6 +68,14 @@ How to answer:
 - Keep it short: 60 to 180 words. Plain text only: no Markdown headings, tables or bold. Short paragraphs; "- " bullets only for two or more separate points; code may go on its own lines.
 - Speak to the learner directly and kindly, without empty praise.`;
 
+// Formats whose attempt is picked from the course content (an option, an order, a line), never typed by the learner.
+const SHARED = new Set(["choice", "order", "match", "groups", "bug"]);
+const KEEP_DAYS = 180;
+async function sha256(text: string) {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 const str = (v: unknown, max: number) => String(v ?? "").slice(0, max + 1);
 const tag = (name: string, value: string) => (value.trim() ? [`<${name}>`, value, `</${name}>`, ""] : []);
 
@@ -83,6 +97,33 @@ Deno.serve(async (req) => {
     return json({ error: "This answer is too long to explain.", code: "too_long" }, 413);
   }
   const language = LANGUAGE[String(body.lang)] || LANGUAGE.en;
+  const prompt = [
+    `Write your explanation in ${language}.`,
+    `Course: ${f.course || "unknown"}`,
+    `Exercise format: ${f.kind || "written"}`,
+    "",
+    ...tag("question", f.question),
+    ...tag("material", f.snippet),
+    ...tag("expected_answer", f.expected),
+    ...tag("explanation_from_the_course", f.explain),
+    ...tag("learner_attempt", f.attempt || "(empty)"),
+    ...tag("automatic_check_said", f.verdict),
+  ].join("\n");
+
+  // Shared saved answer (fixed-choice formats only): served without a Claude call and outside the daily limit.
+  const lang = LANGUAGE[String(body.lang)] ? String(body.lang) : "en";
+  const shared = SHARED.has(f.kind);
+  const key = shared ? await sha256(`${MODEL}\n${SYSTEM}\n${prompt}`) : "";
+  if (shared && body.fresh !== true) {
+    const { data: hit } = await admin.from("explain_cache").select("text, model").eq("key", key).maybeSingle();
+    if (hit) {
+      await admin.from("explain_cache").update({ used_at: new Date().toISOString() }).eq("key", key);
+      const { error: e1 } = await admin.rpc("count_usage", { p_kind: "explain_saved" });
+      if (e1) console.error("usage count failed:", e1.message);
+      return json({ text: hit.text, model: hit.model, truncated: false, saved: true });
+    }
+  }
+
 
   // Daily limit per account (counted before the call, so failed calls count too: keeps costs bounded).
   const { data: allowed, error: limitErr } = await admin.rpc("job_search_hit", {
@@ -96,18 +137,6 @@ Deno.serve(async (req) => {
   const { error: countErr } = await admin.rpc("count_usage", { p_kind: "explain" });
   if (countErr) console.error("usage count failed:", countErr.message);
 
-  const prompt = [
-    `Write your explanation in ${language}.`,
-    `Course: ${f.course || "unknown"}`,
-    `Exercise format: ${f.kind || "written"}`,
-    "",
-    ...tag("question", f.question),
-    ...tag("material", f.snippet),
-    ...tag("expected_answer", f.expected),
-    ...tag("explanation_from_the_course", f.explain),
-    ...tag("learner_attempt", f.attempt || "(empty)"),
-    ...tag("automatic_check_said", f.verdict),
-  ].join("\n");
 
   try {
     const response = await claude.messages.create({
@@ -127,7 +156,15 @@ Deno.serve(async (req) => {
     if (response.stop_reason === "refusal") return json({ error: "The AI declined this request.", code: "refusal" }, 422);
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n").trim();
     if (!text) return json({ error: "The AI returned no text. Try again.", code: "empty" }, 502);
-    return json({ text, model: response.model, truncated: response.stop_reason === "max_tokens" });
+    const truncated = response.stop_reason === "max_tokens";
+    if (shared && !truncated) {
+      // Save for the next learner who makes the same mistake (never blocks the answer); drop rows unused for 180 days.
+      const { error: saveErr } = await admin.from("explain_cache")
+        .upsert({ key, kind: f.kind, lang, text, model: response.model, created_at: new Date().toISOString(), used_at: new Date().toISOString() });
+      if (saveErr) console.error("save failed:", saveErr.message);
+      await admin.from("explain_cache").delete().lt("used_at", new Date(Date.now() - KEEP_DAYS * 86400_000).toISOString());
+    }
+    return json({ text, model: response.model, truncated, saved: false });
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) return json({ error: "The AI service is busy. Try again in a minute.", code: "busy" }, 503);
     if (e instanceof Anthropic.AuthenticationError) return json({ error: "AI explanations are not set up correctly.", code: "not_configured" }, 503);

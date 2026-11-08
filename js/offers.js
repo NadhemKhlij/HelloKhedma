@@ -7,6 +7,7 @@
 // (salary.js: provider field or description; the "≥ N k€" filter and the salary sort use the yearly amount, euros only).
 // offercheck.js adds its age ("Posted 3 days ago", date filter, "Most recent" sort), its level (Junior…Lead, level
 // filter) and the "⚠ Check this offer" warnings (scam signals, stale offer, no company; filter to hide them).
+// Contract, remote and "posted" are also sent to the sources with the search (jobs.js): changing one searches again.
 // Every result is also summarized for the market pulse on Home (pulse.js, this browser only).
 // "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent); "✉ Cover letter" opens
 // letters.js (prompt to copy).
@@ -291,7 +292,8 @@ async function onSearch(e) {
   btn.disabled = true; msg.textContent = t("Searching…");
   state.jobs = []; state.skillFilter = null; renderOffers();
   try {
-    const { jobs, warnings } = await searchJobs(params);
+    const filters = { contract: $("#fContract").value, remote: $("#fRemote").value, days: Number($("#fDate").value) };
+    const { jobs, warnings } = await searchJobs({ ...params, filters });
     msg.textContent = jobs.length ? tn(jobs.length, "{n} offer.", "{n} offers.") + (warnings.length ? " " + warnings.join(" ") : "")
       : t("No offers found. Try another title, city or country.");
     state.jobs = jobs;
@@ -436,7 +438,12 @@ export function initOffers() {
   $("#role").addEventListener("change", renderBoards);
   $("#loc").addEventListener("input", renderBoards);
   $("#searchForm").addEventListener("submit", onSearch);
-  for (const id of ["#sortBy", "#fContract", "#fRemote", "#fFit", "#fSalary", "#fDate", "#fLevel", "#fTrust", "#fHidden"]) $(id).addEventListener("change", renderOffers);
+  for (const id of ["#sortBy", "#fFit", "#fSalary", "#fLevel", "#fTrust", "#fHidden"]) $(id).addEventListener("change", renderOffers);
+  // Contract, remote and date also go to the sources: after a search, changing one searches again (cached server-side).
+  for (const id of ["#fContract", "#fRemote", "#fDate"]) $(id).addEventListener("change", () => {
+    if (state.offerMode === "search" && state.searchMsg && !$("#searchBtn").disabled) $("#searchForm").requestSubmit();
+    else renderOffers();
+  });
   $("#saveSearch").addEventListener("click", onSaveSearch);
   renderSavedSearches();
   $("#tabSearch").addEventListener("click", () => setOfferMode("search"));

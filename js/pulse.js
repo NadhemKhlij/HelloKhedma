@@ -6,11 +6,17 @@
 // - renderPulse(root): the Home card. Typical salary (middle half of the euro salaries given by employers; provider
 //   estimates are left out), share of remote / hybrid offers, share of offers that state a salary, the most requested
 //   skills (✓ in your CV, 📘 course link otherwise) and the levels asked. Below MIN_OFFERS, an empty state.
+// - Advertised salaries (both states): Adzuna's statistics for the path's main job title in the Offers country (all of
+//   Adzuna's offers, not only the ones seen here): median, middle half, trend over 12 months and the distribution.
+//   Through the job-search function (jobs.js salaryStats), cached 24 h there and in this browser ("hk.salstats");
+//   sends only the job title and the country. Not fetched on a local / test server (no quota spent by CI).
 import { $, h, ls } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { state, path, skillChip } from "./state.js";
 import { titleMatcher } from "./companies.js";
 import { formatSalary } from "./salary.js";
+import { salaryStats } from "./jobs.js";
+import { sb, CONFIG } from "./supabase.js";
 
 const MAX = 400, KEEP_DAYS = 60, MIN_OFFERS = 5, TOP = 10;
 const DAY = 86_400_000;
@@ -69,6 +75,56 @@ const skillRow = ({ name, c, p }, n) => h("li", { class: "grid grid-cols-[minmax
     h("span", { class: "block h-1.5 rounded-full", style: `width:${Math.max(2, p)}%;background:var(--accent)` })),
   h("span", { class: "text-right tabular-nums mute" }, t("{n}%", { n: p })));
 
+/* ---------- advertised salaries (Adzuna statistics) ---------- */
+const SAL_KEY = "hk.salstats", SAL_TTL = DAY;
+const LOCAL = /^(localhost|127\.|\[?::1\]?$|0\.0\.0\.0)/;
+// Value at quantile q of a histogram [[from, count]..], interpolated inside its band (last band: width of the one before).
+function histQuantile(hist, q) {
+  const total = hist.reduce((a, [, c]) => a + c, 0);
+  let seen = 0;
+  for (let i = 0; i < hist.length; i++) {
+    const [from, c] = hist[i], width = (hist[i + 1]?.[0] ?? from + (from - (hist[i - 1]?.[0] ?? from - 10000))) - from;
+    if (seen + c >= q * total) return from + width * ((q * total - seen) / c);
+    seen += c;
+  }
+  return hist.at(-1)?.[0] ?? 0;
+}
+async function loadSalary(title, country) {
+  const k = `${country}|${title}`;
+  try { const c = JSON.parse(ls.get(SAL_KEY) || "null"); if (c?.k === k && Date.now() - c.at < SAL_TTL) return c.d; } catch { /* refetch */ }
+  const d = await salaryStats({ query: title, country });
+  ls.set(SAL_KEY, JSON.stringify({ k, at: Date.now(), d }));
+  return d;
+}
+function salaryBlock(p) {
+  const box = h("div", { class: "mt-4", hidden: true });
+  const title = p.job_titles?.[0] || p.name;
+  const country = $("#country")?.value || CONFIG.DEFAULT_COUNTRY || "fr";
+  if (!sb || LOCAL.test(location.hostname)) return box;
+  loadSalary(title, country).then((d) => {
+    const hist = (d.histogram || []).filter(([, c]) => c > 0), n = hist.reduce((a, [, c]) => a + c, 0);
+    if (n < 20 || !d.currency) return; // too few offers to say anything
+    const money = (min, max = min) => formatSalary({ min: Math.round(min / 1000) * 1000, max: Math.round(max / 1000) * 1000, currency: d.currency, period: "year", estimated: false });
+    const hs = d.history || [];
+    const trend = hs.length >= 10 ? Math.round(((hs.at(-1)[1] - hs[0][1]) / hs[0][1]) * 100) : null;
+    const max = Math.max(...hist.map(([, c]) => c));
+    box.hidden = false;
+    box.replaceChildren(
+      h("div", { class: "flex flex-wrap items-baseline justify-between gap-2 mb-2" },
+        h("p", { class: "text-sm font-medium" }, t("Advertised salaries · {title}", { title })),
+        h("span", { class: "mute text-xs" }, tn(n, "Adzuna, {n} offer with a salary", "Adzuna, {n} offers with a salary"))),
+      h("div", { class: "grid gap-2 sm:grid-cols-3" },
+        tile(t("Median"), money(histQuantile(hist, 0.5)), t("half of the offers pay more")),
+        tile(t("Middle half"), money(histQuantile(hist, 0.25), histQuantile(hist, 0.75)), t("from the 25th to the 75th percentile")),
+        tile(t("Over 12 months"), trend == null ? "–" : `${trend > 0 ? "+" : ""}${trend}%`, t("average advertised salary"))),
+      h("div", { class: "flex items-end gap-0.5 h-12 mt-2", "aria-hidden": "true" }, hist.map(([from, c]) =>
+        h("span", { class: "flex-1 rounded-t", style: `height:${Math.max(4, (100 * c) / max)}%;background:var(--accent);opacity:.8`,
+          title: t("{from}+: {n} offers", { from: money(from), n: c }) }))),
+      h("p", { class: "mute text-xs mt-1" }, t("All of Adzuna's offers for this title in this country, not only the ones you looked at.")));
+  }).catch(() => { /* no statistics: the block stays hidden */ });
+  return box;
+}
+
 export function renderPulse(root = $("#homePulse")) {
   const p = path();
   if (!root || !p) return;
@@ -81,7 +137,7 @@ export function renderPulse(root = $("#homePulse")) {
       h("div", { class: "flex flex-wrap items-end justify-between gap-3" },
         h("p", { class: "mute text-sm max-w-prose" }, t("Run a few searches on the Offers page: the typical salary, the most requested skills and the share of remote jobs for your path will show up here."),
           m.n ? ` ${tn(m.n, "({n} offer so far)", "({n} offers so far)")}` : ""),
-        h("a", { href: "#/offers", class: "btn-ghost" }, t("Find offers")))));
+        h("a", { href: "#/offers", class: "btn-ghost" }, t("Find offers"))), salaryBlock(p)));
     return;
   }
   const covered = m.skills.filter((s) => state.cv.names.has(s.name)).length;
@@ -103,5 +159,5 @@ export function renderPulse(root = $("#homePulse")) {
       : h("p", { class: "mute text-sm" }, t("No known skills found in these offers yet.")),
     m.levelN ? h("p", { class: "mute text-xs mt-3" }, t("Levels asked: "),
       m.levels.filter(([, c]) => c).map(([l, c]) => `${t(`level|${l}`)} ${t("{n}%", { n: pct(c, m.levelN) })}`).join(" · "),
-      tn(m.levelN, " (in the {n} offer that states one)", " (in the {n} offers that state one)")) : null));
+      tn(m.levelN, " (in the {n} offer that states one)", " (in the {n} offers that state one)")) : null, salaryBlock(p)));
 }

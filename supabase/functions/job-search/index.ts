@@ -16,8 +16,14 @@
 //   RATE_LIMIT_USER                 optional: searches per hour per signed-in user (default 60)
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 //
-// Request  (POST JSON): { query, location?, provider?, country?, page? }
+// Request  (POST JSON): { query, location?, provider?, country?, page?, filters? }
+//   filters (Offers page, all optional): { contract: "CDI"|"CDD"|"Freelance"|"Internship"|"Apprenticeship",
+//   remote: "Remote"|"any-remote", days: 1|3|7|30 }. Sent to the sources that support them (Adzuna: max_days_old,
+//   permanent / contract, newest first when a date is asked; JSearch: date_posted, employment_types, work_from_home);
+//   the app filters the results again, so a source without the filter is still right.
 // Response (JSON):      { jobs: Job[], warnings: string[], cached?: true }   429 when rate limited
+// Salary statistics (Home market pulse): { kind: "salary", query, country } → { histogram: [[from, count]..],
+//   history: [["YYYY-MM", average]..], currency } from Adzuna (all its offers for that title), cached 24 h.
 // Each Job carries the provider's salary as text (`salary`, Adzuna estimates flagged), read by js/salary.js.
 //
 // Cache (job_search_cache, 6 h) and rate limit (job_search_hits) come from migration 20261028000200; each allowed search
@@ -71,6 +77,14 @@ const json = (body: unknown, status = 200) =>
 const strip = (s: unknown, max = 280) =>
   String(s ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 
+// Duplicate detection across sources: the same offer is written slightly differently on each one ("Data Engineer
+// (H/F)" vs "Data engineer F/H", "Acme SAS" vs "ACME").
+const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const dedupeTitle = (s: string) => fold(s).replace(/\(?\b(h\s*\/\s*f|f\s*\/\s*h|m\s*\/\s*w\s*\/\s*d|m\s*\/\s*f)\b\)?/g, " ")
+  .replace(/[^a-z0-9+#]+/g, " ").trim();
+const dedupeCompany = (s: string) => fold(s).replace(/\b(sas|sasu|sa|sarl|ltd|limited|inc|gmbh|llc|plc|group|groupe)\b\.?/g, " ")
+  .replace(/[^a-z0-9]+/g, " ").trim();
+
 const envNum = (name: string, fallback: number) => Number(Deno.env.get(name)) || fallback;
 const CACHE_TTL_MS = envNum("CACHE_TTL_HOURS", 6) * 3600_000;
 const LIMIT_GUEST = envNum("RATE_LIMIT_GUEST", 20);
@@ -105,6 +119,16 @@ async function rateBucket(req: Request): Promise<{ bucket: string; limit: number
 
 // deno-lint-ignore no-explicit-any
 type Raw = any;
+type Filters = { contract: string; remote: string; days: number };
+const CONTRACTS = new Set(["CDI", "CDD", "Freelance", "Internship", "Apprenticeship"]);
+function readFilters(f: Raw): Filters {
+  const days = Number(f?.days);
+  return {
+    contract: CONTRACTS.has(f?.contract) ? f.contract : "",
+    remote: f?.remote === "Remote" || f?.remote === "any-remote" ? f.remote : "",
+    days: [1, 3, 7, 30].includes(days) ? days : 0,
+  };
+}
 
 // The provider's own error text (shortened), so a failing source says why in the app's search message.
 async function providerMessage(res: Response): Promise<string> {
@@ -148,10 +172,13 @@ async function departementOf(where: string): Promise<string | null> {
   return (await res.json())[0]?.codeDepartement ?? null;
 }
 
-async function franceTravail(q: string, where: string, country: string, page: number): Promise<Job[]> {
+async function franceTravail(q: string, where: string, country: string, page: number, f: Filters): Promise<Job[]> {
   if (!configured.francetravail()) throw new Error("France Travail is not configured (FRANCE_TRAVAIL_CLIENT_ID / _SECRET).");
   if (country !== "fr") throw new Error("France Travail only covers France.");
   const params = new URLSearchParams({ motsCles: q, range: `${(page - 1) * 20}-${page * 20 - 1}`, sort: "1" });
+  if (f.days) params.set("publieeDepuis", String(f.days === 30 ? 31 : f.days)); // France Travail accepts 1, 3, 7, 14 or 31
+  const ftContract: Record<string, string> = { CDI: "CDI", CDD: "CDD", Freelance: "LIB" };
+  if (ftContract[f.contract]) params.set("typeContrat", ftContract[f.contract]);
   if (where) {
     const dep = await departementOf(where);
     if (!dep) throw new Error(`France Travail: location "${where}" not recognised. Try a city, a postcode or a département number.`);
@@ -183,7 +210,7 @@ async function franceTravail(q: string, where: string, country: string, page: nu
   }));
 }
 
-async function adzuna(q: string, where: string, country: string, page: number): Promise<Job[]> {
+async function adzuna(q: string, where: string, country: string, page: number, f: Filters): Promise<Job[]> {
   const appId = Deno.env.get("ADZUNA_APP_ID");
   const appKey = Deno.env.get("ADZUNA_APP_KEY");
   if (!appId || !appKey) throw new Error("Adzuna is not configured (ADZUNA_APP_ID / ADZUNA_APP_KEY).");
@@ -195,6 +222,8 @@ async function adzuna(q: string, where: string, country: string, page: number): 
     results_per_page: "20",
     what: q,
     ...(where ? { where } : {}),
+    ...(f.days ? { max_days_old: String(f.days), sort_by: "date" } : {}),
+    ...(f.contract === "CDI" ? { permanent: "1" } : f.contract === "CDD" || f.contract === "Freelance" ? { contract: "1" } : {}),
   }).toString();
 
   const res = await fetch(url, { headers: { Accept: "application/json" } });
@@ -220,7 +249,7 @@ const EMPLOYMENT: Record<string, string> = {
   FULLTIME: "full-time", PARTTIME: "part-time", CONTRACTOR: "contractor", INTERN: "internship", // full-time ≠ CDI
 };
 
-async function jsearch(q: string, where: string, country: string, page: number): Promise<Job[]> {
+async function jsearch(q: string, where: string, country: string, page: number, f: Filters): Promise<Job[]> {
   const key = Deno.env.get("RAPIDAPI_KEY");
   if (!key) throw new Error("JSearch is not configured (RAPIDAPI_KEY).");
 
@@ -232,8 +261,15 @@ async function jsearch(q: string, where: string, country: string, page: number):
     url.search = new URLSearchParams(params).toString();
     return fetch(url, { headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" } });
   };
-  let res = await call("/search-v2", { query, country, ...(country === "fr" ? { language: "fr" } : {}) });
-  if (res.status === 404) res = await call("/search", { query, country, page: String(page), num_pages: "1" });
+  const datePosted: Record<number, string> = { 1: "today", 3: "3days", 7: "week", 30: "month" };
+  const types: Record<string, string> = { Freelance: "CONTRACTOR", Internship: "INTERN" }; // FULLTIME ≠ CDI: not sent
+  const extra: Record<string, string> = {
+    ...(f.days ? { date_posted: datePosted[f.days] } : {}),
+    ...(types[f.contract] ? { employment_types: types[f.contract] } : {}),
+    ...(f.remote === "Remote" ? { work_from_home: "true" } : {}),
+  };
+  let res = await call("/search-v2", { query, country, ...(country === "fr" ? { language: "fr" } : {}), ...extra });
+  if (res.status === 404) res = await call("/search", { query, country, page: String(page), num_pages: "1", ...extra });
   if (!res.ok) throw new Error(`JSearch returned ${res.status}: ${await providerMessage(res)}`);
   const data = await res.json();
   // /search returned { data: [jobs] }; /search-v2 nests the list (e.g. { data: { jobs: [...], cursor } }).
@@ -277,7 +313,7 @@ const COUNTRY_NAMES: Record<string, string> = {
   at: "Austria", be: "Belgium", ch: "Switzerland", es: "Spain", it: "Italy", pl: "Poland", br: "Brazil", in: "India",
   nz: "New Zealand", sg: "Singapore", za: "South Africa", mx: "Mexico",
 };
-async function jooble(q: string, where: string, country: string, page: number): Promise<Job[]> {
+async function jooble(q: string, where: string, country: string, page: number, _f: Filters): Promise<Job[]> {
   const key = Deno.env.get("JOOBLE_API_KEY");
   if (!key) throw new Error("Jooble is not configured (JOOBLE_API_KEY).");
   const host = (Deno.env.get("JOOBLE_HOST") || "jooble.org").replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -314,6 +350,28 @@ async function jooble(q: string, where: string, country: string, page: number): 
   }));
 }
 
+// Adzuna salary statistics for one job title in one country (Home market pulse): the distribution of advertised
+// salaries (histogram: lower bound of each band → number of offers) and the average advertised salary per month.
+async function salaryStats(q: string, country: string) {
+  const appId = Deno.env.get("ADZUNA_APP_ID"), appKey = Deno.env.get("ADZUNA_APP_KEY");
+  if (!appId || !appKey) throw new Error("Adzuna is not configured (ADZUNA_APP_ID / ADZUNA_APP_KEY).");
+  const get = async (path: string, extra: Record<string, string> = {}) => {
+    const url = new URL(`https://api.adzuna.com/v1/api/jobs/${country}/${path}`);
+    url.search = new URLSearchParams({ app_id: appId, app_key: appKey, what: q, ...extra }).toString();
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Adzuna ${path} returned ${res.status}: ${await providerMessage(res)}`);
+    return await res.json();
+  };
+  const [hist, history] = await Promise.all([get("histogram"), get("history", { months: "12" }).catch(() => ({}))]);
+  const pairs = (o: Raw) => Object.entries(o && typeof o === "object" ? o : {})
+    .map(([k, v]) => [k, Number(v)] as [string, number]).filter(([, v]) => Number.isFinite(v) && v > 0);
+  return {
+    histogram: pairs(hist?.histogram).map(([k, v]) => [Number(k), v]).filter(([k]) => Number.isFinite(k)).sort((a, b) => a[0] - b[0]),
+    history: pairs(history?.month).sort((a, b) => a[0].localeCompare(b[0])),
+    currency: ADZUNA_CURRENCY[country] ?? "",
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Use POST." }, 405);
@@ -331,6 +389,27 @@ Deno.serve(async (req) => {
   const where = String(body.location ?? "").trim().slice(0, 100);
   const country = COUNTRIES.has(String(body.country)) ? String(body.country) : "fr";
   const page = Math.min(Math.max(parseInt(body.page, 10) || 1, 1), 5);
+
+  if (body.kind === "salary") {
+    // Cached 24 h per country + title; rate-limited like searches (own bucket) so a caller cannot drain the quota.
+    const key = ["salary1", country, query.toLowerCase()].join("|");
+    if (admin) {
+      const { bucket, limit } = await rateBucket(req);
+      const { data: allowed } = await admin.rpc("job_search_hit", { p_bucket: `salary:${bucket}`, p_limit: limit, p_window_seconds: 3600 });
+      if (allowed === false) return json({ error: "Too many requests in the last hour. Please try again later." }, 429);
+      const { data: hit } = await admin.from("job_search_cache").select("results")
+        .eq("key", key).gte("created_at", new Date(Date.now() - 24 * 3600_000).toISOString()).maybeSingle();
+      if (hit) return json({ ...hit.results, cached: true });
+    }
+    try {
+      const stats = await salaryStats(query, country);
+      if (admin && stats.histogram.length) {
+        await admin.from("job_search_cache").upsert({ key, results: stats, created_at: new Date().toISOString() });
+      }
+      return json(stats);
+    } catch (e) { return json({ error: e instanceof Error ? e.message : "Salary statistics failed." }, 502); }
+  }
+  const filters = readFilters(body.filters);
   const wanted = String(body.provider ?? Deno.env.get("DEFAULT_PROVIDER") ?? "all");
   // France Travail comes first so that, for an offer listed on several sources, its full description wins the dedupe.
   const ALL: Source[] = ["francetravail", "adzuna", "jsearch", "jooble"];
@@ -341,7 +420,8 @@ Deno.serve(async (req) => {
 
   // Guard and cache need the migration 20261028000200_job_search_guard.sql; if it is missing we log and carry on.
   // "v2": results now carry `text`; bumping the key skips entries cached before that change.
-  const cacheKey = ["v2", providers.join("+"), country, query.toLowerCase(), where.toLowerCase(), page].join("|");
+  const cacheKey = ["v2", providers.join("+"), country, query.toLowerCase(), where.toLowerCase(), page,
+    filters.contract, filters.remote, filters.days].join("|");
   if (admin) {
     const { bucket, limit } = await rateBucket(req);
     const { data: allowed, error } = await admin.rpc("job_search_hit", {
@@ -364,7 +444,7 @@ Deno.serve(async (req) => {
   }
 
   const fetchers = { francetravail: franceTravail, adzuna, jsearch, jooble };
-  const results = await Promise.allSettled(providers.map((p) => fetchers[p](query, where, country, page)));
+  const results = await Promise.allSettled(providers.map((p) => fetchers[p](query, where, country, page, filters)));
 
   const warnings: string[] = [];
   const seen = new Set<string>();
@@ -375,7 +455,7 @@ Deno.serve(async (req) => {
       continue;
     }
     for (const j of r.value) {
-      const key = `${j.title}|${j.company}`.toLowerCase();
+      const key = `${dedupeTitle(j.title)}|${dedupeCompany(j.company)}`;
       if (!j.url || seen.has(key)) continue;
       seen.add(key);
       jobs.push(j);

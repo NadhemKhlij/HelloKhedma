@@ -1177,4 +1177,16 @@ export default {
   "Enter your email address above first.": "Saisissez d’abord votre adresse e-mail ci-dessus.",
   "If an account exists for this address, we sent a link to choose a new password. Open it on this device.": "Si un compte existe pour cette adresse, nous avons envoyé un lien pour choisir un nouveau mot de passe. Ouvrez-le sur cet appareil.",
   "This e-mail link has expired or was already used. Ask for a new one.": "Ce lien e-mail a expiré ou a déjà été utilisé. Demandez-en un nouveau.",
+  // Market pulse: Adzuna salary statistics (js/pulse.js)
+  "Advertised salaries · {title}": "Salaires annoncés · {title}",
+  "Median": "Médiane",
+  "half of the offers pay more": "la moitié des offres paie plus",
+  "Middle half": "Moitié centrale",
+  "from the 25th to the 75th percentile": "du 25e au 75e centile",
+  "Over 12 months": "Sur 12 mois",
+  "average advertised salary": "salaire moyen annoncé",
+  "{from}+: {n} offers": "{from} et plus : {n} offres",
+  "All of Adzuna's offers for this title in this country, not only the ones you looked at.": "Toutes les offres d’Adzuna pour cet intitulé dans ce pays, pas seulement celles que vous avez consultées.",
+  "Adzuna, {n} offer with a salary": "Adzuna, {n} offre avec salaire",
+  "Adzuna, {n} offers with a salary": "Adzuna, {n} offres avec salaire",
 };

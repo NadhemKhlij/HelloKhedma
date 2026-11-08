@@ -90,6 +90,27 @@ the scoring CV on the Offers page; the CV match compares every version). Local o
 | 3.9 | Path market pulse on Home, from your own search results: typical salary range, top 10 requested skills (with your CV gaps), % remote, % with a salary | Know the market for your path at a glance | M |
 | 3.10 | Import from LinkedIn: guide to "Save to PDF" from your profile (the existing CV upload reads it), then read the LinkedIn data export (.zip: Positions, Skills, Education CSV) in the browser to prefill a CV version; nothing is sent | Start from what is already on LinkedIn without retyping | M |
 
+## Phase 3b: job sources plan (owner request, 2026-11-08)
+Goal: more offers, more relevant, for France first and then Tunisia / remote. Rules for every new source: read its terms
+first (attribution, caching, reuse), keys only in Supabase secrets, credit shown under the results, privacy policy and
+legal notice updated (FR + EN). Sources called from the browser receive the visitor's IP: prefer the server function.
+
+| Priority | Source | What it adds | Access | Effort | Status |
+|---|---|---|---|---|---|
+| Done | Offers filters sent to the sources | Contract, remote, "posted within" applied by Adzuna / JSearch (and France Travail) themselves: 20 matching offers instead of 20 filtered down to a few; changing a filter searches again | — | S | **Done 2026-11-08** |
+| Done | Smarter duplicates | The same offer from 2–3 sources shown once ("(H/F)", accents, "SAS"… ignored) | — | S | **Done 2026-11-08** |
+| Done | Adzuna salary statistics | Home: median advertised salary, middle half, 12-month trend and distribution for the path's main title | Adzuna keys (have) | S | **Done 2026-11-08** |
+| Done | Jooble | Large aggregator (many boards); key works on jooble.org | Free key (have) | S | **Done 2026-11-08** |
+| 1 | La bonne alternance (French government) | Work-study offers (alternance, apprenticeship) and companies likely to take apprentices: juniors and career changers | Free token (account on api.apprentissage.beta.gouv.fr, to confirm) | M | Next: owner gets the token |
+| 2 | Recruitee + Personio career pages | "Companies I follow" for many French / German start-ups and SMEs (public feeds, no key) | None | S | Planned |
+| 3 | Adzuna "top companies" + "what's hot" for the path | Home: who hires most for the path, and the volume trend of offers | Adzuna keys (have) | S | Planned |
+| 4 | Arbeitnow | Europe, English-speaking and remote tech jobs, visa-sponsorship flag | Free, no key (check terms) | S | Planned |
+| 5 | Himalayas + Remote OK | "Remote jobs" tab: more remote offers, salary ranges, time zones (Remote OK asks for a link back) | Free (check terms) | S | Planned |
+| 6 | Search quality | Synonyms per path ("data engineer" OR "ingénieur data", Adzuna what_or), several pages for "All sources", JSearch experience filter, "new since last visit" badge | — | M | Planned |
+| 7 | France Travail Offres d'emploi v2 (+ La bonne boîte) | Best French coverage, full descriptions; companies that hire without posting | Closed to new users: request via francetravail.io/contact (draft given 2026-11-08); code ready, option hidden | — | Waiting for France Travail |
+| 8 | Careerjet publisher API | Another aggregator, many countries incl. Tunisia | Publisher account (check terms) | S | Later |
+| — | LinkedIn, Indeed, Welcome to the Jungle, APEC, Tanitjobs, Keejob | — | No public jobs API; scraping breaks their terms | — | Not planned (job-board links stay) |
+
 ## Phase 4: learning that leads to a job
 Done (2026-10-30), after an honest review of the content: course and lesson times are now computed from the content
 (js/coursetime.js: reading at 200 words/min + practice: examples, exercises, interview questions, quiz); the old

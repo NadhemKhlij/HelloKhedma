@@ -92,6 +92,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-08 | French interface texts split by area into js/fr/ (shell, offers, learning, exercises, cv, tracker, interview), merged by js/i18n-fr.js: the same 1,266 texts, checked identical. Fewer merge conflicts between sessions; scripts/check-i18n.pl now also reports a key found in two files and runs in CI ("Check translations"). No setup needed |
 | 2026-11-08 | O37 done: explain-mistake deployed from GitHub Actions ("Deploy Supabase function", run 17, commit 8e90bbe). "Explain my mistake" is live for signed-in users |
 | 2026-11-08 | O33 + O36 done: the e-mail reminders migration (20261108000100) and the explain usage migration (20261108000200) run by the owner in the SQL editor. Still: O34 (Resend key + secrets, then deploy follow-up-reminders) and O37 (deploy explain-mistake) |
 | 2026-11-08 | "Explain my mistake" (ROADMAP 4b step 4): after a wrong answer on a course exercise (runnable SQL, the auto-graded formats, written answers after Reveal), signed-in learners can ask Claude Sonnet 5.5 why; answer in the course's language (Derja on the AI track), 30 a day, notice before the first send, nothing stored; admin tiles; privacy policy FR + EN. Owner: O36, O37 |

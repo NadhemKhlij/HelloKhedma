@@ -13,7 +13,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - `npm run check-links`: checks every URL in supabase/seed.sql (Node 18+).
 - `npm run check-content`: checks every content JSON (structure, French copies, identical code, skills known to
   js/ats.js, projects, AI track scripts). CI runs it before the smoke tests; a problem stops the deploy.
-- Translations: `perl scripts/check-i18n.pl js` (every t() text has French) and
+- Translations: `perl scripts/check-i18n.pl js` (every t() text has French, no French key in two js/fr/ files; CI runs it) and
   `powershell -File scripts/check-fr-content.ps1 -Root .` (French course / interview files match the English structure).
 - Course times: `powershell -File scripts/course-times.ps1 -Root .` writes `minutes` and `lessonCount` into
   content/courses/index.json (same formula as js/coursetime.js). Run it after adding or extending a course.
@@ -44,7 +44,10 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   was deployed on main since your branch started, the files changed on both sides and the other branches in progress.
   When main moved: `git rebase origin/main`, run the checks again, then merge; tell the owner what the others shipped.
   CI repeats the warning on every branch push ("Up to date with main?", summary of the run).
-- Conflict-prone files: js/i18n-fr.js (keep both French blocks when rebasing), CHECKLIST.md / ROADMAP.md (keep both
+- French texts are split by area in js/fr/ (shell, offers, learning, exercises, cv, tracker, interview): add a text to
+  its page's file, so sessions on different pages do not touch the same file. A branch started before 2026-11-08 that
+  added French to js/i18n-fr.js: move its block into the right js/fr/ file when rebasing.
+- Conflict-prone files: js/fr/*.js (keep both blocks when rebasing), CHECKLIST.md / ROADMAP.md (keep both
   rows), sw.js (VERSION: take the higher number + 1, keep every SHELL file), js/router.js ROUTES, index.html.
 - The **AI Engineer** career path ("ai") was merged on 2026-11-08: its courses and projects are the AI track
   (content/ai/, four languages); a change to an AI course goes into all four languages (see "Rules for Claude Code").
@@ -133,7 +136,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   course ids and the path id, never CV or offer text, account ids or IPs. Do not add identifiers or free text to them.
 - Keep the privacy policy (index.html, #/privacy) in sync when adding a provider or any new personal data.
 - Every user-facing text is written in English and goes through t() / tn() (js/i18n.js); add its French to
-  js/i18n-fr.js. Static text in index.html is translated automatically if its English is a key there. The legal notice
+  js/fr/<area>.js (merged by js/i18n-fr.js). Static text in index.html is translated automatically if its English is a key there. The legal notice
   and privacy policy exist twice in index.html (data-lang="fr" / "en"): update both.
 - Content is bilingual too: courses and interview JSON have French copies under content/courses/fr/ and
   content/interview/fr/ (same ids, same array lengths and order: lesson progress, ratings and ticks use them; code
@@ -147,7 +150,7 @@ Read the header comment of any file before modifying it; update the header if be
 - `npm run build` passes, and the smoke tests pass in CI; a new page or main flow gets a test in tests/smoke.spec.mjs.
 - Tested as a guest AND as a signed-in user (persistence and guest import intact).
 - Checked at mobile width.
-- New texts translated in js/i18n-fr.js and checked in French (FR/EN button).
+- New texts translated in js/fr/<area>.js and checked in French (FR/EN button).
 - Privacy policy updated if a provider or personal data was added.
 - Seed / content JSON / migrations updated instead of hardcoded data.
 - CHECKLIST.md updated with any new owner task (migration to run, function to deploy, secret to set).
@@ -177,7 +180,7 @@ Read the header comment of any file before modifying it; update the header if be
 - js/home.js, js/offers.js, js/training.js, js/cvpage.js, js/applications.js, js/account.js — one module per page
 - js/lib.js — DOM helpers (h, svg, $), localStorage wrapper, toast, download
 - js/icons.js — path card illustrations and the progress ring (Home)
-- js/i18n.js — interface language (t, tn, FR/EN switch, static page translation); js/i18n-fr.js — French texts
+- js/i18n.js — interface language (t, tn, FR/EN switch, static page translation); js/i18n-fr.js — merges the French texts of js/fr/*.js (one file per area)
 - js/supabase.js — Supabase client and runtime CONFIG
 - js/config.example.js — template for js/config.js (generated in production, gitignored)
 - js/auth.js — sign-in dialog, "Forgot password?" (reset e-mail) and the new-password dialog (reset link or Account →

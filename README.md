@@ -57,7 +57,7 @@ Useful checks:
 ```bash
 npm test                                        # Playwright smoke tests (guest flows)
 npm run check-links                             # every URL in supabase/seed.sql
-perl scripts/check-i18n.pl js                   # every t() text has French
+perl scripts/check-i18n.pl js                   # every t() text has French, no key in two js/fr/ files
 powershell -File scripts/check-fr-content.ps1 -Root .   # French content matches the English structure
 powershell -File scripts/course-times.ps1 -Root .       # recompute course minutes / lesson counts
 ```
@@ -122,7 +122,7 @@ Other static hosts work too: build command `npm run build`, output directory `/`
 - **Courses:** `content/courses/` (`index.json` + one file per course, French copy in `fr/`); append lessons to extend
   a course and recompute times with `scripts/course-times.ps1`.
 - **Interview questions and portfolio projects:** `content/interview/`, `content/projects/`.
-- **Interface texts:** written in English through `t()`, French in `js/i18n-fr.js`.
+- **Interface texts:** written in English through `t()`, French in `js/fr/<area>.js` (merged by `js/i18n-fr.js`).
 - **Styles:** theme tokens and components (`panel`, `btn`, `chip`…) in `css/input.css`.
 
 ## Project docs

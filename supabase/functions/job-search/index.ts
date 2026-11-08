@@ -7,7 +7,8 @@
 //   ADZUNA_APP_ID, ADZUNA_APP_KEY   (https://developer.adzuna.com)
 //   RAPIDAPI_KEY                    (subscribe to "JSearch" on RapidAPI)
 //   JOOBLE_API_KEY                  (jooble.org/api/about, free key by e-mail; aggregator, short snippets)
-//   JOOBLE_HOST                     optional: the Jooble site the key belongs to (default jooble.org; e.g. fr.jooble.org)
+//   JOOBLE_HOST                     optional, normally unset: Jooble API host (default jooble.org; fr.jooble.org answers
+//                                   403 to a jooble.org key, tested 2026-11-08)
 //   DEFAULT_PROVIDER                optional: all | francetravail | adzuna | jsearch | jooble (default all)
 //                                   "all" uses every source whose secrets are set.
 //   CACHE_TTL_HOURS                 optional: how long identical searches are served from cache (default 6)
@@ -297,7 +298,7 @@ async function jooble(q: string, where: string, country: string, page: number): 
   if (!Array.isArray(data?.jobs) || !data.jobs.length) {
     // Said in the app's search message (and not cached): helps to see a wrong host or key setting at once.
     throw new Error(`Jooble (${host}) found no offer for "${q}"${location ? ` in "${location}"` : ""} (totalCount: ${data?.totalCount ?? "?"}; answer fields: ${
-      Object.keys(data ?? {}).join(", ") || "none"}). If your Jooble key is for a country site, set the JOOBLE_HOST secret (e.g. fr.jooble.org).`);
+      Object.keys(data ?? {}).join(", ") || "none"}). Try a wider search (no city, other words).`);
   }
   return data.jobs.map((x: Raw): Job => ({
     id: String(x.id ?? x.link),

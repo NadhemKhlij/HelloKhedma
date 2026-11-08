@@ -51,7 +51,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 
 ## Tech stack
 - Frontend: HTML, Tailwind CSS 3 (css/input.css → css/app.css), vanilla JS ES modules, no bundler; installable PWA.
-- Backend: Supabase (PostgreSQL, Auth, Row Level Security, Edge Functions `job-search`, `delete-account`, `cv-tailor`).
+- Backend: Supabase (PostgreSQL, Auth, Row Level Security, Edge Functions `job-search`, `delete-account`, `cv-tailor`,
+  `follow-up-reminders`).
 - Job data: France Travail, Adzuna, JSearch and Jooble through the `job-search` function (only providers with secrets set
   run; France Travail's API is closed to new users, its option is hidden until keys exist);
   company career pages (Greenhouse, Lever, Ashby, Workable, SmartRecruiters) and remote boards (Jobicy, Remotive)
@@ -66,6 +67,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 | ADZUNA_APP_ID, ADZUNA_APP_KEY, RAPIDAPI_KEY, JOOBLE_API_KEY (+ optional JOOBLE_HOST), FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET | Supabase → Edge Functions → Secrets |
 | DEFAULT_PROVIDER, CACHE_TTL_HOURS, RATE_LIMIT_GUEST, RATE_LIMIT_USER (optional) | Supabase → Edge Functions → Secrets |
 | ANTHROPIC_API_KEY; CV_TAILOR_DAILY_LIMIT, CV_TAILOR_MODEL (optional) | Supabase → Edge Functions → Secrets (cv-tailor) |
+| RESEND_API_KEY, CRON_SECRET; REMINDERS_FROM, SITE_URL (optional) | Supabase → Edge Functions → Secrets (follow-up-reminders) |
+| REMINDERS_CRON_SECRET (same value as CRON_SECRET) | GitHub → Actions → Secrets (reminders.yml only) |
 | SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (functions) | Provided automatically by Supabase; never in frontend |
 
 ## Rules for Claude Code
@@ -209,6 +212,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/tailor.js — "Tailor my CV" dialog: honest gap analysis, prompt to copy for the user's own AI, "Correct, tailor and
   create my CV" (one AI call: corrected + tailored CV opens in the CV maker with the changes and gaps) and "Rewrite
   only" (text) (cv-tailor function, signed-in users, after a notice)
+- js/offercoach.js — offer coach: offered salary vs the path's market (pulse.js marketPay), verdict, tips, prompt
+- js/reminders.js — "E-mail reminders" switch on the Account page (profiles.email_reminders) and the test e-mail
 - js/letters.js — letters pack: cover letter prompt to copy (offers, CV match), thank-you / follow-up emails from a
   tracker card (templates EN + FR, copy or open in the email app; nothing is sent by HelloKhedma)
 - js/courses.js — course list and course page (tabs: lessons one at a time, quiz, flashcards, practice, interview, cheat sheet)
@@ -226,12 +231,14 @@ Read the header comment of any file before modifying it; update the header if be
 - content/courses/, content/interview/, content/projects/ — course, interview and project content (JSON)
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)
-- supabase/functions/job-search/, delete-account/, cv-tailor/ — Edge Functions (cv-tailor: AI CV rewrite with Claude)
+- supabase/functions/job-search/, delete-account/, cv-tailor/, follow-up-reminders/ — Edge Functions (cv-tailor: AI CV
+  rewrite with Claude; follow-up-reminders: the opt-in daily e-mail, called by .github/workflows/reminders.yml)
 - scripts/whats-new.sh — before a deploy: what main got since your branch started, shared files, other branches
 - scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node),
   gen-practice-2e.mjs (rebuilds the dwh / payments datasets and the payments log, fixed seed)
 - .github/workflows/deploy.yml — build, smoke tests, publish to GitHub Pages (main only)
 - .github/workflows/deploy-functions.yml — deploy one Edge Function on demand (Run workflow)
+- .github/workflows/reminders.yml — every morning, calls follow-up-reminders (needs REMINDERS_CRON_SECRET)
 - tests/smoke.spec.mjs, playwright.config.mjs — smoke tests (guest flows; no sign-in, no job search)
 - CHECKLIST.md — next-session note, owner tasks, done log; ROADMAP.md — roadmap + decisions log; README.md, GO-LIVE.md — setup guides
 

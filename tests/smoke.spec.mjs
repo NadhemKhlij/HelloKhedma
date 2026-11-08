@@ -568,6 +568,41 @@ test("skill check: a skill proved with 3 of 4 right is marked known and skipped"
   await expect(page.locator('#courseList a[href="#/course/sql"]')).toContainText("Known");
 });
 
+// Offer coach (ROADMAP 2.8) and e-mail reminders (2.2): an offer in the tracker is compared with the market.
+test("offer coach: an offer is placed on the market range, and the negotiation prompt is ready", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (localStorage.getItem("seeded")) return;
+    localStorage.setItem("seeded", "1");
+    localStorage.setItem("hk.path", "de");
+    const now = new Date().toISOString();
+    localStorage.setItem("hk.applications.v1", JSON.stringify([{ id: "a1", path_id: "de", title: "Data Engineer", company: "Acme", stage: "offer",
+      salary: "", history: [{ stage: "applied", at: now }, { stage: "offer", at: now }], created_at: now }]));
+    // Salaries seen on the Offers page for the path (the coach's reference on a test server): 40 to 60 k€.
+    const rows = [40, 44, 48, 50, 52, 56, 60].map((k, i) => ({ k: `o${i}`, at: Date.now(), s: [], r: null, l: null, p: 1, e: k * 1000 }));
+    localStorage.setItem("hk.pulse.de", JSON.stringify(rows));
+  });
+  await open(page, "#/");
+  const action = page.locator("#homeActions li", { hasText: "Offer received" });
+  await expect(action).toBeVisible();
+  await action.getByRole("button", { name: "Negotiate →" }).click();
+  const coach = page.locator("#coachDialog");
+  await expect(coach).toContainText("Market for");
+  await coach.getByLabel("Salary offered").fill("49k €"); // market: middle half 48–56 k€, median 50 k€
+  await expect(coach.locator("[data-verdict]")).toHaveAttribute("data-verdict", "lower");
+  await coach.getByLabel("Salary offered").fill("3 000 € brut mensuel");
+  await expect(coach).toContainText("Below the market");
+  await expect(coach.getByLabel("Prompt")).toHaveValue(/Data Engineer at Acme[\s\S]*3 000 € brut mensuel/);
+  await coach.getByRole("button", { name: "Save to the application" }).click();
+  await expect(coach.getByRole("button", { name: "Save to the application" })).toBeHidden();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("hk.applications.v1"))[0].salary)).toBe("3 000 € brut mensuel");
+  await coach.getByRole("button", { name: "Close" }).click();
+  // The tracker card has the coach too; e-mail reminders need an account.
+  await page.evaluate(() => { location.hash = "#/applications"; });
+  await expect(page.locator("#board button", { hasText: "💼 Negotiate" })).toBeVisible();
+  await page.evaluate(() => { location.hash = "#/account"; });
+  await expect(page.locator("#remindersPanel")).toContainText("Sign in to get them");
+});
+
 test("French interface and back to English", async ({ page }) => {
   await open(page);
   await page.click("#langToggle");

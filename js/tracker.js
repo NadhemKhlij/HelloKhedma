@@ -3,6 +3,7 @@
 //   form.title is the form's own attribute). Interview-stage cards get a "Prepare" link to #/interview; applied and
 //   interview cards an "✉ Email" button (thank-you / follow-up email, letters.js).
 // - Stage changes append to `history` (timeline, stats). nextActions() feeds Home: due follow-ups, interviews in 7 days.
+// - Offer-stage cards get "💼 Negotiate" (offercoach.js), also in the details dialog and in Next actions (14 days).
 // - Stats + weekly goal ("hk.weeklyGoal"), CSV export/import (accepts "," or ";"), .ics file for interviews.
 // - CV sent (cv_version, the version name from js/cvs.js): card badge, select in the dialog, response rate per CV.
 //   Signed-in users need migration 20261029000100 (cvSupported() in store.js; the dialog shows a notice until then).
@@ -13,6 +14,7 @@ import { $, h, safeUrl, safeColor, download } from "./lib.js";
 import { t, LOCALE } from "./i18n.js";
 import { STAGES } from "./store.js";
 import { openCardLetter } from "./letters.js";
+import { openOfferCoach } from "./offercoach.js";
 
 const DAY = 86_400_000;
 const stageLabel = (id) => STAGES.find((s) => s.id === id)?.label || id;
@@ -33,10 +35,15 @@ export function followUpState(c) {
 }
 const FOLLOW = { overdue: [t("Follow-up overdue"), "#e0508b"], today: [t("Follow up today"), "#f08a24"], soon: [t("Follow up soon"), "var(--accent)"] };
 
-// Things to do: follow-ups due soon and interviews in the next 7 days, soonest first.
+// Things to do: offers received in the last 14 days (to negotiate), follow-ups due soon and interviews in the next
+// 7 days, soonest first.
 export function nextActions(cards) {
   const now = Date.now(), items = [];
   for (const c of cards) {
+    if (c.stage === "offer") {
+      const at = new Date((c.history || []).filter((x) => x.stage === "offer").at(-1)?.at || c.created_at || now).getTime();
+      if (at > now - 14 * DAY) items.push({ c, at, kind: "offer", text: t("Offer received: compare the salary and negotiate") });
+    }
     const f = followUpState(c);
     if (f) items.push({ c, at: new Date(`${c.follow_up_on}T00:00:00`).getTime(), kind: f, text: c.next_action || t("Follow up") });
     if (c.interview_at && ACTIVE.has(c.stage)) {
@@ -92,6 +99,7 @@ function card(c, stageIndex, { onMove, onOpen, colorOf }) {
       btn("→", t("Move forward"), stageIndex === STAGES.length - 1, () => move(1)),
       btn(t("Details"), t("Edit details, notes, follow-up and interview"), false, () => onOpen(c)),
       c.stage === "interview" ? h("a", { href: "#/interview", class: "btn-ghost !px-2 !py-0", title: t("Practise for this interview") }, t("Prepare")) : null,
+      c.stage === "offer" ? btn(t("💼 Negotiate"), t("Compare the salary with the market and prepare the negotiation"), false, () => openOfferCoach(c)) : null,
       c.stage === "applied" || c.stage === "interview"
         ? btn(t("✉ Email"), c.stage === "interview" ? t("Write a thank-you or follow-up email") : t("Write a follow-up email"), false, () => openCardLetter(c)) : null,
     ),
@@ -174,6 +182,8 @@ export function openDetails(c, { detailsOk, cvOk, cvNames = [], onSave, onRemove
   icsBtn.onclick = () => download(`interview-${(fe.company.value || fe.title.value).replace(/\W+/g, "-")}.ics`,
     icsFor({ ...c, title: fe.title.value, company: fe.company.value, url: fe.url.value, contact: fe.contact.value,
       interview_at: new Date(fe.interview_at.value).toISOString() }), "text/calendar");
+  $("#appCoach").hidden = c.stage !== "offer";
+  $("#appCoach").onclick = () => { dlg.close(); openOfferCoach(c); };
   $("#appDelete").onclick = () => { if (confirm(t("Delete \"{title}\"?", { title: c.title }))) { dlg.close(); onRemove(); } };
   $("#appCancel").onclick = () => dlg.close();
   form.onsubmit = (e) => {

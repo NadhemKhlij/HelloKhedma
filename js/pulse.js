@@ -10,6 +10,8 @@
 //   Adzuna's offers, not only the ones seen here): median, middle half, trend over 12 months and the distribution.
 //   Through the job-search function (jobs.js salaryStats), cached 24 h there and in this browser ("hk.salstats");
 //   sends only the job title and the country. Not fetched on a local / test server (no quota spent by CI).
+// - marketPay(): the same figures as a pay reference for the offer coach (offercoach.js): Adzuna's quartiles when there
+//   are enough offers, otherwise the euro salaries of the offers seen here.
 import { $, h, ls } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { state, path, skillChip } from "./state.js";
@@ -55,7 +57,7 @@ export function summarize(rows) {
   return {
     n,
     skills: [...count].sort((a, b) => b[1] - a[1]).slice(0, TOP).map(([name, c]) => ({ name, c, p: pct(c, n) })),
-    pay: pay.length >= 3 ? { low: quantile(pay, 0.25), high: quantile(pay, 0.75), n: pay.length } : null,
+    pay: pay.length >= 3 ? { low: quantile(pay, 0.25), median: quantile(pay, 0.5), high: quantile(pay, 0.75), n: pay.length } : null,
     payN: pay.length,
     remote: pct(rows.filter((r) => r.r === "Remote").length, n),
     hybrid: pct(rows.filter((r) => r.r === "Hybrid").length, n),
@@ -96,6 +98,22 @@ async function loadSalary(title, country) {
   ls.set(SAL_KEY, JSON.stringify({ k, at: Date.now(), d }));
   return d;
 }
+// Pay reference for the selected path: { low, median, high (yearly), currency, n, source: "adzuna" | "seen", title }
+// or null when there is not enough data.
+export async function marketPay(p = path()) {
+  if (!p) return null;
+  const title = p.job_titles?.[0] || p.name, country = $("#country")?.value || CONFIG.DEFAULT_COUNTRY || "fr";
+  if (sb && !LOCAL.test(location.hostname)) {
+    try {
+      const d = await loadSalary(title, country);
+      const hist = (d.histogram || []).filter(([, c]) => c > 0), n = hist.reduce((a, [, c]) => a + c, 0);
+      if (n >= 20 && d.currency) return { low: histQuantile(hist, 0.25), median: histQuantile(hist, 0.5), high: histQuantile(hist, 0.75), currency: d.currency, n, source: "adzuna", title };
+    } catch { /* fall back to the offers seen here */ }
+  }
+  const s = summarize(load(p.id));
+  return s.pay ? { ...s.pay, currency: "EUR", source: "seen", title } : null;
+}
+
 function salaryBlock(p) {
   const box = h("div", { class: "mt-4", hidden: true });
   const title = p.job_titles?.[0] || p.name;

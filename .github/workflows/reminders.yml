@@ -1,0 +1,36 @@
+# Daily e-mail reminders (ROADMAP 2.2): calls the follow-up-reminders Edge Function, which e-mails each user who turned
+# reminders on (Account page) their follow-ups due and interviews coming up. Runs every morning at 06:17 UTC
+# (07:17 Paris in winter, 08:17 in summer); "Run workflow" runs it now (each user still gets one e-mail a day at most).
+# Needs, once:
+#   - GitHub secret REMINDERS_CRON_SECRET (any long random text) and the same value as Supabase secret CRON_SECRET;
+#   - Supabase secret RESEND_API_KEY; the function deployed (Actions → "Deploy Supabase function" → follow-up-reminders);
+#   - the migration 20261108000100_email_reminders.sql run.
+# The anon key (public by design) only gets the request past "Verify JWT"; the function checks the secret itself.
+# Note: GitHub pauses scheduled workflows after 60 days without any activity in the repository.
+name: Daily e-mail reminders
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call follow-up-reminders
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          CRON_SECRET: ${{ secrets.REMINDERS_CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "::notice::E-mail reminders are not set up yet (REMINDERS_CRON_SECRET)."; exit 0; fi
+          out=$(curl -sS -w '\n%{http_code}' -X POST "$SUPABASE_URL/functions/v1/follow-up-reminders" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" -H "Content-Type: application/json" -H "x-cron-secret: $CRON_SECRET" -d '{}')
+          code=$(echo "$out" | tail -1); body=$(echo "$out" | sed '$d')
+          echo "$body"
+          echo "### E-mail reminders: $body" >> "$GITHUB_STEP_SUMMARY"
+          [ "$code" = "200" ] || { echo "::error::follow-up-reminders answered $code: $body"; exit 1; }

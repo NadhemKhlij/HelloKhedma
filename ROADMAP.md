@@ -41,8 +41,13 @@ Done (2026-10-29): 2.1 details (notes, salary, contact, next action), 2.2 follow
 (Home "Next actions", card badges; email reminders still to do), 2.3 interview dates + .ics, 2.4 timeline,
 2.5 stats + weekly goal, 2.6 CSV export/import. Signed-in sync of the new fields needs migration O6 (CHECKLIST.md).
 Done (2026-10-29): 2.7 CV version sent per application (recorded on Track / Add, editable in the details, card badge,
-response rate per CV, CSV column; signed-in sync needs migration O13). Still to do: 2.2 email reminders, cover letter per
-application (2.7b).
+response rate per CV, CSV column; signed-in sync needs migration O13). Still to do: cover letter per application (2.7b).
+Done (2026-11-08): 2.2 e-mail reminders, opt-in on the Account page (signed in): one e-mail on the days a follow-up is
+due or an interview is within 36 h, in the interface language (follow-up-reminders function, Resend, scheduled daily by
+.github/workflows/reminders.yml; "Send me a test e-mail now"). Needs CHECKLIST O33 + O34. 2.8 offer coach
+(js/offercoach.js): offer-stage cards ("💼 Negotiate", details dialog, Home's Next actions for 14 days) compare the
+offered salary with the path's market (Adzuna advertised salaries, else the offers seen here): range bar, verdict,
+negotiation tips and a prompt to copy.
 
 | # | Item | Why | Effort |
 |---|---|---|---|

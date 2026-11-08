@@ -3,6 +3,7 @@
 // - Delete: signed in → delete-account Edge Function, then sign out; in every case all "hk.*" entries are cleared.
 // - Opt-in choices: "Save my CVs to my account" (cvsync.js, signed-in users, notice before turning it on) and
 //   "Help improve HelloKhedma" (insights.js, anonymous statistics). Both are off until the user turns them on.
+// - "E-mail reminders" (reminders.js): follow-ups and interviews by e-mail, signed-in users, off by default.
 // - "Change password" (signed in; auth.js openPasswordDialog).
 // - "Admin: site statistics" link (#/admin, admin.js), shown only when is_admin() says so.
 import { $, h, ls, toast } from "./lib.js";
@@ -14,6 +15,7 @@ import { insightsChoice, setInsights } from "./insights.js";
 import { learnSyncExport } from "./learnsync.js";
 import { checkAdmin, renderAdmin } from "./admin.js";
 import { openPasswordDialog } from "./auth.js";
+import { renderReminders } from "./reminders.js";
 
 export function renderStatus() {
   const u = state.user;
@@ -35,8 +37,9 @@ export function renderStatus() {
   renderChoices();
 }
 
-// The two opt-in switches (both off until the user turns them on).
+// The opt-in switches (all off until the user turns them on).
 function renderChoices() {
+  renderReminders($("#remindersPanel"));
   const u = state.user, on = cvSyncOn();
   const panel = $("#cvSyncPanel"), notice = h("div", { class: "grid gap-2" });
   const turnOn = async (btn) => {

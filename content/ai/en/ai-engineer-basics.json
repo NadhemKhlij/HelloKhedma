@@ -1,0 +1,391 @@
+{
+  "why": "AI engineer has become one of the most sought-after profiles in Tunisia and abroad, especially for remote work with European companies. Before you build applications, you need to understand what this job is and how an LLM works on the inside: tokens, cost, limits.",
+  "outcome": "explain what an AI engineer does, understand tokens, the context window and hallucinations, compute the cost of a request with the right prices, choose a model, and make your first call to Claude in Python the safe way.",
+  "lessons": [
+    {
+      "title": "What does an AI engineer do?",
+      "text": [
+        "An AI engineer is a developer who builds applications with artificial intelligence inside: a chatbot that answers customers, a tool that reads invoices and extracts data from them, an assistant that helps a support team... They do not train the model from scratch: they use ready-made models like Claude through an API, and think about the whole product: the prompt, the data they send, the code around the model, the cost, security, and how the thing works well in production and improves over time.",
+        "There is a lot of confusion between the jobs. A data scientist analyses data and builds statistical models to answer business questions. An ML engineer trains and deploys machine learning models (sometimes from scratch) and works a lot with data pipelines and GPUs. A software developer builds ordinary applications. The AI engineer sits in the middle: they have a developer's reflexes (clean code, tests, APIs, deployment) and add an understanding of LLMs on top: prompts, evaluation, cost and limits.",
+        "The skills employers ask for: solid Python (some JavaScript helps), REST APIs and JSON, Git, a little SQL, and an understanding of LLMs. Then you add: tool use and agents, RAG and vector databases, evaluation, monitoring. Soft skills matter too: explaining to the client what AI can and cannot do, and writing clearly, because even a prompt is writing.",
+        "The market: in Tunisia there are startups and IT services companies working on AI projects for European clients, and European companies that work remotely with Tunisian juniors. Freelancing works too (chatbots, automation, integrations), but you need a portfolio that stands out. This track goes step by step: first the basics, then prompt engineering, then the Claude API in detail, tool use and agents, RAG, and finally production: monitoring, cost and evaluation."
+      ],
+      "points": [
+        "AI engineer = a developer who builds products with ready-made models, not a researcher who trains models.",
+        "ML engineer trains and deploys models; data scientist analyses data; AI engineer integrates an LLM into a product.",
+        "Python, APIs, JSON and Git are the foundation; understanding LLMs comes on top.",
+        "A portfolio of real projects helps you more than a long list of certificates."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Track: Tunisian AI Teacher (indicative order)\n1. AI engineer basics            <- you are here\n2. Prompt engineering\n3. Claude API in Python\n4. Tool use and agents\n5. RAG and vector databases\n6. Production: monitoring, cost, evaluation",
+        "note": "The roadmap of the track: each course builds on the one before."
+      }
+    },
+    {
+      "title": "How an LLM works: tokens and the next token",
+      "text": [
+        "An LLM (Large Language Model) is a model trained on a very large amount of text. The core idea is simple: you give it the beginning of a text, and it predicts the piece that comes next. It does not understand like a human: it computes probabilities, gives a score to every possible piece, and picks one. Then it adds that piece to the text and repeats, piece by piece, until the answer is complete.",
+        "That piece is called a token. A token is not always a word: it can be a whole word, half a word, a few characters, or punctuation. The model does not read characters directly: the text is split into tokens, and each token has a number. Most of the time, text in a language other than English, like Derja or Arabic, takes more tokens for the same meaning, and that affects the cost and the room left in the prompt.",
+        "There are two stages. Training: the company that makes the model runs huge amounts of text through it and adjusts billions of parameters until it predicts the next token well, then adds a stage so it follows instructions and is helpful and safe. This is very expensive and you do not do it. Inference: when you send a prompt through the API and the model produces an answer. The model does not learn from your conversation: its parameters do not change.",
+        "This tells you why the model can be wrong. It picks the text that looks plausible from what it learned, not what has been verified. If the information was not in the training data, or is old, or the question is vague, it gives you a well-written, confident answer... that is wrong. On top of that, the model has a knowledge cutoff, and knows nothing about what happened after it unless you give it in the prompt."
+      ],
+      "points": [
+        "An LLM predicts the next token, token by token, until the answer is complete.",
+        "Token = a piece of text; cost and limits are all counted in tokens, not words.",
+        "Training is done once by the provider; inference is done by you with every request.",
+        "A well-written, confident answer does not mean a correct answer."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Prompt: \"The capital of Tunisia is\"\n\nScores for the next token (illustration, not real numbers):\n  \" Tunis\"   0.92\n  \" a\"       0.03\n  \" the\"     0.02\n  ...\n\nChosen: \" Tunis\" -> appended to the text,\nthen the model predicts the next token again.",
+        "note": "The model does not 'know' the answer: it picks the most likely token from what it learned."
+      }
+    },
+    {
+      "title": "Context window, tokens and cost",
+      "text": [
+        "The context window is the largest number of tokens the model can see in one request: the system prompt, the conversation history, the documents you added, and the answer it will write. In Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5, the context window is 1M (one million) tokens, and output goes up to 128K tokens. But 'can' does not mean 'should': you pay for every token you send.",
+        "The API does not remember: every request must send the whole conversation from the start. So in a chatbot, each new message makes the input bigger and the cost grows with it. Billing uses two numbers: input tokens (what you send) and output tokens (what the model produces), and output is always more expensive. Prices are in dollars per million tokens (input / output): Opus 5.5 $4 / $20, Sonnet 5.5 $2 / $10, Haiku 5.5 $0.10 / $0.50 (for prompts up to 100K tokens; above that $0.50 / $2.50), and Fable 5.1, the most capable, $10 / $50.",
+        "The calculation is simple: cost = input_tokens × input_price / 1,000,000 + output_tokens × output_price / 1,000,000. Example: a request with 2,000 input tokens and 500 output tokens on Opus 5.5: 2,000 × 4 / 1M = $0.008, and 500 × 20 / 1M = $0.010, a total of $0.018. Looks like nothing? But with 10,000 requests a day, that is $180 a day. The same work on Haiku 5.5 comes to $4.50 a day. That is why the choice of model and the length of the prompt matter so much.",
+        "To know the exact numbers, do not guess: the response has response.usage.input_tokens and response.usage.output_tokens, and before sending you can use client.messages.count_tokens. Do not use tiktoken: that is OpenAI's tokenizer and it gives wrong counts for Claude. Also know that the model's thinking (reasoning before the answer) is part of the output and counts toward max_tokens, and you can control it with output_config effort. In the next courses we will see prompt caching and the Batches API (50% cheaper) to lower the bill."
+      ],
+      "points": [
+        "Context window = input + output in one request; 1M tokens in the new models.",
+        "The API is stateless: every request sends the whole history again.",
+        "In Claude, an output token costs 5 times more than an input token.",
+        "Measure with usage and count_tokens, do not guess, and do not use tiktoken."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# Prices in USD per million tokens (input, output)\nPRICES = {\n    \"claude-opus-5-5\": (4.00, 20.00),\n    \"claude-sonnet-5-5\": (2.00, 10.00),\n    \"claude-haiku-5-5\": (0.10, 0.50),  # prompts up to 100K tokens\n}\n\ndef cost_usd(model, input_tokens, output_tokens):\n    price_in, price_out = PRICES[model]\n    return (input_tokens * price_in + output_tokens * price_out) / 1_000_000\n\n# A support chatbot: 2,000 tokens in, 500 tokens out, 10,000 requests per day\nfor model in PRICES:\n    per_day = cost_usd(model, 2_000, 500) * 10_000\n    print(f\"{model}: {per_day:.2f} USD per day\")",
+        "note": "Result: Opus 5.5 180.00, Sonnet 5.5 90.00, Haiku 5.5 4.50 dollars a day."
+      }
+    },
+    {
+      "title": "Model families: how to choose a model",
+      "text": [
+        "Anthropic makes Claude in tiers. Opus 5.5 (claude-opus-5-5) is the default model: very strong at code, reasoning and long tasks. Sonnet 5.5 (claude-sonnet-5-5) gives good quality at half the price. Haiku 5.5 (claude-haiku-5-5) is the fastest and cheapest, suited to large volumes: classification, extraction, routing. And Fable 5.1 (claude-fable-5-1) is the most capable, for the hardest tasks, but more expensive. Use these ids exactly as they are, with no date at the end.",
+        "There are other providers: OpenAI (GPT), Google (Gemini), Mistral (a French company), and 'open weights' models like Llama or Mistral that you can run on your own machine or server, for example with Ollama. Open models help when data must not leave your premises or when you want to control everything, but you need GPUs and hosting work, and most of the time the quality is lower than the big models.",
+        "The choice is always a trade-off between 5 things: quality (does it understand and reason well?), speed (latency, important for a chatbot), cost (the token price and how many tokens it uses), privacy (where the data goes and who can see it), and hosting (cloud API or your own server). There is no 'best model' in absolute terms: there is the best model for a given task on a given budget.",
+        "A practical method: start with a strong model (Opus 5.5) to see the quality ceiling. Then build a small test set of real examples (20 or 50 cases) and try Sonnet 5.5 and Haiku 5.5 on them. If the cheap model gets the same result on your case, take the cheap one. And you can mix: Haiku classifies the tickets and Opus answers the hard ones. Remember too that the real cost is the cost of the whole task: a cheap model that gets it wrong and needs 3 retries can end up more expensive."
+      ],
+      "points": [
+        "Opus 5.5 = the default; Sonnet 5.5 = the middle; Haiku 5.5 = cheap and fast; Fable 5.1 = the most capable.",
+        "Open models = control and privacy, but GPUs and maintenance.",
+        "Test on your own examples, not on internet leaderboards.",
+        "Measure the cost of the whole task, not the token price alone."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# Pick the model per task: start strong, then test cheaper models on your own examples\nMODEL_FOR_TASK = {\n    \"classify_ticket\": \"claude-haiku-5-5\",   # high volume, simple task: cheap and fast\n    \"answer_customer\": \"claude-sonnet-5-5\",  # good quality at a mid price\n    \"review_contract\": \"claude-opus-5-5\",    # long documents, hard reasoning\n}\n\ndef pick_model(task: str) -> str:\n    # Unknown task: fall back to the default, strongest general model\n    return MODEL_FOR_TASK.get(task, \"claude-opus-5-5\")\n\nprint(pick_model(\"classify_ticket\"))  # claude-haiku-5-5",
+        "note": "Simple routing: each task gets the model that is enough for it, and the choice is made by tests."
+      }
+    },
+    {
+      "title": "Hallucinations: why the model gets it wrong and how to reduce it",
+      "text": [
+        "A hallucination is when the model gives you wrong information with full confidence: a reference that does not exist, a function a library does not have, invented numbers, an incorrect law. The cause is in how it works: it predicts plausible text, it does not check a database. When information is missing, the model usually fills the gap with something that looks right instead of saying 'I don't know'.",
+        "The most common cases: questions about small, little-known things (a small Tunisian company, a new law), exact numbers and dates, sources and references, and information that came after the knowledge cutoff. Add a vague prompt to that: if you did not tell it what to use and what not to, it fills in on its own.",
+        "How to reduce it: first, grounding: put the right documents in the prompt and tell it to answer only from those documents. That is the idea of RAG, which we will see later. Second: give it permission to say 'I don't know' and tell it exactly what to say. Third: ask it to quote the sentence it relied on from the document, so you can check. Fourth: when you can, check with code: is the JSON valid? does the function exist? is the calculation right?",
+        "The golden rule: do not trust the answer blindly, especially for things involving money, health, the law or decisions about people. A good AI engineer builds a system with verification: tests, evaluation on examples, and a human who reviews when the risk is high. And tell users the truth: AI can be wrong."
+      ],
+      "points": [
+        "Hallucination = a wrong answer given with confidence; normal for an LLM, not a rare bug.",
+        "Grounding: give it the source and tell it to answer only from it.",
+        "Permission to say 'I don't know' + quoting the source = easier verification.",
+        "Check with code and with a human, depending on the risk."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "System:\nYou answer questions about our company's leave policy.\nUse ONLY the document between <policy> tags.\nIf the answer is not in the document, say exactly:\n\"I don't know, please ask HR.\"\nQuote the sentence of the document you used.\n\n<policy>\n...the current HR policy text...\n</policy>\n\nUser:\nHow many days of annual leave do I get after 3 years?",
+        "note": "Grounding + permission to say 'I don't know' + citation: three techniques in one prompt."
+      }
+    },
+    {
+      "title": "Your first call to Claude in Python",
+      "text": [
+        "Installation: pip install anthropic (best in a virtual environment). Then you need an API key from the Anthropic Console. To pay, the account asks for an international payment card; in Tunisia many people use the international 'carte technologique' or a company card. This key is a secret like a password: whoever gets it can use your account at your expense.",
+        "Why an environment variable? Because code goes to Git, to colleagues, to GitHub, and a key written in the code gets stolen fast. The SDK reads ANTHROPIC_API_KEY from the environment by itself. On Linux or macOS: export ANTHROPIC_API_KEY=... ; in PowerShell: $env:ANTHROPIC_API_KEY = \"...\" ; or a .env file that you add to .gitignore.",
+        "The call: client = anthropic.Anthropic(), then client.messages.create with model, max_tokens (the maximum length of the output) and messages: a list of {role, content} dictionaries, the first one always 'user'. You can add system to give the role and the rules. The API does not remember: to hold a conversation, you add the answer with role 'assistant' and send everything again. Do not set temperature or a prefill copied from old tutorials: the new models reject them with a 400 error. To control depth and cost, there is output_config={\"effort\": ...} (medium by default in Opus 5.5).",
+        "The response: response.content is a list of blocks (text, thinking, tool_use...), so check block.type before reading .text. response.usage has input_tokens and output_tokens. And above all, check response.stop_reason: 'end_turn' finished normally, 'max_tokens' the answer was cut off (raise max_tokens), 'tool_use' it wants to use a tool, 'refusal' it refused. The SDK retries by itself on 429 or 5xx, and you can catch errors like anthropic.AuthenticationError or anthropic.RateLimitError."
+      ],
+      "points": [
+        "pip install anthropic, and the key in ANTHROPIC_API_KEY, never in the code.",
+        "messages.create = model + max_tokens + messages (+ system).",
+        "Check stop_reason before reading the content, and block.type before .text.",
+        "usage tells you how much you paid: log it from day one."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# pip install anthropic\n# The key is read from the ANTHROPIC_API_KEY environment variable (never hard-code it).\nimport anthropic\n\nclient = anthropic.Anthropic()\n\nresponse = client.messages.create(\n    model=\"claude-opus-5-5\",\n    max_tokens=4096,\n    system=\"You are a patient teacher. Answer in Tunisian Derja.\",\n    messages=[\n        {\"role\": \"user\", \"content\": \"Explain what a token is in two sentences.\"}\n    ],\n)\n\nif response.stop_reason == \"refusal\":\n    print(\"The model refused this request.\")\nelse:\n    for block in response.content:\n        if block.type == \"text\":\n            print(block.text)\n    if response.stop_reason == \"max_tokens\":\n        print(\"Warning: the answer was cut, increase max_tokens.\")\n\nprint(\"input tokens:\", response.usage.input_tokens)\nprint(\"output tokens:\", response.usage.output_tokens)",
+        "note": "A complete call: system, message, stop_reason check, reading the text and the usage."
+      }
+    },
+    {
+      "title": "Data, privacy and responsibility",
+      "text": [
+        "Everything you send to the API leaves your premises and goes to a provider's servers. Before sending, ask: does the model need to see this data? Personal data (names, phone numbers, addresses, national ID numbers, health or bank data), secrets (API keys, passwords), and the company's confidential code or documents: these are not sent unless there is a need and permission.",
+        "Companies have rules: some do not allow any AI tool, some allow one provider under contract, some require an open model on their own servers. In Europe there is the GDPR, and in Tunisia there is the personal data protection law and the INPDP. As a junior, do not put client data into an AI tool 'to try it' without asking. Ask first, always.",
+        "A practical method: minimise the data (send only what is needed), mask personal data with placeholders like [EMAIL] and [PHONE] before the call, do not keep full user texts in the logs without a reason, and know what the provider does with the data (retention, contract). Masking with regex is a good start but not complete: names, for example, are hard to catch with a regex.",
+        "Responsibility too: models can repeat biases from their training data (about gender, origin, language...). Do not let a model make a decision about people on its own (hiring, credit) without human oversight. And be clear with users: tell them they are talking to an AI, not a human, and that the answer can be wrong. This transparency builds trust, and in many places it has become an obligation."
+      ],
+      "points": [
+        "Send the minimum; mask personal data before the API.",
+        "Ask about the company's rules before using any AI tool.",
+        "Bias exists: sensitive decisions need a human.",
+        "Tell users they are talking to an AI."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import re\n\ndef mask_personal_data(text: str) -> str:\n    # Replace e-mails and Tunisian phone numbers before sending text to an external API\n    text = re.sub(r\"[\\w.+-]+@[\\w-]+\\.[\\w.]+\", \"[EMAIL]\", text)\n    text = re.sub(r\"(\\+216\\s?)?\\b\\d{2}\\s?\\d{3}\\s?\\d{3}\\b\", \"[PHONE]\", text)\n    return text\n\nticket = \"Client Sami, sami.benali@example.com, tel +216 22 123 456, cannot log in.\"\nprint(mask_personal_data(ticket))\n# Client Sami, [EMAIL], tel [PHONE], cannot log in.",
+        "note": "The name 'Sami' is still there: regex is a start, not complete protection."
+      }
+    },
+    {
+      "title": "How to learn and keep improving: projects and portfolio",
+      "text": [
+        "AI changes fast: new models, new features, and tutorials go stale within months. So the biggest skill is learning on your own. Read the provider's official documentation before articles and videos, because it is the one that changes with the API. When you find a tutorial using a parameter that no longer works (like temperature on the new Claude), you know why.",
+        "Practice: small, finished projects beat a big project that never ends. Examples: a support ticket classifier (Derja, French, Arabic), a tool that extracts information from PDF invoices to JSON, a chatbot that answers from a product's documentation, a script comparing the cost of 3 models on the same task. Each project shows a skill: prompt, API, evaluation, cost.",
+        "The portfolio: each project on GitHub with a clear README: the problem, how it works, the results (how many correct out of how many examples, how much it costs), the limits, and how to run it. Do not put the API key in the repo: .env in .gitignore. A recruiter in Europe prefers one small project measured with numbers to 10 chatbot projects with not a single test.",
+        "Organisation: 5 to 7 hours a week on this track lets you make good progress. For each course: read the lessons, do the exercises by hand, and add something small of your own. Internet cut off? Prepare the code and the prompts offline and try the calls when it comes back. And to avoid spending a lot while you learn: Haiku 5.5 for experiments, a small max_tokens, and watch the usage. And do not forget the community: Tunisian meetups and tech groups can help you find a mentor, feedback on your projects and opportunities."
+      ],
+      "points": [
+        "Official documentation before any tutorial.",
+        "Small, finished projects, each with a clear skill.",
+        "A README with measured results and limits = a portfolio that stands out.",
+        "Experiments with Haiku 5.5 and a small max_tokens to keep the cost down."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# Support ticket classifier (Claude API)\n\n## Problem\nClassify customer tickets written in Derja, French or Arabic into 5 categories.\n\n## How it works\nPython + anthropic SDK, model claude-haiku-5-5, prompt in prompts/classify.txt.\nPersonal data is masked before each API call.\n\n## Results\nTested on 100 labelled tickets: accuracy, cost per 1,000 tickets, average latency.\n\n## Limits\nTickets mixing languages and slang are harder to classify.\n\n## Run it\npip install -r requirements.txt\nSet ANTHROPIC_API_KEY in your environment, then run: python classify.py",
+        "note": "A README skeleton: the recruiter reads the problem, the results and the limits in one minute."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "The job",
+      "items": [
+        [
+          "AI engineer",
+          "Builds products with ready-made LLMs: prompt, API, evaluation, cost, production"
+        ],
+        [
+          "ML engineer",
+          "Trains and deploys machine learning models"
+        ],
+        [
+          "Data scientist",
+          "Analyses data and builds statistical models for business questions"
+        ],
+        [
+          "Portfolio",
+          "Small projects on GitHub with a README, results and limits"
+        ]
+      ]
+    },
+    {
+      "group": "LLM: the basics",
+      "items": [
+        [
+          "LLM",
+          "A model that predicts the next token, token by token"
+        ],
+        [
+          "Token",
+          "A piece of text: a word, part of a word or punctuation"
+        ],
+        [
+          "Training",
+          "The provider trains the model on large amounts of text, once"
+        ],
+        [
+          "Inference",
+          "The model produces an answer to your request"
+        ],
+        [
+          "Knowledge cutoff",
+          "The date after which the model knows nothing unless you give it"
+        ]
+      ]
+    },
+    {
+      "group": "Tokens and cost",
+      "items": [
+        [
+          "Context window",
+          "All the tokens in one request: system + history + documents + output"
+        ],
+        [
+          "input_tokens / output_tokens",
+          "The two numbers you are billed on"
+        ],
+        [
+          "cost = in × p_in / 1M + out × p_out / 1M",
+          "The cost formula in dollars"
+        ],
+        [
+          "client.messages.count_tokens(...)",
+          "Know the number of tokens before sending"
+        ],
+        [
+          "Batches API",
+          "Asynchronous, 50% cheaper"
+        ]
+      ]
+    },
+    {
+      "group": "Claude models (input / output price per 1M tokens)",
+      "items": [
+        [
+          "claude-opus-5-5",
+          "Opus 5.5, the default: $4 / $20"
+        ],
+        [
+          "claude-sonnet-5-5",
+          "Sonnet 5.5, the middle: $2 / $10"
+        ],
+        [
+          "claude-haiku-5-5",
+          "Haiku 5.5, cheap and fast: $0.10 / $0.50 (prompt ≤ 100K)"
+        ],
+        [
+          "claude-fable-5-1",
+          "Fable 5.1, the most capable: $10 / $50"
+        ]
+      ]
+    },
+    {
+      "group": "Claude API in Python",
+      "items": [
+        [
+          "pip install anthropic",
+          "Installing the SDK"
+        ],
+        [
+          "ANTHROPIC_API_KEY",
+          "Environment variable read by the SDK; the key never goes in the code"
+        ],
+        [
+          "client.messages.create(model, max_tokens, messages)",
+          "The basic call"
+        ],
+        [
+          "response.stop_reason",
+          "end_turn, max_tokens, tool_use, refusal..."
+        ],
+        [
+          "response.usage",
+          "The request's input_tokens and output_tokens"
+        ],
+        [
+          "output_config={\"effort\": \"low\"}",
+          "Less thinking = faster and cheaper (Opus 5.5: medium by default)"
+        ]
+      ]
+    },
+    {
+      "group": "Limits and responsibility",
+      "items": [
+        [
+          "Hallucination",
+          "A wrong answer given with confidence"
+        ],
+        [
+          "Grounding",
+          "Give it the documents and tell it to answer only from them"
+        ],
+        [
+          "Masking",
+          "Mask personal data before the API"
+        ],
+        [
+          "Transparence",
+          "Tell the user they are talking to an AI"
+        ]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "A request has 3,000 input tokens and 800 output tokens on claude-sonnet-5-5. How much does it cost? And how much with 5,000 requests a day?",
+      "hint": "Sonnet 5.5: $2 input and $10 output per million tokens.",
+      "answer": "Input: 3,000 × 2 / 1,000,000 = $0.006. Output: 800 × 10 / 1,000,000 = $0.008. One request = $0.014. 5,000 requests = $70 a day, so about $2,100 a month (30 days)."
+    },
+    {
+      "q": "Write a function read_answer(response) that returns the text of the answer, returns None on a refusal, and prints a warning when the answer was cut off.",
+      "hint": "Check stop_reason, and join only the blocks whose type is 'text'.",
+      "code": "python",
+      "answer": "def read_answer(response):\n    # Check why the model stopped before reading the content\n    if response.stop_reason == \"refusal\":\n        return None\n    if response.stop_reason == \"max_tokens\":\n        print(\"Warning: the answer was cut, increase max_tokens\")\n    return \"\".join(b.text for b in response.content if b.type == \"text\")"
+    },
+    {
+      "q": "Explain in 3 sentences the difference between an AI engineer and an ML engineer, as you would in an interview.",
+      "answer": "An ML engineer trains models (sometimes from scratch) and deploys them, working on data, features and GPUs. An AI engineer uses ready-made models like Claude through an API and builds a product with them: prompts, integration, evaluation, cost and production. Both are developers, but the AI engineer thinks more about the product and the LLM's behaviour, not about training."
+    },
+    {
+      "q": "Choose a model for each case and explain why: (a) classifying 200,000 emails a day, (b) an assistant that reviews long contracts, (c) an ordinary support chatbot.",
+      "hint": "Think about volume, difficulty and cost.",
+      "answer": "(a) claude-haiku-5-5: large volume and a simple task, cost and speed are what matter. (b) claude-opus-5-5: long documents and hard reasoning; claude-fable-5-1 if the quality is not enough. (c) claude-sonnet-5-5 to start, then try Haiku 5.5 on your own examples. In every case, decide with tests on your data, not by feel."
+    },
+    {
+      "q": "This prompt produces hallucinations: 'Give me the price of our company's Pro subscription.' Rewrite the prompt to reduce the risk.",
+      "hint": "Grounding, permission to say I don't know, and a citation.",
+      "code": "text",
+      "answer": "System:\nYou answer questions about our products using ONLY the price list below.\nIf the answer is not in the price list, say exactly: \"I don't have this information.\"\nQuote the line of the price list you used.\n\n<price_list>\n...paste the current official price list here...\n</price_list>\n\nUser:\nWhat is the price of the Pro subscription?"
+    },
+    {
+      "q": "Write code that counts the tokens of a file report.txt before sending it, and estimates the input cost on Opus 5.5.",
+      "hint": "client.messages.count_tokens with the same model, and $4 per million input tokens.",
+      "code": "python",
+      "answer": "import anthropic\n\nclient = anthropic.Anthropic()\n\nwith open(\"report.txt\", encoding=\"utf-8\") as f:\n    text = f.read()\n\ncount = client.messages.count_tokens(\n    model=\"claude-opus-5-5\",\n    messages=[{\"role\": \"user\", \"content\": text}],\n)\ninput_cost = count.input_tokens * 4 / 1_000_000  # Opus 5.5: 4 USD per million input tokens\nprint(count.input_tokens, \"tokens, about\", round(input_cost, 4), \"USD of input\")"
+    },
+    {
+      "q": "A support ticket contains: the customer's name, email, phone number, bank card number, and a description of the problem. What do you send to the API to classify it?",
+      "answer": "Only the description of the problem, after masking any personal data in it with placeholders (email, phone, name). The bank card number is never sent. The name, email and phone are not needed for classification: keep them on your side and link them to the result with the ticket's identifier."
+    }
+  ],
+  "pitfalls": [
+    "Writing the API key in the code or pushing it to GitHub: the key gets stolen and the bill is yours. Always an environment variable and .env in .gitignore.",
+    "Reading response.content[0].text directly: the first block is not always text, and if stop_reason is 'refusal' or 'max_tokens' the answer is not complete.",
+    "Trusting the answer blindly: numbers, references and functions need checking, especially for sensitive things.",
+    "Sending a whole document or a long history with every request without measuring: the cost climbs fast. Watch usage from day one.",
+    "Sending personal data or confidential code to the API without a need and without the company's permission.",
+    "Copying code from an old tutorial (temperature, prefill, a dated model id): the new models reject it with a 400 error.",
+    "Counting Claude tokens with tiktoken: the count is wrong; use usage or count_tokens."
+  ],
+  "interview": [
+    {
+      "q": "What is the difference between an AI engineer and an ML engineer?",
+      "a": "An ML engineer trains and deploys models, working on data and training. An AI engineer builds products with ready-made models through an API: prompts, integration into the application, evaluation, cost and monitoring. At junior level, an AI engineer needs a software engineer's reflexes more than training maths."
+    },
+    {
+      "q": "What is a token and why does it matter?",
+      "a": "A token is a piece of text (a word, part of a word, punctuation) that the model reads and writes with. The context window, max_tokens and billing are all in tokens, so the length of the prompt and the answer directly affect cost and latency. Text in a language other than English usually takes more tokens."
+    },
+    {
+      "q": "Why does an LLM hallucinate, and how do you reduce the risk?",
+      "a": "Because it predicts the text closest to what it learned, it does not check a source. We reduce it with grounding (put the documents in the prompt and tell it to answer only from them), give it permission to say 'I don't know', ask for a citation of the source, and check with code or a human depending on the risk. And we evaluate on examples before production."
+    },
+    {
+      "q": "How do you estimate the monthly cost of a chatbot?",
+      "a": "I measure the average input and output tokens per request (with usage in a prototype, or count_tokens), multiply by the model's price (for example Opus 5.5 at $4 / $20 per million), and multiply by the number of requests per month. I do not forget that the history grows with every message. Then I look at the levers: a cheaper model for some tasks, a shorter prompt, caching, batch."
+    },
+    {
+      "q": "How do you choose between a big model and a small one?",
+      "a": "I start with a strong model to know the quality ceiling, build a test set from real cases, and try the cheaper models on it. I take the cheapest one that reaches the required level. I count the cost of the whole task: a cheap model that gets it wrong and retries can be more expensive."
+    },
+    {
+      "q": "What is the context window, and what happens when the conversation gets very long?",
+      "a": "It is the maximum number of tokens in one request: system, history, documents and output. As the conversation grows, cost and latency grow, and if we go over the limit the request is rejected. We handle it: trim or summarise the old history, and send only the documents that are needed."
+    },
+    {
+      "q": "How do you protect the API key and users' data?",
+      "a": "The key goes in an environment variable or a secret manager, never in the code or the repo, with one key per environment. For data: I send the minimum, mask personal data before the call, do not log full texts without a reason, and follow the company's rules and laws like the GDPR."
+    },
+    {
+      "q": "Does the Claude API remember the conversation? How do you build a chatbot with many messages?",
+      "a": "No, the Messages API is stateless. The application keeps the history and sends all of it with every request: messages with roles 'user' and 'assistant' in order. That means the input grows with every turn, and we have to factor that into the cost."
+    }
+  ]
+}

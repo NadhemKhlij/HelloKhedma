@@ -1,0 +1,402 @@
+{
+  "why": "An AI app isn't finished on launch day. Models change and get retired, users write in new ways, data changes, and the bill grows without you noticing. Companies in Tunisia and in Europe want an AI engineer who can keep a feature working six months and a year after the demo: change the model without breaking anything, improve with numbers rather than feelings, and know what to do when something goes wrong. This is the last course of the track: the job that starts after the launch.",
+  "outcome": "plan a model and SDK migration safely (eval, canary, rollback), keep prompts in git with versions and audits, turn user feedback into eval cases, improve quality and cost with hill-climbing, handle an incident and write a post-mortem and a runbook, and build a portfolio that shows you can maintain an AI app.",
+  "lessons": [
+    {
+      "title": "Why does an AI app change on its own? Drift and maintenance",
+      "text": [
+        "In an ordinary app, if you don't touch the code, the app keeps working as it is. In an app with an LLM, no. On launch day the eval gives 93%, and six months later the support team complains that tickets now go to the wrong queue, even though nobody changed a single line. This is called drift: the app slowly moves away from the behaviour you want. This course teaches you how to catch it and improve the app over time.",
+        "Drift comes from three places. The first: models change. A new model comes out, the old one becomes deprecated, and one day it is retired and returns 404. For example: claude-3-5-sonnet-20241022 was retired in October 2025. And even between generations, the defaults change: on Claude Opus 5 the default effort is 'high', on Opus 5.5 it is 'medium'. If you didn't set the effort explicitly, the behaviour and the cost change the day you change the id.",
+        "The second: users change. You start with customers who write in French, then many start writing in Derja in Latin letters, or ask about things that weren't in the prompt (a new product, a Ramadan promotion). Your eval set keeps measuring the old world. The third: data changes: prices, the FAQ, the catalogue, the RAG documents, the law. A prompt that says 'delivery costs 7 dinars' starts lying the day the price changes.",
+        "So maintenance in AI isn't just 'fixing bugs'. It is a routine: monitoring (we saw monitoring in the production course), reading the provider's release notes, rerunning the eval (we saw it in the evals course) after every change, collecting feedback, and improving step by step. And the first condition: everything that can change (model id, effort, prompt version, eval set) is written in one place, in git, not scattered across ten files.",
+        "Think of it like a car: you don't wait for the engine to fail before an oil change. Keep a calendar: feedback triage every week, migration notes and an eval with every new model, a prompt audit every quarter. And everything has an owner and a backup, so when someone goes on leave or changes jobs, the app isn't left orphaned."
+      ],
+      "points": [
+        "Drift = the app changes without you changing the code: the model, the users, the data.",
+        "The model id is pinned (for example 'claude-opus-5-5' with no date) and changes only through a reviewed PR.",
+        "Set the effort explicitly: the default differs from model to model.",
+        "Maintenance = a calendar + an owner + an eval, not a reaction when something breaks."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# ai_config.yaml - everything that can drift lives in one reviewed file\napp: support-tickets\nmodel:\n  id: claude-opus-5-5        # pinned id, changed only through a reviewed PR\n  effort: medium             # set explicitly: the default differs between models\n  max_tokens: 16000\nprompt:\n  file: prompts/ticket_system.md\n  version: \"2026-10-30.1\"    # logged with every request\neval:\n  set: evals/tickets_v4.jsonl  # anonymised real messages with the expected ticket\n  min_accuracy: 0.92           # a release below this score is blocked\n  last_run: \"2026-11-02\"\nroutine:\n  feedback_triage: weekly\n  migration_notes: every model release\n  prompt_audit: every model release and every quarter\nowners:\n  primary: ines\n  backup: karim",
+        "note": "This format isn't a standard: it is an example. What matters is that the app reads the model and prompt version from a single reviewed file, and that every change to it goes through an eval."
+      }
+    },
+    {
+      "title": "Model migration: change the model without breaking anything",
+      "text": [
+        "Why change the model? Sometimes because the new one is better and cheaper: Claude Opus 5.5 at $4 / $20 per million tokens instead of Opus 5's $5 / $25, and it does the same work with fewer tokens. And sometimes because the old one is about to be retired. But a migration is a production change like any other: the new model may reject something the old one accepted, answer at greater length, or return 400 on parameters that used to work.",
+        "Step one: read the provider's migration notes. Anthropic splits the changes in two: [BLOCKS], which if you forget them give you a 400 or a broken loop, and [TUNE], which affect quality or cost. For example Opus 5 -> Opus 5.5: thinking={'type': 'disabled'} and budget_tokens return 400 (thinking is always on, the control is effort); tool_choice 'any' or 'tool' returns 400 (use 'auto' + strict: true + say which tool in the prompt, and check that the call happened); the default effort became 'medium'; a safety classifier (bio) was added, so handle refusals; and changing the model invalidates the cache (the first request writes it again).",
+        "Step two: the code on a branch, and rerun the eval on both models with the same cases: score, cost per task, latency, refusal rate. Watch out for changes that give no error: for example Haiku 4.5 -> Haiku 5.5, the same text becomes roughly 30% more tokens (a new tokenizer). Rerun count_tokens on the new model, check max_tokens, and update the dashboards' baseline before anyone panics. Also, temperature and prefill return 400 on Haiku 5.5.",
+        "Step three: a gradual rollout. Shadow: the new model gets a copy of the real traffic in the background, the user only sees the old model's answer, and you compare. Canary: 5% of requests really get the new model's answer, you watch the numbers, then 25%, 50%, 100%. In conversations, keep the same model from start to finish: the cache is per model, and one model's thinking blocks aren't always read by another.",
+        "Step four: rollback ready. The old model stays in the config until you're sure, and going back = changing a flag (CANARY_SHARE = 0) without a redeploy. And in the logs record response.model: it tells you who really answered, not what you wrote in the config. When the migration is finished, do a prompt audit (lesson 4) and an effort sweep (lesson 6) on the new model: each in its own PR."
+      ],
+      "points": [
+        "[BLOCKS] must be fixed before the deploy; [TUNE] are tested on the eval.",
+        "Change one thing at a time: the model first, prompt tuning afterwards in its own PR.",
+        "Record response.model in the logs so you can compare the canary groups.",
+        "Shadow doubles the cost while it runs: set a duration and a budget up front."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import random\n\nimport anthropic\n\nclient = anthropic.Anthropic()\n\nSTABLE = {\"model\": \"claude-opus-5\", \"effort\": \"high\"}\nCANDIDATE = {\"model\": \"claude-opus-5-5\", \"effort\": \"medium\"}  # set effort explicitly, then sweep it\nCANARY_SHARE = 0.05  # 5% of requests; set it to 0.0 to roll back without a deploy\n\n\ndef pick_config():\n    # Fine for one-shot requests; a conversation must stay on one model from start to end\n    return CANDIDATE if random.random() < CANARY_SHARE else STABLE\n\n\ndef classify(message):\n    cfg = pick_config()\n    response = client.messages.create(\n        model=cfg[\"model\"],\n        max_tokens=16000,  # thinking counts toward max_tokens\n        output_config={\"effort\": cfg[\"effort\"]},\n        # Removed during the migration (both return 400 on claude-opus-5-5):\n        #   thinking={\"type\": \"disabled\"}\n        #   tool_choice={\"type\": \"tool\", \"name\": \"...\"}\n        system=\"Classify the customer message: billing, network, sales or other. Answer with one word.\",\n        messages=[{\"role\": \"user\", \"content\": message}],\n    )\n    # Log which model really answered, to compare the two groups on the dashboard\n    print(\"served_by\", response.model, \"stop\", response.stop_reason,\n          \"out_tokens\", response.usage.output_tokens)\n    if response.stop_reason == \"refusal\":\n        return None  # handle refusals before reading the content\n    return \"\".join(b.text for b in response.content if b.type == \"text\").strip()",
+        "note": "Random per request works for classification. For a chatbot, choose the group per user or per conversation and keep it fixed."
+      }
+    },
+    {
+      "title": "The SDK and the API version: upgrades without surprises",
+      "text": [
+        "There are three things that each have their own version: the model, the SDK (the 'anthropic' package you pip install), and the API version (the 'anthropic-version' header the SDK sends with every request). Each upgrade has its own breaking changes. Don't mix them in the same PR: if something breaks, you know the cause.",
+        "The SDK: pin the version in requirements.txt (for example 'anthropic>=1,<2') and in the lockfile, and upgrade deliberately on a branch after reading the SDK's changelog or MIGRATION.md. A real example: the Python SDK from 0.x to 1.x. It needs Python 3.10 or later. The HTTP layer became httpx2 (this matters only when you pass httpx objects to the SDK, such as a custom transport, and mocks like respx may no longer see the traffic). client.completions.create (the old Text Completions) was removed: use messages.create. temperature, top_p and top_k are no longer accepted (TypeError). And output_format={...} as a dict becomes output_config={'format': {...}}; but output_format=Model with parse stays.",
+        "The API version is a date in the header. Anthropic releases breaking API changes in a new version, and code moves over when it is ready. Version '2026-10-21': temperature, top_p and top_k return 400 on every model, even at their default value; a 'document' block directly in an 'assistant' message returns 400; and a 'text' block with 'citations' in a 'user' message returns 400. And careful: Python SDK 2.0.0 sends '2026-10-21' by default, so upgrading to 2.x also changes the API version. Batches created before continue on the old version.",
+        "The method: an inventory with grep (temperature, completions.create, output_format, httpx), classify each result (sometimes 'temperature' is a sensor variable, don't touch it), fix, run a type checker (pyright or mypy finds most call sites), run the tests, and finally a small real request (a small max_tokens, because you pay for it). If the production server is still on Python 3.9, that is a decision for the team: pip will keep installing the last 0.x without telling you anything.",
+        "To stop the backlog piling up: let a tool like Dependabot or Renovate open PRs for the upgrades, but never auto-merge a major version. A small upgrade every month is much easier than a two-year jump in one day when the old model is being retired and you are under pressure."
+      ],
+      "points": [
+        "Model, SDK, API version: three different upgrades, each in its own PR.",
+        "pip index versions anthropic shows you the published versions before you write the pin.",
+        "Check the Python version in CI: on 3.9, pip quietly stays on 0.x.",
+        "After the upgrade, a smoke test: response.model, stop_reason and parsing the output."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# requirements.txt - pin the major version and upgrade on purpose, in a branch:\n#   anthropic>=1,<2\nimport anthropic\n\nclient = anthropic.Anthropic()\nprint(\"anthropic SDK\", anthropic.__version__)\n\nSCHEMA = {\n    \"type\": \"object\",\n    \"properties\": {\"category\": {\"type\": \"string\", \"enum\": [\"billing\", \"network\", \"sales\", \"other\"]}},\n    \"required\": [\"category\"],\n    \"additionalProperties\": False,\n}\n\n# Before (SDK 0.x, older model):\n# client.beta.messages.create(\n#     model=\"claude-sonnet-4-6\", max_tokens=1024, temperature=0.2,\n#     output_format={\"type\": \"json_schema\", \"schema\": SCHEMA},\n#     messages=[...],\n# )\n\n# After (SDK 1.x): no sampling parameters, the schema moves into output_config\nresponse = client.messages.create(\n    model=\"claude-sonnet-5-5\",\n    max_tokens=2048,\n    output_config={\"effort\": \"low\", \"format\": {\"type\": \"json_schema\", \"schema\": SCHEMA}},\n    messages=[{\"role\": \"user\", \"content\": \"El facture mte3i ghalta, 5allast zouz marrat\"}],\n)\n\n# Smoke test after the upgrade: the right model answered and the output is usable\nassert response.model.startswith(\"claude-sonnet-5-5\"), response.model\nassert response.stop_reason == \"end_turn\", response.stop_reason\nprint(next(b.text for b in response.content if b.type == \"text\"))",
+        "note": "The message in the example is written in Derja in Latin letters, the way customers write. The smoke test costs money: keep it small and don't run it on every commit."
+      }
+    },
+    {
+      "title": "Prompts in git: versioning, review and prompt audits",
+      "text": [
+        "A prompt is code: it changes the product's behaviour as much as changing a function. But many teams leave it as a string in the middle of a Python file, or in an admin panel anyone can edit in production. The result: nobody knows which prompt gave which answer, and the bug becomes impossible to explain.",
+        "The rules: each prompt in its own file (prompts/ticket_system.md) in git. Every change goes through a PR, reviewed by someone else, with the eval result in the PR description. Each version has an id (date + number) and is logged with every request (prompt_version, model, request_id): when a wrong answer comes in, you find the exact prompt. And a CHANGELOG says why it changed and what happened to the score. Rollback becomes easy: you go back to the previous version in the config.",
+        "The prompt audit: prompts accumulate instructions written for old models. Current models follow instructions more literally, so old crutches do harm. What to look for: pressure language ('CRITICAL', 'MUST', 'NEVER' in capitals, '!!!') that makes the model overdo it (over-triggering): say it normally, once, with the reason. Scaffolds that features have replaced: 'think step by step' or '<scratchpad>' become adaptive thinking + effort; 'answer only in JSON' + prefill + retry become structured outputs. Fossils: workarounds for a retired model, a 'reminder' repeated every turn, and limits like 'maximum 50 words' that strangle the reasoning.",
+        "What to keep: the context only you know: the audience, the product, the business rules with their reasons (a refund ceiling, data rules), and the tools' contract. The question for each line: 'can the model know this on its own?' If not, keep it. And removing is a hypothesis, not a conclusion: remove a line or a block, rerun the eval, and if the score drops put it back in a simpler form. Before removing, grep for the full text: sometimes tests or log parsers compare against it.",
+        "Who reviews? A developer + someone from the business (a support manager, for example) for the wording and the rules. In Tunisia teams are small, and sometimes you are on your own: even so, open a PR for yourself and let CI run the eval. And redo the prompt audit with every new model: prompts are per-model artefacts, and what one generation needed may be superfluous for the next."
+      ],
+      "points": [
+        "Log prompt_version with every request: without it you can't explain any bug.",
+        "A prompt audit with every new model and every quarter.",
+        "Remove one thing at a time and measure; if the score drops, put it back more simply.",
+        "The CHANGELOG says why, not just what changed."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# prompts/CHANGELOG.md\n\n## 2026-10-30.1 - ticket_system.md (PR #212, reviewed by Karim)\nWhy: prompt audit after the move to claude-opus-5-5.\n- Removed: \"CRITICAL: You MUST ALWAYS answer in valid JSON!!!\"\n  -> the JSON shape is enforced by output_config.format (structured outputs).\n- Removed: \"Think step by step before answering.\"\n  -> thinking is always on; its depth is set with effort, not with prose.\n- Rewritten: \"NEVER invent an order id\" -> \"Use null when the message has no order id:\n  agents search orders by this field, and a wrong id opens another customer's order.\"\n- Kept: refunds above 50 TND go to a human (business rule, with its reason).\nEval (test split): accuracy 0.93 -> 0.94, cost per ticket -6%.\n\n## 2026-09-12.2 - ticket_system.md (PR #188, reviewed by Ines)\nWhy: weekly triage found 14 Derja messages in Latin letters sent to 'other'.\n- Added three varied examples in Latin-letter Derja, labelled as illustrative.\nEval (test split): accuracy 0.90 -> 0.93.",
+        "note": "Each entry has the reason, the PR, who reviewed it, and the effect on the eval. The refund rule stays because it is a business rule, not a crutch for a model."
+      }
+    },
+    {
+      "title": "User feedback and logs: from a mistake to an eval case",
+      "text": [
+        "The best eval cases come from production: real messages, real mistakes. The eval set you wrote on launch day measures what you imagined; production shows you what users really do. The job: catch the mistakes, understand them, and turn them into tests so they don't come back.",
+        "The sources: explicit feedback (thumbs up / thumbs down next to the answer, a 'report' button), and implicit feedback: the support agent corrects the category (this is the strongest signal because it contains the right answer), the user repeats the same question, asks for a human, or leaves the conversation. And the logs: stop_reason 'refusal' or 'max_tokens', JSON that fails validation, many retries, high latency, a request with an unusual cost. Record request_id, prompt_version, model and the tokens; the user's full text only when you really need it.",
+        "Weekly triage: take a sample: all the thumbs-down + 50 random conversations (most users say nothing when the answer is wrong). Read them, and give each mistake a failure category: wrong category, invented order number, wrong language, refusing an ordinary request, answer far too long, outdated information (the FAQ wasn't updated). Count how many mistakes are in each category: the biggest one is the next piece of work. Keep the list of categories stable so you can compare week to week, and add a new category only when it is really needed.",
+        "From a mistake to an eval case: anonymisation (phone numbers and national ID numbers in Tunisia are both 8 digits, and emails), the right answer from the human correction, tags (failure type, language), and a source. Regex isn't complete: let a person review the new cases before they enter the eval set. And the new cases are split randomly between train and test (lesson 6), not all on one side.",
+        "Privacy: users' messages are personal data. Say in the privacy policy that feedback may be used to improve the service, keep the raw data for as short a time as possible, and delete it after anonymisation. This is required by the Tunisian personal data protection law, and by the GDPR if you have users in Europe. And an eval set without personal data can be shared with the team and put in git without worry."
+      ],
+      "points": [
+        "A human correction = the best label: it contains the right answer.",
+        "Take a random sample too, not just the thumbs-down.",
+        "Stable failure categories let you compare week to week.",
+        "Don't put personal data in the eval set: it gets shared, committed, and sent to the API."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import json\nimport re\n\n# Tunisian phone numbers and CIN numbers both have 8 digits: mask any 8-digit number\nEIGHT_DIGITS = re.compile(r\"(?<!\\d)(?:\\+216\\s?)?\\d{2}\\s?\\d{3}\\s?\\d{3}(?!\\d)\")\nEMAIL = re.compile(r\"[\\w.+-]+@[\\w-]+\\.[\\w.]+\")\n\n\ndef anonymize(text):\n    text = EMAIL.sub(\"<email>\", text)\n    return EIGHT_DIGITS.sub(\"<number>\", text)\n\n\ndef feedback_to_cases(feedback_path, eval_path):\n    \"\"\"Turn answers corrected by the support team into new eval cases.\"\"\"\n    added = 0\n    with open(feedback_path, encoding=\"utf-8\") as src, \\\n            open(eval_path, \"a\", encoding=\"utf-8\") as out:\n        for line in src:\n            fb = json.loads(line)\n            # Keep only the cases where a human gave the right answer\n            if fb[\"rating\"] != \"down\" or not fb.get(\"corrected_category\"):\n                continue\n            case = {\n                \"id\": f\"fb-{fb['request_id']}\",\n                \"input\": anonymize(fb[\"message\"]),\n                \"expected\": {\"category\": fb[\"corrected_category\"]},\n                \"tags\": [fb.get(\"failure_type\", \"untriaged\"), fb[\"language\"]],\n                \"source\": \"user_feedback\",\n            }\n            out.write(json.dumps(case, ensure_ascii=False) + \"\\n\")\n            added += 1\n    return added\n\n\nprint(feedback_to_cases(\"feedback_2026-11-03.jsonl\", \"evals/new_cases.jsonl\"), \"new cases to review\")",
+        "note": "The script writes to new_cases.jsonl, not directly into the eval set: a person checks the anonymisation and the answer, then adds them."
+      }
+    },
+    {
+      "title": "The improvement loop: hill-climbing, cost and performance",
+      "text": [
+        "Improving without an eval is changing and praying. Hill-climbing: you run the eval, read the mistakes, change one thing, rerun, keep it only if it's better and revert it if not, and repeat until the score plateaus or the budget runs out. The goal can be quality going up, or cost or latency going down with quality steady.",
+        "The split: train (you read its transcripts) and test (you never read it, you only measure it). The split is random, stratified by tags (language, category), and never based on the score. Why? When you read mistakes, you fix exactly those cases, and the score on them rises without the app really improving. The number you announce is the difference on the test between the baseline and the final version. And generalise: describe the wrong behaviour, don't paste words from the train cases into the prompt.",
+        "Noise: for a pass rate, the margin (95%) is roughly 1/sqrt(n x reps): 25 test cases with 2 reps is roughly ±14 points, 50 with 2 roughly ±10. So +2 points on 25 cases is luck. Therefore: changes big enough to show (a whole section, a new rule, not a single word), more cases or reps, and a plateau = 3 rounds with no gain. Each round: one change, run the whole set, and record it in a table (round, the change, test, train, cost/task). And check response.model: the model you are measuring must be the one that answered.",
+        "Cost: measure it per completed task, not per token: a cheap model that gets it wrong pays for the retry and the person who fixes it. The levers in order. The first ones don't lower quality: caching (always keep it on; check cache_read_input_tokens, as in the Claude API course), a cleaner input (prompt audit, large documents behind a tool), output (max_tokens is a protection, not a tuning knob; reduce length with a clear format), and the Batches API for work nobody is waiting for (50%, and it stacks with caching). Then the trade-offs: an effort sweep before you touch the model, and the model last. And before dropping to a smaller model, check whether there is a newer model in the same tier at lower effort: sometimes it is the cheapest per task.",
+        "Each lever in its own diff: if it saved money and lowered accuracy, it's not an optimisation, revert it. Measure the tail too: the hardest 10% of cases are where the money goes and where the cheap model gets things wrong. And after every migration, redo the effort sweep from the new model's default; don't carry over the old level."
+      ],
+      "points": [
+        "Train = read; test = measure. The score you announce always comes from the test.",
+        "One change per round, so you know what made the difference.",
+        "Caching, input, output, batch first; effort next; the model last.",
+        "max_tokens protects against an answer that never ends, it isn't a tool for lowering cost."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import json\nimport random\n\nimport anthropic\n\nclient = anthropic.Anthropic()\nPRICES = {\"claude-opus-5-5\": (4.00, 20.00), \"claude-sonnet-5-5\": (2.00, 10.00)}  # USD per 1M tokens\n\nwith open(\"evals/tickets_v4.jsonl\", encoding=\"utf-8\") as f:\n    cases = [json.loads(line) for line in f]\n\n# Fixed seed: the same random split every round. You read train failures, you report test.\nrng = random.Random(42)\nrng.shuffle(cases)\ncut = len(cases) // 2\ntrain, test = cases[:cut], cases[cut:]\n\n\ndef run(cases, system, model, effort):\n    passed, cost = 0, 0.0\n    for case in cases:\n        r = client.messages.create(\n            model=model,\n            max_tokens=4000,\n            system=system,\n            output_config={\"effort\": effort},\n            messages=[{\"role\": \"user\", \"content\": case[\"input\"]}],\n        )\n        if r.stop_reason == \"end_turn\":  # a refusal or a cut-off answer counts as a failure\n            answer = \"\".join(b.text for b in r.content if b.type == \"text\").strip()\n            passed += answer == case[\"expected\"][\"category\"]\n        p_in, p_out = PRICES[model]\n        cost += (r.usage.input_tokens * p_in + r.usage.output_tokens * p_out) / 1_000_000\n    return passed / len(cases), cost / len(cases)\n\n\nwith open(\"prompts/ticket_system.md\", encoding=\"utf-8\") as f:\n    SYSTEM = f.read()\n\n# One change per round: here only effort moves, the prompt and the model stay frozen\nfor effort in [\"medium\", \"low\"]:\n    acc_train, _ = run(train, SYSTEM, \"claude-opus-5-5\", effort)\n    acc_test, cost = run(test, SYSTEM, \"claude-opus-5-5\", effort)\n    print(f\"{effort}: train={acc_train:.2f} test={acc_test:.2f} cost/task=${cost:.5f}\")",
+        "note": "The cost here has no cache to keep it short. Every run costs money: compute the budget first (number of cases x configs x cost per task) and use the Batches API for large sweeps."
+      }
+    },
+    {
+      "title": "Incidents, post-mortems and documentation",
+      "text": [
+        "An incident in an AI feature sometimes has no 500 error at all: everything returns 200, but the answers are wrong. The kinds: bad outputs (more hallucinations, the wrong language, every ticket going to 'other'), an outage or overload (5xx, 529, timeouts), more refusals after a model change, a sudden cost spike (a loop that doesn't stop, a broken cache), and security (prompt injection, which we saw in the production course).",
+        "To detect it: alerts on quality signals, not just on errors: the distribution of categories, the refusal rate, the rate of rejected JSON, the thumbs-down rate, the cost per hour, latency p95. And often a person in support notices before the dashboard does: give them a clear channel to report it.",
+        "When it happens: mitigation first, understanding after. The levers must be ready before the incident: rollback of the prompt or the model with a flag in the config; a kill switch that turns off the feature and gives a fallback (an 'an agent will answer you' message, or a queue for a person); and for outages, retries and a second model if you planned for it. Communicate: tell the support team what is going on. And afterwards fix the data (for example: reclassify the wrong tickets with a batch).",
+        "A blameless post-mortem: timeline, impact, root cause, what went well and what didn't, and actions each with an owner and a date. Don't look for who made the mistake: look for the gap in the process. In AI the most important action: the incident becomes eval cases and an alert, so the same mistake can't get through a PR again.",
+        "Documentation and handover: a RUNBOOK.md with the architecture, where the prompts are, the model ids and why you chose them, how to run the eval, the dashboards and the alerts, how to roll back, the names of the secrets (never the values), the cost and the limits, and the owners. And a decisions log ('why Sonnet, not Opus, for tickets', with the eval numbers). At handover, the new person does a practice rollback with their own hands. And if you work freelance, delivering a runbook with the project makes the client trust you and come back."
+      ],
+      "points": [
+        "Mitigation before the root cause: go back to the version that works, then understand.",
+        "A rollback you never tested isn't a rollback: test it once a quarter.",
+        "Every incident leaves behind eval cases and an alert.",
+        "The runbook contains the names of the secrets, never their values."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# Post-mortem: wrong ticket categories after a prompt change (2026-10-14)\n\nSeverity: medium - no data leak, about 900 tickets sent to the wrong queue\nDuration: 09:40 -> 11:05 (85 minutes)\n\n## Timeline\n- 09:10 Prompt 2026-10-14.1 deployed (PR #201: \"shorter system prompt\")\n- 09:40 Support lead: \"everything goes to 'other'\"; dashboard: 'other' 6% -> 41%\n- 09:52 Rollback: PROMPT_VERSION=2026-10-02.3 (config flag, no redeploy)\n- 10:05 'other' back to 7%; misrouted tickets re-classified with a batch job\n- 11:05 Incident closed\n\n## Root cause\nThe PR removed the definitions of the categories, judged \"too long\".\nThe eval still passed: tickets_v3 had only 4 'payment' cases.\n\n## What went well / what went badly\n- Rollback in 12 minutes thanks to the version flag.\n- No alert on the category distribution: a human noticed first.\n\n## Actions (owner, date)\n- [ ] Add 40 anonymised 'payment' cases to the eval (Ines, 2026-10-21)\n- [ ] Alert when one category moves more than 15 points in an hour (Karim, 2026-10-24)\n- [ ] Prompt PRs show the eval score per category, not only the total (Ines, 2026-10-28)",
+        "note": "There is no person's name in the root cause: the problem was an eval with only 4 cases for 'payment' and no alert."
+      }
+    },
+    {
+      "title": "Your path as an AI engineer: portfolio, keeping up and always learning",
+      "text": [
+        "You have reached the end of the track: from tokens and your first call, to prompts, the API, agents, RAG, evals, production, and now maintenance. The difference between a junior who gets hired and one who doesn't isn't the number of demos: it is showing that they can measure, maintain and improve. Recruiters in Tunisia and in Europe ask 'how do you know it works?' and 'what do you do when the model changes?'. Now you have an answer.",
+        "The portfolio: 2 or 3 complete projects, each with: an eval set and numbers, cost per task, a CHANGELOG showing the iterations (v1 -> v4), a README with the limits, and a 'how it is maintained' section. A small project you worked on for months (changed the model, added cases from feedback, lowered the cost) is worth more than 10 demos. And multilingual Derja/French/Arabic is a real strength: European companies rarely have this data and this understanding.",
+        "Keeping up: AI changes every month. The primary sources: the official documentation, the release notes and migration guides from the providers (Anthropic, OpenAI, Google, Mistral...), and the SDKs' changelogs. The method: when a new model comes out, run your eval on your projects before you believe the benchmarks and the hype. Half an hour of reading a week and one experiment a month are enough to stay up to date. And watch out for old tutorials: temperature and prefill no longer work on the new models.",
+        "The paths: AI engineer in a product team, LLMOps or platform, freelance (automation, integrations, chatbots), consulting for Tunisian SMEs, or remote work with a European company. Deepen the foundations: Python and software engineering (tests, CI), SQL, cloud, evaluation, security. And the soft skills: explaining the limits to the client, writing clearly, estimating cost before you start. In the interview, prepare a story about a real mistake and how you measured it and fixed it: it convinces more than 'everything went well'.",
+        "Learning never ends. Share what you learn: an article in Derja, French or English, a short talk at a meetup, a contribution to open source (documentation, a small fix), and help the juniors who come after you: explaining something to someone else is the best way to understand it. A 90-day plan: month one, a project + an eval; month two, deploy + logs + a feedback loop; month three, a migration or a cost optimisation documented in the CHANGELOG + an article. Congratulations on finishing the track, and now get started."
+      ],
+      "points": [
+        "Portfolio = measured projects: score, cost, limits, and a history of improvement.",
+        "A new model is out? Run your eval before you believe the benchmarks.",
+        "Official documentation and release notes before videos.",
+        "Learn by sharing: an article, a talk, an open source contribution, mentoring."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# derja-ticket-router\n\nRoutes customer messages (Tunisian Derja in Arabic or Latin letters, French, Arabic)\nto the right support queue with the Claude API.\n\n## Results (eval: 200 anonymised messages, scores on the 100-case test split)\n| Version | Model / effort | Accuracy | Cost per 1000 messages |\n|---|---|---|---|\n| v1 | claude-opus-5-5 / medium | 0.88 | $2.10 |\n| v3 | claude-opus-5-5 / medium + Derja examples | 0.94 | $2.30 |\n| v4 | claude-haiku-5-5 / low | 0.93 | $0.09 |\n\n## How it is maintained\n- Model id, effort and prompt version live in config.yaml; every change is a PR with an eval run\n- Every week, answers flagged by users become new eval cases (personal data masked)\n- CHANGELOG.md lists every prompt change and its effect on the score\n\n## Limits\n- Messages mixing Derja and French slang are still the weakest group (0.86)\n- No message text is stored: logs keep request ids, versions and token counts\n\n## Run it\npip install -r requirements.txt, set ANTHROPIC_API_KEY in the environment, then: python -m router.eval",
+        "note": "The numbers in this README are an example. In your project, every number must come from a real run you can repeat."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Drift and config",
+      "items": [
+        [
+          "model='claude-opus-5-5'",
+          "A pinned id with no date, changed only through a reviewed PR"
+        ],
+        [
+          "output_config={'effort': 'medium'}",
+          "Set it explicitly: the default differs between models"
+        ],
+        [
+          "response.model",
+          "The model that really answered, for the logs"
+        ],
+        [
+          "ai_config.yaml",
+          "The model, the prompt version and the eval in one place"
+        ]
+      ]
+    },
+    {
+      "group": "Model migration",
+      "items": [
+        [
+          "[BLOCKS] / [TUNE]",
+          "A change that gives 400 or a broken loop / a change in quality or cost"
+        ],
+        [
+          "thinking={'type': 'disabled'} on Opus 5.5",
+          "Returns 400: remove it and control with effort"
+        ],
+        [
+          "tool_choice 'any' / 'tool' on Opus 5.5",
+          "Returns 400: 'auto' + strict: true + an instruction in the prompt"
+        ],
+        [
+          "shadow",
+          "The new model runs in parallel, the user doesn't see its answer"
+        ],
+        [
+          "canary 5% -> 25% -> 100%",
+          "Part of the traffic gets the new model, gradually"
+        ],
+        [
+          "CANARY_SHARE = 0.0",
+          "Rollback with a flag, without a redeploy"
+        ]
+      ]
+    },
+    {
+      "group": "The SDK and the API version",
+      "items": [
+        [
+          "anthropic>=1,<2",
+          "Pin the major version in requirements.txt"
+        ],
+        [
+          "anthropic.__version__",
+          "The installed SDK version"
+        ],
+        [
+          "anthropic-version: 2026-10-21",
+          "New API version: temperature, top_p, top_k return 400"
+        ],
+        [
+          "output_format={...} -> output_config={'format': {...}}",
+          "SDK 1.x: the schema goes in output_config"
+        ],
+        [
+          "client.completions.create",
+          "Removed in SDK 1.x: use messages.create"
+        ]
+      ]
+    },
+    {
+      "group": "Prompts",
+      "items": [
+        [
+          "prompts/*.md in git",
+          "Each prompt a file, each change a PR"
+        ],
+        [
+          "prompt_version in the logs",
+          "Find the prompt that produced the answer"
+        ],
+        [
+          "CHANGELOG.md",
+          "Why it changed and its effect on the eval"
+        ],
+        [
+          "prompt audit",
+          "Remove CRITICAL/MUST, 'think step by step', prefill, fossils"
+        ]
+      ]
+    },
+    {
+      "group": "Feedback and the improvement loop",
+      "items": [
+        [
+          "thumbs down + correction",
+          "The best eval case: it contains the right answer"
+        ],
+        [
+          "failure categories",
+          "A stable classification of mistakes: you know where to work"
+        ],
+        [
+          "train / test split",
+          "Train you read, test you only measure"
+        ],
+        [
+          "1/sqrt(n x reps)",
+          "The approximate margin of a pass rate (95%)"
+        ],
+        [
+          "One change per round",
+          "You know what made the difference"
+        ]
+      ]
+    },
+    {
+      "group": "Cost, incidents and docs",
+      "items": [
+        [
+          "cost per completed task",
+          "Not cost per token"
+        ],
+        [
+          "caching -> input -> output -> batch -> effort -> model",
+          "The order of the levers"
+        ],
+        [
+          "kill switch + fallback",
+          "Turns off the feature and gives an alternative"
+        ],
+        [
+          "post-mortem blameless",
+          "Timeline, root cause, actions with an owner"
+        ],
+        [
+          "RUNBOOK.md",
+          "Architecture, eval, rollback, secret names, owners"
+        ]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "You have code running on claude-opus-5 with: thinking={'type': 'disabled'}, tool_choice={'type': 'tool', 'name': 'create_ticket'}, no effort, and a system prompt containing 'CRITICAL: you MUST use the tool'. You are moving it to claude-opus-5-5. Classify each item as [BLOCKS] or [TUNE] and say what you do.",
+      "hint": "What returns 400 on Opus 5.5, and what only changes quality or cost?",
+      "answer": "[BLOCKS] The model id -> 'claude-opus-5-5'. [BLOCKS] thinking disabled returns 400: remove it, and the control becomes output_config.effort (start with 'low' if latency matters, and measure). [BLOCKS] tool_choice 'tool' returns 400: 'auto' + 'strict': True on the tool + 'Use the create_ticket tool' in the prompt, and check in code that there is a tool_use, retrying if not. [BLOCKS] handle stop_reason 'refusal' before reading the content. [TUNE] set the effort explicitly (the default became 'medium' instead of 'high') and run a sweep. [TUNE] 'CRITICAL: you MUST' becomes 'Use the create_ticket tool when...': new models follow instructions literally. [TUNE] check max_tokens (thinking counts against it) and the rate limits of the new pool."
+    },
+    {
+      "q": "Write a function served_by(response, expected, newer=()) that returns True if the expected model is the one that answered, and doesn't confuse 'claude-opus-5' with 'claude-opus-5-5'.",
+      "hint": "'claude-opus-5-5'.startswith('claude-opus-5') returns True.",
+      "code": "python",
+      "answer": "def served_by(response, expected, newer=()):\n    \"\"\"True when the expected model answered.\n\n    response.model is checked with startswith, so list the longer ids that share\n    the prefix: \"claude-opus-5-5\" also starts with \"claude-opus-5\".\n    \"\"\"\n    model = response.model\n    return model.startswith(expected) and not any(model.startswith(n) for n in newer)\n\n\n# Usage during a canary on claude-opus-5 -> claude-opus-5-5:\n# served_by(r, \"claude-opus-5\", newer=[\"claude-opus-5-5\"])   # stable group\n# served_by(r, \"claude-opus-5-5\")                            # candidate group"
+    },
+    {
+      "q": "This week's triage has 40 thumbs-down. 18 are a wrong category on messages in Derja in Latin letters, 9 an invented order number, 7 an outdated FAQ (the delivery price changed), 6 the user was just annoyed and the answer was correct. What do you do, in order?",
+      "hint": "Not everything is fixed in the prompt, and not every mistake is the model's.",
+      "answer": "1) The 7 FAQ ones: this is data, not the model: fix the FAQ (and add a check on the last update date), no eval round needed. 2) The 18 (the biggest category): anonymise, add the cases to the eval with the right answer, split them randomly between train and test, then one improvement round (for example varied examples in Derja in Latin letters) and measure on the test. 3) The 9: eval cases + a clear rule 'null if there is no number' with the reason, or a check in code that the number exists in the database. 4) The 6: change nothing in the model; record them as 'not a model failure'. And add 50 random conversations to the next triage so you don't only see those who complain."
+    },
+    {
+      "q": "Write a function should_rollback(stable, canary) that returns a list of reasons if the canary must stop: accuracy dropped by more than 2 points, refusals above max(1%, twice the stable rate), or cost per task more than 1.5 times higher.",
+      "hint": "An empty list = continue the rollout.",
+      "code": "python",
+      "answer": "def should_rollback(stable, canary, max_drop=0.02, max_refusal_rate=0.01):\n    \"\"\"stable / canary: accuracy, refusal_rate and cost_per_task measured over the same period.\"\"\"\n    reasons = []\n    if canary[\"accuracy\"] < stable[\"accuracy\"] - max_drop:\n        reasons.append(\"accuracy dropped\")\n    if canary[\"refusal_rate\"] > max(max_refusal_rate, 2 * stable[\"refusal_rate\"]):\n        reasons.append(\"more refusals\")\n    if canary[\"cost_per_task\"] > 1.5 * stable[\"cost_per_task\"]:\n        reasons.append(\"cost per task +50%\")\n    return reasons  # empty: continue the rollout; otherwise set CANARY_SHARE = 0.0\n\n\nprint(should_rollback(\n    {\"accuracy\": 0.93, \"refusal_rate\": 0.002, \"cost_per_task\": 0.004},\n    {\"accuracy\": 0.90, \"refusal_rate\": 0.003, \"cost_per_task\": 0.003},\n))  # ['accuracy dropped']"
+    },
+    {
+      "q": "A colleague tells you: 'I read all 60 cases, fixed the prompt 12 times, and the score went from 0.86 to 0.95 on those same 60'. Why don't you trust the number, and what do you suggest?",
+      "answer": "Because they read the cases they are measuring on: the changes fixed exactly those 60 (overfitting), and we don't know whether the app improved on new messages. And 12 changes together don't tell you which one made the difference, and on 60 cases the margin is roughly ±13 points (1/sqrt(60)). The suggestion: a random split (stratified by tags) into train and test, read only train, one change per round, rerun the whole set, and the announced number is the difference on the test between the baseline and the final version. And if needed, add cases or reps."
+    },
+    {
+      "q": "After migrating from Haiku 4.5 to Haiku 5.5, the dashboard shows +30% tokens and a few cut-off answers. The manager is worried. Explain it to them and say what you do.",
+      "hint": "Think about the tokenizer and thinking.",
+      "answer": "Haiku 5.5 has a new tokenizer: the same text becomes roughly 30% more tokens, so usage rises even if the work is the same. But Haiku 5.5's price per token ($0.10 / $0.50 for prompts of 100K or less) is much lower than Haiku 4.5's ($1 / $5), so we must compare the cost per task in dollars, not the tokens. The cut-off answers: thinking is now on by default and counts against max_tokens, and max_tokens was sized for the old tokenizer: we raise it and look at stop_reason 'max_tokens'. We rerun count_tokens on claude-haiku-5-5, try effort 'low' on the eval, and update the dashboards' baseline."
+    },
+    {
+      "q": "You are handing an AI project over to a new developer because you are leaving. Write the list of what must be in the RUNBOOK.md (at least 7 items).",
+      "answer": "1) The architecture: who calls the API, from where, and what the flows are. 2) The model ids and the effort and why we chose them (a decisions log with the eval numbers). 3) Where the prompts are, how versions change, and the CHANGELOG. 4) How to run the eval (the command, the set, the threshold). 5) The dashboards and the alerts, and what the normal values are. 6) Rollback and the kill switch: the flags and the commands, with the last time they were tested. 7) The names of the secrets and where they are kept (never the values). 8) The cost: how much per month, the limits and the budget alerts. 9) The routine: weekly triage, migration notes, prompt audits. 10) The owners and how to communicate during an incident. And finally: a handover session in which the new person does a practice rollback with their own hands."
+    }
+  ],
+  "pitfalls": [
+    "The model id written in ten places in the code, and the effort left at the default: on migration day you forget one place, and the behaviour changes without you knowing why.",
+    "Changing the model, the prompt and the SDK in the same PR: when something breaks, you don't know the cause, and the rollback reverts the good things too.",
+    "Improving the prompt while reading the cases you measure on, or deciding on a 2-point difference over 25 cases: that is overfitting and noise, not improvement.",
+    "Adding 'CRITICAL: MUST' for every bug and never removing anything: the prompt becomes a maze of special cases, and the new model overdoes them.",
+    "Putting raw user messages (national ID, phone, emails) in the eval set and in git: the eval gets shared and sent to the API.",
+    "A rollback you never tested and no kill switch: on incident day you write code under pressure instead of changing a flag.",
+    "Comparing models by price per token and dropping to a smaller model before trying caching and effort: the cost per completed task is what counts, and the model that gets it wrong pays for the retry and the human."
+  ],
+  "interview": [
+    {
+      "q": "Why does an app with an LLM change even if we didn't change the code?",
+      "a": "Because there is drift from three places: the models (new versions, deprecations, retirements, defaults that change like effort), the users (new languages and questions), and the data (the FAQ, prices, documents). We detect it with monitoring on quality signals, weekly feedback triage, and an eval we rerun after every change. And we pin everything that changes in a single config in git."
+    },
+    {
+      "q": "How do you migrate to a new model in production?",
+      "a": "I read the migration notes and separate [BLOCKS] (400s or loops) from [TUNE] (quality and cost). I fix the BLOCKS on a branch, run the eval on both models: score, cost per task, latency, refusals. Then a gradual shadow or canary, I log response.model, and rollback with a flag. Once it is stable, a prompt audit and an effort sweep on the new model, each in its own PR."
+    },
+    {
+      "q": "How do you version prompts?",
+      "a": "Each prompt is a file in git, each change a PR with a review and the eval result, a version id logged with every request (with the model and the request_id), and a CHANGELOG with the why and the effect. Rollback = going back to the previous version in the config. And a prompt audit with every new model to remove instructions that are no longer needed."
+    },
+    {
+      "q": "How do you turn user feedback into real improvement?",
+      "a": "We collect explicit feedback (thumbs) and implicit feedback (support corrections, escalations), and signals from the logs (refusals, max_tokens, rejected JSON). Every week a triage of the thumbs-down and a random sample, classified into stable failure categories. The biggest category becomes anonymised eval cases with the right answer, then an improvement round measured on the test split."
+    },
+    {
+      "q": "Why do a train / test split when you improve a prompt?",
+      "a": "Because when we read the mistakes we fix exactly those cases, and the score on them lies. We read train, we only measure test, random and stratified, not based on the score. The announced number is the difference on the test. And we compute the noise: roughly 1/sqrt(n x reps), so we don't believe a small difference."
+    },
+    {
+      "q": "The API bill went up 40% this month. What do you do?",
+      "a": "I measure first: usage per traffic class (chat, overnight batch...). I check whether cache_read_input_tokens dropped (something dynamic entered the prefix, the model changed), whether there was a migration (tokenizer, default effort), a loop that doesn't stop, max_tokens, or more traffic. Then the levers in order: caching, input, output, batch, then effort, and the model last, each in its own diff with an eval, measuring the cost per completed task."
+    },
+    {
+      "q": "Tell me about an incident in an AI feature and how you handled it.",
+      "a": "I tell it with a clear structure: what happened (for example every ticket going to 'other' after a new prompt), how it was detected, the mitigation (rollback with the flag in 12 minutes), the repair (reclassification with a batch), and the blameless post-mortem: the root cause (an eval with only 4 cases for 'payment'), and the actions: new eval cases, an alert on the distribution, a score per category in PRs."
+    },
+    {
+      "q": "How do you stay up to date in AI?",
+      "a": "The official documentation, the providers' release notes and migration guides, and the SDKs' changelogs. When a new model comes out I run my eval on it before I believe the benchmarks. And I learn by experimenting and sharing: a small project every month, an article, a meetup."
+    }
+  ]
+}

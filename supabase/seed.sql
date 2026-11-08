@@ -29,7 +29,9 @@ insert into public.career_paths (id, name, blurb, color, job_titles, sort_order)
  ('da','Data Analyst','Insights, dashboards, storytelling','#e0508b',
    array['Data Analyst','Analyste de Données','BI Analyst','Reporting Analyst'],4),
  ('do','DevOps Engineer','CI/CD, containers, cloud, automation','#3b82f6',
-   array['DevOps Engineer','Ingénieur DevOps','Site Reliability Engineer','Platform Engineer','Cloud Engineer'],5)
+   array['DevOps Engineer','Ingénieur DevOps','Site Reliability Engineer','Platform Engineer','Cloud Engineer'],5),
+ ('ai','AI Engineer','LLM apps, agents, RAG, evals','#16a34a',
+   array['AI Engineer','Ingénieur IA','LLM Engineer','Generative AI Engineer','Applied AI Engineer'],6)
 on conflict (id) do update set
   name = excluded.name, blurb = excluded.blurb, color = excluded.color,
   job_titles = excluded.job_titles, sort_order = excluded.sort_order;
@@ -88,6 +90,20 @@ select pg_temp.seed('do','tip','[
  "Talk about incidents you handled and what you automated afterwards; DevOps interviews test judgement as much as tools.",
  "Quantify your impact: deployment time cut, releases per week, incidents avoided, cloud costs saved."]'::jsonb);
 select pg_temp.seed('do','keyword','["CI/CD","Docker","Kubernetes","Terraform","AWS","Azure","GCP","Linux","Bash","Python","Git","Ansible","Helm","Prometheus","Grafana","Monitoring"]'::jsonb);
+
+-- AI Engineer ---------------------------------------------------------------------------
+-- Its nine courses are the AI engineer track (content/ai: English, French, Derja in Arabic letters and 3arbizi).
+select pg_temp.seed('ai','tool','[
+ ["Claude API + Python SDK","Build features with Claude: messages, streaming, tools, structured outputs"],
+ ["Claude Code","A coding agent for the terminal, the IDE and the desktop"],
+ ["pgvector","Vector search inside PostgreSQL, for RAG"],
+ ["FastAPI","A small backend that keeps the API key and calls the model"],
+ ["MCP (Model Context Protocol)","Connect ready-made tools and data sources to an agent"]]'::jsonb);
+select pg_temp.seed('ai','tip','[
+ "Show numbers, not demos: an eval set, the score, the cost per task and the limits in every project README.",
+ "Build one project with Derja, French and Arabic users in mind: few candidates in Europe can show that, and Tunisian clients need it.",
+ "In interviews, tell the story of a mistake the model made, how you measured it and how you fixed it."]'::jsonb);
+select pg_temp.seed('ai','keyword','["LLM","Prompt engineering","Claude API","OpenAI API","AI agents","RAG","Vector database","LLMOps","LangChain","AI coding tools","Python","REST API","Docker","Git","SQL"]'::jsonb);
 
 -- =====================================================================================
 -- Learning tracks. Step = [title, description, kind, provider, url, est_hours, is_free?]
@@ -240,6 +256,35 @@ select pg_temp.track('do','do-cloud','Cloud, Infrastructure as Code and reliabil
  ["Project: infrastructure as code","Create the cloud resources of your API with Terraform from a pipeline, with remote state, a dashboard and one alert.","project","Your repo","",15],
  ["AWS Certified Cloud Practitioner or CKA","Pick one: cloud fundamentals (AWS) or Kubernetes administration (CNCF). Check current exam details.","certification","AWS / CNCF","https://aws.amazon.com/certification/",25,false]]'::jsonb);
 
+-- AI Engineer ---------------------------------------------------------------------------------
+-- The nine HelloKhedma AI courses show under these tracks (course list of the path); steps point to official material.
+select pg_temp.track('ai','ai-foundations','LLM basics, prompting and the Claude API','beginner',
+ 'How LLMs work, how to write prompts for an app, and how to call Claude from Python safely.',
+ 'Explain tokens, cost and hallucinations, write a system prompt with examples, and build a small Python app that returns JSON you can trust.',1,'[
+ ["Anthropic courses: API fundamentals","Free notebooks from Anthropic: first calls, messages, models and parameters.","learn","Anthropic","https://github.com/anthropics/courses",6],
+ ["Prompt engineering interactive tutorial","Chapters of exercises on clear prompts, roles, examples and avoiding hallucinations.","practice","Anthropic","https://github.com/anthropics/prompt-eng-interactive-tutorial",8],
+ ["Anthropic Python SDK","Read the README and run the examples: client, streaming, errors and retries.","learn","GitHub","https://github.com/anthropics/anthropic-sdk-python",3],
+ ["Structured outputs","Get JSON that follows your schema, and know what the schema does not guarantee.","learn","Claude docs","https://platform.claude.com/docs/en/build-with-claude/structured-outputs",2],
+ ["Project: a ticket classifier for Derja, French and Arabic","Classify 30 real-looking support messages into a JSON ticket, with a small test set and the cost per message in the README.","project","Your repo","",10]]'::jsonb);
+select pg_temp.track('ai','ai-build','Tools, agents and RAG','intermediate',
+ 'Give the model your functions and your data: tool use, MCP, embeddings and answers with sources.',
+ 'Build an agent loop with budgets and a RAG assistant that cites its sources and says when it does not know.',2,'[
+ ["Tool use overview","Define tools, run the loop, return results and errors.","learn","Claude docs","https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",3],
+ ["MCP Python SDK","Write a small MCP server and connect it to a client.","practice","GitHub","https://github.com/modelcontextprotocol/python-sdk",4],
+ ["Embeddings","What embeddings are and where to get them (Claude has no embeddings endpoint).","learn","Claude docs","https://platform.claude.com/docs/en/build-with-claude/embeddings",2],
+ ["pgvector","Store embeddings in PostgreSQL, search them and index them.","learn","GitHub","https://github.com/pgvector/pgvector",3],
+ ["Citations","Answers that quote the passages they come from.","learn","Claude docs","https://platform.claude.com/docs/en/build-with-claude/citations",2],
+ ["Claude cookbooks","Worked notebooks on RAG, tool use, agents and evaluation to read and adapt.","practice","Anthropic","https://github.com/anthropics/claude-cookbooks",8],
+ ["Project: a documentation assistant with citations","RAG over a public documentation, with sources, an I do not know path and an eval set (see the portfolio projects below).","project","Your repo","",16]]'::jsonb);
+select pg_temp.track('ai','ai-production','Evaluation, production and maintenance','advanced',
+ 'Measure quality, run the feature safely in production and keep it working when models change.',
+ 'Ship an AI feature with an eval in CI, logs, budgets, a canary and a rollback, and migrate it to a new model without breaking it.',3,'[
+ ["Prompt caching","Lower cost and latency on the fixed part of the prompt, and check that it works.","learn","Claude docs","https://platform.claude.com/docs/en/build-with-claude/prompt-caching",2],
+ ["Rate limits","How limits work and what to do when you reach them.","learn","Claude docs","https://platform.claude.com/docs/en/api/rate-limits",1],
+ ["Practice: an eval set for your project","Write 30 to 50 real cases with the expected answer, grade them in code or with a calibrated judge, and run them after every change.","practice","Your repo","",6],
+ ["Project: a support agent ready for production","Tools, guardrails, logs, cost per ticket, an eval in GitHub Actions and Docker (see the portfolio projects below).","project","Your repo","",20],
+ ["Project: a documented model migration","Move one of your projects to a newer model or SDK version with an eval, a canary and a CHANGELOG entry with the numbers.","project","Your repo","",6]]'::jsonb);
+
 -- =====================================================================================
 -- French texts (shown when the interface is French). Needs migration 20261029000200_content_fr.sql.
 -- Rows are matched on their English title (the id key): when you rename an English title, update it here too.
@@ -253,7 +298,8 @@ from (values
   ('ba', 'Business Analyst', 'Besoins, processus, parties prenantes'),
   ('as', 'Support applicatif', 'Incidents, supervision, run'),
   ('da', 'Data Analyst', 'Analyses, tableaux de bord, storytelling'),
-  ('do', 'DevOps Engineer', 'CI/CD, conteneurs, cloud, automatisation')
+  ('do', 'DevOps Engineer', 'CI/CD, conteneurs, cloud, automatisation'),
+  ('ai', 'AI Engineer', 'Applications LLM, agents, RAG, évaluations')
 ) as v(id, n, b)
 where p.id = v.id;
 
@@ -449,3 +495,43 @@ select pg_temp.track_fr('do-cloud','Cloud, Infrastructure as Code et fiabilité'
  ["SRE book: service level objectives","Livre SRE : les objectifs de niveau de service","Définir SLI, SLO et budgets d’erreur."],
  ["Project: infrastructure as code","Projet : infrastructure as code","Créez les ressources cloud de votre API avec Terraform depuis un pipeline, avec un état distant, un tableau de bord et une alerte."],
  ["AWS Certified Cloud Practitioner or CKA","AWS Certified Cloud Practitioner ou CKA","Choisissez-en une : fondamentaux du cloud (AWS) ou administration Kubernetes (CNCF). Vérifiez les détails actuels de l’examen."]]'::jsonb);
+
+-- AI Engineer ----------------------------------------------------------------------------
+select pg_temp.res_fr('ai','tool','[
+ ["Claude API + Python SDK","Claude API + SDK Python","Construire des fonctionnalités avec Claude : messages, streaming, outils, sorties structurées"],
+ ["Claude Code","Claude Code","Un agent de code pour le terminal, l’IDE et le bureau"],
+ ["pgvector","pgvector","La recherche vectorielle dans PostgreSQL, pour le RAG"],
+ ["FastAPI","FastAPI","Un petit backend qui garde la clé API et appelle le modèle"],
+ ["MCP (Model Context Protocol)","MCP (Model Context Protocol)","Brancher des outils et des sources de données prêts à l’emploi sur un agent"]]'::jsonb);
+select pg_temp.res_fr('ai','tip','[
+ ["Show numbers, not demos: an eval set, the score, the cost per task and the limits in every project README.","Montrez des chiffres, pas des démos : un jeu d’évaluation, le score, le coût par tâche et les limites dans le README de chaque projet."],
+ ["Build one project with Derja, French and Arabic users in mind: few candidates in Europe can show that, and Tunisian clients need it.","Construisez un projet pensé pour des utilisateurs en derja, en français et en arabe : peu de candidats en Europe peuvent le montrer, et les clients tunisiens en ont besoin."],
+ ["In interviews, tell the story of a mistake the model made, how you measured it and how you fixed it.","En entretien, racontez une erreur du modèle, comment vous l’avez mesurée et comment vous l’avez corrigée."]]'::jsonb);
+
+-- Learning tracks: AI Engineer -----------------------------------------------------------
+select pg_temp.track_fr('ai-foundations','Les bases des LLM, le prompting et l’API Claude',
+ 'Comment fonctionnent les LLM, comment écrire des prompts pour une application et comment appeler Claude en Python en toute sécurité.',
+ 'Expliquer les tokens, le coût et les hallucinations, écrire un system prompt avec des exemples et construire une petite application Python qui renvoie un JSON fiable.','[
+ ["Anthropic courses: API fundamentals","Cours Anthropic : les fondamentaux de l’API","Des notebooks gratuits d’Anthropic : premiers appels, messages, modèles et paramètres."],
+ ["Prompt engineering interactive tutorial","Tutoriel interactif de prompt engineering","Des chapitres d’exercices sur les prompts clairs, les rôles, les exemples et la prévention des hallucinations."],
+ ["Anthropic Python SDK","Le SDK Python d’Anthropic","Lisez le README et lancez les exemples : client, streaming, erreurs et nouvelles tentatives."],
+ ["Structured outputs","Les sorties structurées","Obtenir un JSON qui suit votre schéma, et savoir ce que le schéma ne garantit pas."],
+ ["Project: a ticket classifier for Derja, French and Arabic","Projet : un classifieur de tickets en derja, français et arabe","Classez 30 messages de support réalistes en ticket JSON, avec un petit jeu de test et le coût par message dans le README."]]'::jsonb);
+select pg_temp.track_fr('ai-build','Outils, agents et RAG',
+ 'Donner au modèle vos fonctions et vos données : tool use, MCP, embeddings et réponses sourcées.',
+ 'Construire une boucle d’agent avec des budgets et un assistant RAG qui cite ses sources et dit quand il ne sait pas.','[
+ ["Tool use overview","Présentation du tool use","Définir des outils, faire tourner la boucle, renvoyer les résultats et les erreurs."],
+ ["MCP Python SDK","Le SDK Python de MCP","Écrire un petit serveur MCP et le connecter à un client."],
+ ["Embeddings","Les embeddings","Ce que sont les embeddings et où les obtenir (Claude n’a pas d’endpoint d’embeddings)."],
+ ["pgvector","pgvector","Stocker des embeddings dans PostgreSQL, les rechercher et les indexer."],
+ ["Citations","Les citations","Des réponses qui citent les passages dont elles viennent."],
+ ["Claude cookbooks","Les Claude cookbooks","Des notebooks commentés sur le RAG, le tool use, les agents et l’évaluation, à lire et à adapter."],
+ ["Project: a documentation assistant with citations","Projet : un assistant de documentation avec citations","Un RAG sur une documentation publique, avec les sources, une réponse « je ne sais pas » et un jeu d’évaluation (voir les projets de portfolio plus bas)."]]'::jsonb);
+select pg_temp.track_fr('ai-production','Évaluation, production et maintenance',
+ 'Mesurer la qualité, faire tourner la fonctionnalité en production en toute sécurité et la garder fonctionnelle quand les modèles changent.',
+ 'Livrer une fonctionnalité IA avec une évaluation en CI, des logs, des budgets, un canary et un retour arrière, puis la migrer vers un nouveau modèle sans la casser.','[
+ ["Prompt caching","Le prompt caching","Réduire le coût et la latence sur la partie fixe du prompt, et vérifier que cela fonctionne."],
+ ["Rate limits","Les limites de débit","Comment fonctionnent les limites et que faire quand vous les atteignez."],
+ ["Practice: an eval set for your project","Pratique : un jeu d’évaluation pour votre projet","Écrivez 30 à 50 cas réels avec la réponse attendue, notez-les en code ou avec un juge calibré, et relancez-les après chaque changement."],
+ ["Project: a support agent ready for production","Projet : un agent de support prêt pour la production","Outils, garde-fous, logs, coût par ticket, une évaluation dans GitHub Actions et Docker (voir les projets de portfolio plus bas)."],
+ ["Project: a documented model migration","Projet : une migration de modèle documentée","Passez l’un de vos projets à un modèle ou à une version de SDK plus récents avec une évaluation, un canary et une entrée de CHANGELOG avec les chiffres."]]'::jsonb);

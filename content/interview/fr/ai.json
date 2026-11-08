@@ -1,0 +1,52 @@
+{
+  "role": [
+    {
+      "id": "ai-1",
+      "q": "Un client veut un chatbot qui répond à partir de sa documentation interne. Expliquez comment vous le construiriez.",
+      "why": "Le projet d’AI engineer le plus courant : on vérifie que vous pensez en pipeline, avec des sources et des mesures.",
+      "model": "Je commence par les questions que posent vraiment les utilisateurs, avec 30 à 50 d’entre elles et la page qui répond à chacune, avant d’écrire du code. Ensuite le RAG : nettoyer les documents, les découper selon leur structure avec le titre et les métadonnées sur chaque morceau, les vectoriser avec un modèle multilingue et les stocker dans pgvector. Pour chaque question, je récupère les meilleurs passages, je les envoie comme documents avec citations, et le system prompt demande de répondre uniquement à partir d’eux et de dire sinon qu’il ne sait pas. Je mesure la recherche avec le recall@k et les réponses avec la fidélité aux sources, par langue, et seulement ensuite j’ajoute une recherche hybride ou un reranker si l’évaluation montre qu’ils aident."
+    },
+    {
+      "id": "ai-2",
+      "q": "Comment savez-vous que votre fonctionnalité LLM fonctionne, et que le prochain changement ne la cassera pas ?",
+      "why": "L’évaluation sépare une démo d’un produit ; les recruteurs la testent directement.",
+      "model": "Avec un jeu d’évaluation : de vrais cas anonymisés et des cas limites, dans toutes les langues de nos utilisateurs, chacun avec une réponse attendue ou une grille. Je note avec des vérifications en code quand la sortie est précise et avec un LLM-as-judge calibré sur des labels humains quand c’est du texte libre, et j’enregistre le coût et la latence de chaque cas. L’évaluation tourne en CI à chaque changement du prompt, du modèle ou des outils, se compare à une référence avec une marge de bruit, et les cas obligatoires, comme la sécurité et les anciens bugs, font échouer le build à eux seuls."
+    },
+    {
+      "id": "ai-3",
+      "q": "Quand construiriez-vous un agent, et quand ne le feriez-vous pas ?",
+      "why": "On attend du jugement : un agent coûte plus cher et se contrôle moins bien qu’un workflow.",
+      "model": "Je construis un agent seulement quand le chemin ne peut vraiment pas être écrit à l’avance, que la valeur justifie de nombreux appels, que le modèle sait faire les étapes critiques, et que les erreurs sont visibles et faciles à corriger. Sinon, un seul appel ou un workflow, par exemple un routage avec un modèle bon marché puis du code ordinaire par catégorie, est moins cher, plus rapide et plus prévisible. Quand j’en construis un : peu d’outils clairs, en lecture seule par défaut, un budget de tours et de coût, une validation humaine pour les actions irréversibles, et des logs de chaque appel d’outil."
+    },
+    {
+      "id": "ai-4",
+      "q": "Qu’est-ce que la prompt injection et comment en protégez-vous une application ?",
+      "why": "La sécurité est indispensable dès qu’une application lit des emails, des pages web ou des documents.",
+      "model": "C’est quand un texte venu de l’extérieur, un message d’utilisateur, un email, une page web ou le résultat d’un outil, contient des instructions que le modèle suit. Il n’y a pas de solution unique, donc j’empile des couches : le texte extérieur va dans le tour utilisateur entre des balises et est présenté comme des données, aucun secret dans le prompt, le moindre privilège pour les outils avec l’identifiant de l’utilisateur pris dans la session, la validation des arguments des outils en code, une confirmation humaine pour les actions sensibles, des vérifications sur la sortie, et des cas d’injection dans le jeu d’évaluation, y compris en derja et en français."
+    },
+    {
+      "id": "ai-5",
+      "q": "La facture de l’API a beaucoup augmenté ce mois-ci. Comment enquêtez-vous et comment la faites-vous baisser ?",
+      "why": "Maîtriser le coût fait partie du métier ; on vérifie que vous mesurez avant d’optimiser.",
+      "model": "Je regarde d’abord les logs d’usage par fonctionnalité et par tâche : plus de trafic, une boucle qui ne s’arrête pas, un prompt qui a grossi, ou un cache qui n’est plus lu après un déploiement. Puis les leviers dans l’ordre : le prompt caching sur le préfixe fixe, une entrée plus petite, un format de sortie défini, la Batches API pour le travail qui peut attendre, puis un effort plus bas, et un modèle moins cher par route en dernier. Chaque changement passe par l’évaluation, et je compare le coût par tâche terminée, pas le prix par token."
+    },
+    {
+      "id": "ai-6",
+      "q": "Une nouvelle version de modèle sort. Comment y migrez-vous votre application ?",
+      "why": "Les modèles changent tous les quelques mois : la maintenance est une grande partie du poste.",
+      "model": "Je lis les notes de migration et je sépare ce qui casse, comme des paramètres supprimés qui renvoient maintenant 400, de ce qui change la qualité ou le coût, comme un nouvel effort par défaut ou un nouveau tokenizer. Je corrige ce qui casse sur une branche, je lance la même évaluation sur les deux modèles et je compare le score, le coût par tâche, la latence et les refus. Puis un canary sur une petite part du trafic, en enregistrant quel modèle a vraiment répondu, avec un flag pour revenir en arrière en quelques secondes. L’ajustement du prompt pour le nouveau modèle vient après, dans un changement à part."
+    },
+    {
+      "id": "ai-7",
+      "q": "Vos utilisateurs écrivent en derja en lettres latines, en derja en lettres arabes, en français et en arabe. Que faites-vous différemment ?",
+      "why": "Très pertinent en Tunisie, et un vrai atout à montrer aux employeurs européens.",
+      "model": "J’écris la règle explicitement dans le system prompt : répondre dans la langue et l’écriture du dernier message, et continuer dans la langue de la conversation quand un message est très court. Les prix, les délais et les textes juridiques sont recopiés depuis la source, pas traduits, et les messages qui doivent être exacts deviennent des modèles. Mon jeu d’évaluation contient des cas sous toutes les formes, y compris mélangées et avec des fautes, et je lis les scores par langue, car une bonne moyenne cache souvent un score faible en derja. Pour le RAG, je compare des modèles d’embeddings multilingues et je peux réécrire la question dans la langue des documents."
+    },
+    {
+      "id": "ai-8",
+      "q": "Comment utilisez-vous les outils de code IA dans votre travail, et comment vous assurez-vous que le code est correct ?",
+      "why": "La plupart des équipes les utilisent maintenant ; on veut entendre une méthode sûre et professionnelle.",
+      "model": "L’autocomplétion pour le code répétitif, le chat pour comprendre du code ou une erreur, et un agent pour les changements sur plusieurs fichiers. Avec un agent, je donne le contexte et les contraintes, je demande d’abord un plan, je travaille par petites étapes avec un commit chacune, et je relis chaque diff. Les tests sont la preuve : j’écris ou je vérifie moi-même les tests importants et je ne laisse jamais l’agent modifier un test pour le faire passer. Je vérifie que les paquets proposés existent, je garde les secrets hors du contexte, et je ne fusionne pas une ligne que je ne sais pas expliquer."
+    }
+  ]
+}

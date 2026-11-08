@@ -1,0 +1,52 @@
+{
+  "role": [
+    {
+      "id": "ai-1",
+      "q": "A client wants a chatbot that answers from their internal documentation. Walk me through how you would build it.",
+      "why": "The most common AI engineer project: they check that you think in a pipeline, with sources and measurement.",
+      "model": "I start with the questions users really ask and 30 to 50 of them with the page that answers each, before writing code. Then RAG: clean the documents, chunk them by structure with the title and metadata on each chunk, embed them with a multilingual model and store them in pgvector. For each question I retrieve the top passages, send them as documents with citations, and the system prompt says to answer only from them and to say it does not know otherwise. I measure retrieval with recall@k and the answers with groundedness, per language, and only then add hybrid search or a reranker if the eval shows they help."
+    },
+    {
+      "id": "ai-2",
+      "q": "How do you know your LLM feature works, and that the next change will not break it?",
+      "why": "Evaluation is what separates a demo from a product; interviewers test for it directly.",
+      "model": "With an eval set: real anonymised cases plus edge cases, in every language our users write, each with an expected answer or a rubric. I grade with code checks when the output is precise and with an LLM-as-judge calibrated against human labels when it is free text, and I record cost and latency with each case. The eval runs in CI on every change to the prompt, the model or the tools, compares against a baseline with a noise margin, and must-pass cases such as safety and old bugs fail the build on their own."
+    },
+    {
+      "id": "ai-3",
+      "q": "When would you build an agent, and when would you not?",
+      "why": "They want judgement: agents are expensive and harder to control than a workflow.",
+      "model": "I build an agent only when the path really cannot be scripted in advance, the value justifies many calls, the model can do the critical steps, and mistakes are visible and easy to fix. Otherwise a single call or a workflow, for example routing with a cheap model and ordinary code per category, is cheaper, faster and more predictable. When I do build one: few clear tools, read-only by default, a budget on turns and cost, human approval for actions that cannot be undone, and logs of every tool call."
+    },
+    {
+      "id": "ai-4",
+      "q": "What is prompt injection and how do you protect an app against it?",
+      "why": "Security is a must for anything that reads emails, web pages or documents.",
+      "model": "It is when text from outside, a user message, an email, a web page or a tool result, contains instructions that the model follows. There is no single fix, so I use layers: outside text goes in the user turn between tags and is described as data, no secrets in the prompt, least privilege for tools with the user id taken from the session, validation of tool arguments in code, human confirmation for sensitive actions, checks on the output, and injection cases in the eval set, including in Derja and French."
+    },
+    {
+      "id": "ai-5",
+      "q": "The API bill went up a lot this month. How do you investigate and bring it down?",
+      "why": "Cost control is part of the job; they check that you measure before you optimise.",
+      "model": "I look at the usage logs per feature and per task first: more traffic, a loop that does not stop, a prompt that grew, or the cache no longer being read after a deploy. Then the levers in order: prompt caching on the fixed prefix, a smaller input, a defined output format, the Batches API for work that can wait, then lower effort, and a cheaper model per route last. Each change goes through the eval, and I compare the cost per completed task, not the price per token."
+    },
+    {
+      "id": "ai-6",
+      "q": "A new model version is released. How do you migrate your app to it?",
+      "why": "Models change every few months: maintenance is a big part of the role.",
+      "model": "I read the migration notes and separate what breaks, such as removed parameters that now return 400, from what changes quality or cost, such as a new default effort or tokenizer. I fix the breaking changes on a branch, run the same eval on both models and compare score, cost per task, latency and refusals. Then a canary on a small share of traffic, logging which model really answered, with a flag to roll back in seconds. Prompt tuning for the new model comes after, in its own change."
+    },
+    {
+      "id": "ai-7",
+      "q": "Your users write in Derja with Latin letters, in Derja with Arabic letters, in French and in Arabic. What do you do differently?",
+      "why": "Very relevant in Tunisia, and a real strength to show European employers.",
+      "model": "I write the rule explicitly in the system prompt: answer in the language and script of the last message, and continue in the language of the conversation when a message is very short. Prices, delays and legal texts are copied from the source, not translated, and messages that must be exact become templates. My eval set has cases in every form, including mixed and misspelled ones, and I read the scores per language, because a good average often hides a weak Derja score. For RAG, I compare multilingual embedding models and may rewrite the query into the documents' language."
+    },
+    {
+      "id": "ai-8",
+      "q": "How do you use AI coding tools in your own work, and how do you make sure the code is right?",
+      "why": "Most teams use them now; they want to hear a safe, professional workflow.",
+      "model": "Autocomplete for repetitive code, chat to understand code or an error, and an agent for changes across several files. With an agent I give context and constraints, ask for a plan first, work in small steps with a commit each, and review every diff. Tests are the proof: I write or check the important tests myself and never let the agent change a test to make it pass. I check that suggested packages exist, keep secrets out of the context, and I do not merge a line I cannot explain."
+    }
+  ]
+}

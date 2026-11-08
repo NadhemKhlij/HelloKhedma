@@ -15,14 +15,16 @@
 // French: content/courses/fr/<id>.json (same structure and lesson order: progress is stored by lesson index) and
 // fr/index.json ([{ id, name, summary }], merged over index.json). Missing French files fall back to English.
 // Lesson progress is kept in this browser ("hk.lessons") and synced to the account when signed in (learnsync.js).
-// The AI engineer track in Tunisian ("ai-…" ids, aitrack.js) uses the same player: content from content/ai/<script>/,
-// right-to-left content in Arabic letters, a script switch in the header and a back link to #/ai.
+// The AI engineer track ("ai-…" ids, aitrack.js) uses the same player: content from content/ai/<language>/ (English,
+// French, Derja in Arabic letters or 3arbizi), right-to-left content in Arabic letters, a language switch in the header
+// and a back link to #/ai. Its ready courses are added to the course index as the courses of the AI Engineer path
+// ("ai"), with their names in the track's current language, so Training, "Close the gaps" and Interview prep list them.
 // Course page: header with progress, then tabs: Lessons (one lesson at a time, lesson list + "Mark as done & continue"),
 // Quiz, Flashcards, Practice, Interview (practice.js) and the printable Cheat sheet. XP and "Resume" via activity.js.
 // At the bottom, "⚑ Report a problem" (report.js), preset to the open lesson or tab.
 import { $, h, ls, toast, safeUrl } from "./lib.js";
 import { t, lang, fetchContent } from "./i18n.js";
-import { isAiCourse, aiScript, aiMeta, aiDir, loadAiCourse, scriptSwitch } from "./aitrack.js";
+import { isAiCourse, aiScript, aiMeta, aiDir, aiText, loadAiCourse, loadAiIndex, scriptSwitch } from "./aitrack.js";
 import { logActivity, setLastCourse, lastCourse } from "./activity.js";
 import { quiz, flashcards, exercises, interviewCards, quizBest, exercisesSolved } from "./practice.js";
 import { lessonTime, courseTime, formatMinutes } from "./coursetime.js";
@@ -48,12 +50,18 @@ export async function loadCourseIndex() {
     const byId = new Map(fr.map((x) => [x.id, x]));
     index = index.map((c) => ({ ...c, ...(byId.get(c.id) ? { name: byId.get(c.id).name, summary: byId.get(c.id).summary } : {}) }));
   }
-  return index;
+  // AI engineer track courses: the courses of the AI Engineer path (names kept in every language, see aiView).
+  const ai = await loadAiIndex();
+  index = index.filter((c) => !isAiCourse(c.id)).concat(ai.filter((c) => c.status === "ready")
+    .map((c) => ({ ...c, category: "AI", paths: ["ai"], names: c.name, summaries: c.summary })));
+  return index.map(aiView);
 }
+// An AI track entry with its name and summary in the track's current language (it can change on #/ai).
+const aiView = (c) => (c.names ? { ...c, name: aiText(c.names), summary: aiText(c.summaries) } : c);
 
 // Course metadata + share of lessons done in this browser (0..1), for the weekly study plan.
 export function courseMeta(id) {
-  const c = index.find((x) => x.id === id);
+  const c = index.map(aiView).find((x) => x.id === id);
   if (!c) return null;
   const d = [...doneSet()].filter((k) => k.startsWith(`${id}:`)).length;
   return { ...c, done: c.lessonCount ? Math.min(1, d / c.lessonCount) : 0 };
@@ -88,9 +96,9 @@ function courseCard(c, done, known = new Set()) {
 // Courses for the current path first; the others in a collapsible block.
 export function renderCourseList(root, pathId) {
   if (!index.length) { root.replaceChildren(h("p", { class: "mute text-sm" }, t("Courses could not be loaded."))); return; }
-  const done = doneSet(), known = passedCourses();
-  const mine = index.filter((c) => c.paths.includes(pathId));
-  const others = index.filter((c) => !c.paths.includes(pathId));
+  const done = doneSet(), known = passedCourses(), all = index.map(aiView);
+  const mine = all.filter((c) => c.paths.includes(pathId));
+  const others = all.filter((c) => !c.paths.includes(pathId));
   root.replaceChildren(...[ // filter: replaceChildren() would print null as text
     h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }, mine.map((c) => courseCard(c, done, known))),
     others.length ? h("details", { class: "mt-3" },
@@ -99,7 +107,7 @@ export function renderCourseList(root, pathId) {
   ].filter(Boolean));
 }
 
-// AI track courses ("ai-…", aitrack.js) come from content/ai/<script>/, cached per script.
+// AI track courses ("ai-…", aitrack.js) come from content/ai/<language>/, cached per language.
 export async function loadCourse(id) {
   const key = isAiCourse(id) ? `${id}@${aiScript()}` : id;
   if (cache.has(key)) return cache.get(key);
@@ -112,7 +120,7 @@ export async function loadCourse(id) {
 // Interview questions of every course of a path, for the Interview prep "Technical" deck.
 export async function courseInterviewQuestions(pathId) {
   if (!index.length) await loadCourseIndex();
-  const mine = index.filter((c) => c.paths.includes(pathId));
+  const mine = index.map(aiView).filter((c) => c.paths.includes(pathId));
   const loaded = await Promise.all(mine.map((c) => loadCourse(c.id).then((x) => ({ c, x })).catch(() => null)));
   return loaded.filter(Boolean).flatMap(({ c, x }) => (x.interview || []).map((iv, i) =>
     ({ id: `tech:${c.id}:${i}`, q: iv.q, model: iv.a, course: { id: c.id, name: c.name } })));

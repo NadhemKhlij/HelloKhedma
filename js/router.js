@@ -18,7 +18,7 @@ import { renderSkillCheck } from "./skillcheck.js";
 const ROUTES = {
   home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course",
   account: "Your account & data", legal: "Legal notice", privacy: "Privacy policy", interview: "Interview prep",
-  project: "Portfolio project", ai: "AI engineer in Tunisian", admin: "Site statistics", review: "Review today", skillcheck: "Skill check",
+  project: "Portfolio project", ai: "AI engineer track", admin: "Site statistics", review: "Review today", skillcheck: "Skill check",
 };
 const NAV_OF = { course: "training", project: "training", ai: "training", admin: "account", review: "training", skillcheck: "training" }; // which nav tab is highlighted for sub-pages
 export const coursesReady = loadCourseIndex();

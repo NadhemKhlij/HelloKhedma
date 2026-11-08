@@ -753,17 +753,22 @@ export default {
   "These are warning signs, not proof. Look the company up on its own website, and never pay or share bank details to apply.": "Ce sont des signaux d’alerte, pas des preuves. Vérifiez l’entreprise sur son propre site, et ne payez jamais ni ne donnez vos coordonnées bancaires pour postuler.",
   "Look the company up and check the offer is still open on its website before applying.": "Renseignez-vous sur l’entreprise et vérifiez sur son site que l’offre est toujours ouverte avant de postuler.",
   " · ⚠ {n} to check": " · ⚠ {n} à vérifier",
-  // AI engineer track in Tunisian (aitrack.js); the course content itself is in Derja
-  "Script": "Écriture",
+  // AI engineer track (aitrack.js)
   "← AI engineer track": "← Parcours AI engineer",
-  "AI engineer in Tunisian": "AI engineer en tunisien",
   "Test version (branch {b}): its data is kept apart from the live site. ": "Version de test (branche {b}) : ses données sont séparées de celles du vrai site. ",
   "Open the live site": "Ouvrir le vrai site",
   "AI": "IA",
   "AI & LLM": "IA et LLM",
-  "Become an AI engineer, in Tunisian": "Devenez AI engineer, en tunisien",
-  "Build apps with Claude and other AI tools, run them in production and keep improving them. Taught in Derja, in Arabic letters or 3arbizi.": "Construisez des applications avec Claude et d’autres outils d’IA, mettez-les en production et améliorez-les sans cesse. Enseigné en derja, en lettres arabes ou en 3arbizi.",
   "Open the track →": "Ouvrir le parcours →",
+  // AI engineer track in English and French (aitrack.js), also the AI Engineer career path (id "ai")
+  "Become an AI engineer": "Devenez AI engineer",
+  "Build apps with Claude and other AI tools, run them in production and keep improving them. In English, French or Derja (Arabic letters or 3arbizi).": "Construisez des applications avec Claude et d’autres outils d’IA, mettez-les en production et améliorez-les sans cesse. En français, en anglais ou en derja (lettres arabes ou 3arbizi).",
+  "Courses to learn to build applications with AI (Claude and others), put them in production, maintain them and keep improving them.": "Des cours pour apprendre à construire des applications avec l’IA (Claude et d’autres), les mettre en production, les maintenir et les améliorer sans cesse.",
+  "After the courses, build a real project and put it on GitHub: that is what recruiters want to see.": "Après les cours, construisez un vrai projet et publiez-le sur GitHub : c’est ce que les recruteurs veulent voir.",
+  "Language of the course": "Langue du cours",
+  "AI engineer track": "Parcours AI engineer",
+  "Soon": "Bientôt",
+  "lessons": "leçons",
   // Course times (coursetime.js) and portfolio projects (projects.js)
   "Reading and practice": "Lecture et pratique",
   "Lesson {n} of {all} · {time}": "Leçon {n} sur {all} · {time}",

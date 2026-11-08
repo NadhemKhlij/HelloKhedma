@@ -281,14 +281,25 @@ async function jooble(q: string, where: string, country: string, page: number): 
   if (!key) throw new Error("Jooble is not configured (JOOBLE_API_KEY).");
   const host = (Deno.env.get("JOOBLE_HOST") || "jooble.org").replace(/^https?:\/\//, "").replace(/\/.*$/, "");
   const location = where ? (country === "fr" || !COUNTRY_NAMES[country] ? where : `${where}, ${COUNTRY_NAMES[country]}`) : COUNTRY_NAMES[country] ?? "";
-  const res = await fetch(`https://${host}/api/${encodeURIComponent(key)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ keywords: q, location, page: String(page) }),
-  });
-  if (!res.ok) throw new Error(`Jooble returned ${res.status}: ${await providerMessage(res)}`);
-  const data = await res.json();
-  return (data.jobs ?? []).map((x: Raw): Job => ({
+  const call = async (loc: string) => {
+    const res = await fetch(`https://${host}/api/${encodeURIComponent(key)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ keywords: q, location: loc, page: String(page) }),
+    });
+    if (!res.ok) throw new Error(`Jooble returned ${res.status}: ${await providerMessage(res)}`);
+    return await res.json();
+  };
+  let data = await call(location);
+  // An empty answer with a country name as the location: try again without a location (some keys are tied to one
+  // country site, which then searches its own country).
+  if (!(data?.jobs ?? []).length && location && !where) data = await call("");
+  if (!Array.isArray(data?.jobs) || !data.jobs.length) {
+    // Said in the app's search message (and not cached): helps to see a wrong host or key setting at once.
+    throw new Error(`Jooble (${host}) found no offer for "${q}"${location ? ` in "${location}"` : ""} (totalCount: ${data?.totalCount ?? "?"}; answer fields: ${
+      Object.keys(data ?? {}).join(", ") || "none"}). If your Jooble key is for a country site, set the JOOBLE_HOST secret (e.g. fr.jooble.org).`);
+  }
+  return data.jobs.map((x: Raw): Job => ({
     id: String(x.id ?? x.link),
     title: strip(x.title),
     company: strip(x.company, 120),

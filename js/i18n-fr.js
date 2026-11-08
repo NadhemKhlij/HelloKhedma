@@ -759,10 +759,8 @@ export default {
   "Open the live site": "Ouvrir le vrai site",
   "AI": "IA",
   "AI & LLM": "IA et LLM",
-  "Open the track →": "Ouvrir le parcours →",
   // AI engineer track in English and French (aitrack.js), also the AI Engineer career path (id "ai")
   "Become an AI engineer": "Devenez AI engineer",
-  "Build apps with Claude and other AI tools, run them in production and keep improving them. In English, French or Derja (Arabic letters or 3arbizi).": "Construisez des applications avec Claude et d’autres outils d’IA, mettez-les en production et améliorez-les sans cesse. En français, en anglais ou en derja (lettres arabes ou 3arbizi).",
   "Courses to learn to build applications with AI (Claude and others), put them in production, maintain them and keep improving them.": "Des cours pour apprendre à construire des applications avec l’IA (Claude et d’autres), les mettre en production, les maintenir et les améliorer sans cesse.",
   "After the courses, build a real project and put it on GitHub: that is what recruiters want to see.": "Après les cours, construisez un vrai projet et publiez-le sur GitHub : c’est ce que les recruteurs veulent voir.",
   "Language of the course": "Langue du cours",

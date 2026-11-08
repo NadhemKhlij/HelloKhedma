@@ -82,6 +82,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-08 | France Travail hidden from the Offers source list: its Offres d'emploi API is closed to new users (access only on request via francetravail.io/contact). The code stays; the option comes back when FRANCE_TRAVAIL_CLIENT_ID / _SECRET are set. Saved searches that used it fall back to All sources |
 | 2026-11-08 | Forgot password: "Forgot password?" in the sign-in dialog (reset e-mail, same answer whether or not the address has an account), the reset link opens "Choose a new password" (8+ characters, typed twice), "Change password" on the Account page, expired / used links explained; privacy policy (FR + EN) mentions reset e-mails. Bilingual e-mail template to paste: O29 |
 | 2026-11-06 | O28 done: ai_usage migration run, job-search and cv-tailor redeployed from main (013f3f1), Claude top-up entered on #/admin. Admin page, Claude cost estimate and Cloudflare Web Analytics are live |
 | 2026-11-06 | O25 (admin_stats migration + admin account) and O27 (Cloudflare Web Analytics token) done by the owner. Admin page gains "Claude API (estimated)": cost per day, cost per call, spent since the last top-up and estimated credit left, from the tokens cv-tailor records (ai_usage_daily) and Anthropic's prices; link to the exact balance in the Claude Console (no API exists for it). Needs O28 |

@@ -276,7 +276,8 @@ function onSaveSearch() {
 function runSavedSearch(s) {
   // A search saved on another path may use a job title that is not in the current list.
   if (![...$("#role").options].some((o) => o.value === s.query)) $("#role").append(h("option", { value: s.query }, s.query));
-  $("#role").value = s.query; $("#loc").value = s.location; $("#country").value = s.country; $("#provider").value = s.provider;
+  $("#role").value = s.query; $("#loc").value = s.location; $("#country").value = s.country;
+  $("#provider").value = s.provider; if (!$("#provider").value) $("#provider").value = "all"; // a source no longer offered
   renderBoards();
   $("#searchForm").requestSubmit();
 }

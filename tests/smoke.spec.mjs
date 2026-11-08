@@ -22,6 +22,21 @@ async function open(page, hash = "#/") {
   await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
 }
 
+// Logo (scripts/gen-icons.mjs, top bar in index.html): the mark is drawn, its icons are served, and the browser bar
+// colour follows the theme.
+test("logo in the top bar, icons served, browser bar colour follows the theme", async ({ page, request }) => {
+  await open(page);
+  await expect(page.locator("header svg .logo-dot")).toBeAttached();
+  for (const f of ["icons/favicon.svg", "icons/favicon-32.png", "icons/icon-192.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"]) {
+    expect((await request.get(`/${f}`)).status(), f).toBe(200);
+  }
+  const bar = () => page.locator('meta[name="theme-color"]').getAttribute("content");
+  const before = await bar();
+  await page.locator("#themeToggle").click();
+  expect(await bar()).not.toBe(before);
+  expect(["#faf9f5", "#1f1e1d"]).toContain(await bar());
+});
+
 test("home shows the career paths and a path can be selected", async ({ page }) => {
   await open(page);
   await expect(page.locator("#h-home")).toHaveText(/Good (morning|afternoon|evening)/);

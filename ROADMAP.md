@@ -234,6 +234,9 @@ normal project page. Next: owner review of the Derja of the courses and projects
   20261029 migrations to it.
 
 ## Decisions log (so they are not reopened by accident)
+
+- 2026-11-09: Logo = lowercase h + dot (picked among 4 minimal options after a legibility check at 16 px; HK ligature,
+  speech bubble and door rejected). Site palette only: charcoal / ivory, dot in the path colour in the top bar.
 - 2026-10-29: Courses and interview content are static JSON in content/ (deployed with the site), not database rows.
 - 2026-10-29: The CV text never leaves the browser (localStorage only), even for signed-in users.
 - 2026-11-06: Owner chose to add two opt-in options, both off by default: "Save my CVs to my account" (cv_sync, own RLS

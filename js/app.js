@@ -5,7 +5,7 @@
 // - Data: path content from Supabase (career_paths, path_resources here; tracks in training.js); applications through
 //   state.store (LocalStore for guests, CloudStore when signed in, see store.js); onUser() imports guest data on sign-in.
 // - selectPath() reloads the path content and redraws every page; the CV version linked to the path becomes active.
-// - Also here: theme toggle ("hk.theme", shows the current theme), EN / FR button (both shown, the current one highlighted), error toasts + optional Sentry (CONFIG.SENTRY_DSN), optional Cloudflare Web Analytics (CONFIG.CF_ANALYTICS_TOKEN),
+// - Also here: theme toggle ("hk.theme", shows the current theme; the browser bar colour follows the page), EN / FR button (both shown, the current one highlighted), error toasts + optional Sentry (CONFIG.SENTRY_DSN), optional Cloudflare Web Analytics (CONFIG.CF_ANALYTICS_TOKEN),
 //   PWA registration (sw.js) and the "Install the app" link.
 // - Every user-facing text goes through t() / tn(). i18n.js is imported first so the static page is translated
 //   before anything renders; the FR / EN button reloads the page in the other language.
@@ -40,6 +40,7 @@ function renderThemeToggle() {
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
   document.documentElement.dataset.theme = next;
+  $('meta[name="theme-color"]')?.setAttribute("content", next === "light" ? "#faf9f5" : "#1f1e1d"); // browser bar = page
   ls.set(THEME_KEY, next);
   renderThemeToggle();
 }

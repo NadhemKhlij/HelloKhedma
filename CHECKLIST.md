@@ -8,6 +8,8 @@
 - **Just finished (2026-11-08, later):** "Explain my mistake" (step 4). Owner: O36 (migration) and O37 (deploy the
   explain-mistake function from Actions), then try it signed in.
 - **Just finished (2026-11-08, night):** ROADMAP 4b row "4c", saved "Explain my mistake" answers. Owner: O38.
+- **Just finished (2026-11-09):** new minimal logo (lowercase h + dot) in the top bar, browser tab, app icons and link
+  preview; nothing for the owner to set up. On an installed app the new icon can take a day or a reinstall to appear.
 - **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 to 4 are done (see the Done log). Next: later in 4, "Ask about this lesson";
   5 (Python / Excel), 6 (project repos + public portfolio), 7 (content from data, expert review).
 - **New exercise content is part of O11:** the 70 auto-graded exercises and the 28 step-2e exercises (EN + FR) were written by Claude; answers of the
@@ -92,6 +94,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-09 | New logo (owner picked option B of 4, then "fit the site palette"): lowercase h + dot. Top bar: ink square like the buttons, dot in the path colour (readable on both themes and all six paths); tab, app and preview icons in charcoal / ivory / soft purple from scripts/gen-icons.mjs; browser bar colour follows the theme; no setup needed |
 | 2026-11-08 | Saved "Explain my mistake" answers (ROADMAP 4b row 4c): every explanation kept on the device (same mistake → shown at once, no AI call, "Ask the AI again"); fixed-choice formats shared between learners in explain_cache (no account id, 180 days); admin tile "Saved explanations reused"; privacy policy FR + EN. Owner: O38 |
 | 2026-11-08 | French interface texts split by area into js/fr/ (shell, offers, learning, exercises, cv, tracker, interview), merged by js/i18n-fr.js: the same 1,266 texts, checked identical. Fewer merge conflicts between sessions; scripts/check-i18n.pl now also reports a key found in two files and runs in CI ("Check translations"). No setup needed |
 | 2026-11-08 | O37 done: explain-mistake deployed from GitHub Actions ("Deploy Supabase function", run 17, commit 8e90bbe). "Explain my mistake" is live for signed-in users |

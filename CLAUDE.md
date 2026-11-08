@@ -237,7 +237,10 @@ Read the header comment of any file before modifying it; update the header if be
   js/review.js — "Review today" page; js/skillcheck.js — placement test (passed courses leave the study plan and gaps)
 - js/activity.js — XP, study streak, 7-day strip, last course for "Resume" (local only, "hk.activity")
 - js/interview.js — interview prep page
-- sw.js, manifest.json, icons/ — installable app and offline cache
+- sw.js, manifest.json, icons/ — installable app and offline cache; logo: lowercase h + dot (owner's choice 2026-11-09).
+  Every icon (favicon.svg / favicon-32, PWA any + maskable, Apple touch) comes from scripts/gen-icons.mjs (one definition,
+  fixed charcoal / ivory / purple); the top bar draws the same mark inline with .logo-* (css/input.css: ink square like
+  .btn, dot in the path colour). Change the mark in both places. The browser bar colour (theme-color) follows the theme
 - fonts/ (Inter, Source Serif 4) and js/vendor/ (supabase-js, pdf-lib, sql.js, js-yaml): self-hosted, so a page load reaches no third party
   but Supabase; do not add CDN scripts, fonts or trackers without updating the privacy policy (both languages)
 - js/coursetime.js — lesson and course durations computed from the content (reading + practice)

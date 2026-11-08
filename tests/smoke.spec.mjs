@@ -364,6 +364,36 @@ test("runnable SQL exercise: a correct query written differently is accepted, a 
   await expect(runner.locator("table")).toContainText("Paris");
 });
 
+// "Explain my mistake" (explain.js): the button appears after a wrong answer and goes away once solved; a guest is asked
+// to sign in, so nothing is sent to the AI in this test.
+test("explain my mistake: offered after a wrong answer, sign-in asked for guests, gone once solved", async ({ page }) => {
+  await open(page, "#/course/sql");
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+  const item = page.locator("li").filter({ has: page.locator("[data-sql-runner]") }).first();
+  const help = item.locator("[data-explain]");
+  await expect(help).toBeHidden();
+  await item.locator("textarea").fill("select city, count(*) from customers group by city order by 2 desc limit 4");
+  await item.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(help.getByRole("button", { name: /Explain my mistake/ })).toBeVisible({ timeout: 15_000 });
+  await help.getByRole("button", { name: /Explain my mistake/ }).click();
+  await expect(help).toContainText("Sign in to get an AI explanation");
+  await item.locator("textarea").fill("select count(*) as n, city from customers group by city order by n desc limit 5");
+  await item.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(item).toContainText("Correct!", { timeout: 15_000 });
+  await expect(help).toBeHidden();
+  // An auto-graded format reports its wrong answers too: pick a wrong option of the first "choice" exercise of Python.
+  const pick = await page.evaluate(async () => {
+    const c = await (await fetch("/content/courses/python.json")).json();
+    const i = c.exercises.findIndex((x) => x.type === "choice");
+    return { i, wrong: (c.exercises[i].correct + 1) % c.exercises[i].options.length };
+  });
+  await open(page, "#/course/python");
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+  const drill = page.locator('section[data-page="course"] [role=tabpanel] ol.grid > li').nth(pick.i);
+  await drill.locator("[data-drill] .opt").nth(pick.wrong).click();
+  await expect(drill.locator("[data-explain]").getByRole("button", { name: /Explain my mistake/ })).toBeVisible();
+});
+
 // Password reset (js/auth.js): no e-mail is sent here (Supabase rate-limits them); the checks before sending and the
 // new-password form are tested.
 test("forgot password asks for the e-mail first; the new-password form checks length and match", async ({ page }) => {

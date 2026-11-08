@@ -607,6 +607,14 @@ exception when duplicate_object then null; end $$;
 
 create index if not exists profiles_email_reminders on public.profiles (email_reminders) where email_reminders;
 
+-- ================= supabase/migrations/20261108000200_usage_explain.sql =================
+
+-- "Explain my mistake" (training step 4): the explain-mistake Edge Function bumps the anonymous daily counter
+-- usage_daily with kind 'explain' (day + count only, like 'job_search' and 'cv_tailor'), shown on the admin page.
+-- Until this migration runs, the function still works: its count_usage() call fails quietly. Safe to run more than once.
+alter table public.usage_daily drop constraint if exists usage_daily_kind_check;
+alter table public.usage_daily add constraint usage_daily_kind_check check (kind in ('job_search', 'cv_tailor', 'explain'));
+
 -- ================= supabase/seed.sql =================
 
 -- Idempotent seed: safe to re-run. Resource ids are derived from (path, kind, title),

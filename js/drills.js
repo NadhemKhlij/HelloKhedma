@@ -1,7 +1,9 @@
 // Auto-graded exercise formats for the Practice tab (training steps 2b + 2c, 2026-11-06). An exercise with a "type"
 // (content/courses/<id>.json, same in the French copy) is drawn here instead of the free scratch box; a correct
 // answer calls onSolved() (practice.js marks the exercise solved). The checks live in drillcheck.js (shared with CI).
-// No engine to download: everything runs in this browser, nothing is sent anywhere.
+// No engine to download: everything runs in this browser, nothing is sent anywhere. A wrong answer calls
+// onWrong(attempt, verdict) with the learner's answer and the check's result as plain text (in English, for the AI), so
+// practice.js can offer "Explain my mistake" (explain.js); nothing leaves the browser unless the learner asks for it.
 //   choice   { q, snippet?, lang?, mono?, options: [..], correct: index, answer }    predict the output / pick one
 //   fill     { q, snippet? with ___ blanks, lang?, blanks: [[accepted..]], exact?, answer }   one blank if no snippet
 //   order    { q, steps: [.. in the right order], answer }                          put the steps in order (↑ ↓ or drag)
@@ -44,18 +46,18 @@ export function loadFile(file) {
 }
 
 /* ---------- choice: predict the output / pick the right one ---------- */
-function choice(e, done) {
+function choice(e, done, miss) {
   const fb = out();
   const opts = e.options.map((o, k) => h("button", { type: "button", class: `opt ${e.mono ? "font-mono" : ""}`, onClick: () => pick(k) }, o));
   function pick(k) {
     if (k === e.correct) { opts.forEach((b) => { b.disabled = true; }); opts[k].classList.add("opt-ok"); fb.replaceChildren(say(t("✓ Correct!"), OK)); done(); }
-    else { opts[k].classList.add("opt-bad"); opts[k].disabled = true; fb.replaceChildren(say(t("✗ Not this one. Try again."), BAD)); }
+    else { opts[k].classList.add("opt-bad"); opts[k].disabled = true; fb.replaceChildren(say(t("✗ Not this one. Try again."), BAD)); miss(e.options[k], "This option is not the right one."); }
   }
   return [e.snippet ? pre(e.snippet, e.lang) : null, h("div", { class: "grid gap-2 sm:grid-cols-2" }, opts), fb];
 }
 
 /* ---------- fill in the blanks ---------- */
-function fill(e, done) {
+function fill(e, done, miss) {
   const fb = out();
   const width = (acc) => Math.max(4, ...acc.filter((a) => !a.startsWith("/")).map((a) => a.length)) + 2;
   const inputs = e.blanks.map((acc, k) => h("input", { class: "input font-mono !py-0.5 !px-1.5", style: e.snippet ? `width:${width(acc)}ch` : "",
@@ -66,7 +68,11 @@ function fill(e, done) {
     res.forEach((ok, k) => mark(inputs[k], ok));
     const wrong = res.filter((x) => !x).length;
     if (!wrong) { fb.replaceChildren(say(t("✓ Correct!"), OK)); done(); }
-    else fb.replaceChildren(say(e.blanks.length > 1 ? tn(wrong, "{n} blank is not right yet.", "{n} blanks are not right yet.") : t("Not yet. Check your answer and try again."), WARN));
+    else {
+      fb.replaceChildren(say(e.blanks.length > 1 ? tn(wrong, "{n} blank is not right yet.", "{n} blanks are not right yet.") : t("Not yet. Check your answer and try again."), WARN));
+      miss(inputs.map((inp, k) => (inputs.length > 1 ? `Blank ${k + 1}: ${inp.value}` : inp.value)).join("\n"),
+        `Wrong blank(s): ${res.map((ok, k) => (ok ? null : k + 1)).filter(Boolean).join(", ")} of ${res.length}.`);
+    }
   }
   let body;
   if (e.snippet) {
@@ -77,7 +83,7 @@ function fill(e, done) {
 }
 
 /* ---------- put the steps in order ---------- */
-function order(e, done) {
+function order(e, done, miss) {
   let cur = mixed(e.steps.length), solved = false, drag = null;
   const fb = out(), list = h("ol", { class: "grid gap-2" });
   const move = (from, to) => {
@@ -103,14 +109,17 @@ function order(e, done) {
   function check() {
     const right = cur.filter((idx, pos) => idx === pos).length;
     if (right === cur.length) { solved = true; draw(true); fb.replaceChildren(say(t("✓ Correct! Everything is in the right order."), OK)); done(); }
-    else { draw(true); fb.replaceChildren(say(t("{d} of {n} in the right place. Move the others and check again.", { d: right, n: cur.length }), WARN)); }
+    else {
+      draw(true); fb.replaceChildren(say(t("{d} of {n} in the right place. Move the others and check again.", { d: right, n: cur.length }), WARN));
+      miss(cur.map((idx, pos) => `${pos + 1}. ${e.steps[idx]}`).join("\n"), `${right} of ${cur.length} steps are in the right place.`);
+    }
   }
   draw();
   return [h("p", { class: "mute text-xs" }, t("Use ↑ ↓ (or drag) to put the steps in order.")), list, h("div", {}, btn(t("✓ Check my answer"), check)), fb];
 }
 
 /* ---------- match pairs / sort into groups (a list of dropdowns) ---------- */
-function picker(rows, choices, done, okText) {
+function picker(rows, choices, done, okText, miss) {
   const fb = out();
   const sels = rows.map(([label]) => h("select", { class: "input w-full sm:w-auto sm:min-w-[12rem]", "aria-label": label },
     h("option", { value: "" }, t("Choose…")), choices.map((c) => h("option", { value: c }, c))));
@@ -120,22 +129,25 @@ function picker(rows, choices, done, okText) {
     res.forEach((ok, k) => mark(sels[k], ok));
     const right = res.filter(Boolean).length;
     if (right === rows.length) { sels.forEach((s) => { s.disabled = true; }); fb.replaceChildren(say(okText, OK)); done(); }
-    else fb.replaceChildren(say(t("{d} of {n} right. Change the red ones and check again.", { d: right, n: rows.length }), WARN));
+    else {
+      fb.replaceChildren(say(t("{d} of {n} right. Change the red ones and check again.", { d: right, n: rows.length }), WARN));
+      miss(rows.map(([label], k) => `${label} → ${sels[k].value || "(nothing chosen)"}${res[k] ? "" : "  [wrong]"}`).join("\n"), `${right} of ${rows.length} right.`);
+    }
   }
   return [h("ul", { class: "grid gap-2" }, rows.map(([label], k) => h("li", { class: "grid gap-1 sm:flex sm:items-center sm:gap-3" },
     h("span", { class: "text-sm flex-1" }, label), sels[k]))), h("div", {}, btn(t("✓ Check my answer"), check)), fb];
 }
-function match(e, done) {
+function match(e, done, miss) {
   const order = mixed(e.pairs.length);
-  return picker(order.map((i) => e.pairs[i]), shuffle(e.pairs.map((p) => p[1])), done, t("✓ Correct! Every pair matches."));
+  return picker(order.map((i) => e.pairs[i]), shuffle(e.pairs.map((p) => p[1])), done, t("✓ Correct! Every pair matches."), miss);
 }
-function groups(e, done) {
+function groups(e, done, miss) {
   const rows = shuffle(e.groups.flatMap((g) => g.items.map((it) => [it, g.name])));
-  return picker(rows, e.groups.map((g) => g.name), done, t("✓ Correct! Everything is in the right group."));
+  return picker(rows, e.groups.map((g) => g.name), done, t("✓ Correct! Everything is in the right group."), miss);
 }
 
 /* ---------- spot the bug: tap the line ---------- */
-function bug(e, done) {
+function bug(e, done, miss) {
   const fb = out();
   const lines = e.snippet.split("\n").map((text, k) => h("button", { type: "button", class: "block w-full text-left px-2 rounded hover:bg-[var(--soft)]",
     style: "border-left:3px solid transparent", "aria-label": t("Line {n}", { n: k + 1 }), onClick: () => pick(k) },
@@ -144,7 +156,10 @@ function bug(e, done) {
     if (k + 1 === e.line) {
       lines.forEach((b) => { b.disabled = true; }); lines[k].style.borderLeftColor = OK;
       fb.replaceChildren(say(t("✓ Found it: line {n}. Reveal the answer to see the fix.", { n: k + 1 }), OK)); done();
-    } else { lines[k].style.borderLeftColor = BAD; fb.replaceChildren(say(t("✗ Line {n} is fine. Look again.", { n: k + 1 }), BAD)); }
+    } else {
+      lines[k].style.borderLeftColor = BAD; fb.replaceChildren(say(t("✗ Line {n} is fine. Look again.", { n: k + 1 }), BAD));
+      miss(`Line ${k + 1}: ${e.snippet.split("\n")[k]}`, "The learner picked a line that does not hold the bug.");
+    }
   }
   return [h("p", { class: "mute text-xs" }, t("Tap the line that has the bug.")),
     h("div", { class: "codeblock !p-2 font-mono text-[.8rem] whitespace-pre overflow-x-auto", "data-lang": e.lang || "", dir: "ltr" }, lines), fb];
@@ -195,7 +210,7 @@ function fileView(file, { filter = true } = {}) {
     .catch(() => { view.textContent = t("Could not load the file. Check your connection and try again."); return ""; });
   return { ready, el: h("div", { class: "grid gap-2" }, filter ? h("div", { class: "flex flex-wrap items-center gap-2" }, q, count) : null, view) };
 }
-function logs(e, done) {
+function logs(e, done, miss) {
   const fb = out(), v = fileView(e.file);
   const inputs = e.fields.map((f) => h("input", { class: "input w-full font-mono", "aria-label": f.label, autocapitalize: "off", autocorrect: "off", spellcheck: "false",
     onKeydown: (ev) => { if (ev.key === "Enter") { ev.preventDefault(); check(); } } }));
@@ -204,14 +219,17 @@ function logs(e, done) {
     res.forEach((ok, k) => mark(inputs[k], ok));
     const wrong = res.filter((x) => !x).length;
     if (!wrong) { fb.replaceChildren(say(t("✓ Correct!"), OK)); done(); }
-    else fb.replaceChildren(say(tn(wrong, "{n} answer is not right yet.", "{n} answers are not right yet."), WARN));
+    else {
+      fb.replaceChildren(say(tn(wrong, "{n} answer is not right yet.", "{n} answers are not right yet."), WARN));
+      miss(e.fields.map((f, k) => `${f.label}: ${inputs[k].value}${res[k] ? "" : "  [wrong]"}`).join("\n"), `${wrong} of ${res.length} answers are wrong.`);
+    }
   }
   return [v.el, h("div", { class: "grid gap-2" }, e.fields.map((f, k) => h("label", { class: "grid gap-1 text-sm" }, h("span", { class: "font-medium" }, f.label), inputs[k]))),
     h("div", {}, btn(t("✓ Check my answer"), check)), fb];
 }
 
 /* ---------- regex on a sample ---------- */
-function regex(e, done) {
+function regex(e, done, miss) {
   const fb = out();
   const text = e.text != null ? Promise.resolve(e.text) : loadFile(e.file);
   const pat = h("input", { class: "input font-mono flex-1 min-w-0", "aria-label": t("Your regular expression"), placeholder: t("Your pattern, without slashes"),
@@ -237,16 +255,19 @@ function regex(e, done) {
     const [{ runRegex }, s] = await Promise.all([import("./regexrun.js"), text]);
     try { expected ||= await runRegex(e.answer, e.flags || "", s, e.mode); } catch (err) { fb.replaceChildren(say(errText(err), BAD)); return; }
     let mine;
-    try { mine = await runRegex(pat.value, flags.value, s, e.mode); } catch (err) { paint(); fb.replaceChildren(say(errText(err), BAD)); return; }
+    const attempt = `/${pat.value}/${flags.value}`;
+    try { mine = await runRegex(pat.value, flags.value, s, e.mode); } catch (err) { paint(); fb.replaceChildren(say(errText(err), BAD)); miss(attempt, `The pattern does not run: ${err.message}.`); return; }
     paint(mine, expected);
     if (sameList(mine, expected)) { fb.replaceChildren(say(t("✓ Correct! Your pattern gives exactly the expected result."), OK)); done(); return; }
     if (e.mode === "lines") {
       const W = new Set(expected), M = new Set(mine);
       const extra = mine.filter((l) => !W.has(l)).length, missing = expected.filter((l) => !M.has(l)).length;
       fb.replaceChildren(say(t("Not yet: {extra} line(s) matched that should not be (✗), {missing} line(s) missed (…).", { extra, missing }), WARN));
+      miss(attempt, `${extra} line(s) matched that should not, ${missing} line(s) missed. Wrongly matched: ${mine.filter((l) => !W.has(l)).slice(0, 3).join(" | ")}. Missed: ${expected.filter((l) => !M.has(l)).slice(0, 3).join(" | ")}`);
     } else {
       fb.replaceChildren(say(t("Not yet: your pattern finds {got} value(s), the expected answer finds {want}.", { got: mine.length, want: expected.length }), WARN),
         mine.length ? h("p", { class: "text-xs font-mono break-words" }, t("Yours: {list}", { list: mine.slice(0, 12).join(" · ") + (mine.length > 12 ? " …" : "") })) : null);
+      miss(attempt, `The pattern extracts ${mine.length} value(s), the expected answer ${expected.length}. Learner's values: ${mine.slice(0, 12).join(" · ")}`);
     }
   }
   return [h("p", { class: "mute text-xs" }, e.mode === "lines" ? t("Write a pattern that matches exactly the lines asked for (like grep).") : t("Write a pattern that extracts the values asked for (use a ( ) group to keep only part of the match).")),
@@ -256,7 +277,7 @@ function regex(e, done) {
 
 /* ---------- cron expression ---------- */
 const CRON_FIELDS = ["minute", "hour", "day of month", "month", "day of week"];
-function cron(e, done) {
+function cron(e, done, miss) {
   const fb = out();
   const inp = h("input", { class: "input font-mono w-full sm:w-72", "aria-label": t("Your cron expression"), placeholder: "* * * * *",
     autocapitalize: "off", autocorrect: "off", spellcheck: "false", onKeydown: (ev) => { if (ev.key === "Enter") { ev.preventDefault(); check(); } } });
@@ -268,10 +289,11 @@ function cron(e, done) {
     try { runs = nextRuns(v, new Date(), 5); } catch (err) {
       const m = /^field:(\d)$/.exec(err.message);
       fb.replaceChildren(say(m ? t("The {field} field is not valid.", { field: t(CRON_FIELDS[m[1]]) }) : t("A cron expression has 5 fields: minute hour day-of-month month day-of-week."), BAD));
+      miss(v, m ? `The ${CRON_FIELDS[m[1]]} field is not valid.` : "Not a valid 5-field cron expression.");
       return;
     }
     const ok = sameCron(v, e.answer);
-    if (ok) done();
+    if (ok) done(); else miss(v, `Runs at other times than asked. Next runs: ${runs.map((d) => d.toISOString().slice(0, 16).replace("T", " ")).join(", ") || "never"}.`);
     fb.replaceChildren(say(ok ? t("✓ Correct! Same schedule as the expected answer.") : t("Not yet: this runs at other times than asked."), ok ? OK : WARN),
       h("p", { class: "mute text-xs" }, t("Your expression runs next at:")),
       h("ul", { class: "text-xs font-mono grid gap-0.5" }, runs.length ? runs.map((d) => h("li", {}, fmt.format(d))) : h("li", {}, t("never (no matching date)"))));
@@ -289,7 +311,7 @@ const JQ_ERR = {
   keys: "keys only works on objects and lists.",
   size: "The filter returns too many values.",
 };
-function json(e, done) {
+function json(e, done, miss) {
   const fb = out(), v = fileView(e.file, { filter: false });
   const inp = h("input", { class: "input font-mono flex-1 min-w-[12rem]", "aria-label": t("Your jq filter"), placeholder: ".items[] | .name",
     autocapitalize: "off", autocorrect: "off", spellcheck: "false", onKeydown: (ev) => { if (ev.key === "Enter") { ev.preventDefault(); check(); } } });
@@ -299,9 +321,12 @@ function json(e, done) {
     const text = await v.ready;
     let data, mine, want;
     try { data = JSON.parse(text); want = jq(e.answer, data); } catch { fb.replaceChildren(say(t("Could not load the file. Check your connection and try again."), BAD)); return; }
-    try { mine = jq(inp.value, data); } catch (err) { fb.replaceChildren(say(t(JQ_ERR[err.message.replace(/^jq:/, "")] || JQ_ERR.syntax), BAD)); return; }
+    try { mine = jq(inp.value, data); } catch (err) {
+      const msg = JQ_ERR[err.message.replace(/^jq:/, "")] || JQ_ERR.syntax;
+      fb.replaceChildren(say(t(msg), BAD)); miss(inp.value, msg); return;
+    }
     const ok = sameList(mine, want);
-    if (ok) done();
+    if (ok) done(); else miss(inp.value, `Returns ${mine.length} value(s), the expected answer ${want.length}. Learner's output: ${JSON.stringify(mine).slice(0, 600)}`);
     fb.replaceChildren(say(ok ? t("✓ Correct! Same output as the expected answer.") : t("Not yet: your filter returns {got} value(s), the expected answer returns {want}.", { got: mine.length, want: want.length }), ok ? OK : WARN),
       h("p", { class: "mute text-xs" }, t("Your output:")), show(mine));
   }
@@ -312,7 +337,7 @@ function json(e, done) {
 /* ---------- fix this file (Kubernetes, GitHub Actions, Dockerfile) ---------- */
 const drafts = new Map(); // edits survive a tab switch, not a reload
 const tr = (x) => t(x.m, x.p);
-function fixfile(e, done) {
+function fixfile(e, done, miss) {
   const fb = out(), key = e.start;
   const lines = e.start.split("\n").length;
   const area = h("textarea", { class: "input font-mono !text-[.75rem] !leading-5 w-full whitespace-pre overflow-auto", rows: Math.min(28, lines + 2), wrap: "off", dir: "ltr",
@@ -342,12 +367,16 @@ function fixfile(e, done) {
     if (res.error) {
       paint();
       fb.replaceChildren(say(t("Line {line}: the file cannot be read.", { line: res.error.line }), BAD), h("p", { class: "text-xs font-mono [overflow-wrap:anywhere]", dir: "ltr" }, res.error.reason));
+      miss(area.value, `Line ${res.error.line}: the file cannot be read (${res.error.reason}).`);
       return;
     }
     paint(res.results);
     const wrong = res.results.filter((r) => !r.ok).length;
     if (!wrong) { fb.replaceChildren(say(t("✓ Correct! Every check passes."), OK)); done(); }
-    else fb.replaceChildren(say(tn(wrong, "{n} check still fails.", "{n} checks still fail."), WARN));
+    else {
+      fb.replaceChildren(say(tn(wrong, "{n} check still fails.", "{n} checks still fail."), WARN));
+      miss(area.value, `Failing checks: ${res.results.filter((r) => !r.ok).map((r) => `${tr(r.title)} (${r.problems.map(tr).join("; ")})`).join(" | ")}`);
+    }
   }
   const reset = () => { area.value = e.start; drafts.delete(key); paint(); fb.replaceChildren(); };
   return [h("p", { class: "mute text-xs" }, e.code === "dockerfile" ? t("Edit the Dockerfile below, then check it.") : t("Edit the YAML below (indent with spaces), then check it.")),
@@ -356,10 +385,11 @@ function fixfile(e, done) {
 }
 
 const DRAW = { choice, fill, order, match, groups, bug, scenario, logs, regex, cron, json, fixfile };
-export function drill(e, onSolved) {
+// onWrong(attempt, verdict): called after each wrong check (not by scenario, whose choices explain themselves).
+export function drill(e, onSolved, onWrong = () => {}) {
   let fired = false;
   const done = () => { if (!fired) { fired = true; onSolved(); } };
-  return h("div", { class: "grid gap-3", "data-drill": e.type }, DRAW[e.type](e, done));
+  return h("div", { class: "grid gap-3", "data-drill": e.type }, DRAW[e.type](e, done, (attempt, verdict) => { if (!fired) onWrong(attempt, verdict); }));
 }
 
 // The worked answer shown by "Reveal the answer" (the explanation in e.answer follows it).

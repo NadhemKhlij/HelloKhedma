@@ -5,7 +5,9 @@
   Training step 3. O35 done (seed re-run). The owner also discussed adding more job APIs (ROADMAP Phase 3b, O32).
 - **Parallel work (2026-11-08):** every session runs `sh scripts/whats-new.sh` at the start and before each merge into
   main (CLAUDE.md "Working in parallel").
-- **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 to 3 are done (see the Done log). Next: 4 (AI "explain my mistake", Sonnet 5.5),
+- **Just finished (2026-11-08, later):** "Explain my mistake" (step 4). Owner: O36 (migration) and O37 (deploy the
+  explain-mistake function from Actions), then try it signed in.
+- **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 to 4 are done (see the Done log). Next: later in 4, "Ask about this lesson";
   5 (Python / Excel), 6 (project repos + public portfolio), 7 (content from data, expert review).
 - **New exercise content is part of O11:** the 70 auto-graded exercises and the 28 step-2e exercises (EN + FR) were written by Claude; answers of the
   log / regex / cron / jq exercises are computed from the files and checked in CI, the "fix this file" answers pass
@@ -73,6 +75,8 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | # | Where | Task | Why it matters | Links / details |
 |---|---|---|---|---|
+| O36 | Supabase → SQL Editor | Run the migration `supabase/migrations/20261108000200_usage_explain.sql` (Claude gives a commit-pinned link) | Lets the admin page count "AI explanations"; the feature works without it (only the counter is skipped) | — |
+| O37 | GitHub → Actions | "Deploy Supabase function" → Run workflow → **explain-mistake**. Nothing else to set: it uses the `ANTHROPIC_API_KEY` of cv-tailor. Optional secrets: `EXPLAIN_DAILY_LIMIT` (default 30 a day per account), `EXPLAIN_MODEL` (default claude-sonnet-5-5). Then sign in, open a course → Practice, give a wrong answer and press "🤖 Explain my mistake" | Until it is deployed, the button says AI explanations are not set up yet | supabase/functions/explain-mistake |
 | O33 | Supabase → SQL Editor | Run the migration `supabase/migrations/20261108000100_email_reminders.sql` (Claude gives a commit-pinned link) | Adds the "E-mail reminders" choice to profiles; until then the Account page says it is not available yet | — |
 | O34 | Resend, Supabase, GitHub | **1.** Resend → API Keys → create a key with "Sending access" for mail.hellokhedma.io; **2.** Supabase → Edge Functions → Secrets: `RESEND_API_KEY` = that key and `CRON_SECRET` = a long random text (e.g. 40 letters and digits); **3.** GitHub → Settings → Secrets → Actions: `REMINDERS_CRON_SECRET` = the same random text; **4.** Actions → "Deploy Supabase function" → follow-up-reminders (or ask Claude); **5.** sign in, Account → "E-mail me my follow-ups" → "Send me a test e-mail now" with a follow-up due today | Daily e-mail reminders (ROADMAP 2.2). Resend's free plan: 100 e-mails a day | .github/workflows/reminders.yml, supabase/functions/follow-up-reminders |
 | O29 | Supabase → Authentication → URL Configuration, then the live site | Reset e-mail template pasted by the owner (2026-11-08). Still: check Site URL `https://hellokhedma.io` and `https://hellokhedma.io/**` in Redirect URLs, then try "Mot de passe oublié ?" once with your own address on hellokhedma.io | The reset link must come back to the site to open "Choose a new password" | supabase/templates/reset-password.html |
@@ -89,6 +93,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-08 | "Explain my mistake" (ROADMAP 4b step 4): after a wrong answer on a course exercise (runnable SQL, the auto-graded formats, written answers after Reveal), signed-in learners can ask Claude Sonnet 5.5 why; answer in the course's language (Derja on the AI track), 30 a day, notice before the first send, nothing stored; admin tiles; privacy policy FR + EN. Owner: O36, O37 |
 | 2026-11-08 | Cross-check after the AI Engineer path merge (another session): CI green (the AI path test ran once O35 was done), content and French checks clean, all 36 smoke tests pass locally with an "ai" path; skill check, reviews and study plan work with the AI courses. Fixed a French-only overflow on phones, older than today: Home was 50 px wider than the screen (a summary card title that never wraps, and the header with "Connexion"); the phone-width test now runs in English and French |
 | 2026-11-08 | O35 done: seed.sql re-run by the owner, AI Engineer path live on hellokhedma.io. The "Become an AI engineer" card on Training removed (owner's choice): the AI courses are the AI Engineer path's courses and show under "Other courses" on the other paths; #/ai stays reachable by link |
 | 2026-11-08 | AI Engineer career path (id "ai", 6th path) in code: seed.sql with French (job titles AI Engineer / Ingénieur IA / LLM Engineer…, tools, tips, CV keywords, 3 learning tracks pointing to official material), role interview questions (EN + FR), path card illustration, Home grid of 3. Its courses are the 9 AI-track courses (plus SQL, Python, Git, Docker) and its projects the 3 AI projects. The AI track is now in English and French too (content/ai/en, content/ai/fr): it follows the FR/EN button, with a switch to Derja (عربي / 3arbizi). Content checks and smoke tests cover the four languages; seed and setup-all.sql (regenerated with all 10 migrations) tested on a local PostgreSQL 16. Needs O35 |

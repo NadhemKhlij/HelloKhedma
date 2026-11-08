@@ -22,7 +22,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   (raw.githubusercontent.com/<owner>/<repo>/<commit>/…): the branch link is cached for ~5 minutes.
 - Supabase CLI (or the dashboard equivalents):
   - `npx supabase link --project-ref <ref>`, then `npx supabase db push` (migrations); seed: run supabase/seed.sql.
-  - `npx supabase functions deploy <name> --use-api` for job-search, delete-account and cv-tailor; or, from a phone:
+  - `npx supabase functions deploy <name> --use-api` for job-search, delete-account, cv-tailor and explain-mistake; or, from a phone:
     GitHub → Actions → "Deploy Supabase function" → Run workflow (.github/workflows/deploy-functions.yml, needs the
     SUPABASE_ACCESS_TOKEN secret). Prefer it to pasting code into the dashboard editor (long files get cut on a phone).
   - `npx supabase secrets set NAME=value`
@@ -52,7 +52,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 ## Tech stack
 - Frontend: HTML, Tailwind CSS 3 (css/input.css → css/app.css), vanilla JS ES modules, no bundler; installable PWA.
 - Backend: Supabase (PostgreSQL, Auth, Row Level Security, Edge Functions `job-search`, `delete-account`, `cv-tailor`,
-  `follow-up-reminders`).
+  `explain-mistake`, `follow-up-reminders`).
 - Job data: France Travail, Adzuna, JSearch and Jooble through the `job-search` function (only providers with secrets set
   run; France Travail's API is closed to new users, its option is hidden until keys exist);
   company career pages (Greenhouse, Lever, Ashby, Workable, SmartRecruiters) and remote boards (Jobicy, Remotive)
@@ -67,6 +67,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 | ADZUNA_APP_ID, ADZUNA_APP_KEY, RAPIDAPI_KEY, JOOBLE_API_KEY (+ optional JOOBLE_HOST), FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET | Supabase → Edge Functions → Secrets |
 | DEFAULT_PROVIDER, CACHE_TTL_HOURS, RATE_LIMIT_GUEST, RATE_LIMIT_USER (optional) | Supabase → Edge Functions → Secrets |
 | ANTHROPIC_API_KEY; CV_TAILOR_DAILY_LIMIT, CV_TAILOR_MODEL (optional) | Supabase → Edge Functions → Secrets (cv-tailor) |
+| EXPLAIN_DAILY_LIMIT, EXPLAIN_MODEL (optional; uses ANTHROPIC_API_KEY) | Supabase → Edge Functions → Secrets (explain-mistake) |
 | RESEND_API_KEY, CRON_SECRET; REMINDERS_FROM, SITE_URL (optional) | Supabase → Edge Functions → Secrets (follow-up-reminders) |
 | REMINDERS_CRON_SECRET (same value as CRON_SECRET) | GitHub → Actions → Secrets (reminders.yml only) |
 | SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (functions) | Provided automatically by Supabase; never in frontend |
@@ -124,8 +125,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   2. the AI rewrite / CV creation (js/tailor.js → cv-tailor function → Claude API), signed-in users only, after a notice
      shown before every send; the function stores and logs nothing.
 - Admin statistics (js/admin.js): totals only, through security-definer functions that check the admins table; never
-  list e-mails, names or CV text there. usage_daily holds day + kind + count only (bumped by job-search and cv-tailor);
-  ai_usage_daily holds day + model + token counts (cv-tailor, migration 20261106000300), priced in js/admin.js PRICES
+  list e-mails, names or CV text there. usage_daily holds day + kind + count only (bumped by job-search, cv-tailor and
+  explain-mistake); ai_usage_daily holds day + model + token counts (cv-tailor, explain-mistake, migration 20261106000300), priced in js/admin.js PRICES
   (update it when Anthropic's prices change). Anthropic has no API for the credit balance: the owner enters the top-up.
   Visitor counts: Cloudflare Web Analytics (cookie-free beacon, CF_ANALYTICS_TOKEN, never on preview builds).
 - Anonymous statistics (js/insights.js → log_insight()) only after the user said yes ("hk.insights"): skill names,
@@ -198,7 +199,11 @@ Read the header comment of any file before modifying it; update the header if be
   every runnable SQL answer executed on its dataset and accepted by the grader, every auto-graded exercise checked)
 - js/drills.js — auto-graded exercise formats in the Practice tab (predict the output, fill in, order, match, groups,
   spot the bug, scenarios, log analysis, regex, cron, jq); js/drillcheck.js — their checks, shared with CI (no DOM);
-  js/regexrun.js + js/regexworker.js — the learner's regex runs in a Web Worker with a 2 s limit
+  js/regexrun.js + js/regexworker.js — the learner's regex runs in a Web Worker with a 2 s limit; drill(e, onSolved,
+  onWrong) reports a wrong check (attempt + verdict) for "Explain my mistake"
+- js/explain.js — "🤖 Explain my mistake" under a course exercise after a wrong answer (runnable SQL, auto-graded formats,
+  written answers after Reveal): explain-mistake function → Claude Sonnet 5.5, signed-in users, notice before the first
+  send, answer in the course's language (AI track: its own language, Derja included); the function stores nothing
 - content/logs/, content/data/ — fictional log and JSON files for the log analysis and jq exercises
 - js/filecheck.js — "fix this file" checks (Kubernetes manifests, GitHub Actions workflows, Dockerfiles), shared with CI;
   YAML read by js/vendor/js-yaml.esm.min.js (self-hosted, loaded on demand)
@@ -235,8 +240,8 @@ Read the header comment of any file before modifying it; update the header if be
 - content/courses/, content/interview/, content/projects/ — course, interview and project content (JSON)
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)
-- supabase/functions/job-search/, delete-account/, cv-tailor/, follow-up-reminders/ — Edge Functions (cv-tailor: AI CV
-  rewrite with Claude; follow-up-reminders: the opt-in daily e-mail, called by .github/workflows/reminders.yml)
+- supabase/functions/job-search/, delete-account/, cv-tailor/, explain-mistake/, follow-up-reminders/ — Edge Functions
+  (cv-tailor: AI CV rewrite with Claude; explain-mistake: why a course answer is wrong, Claude Sonnet 5.5; follow-up-reminders: the opt-in daily e-mail, called by .github/workflows/reminders.yml)
 - scripts/whats-new.sh — before a deploy: what main got since your branch started, shared files, other branches
 - scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node),
   gen-practice-2e.mjs (rebuilds the dwh / payments datasets and the payments log, fixed seed)

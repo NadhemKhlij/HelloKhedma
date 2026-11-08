@@ -12,6 +12,9 @@
 //   query, training step 2e: "fix this query"), the editor opens on that query and "↺ Start again" brings it back.
 //   Auto-graded formats (exercise.type, training steps 2b, 2c + 2d, drills.js): choice, fill, order, match, groups, bug,
 //   scenario, logs, regex, cron, json, fixfile; a correct answer marks the exercise solved, "Reveal" shows the worked answer.
+// - "🤖 Explain my mistake" (explain.js, training step 4): after a wrong SQL check or auto-graded answer, or once the
+//   answer of a written exercise is revealed with an attempt in the scratch box, a signed-in learner can ask Claude why;
+//   only on that click is anything sent (explain-mistake function).
 // - Courses with a playground (DAX.do): written exercises with "try" get "▶ Run my attempt on …" (copies the attempt,
 //   opens the playground in a new tab) and a ▶ button on the answer code (courses.js playLink).
 // - interviewCards(): think first, then reveal the model answer.
@@ -21,6 +24,7 @@ import { t, tn } from "./i18n.js";
 import { logActivity } from "./activity.js";
 import { drill, solution } from "./drills.js";
 import { grade, dueCards } from "./srs.js";
+import { explainBox } from "./explain.js";
 
 const store = (key) => ({
   all() { try { return JSON.parse(ls.get(key) || "{}"); } catch { return {}; } },
@@ -157,6 +161,8 @@ export function exercises(root, c, codeBlock, playLink) {
   const upd = () => { count.textContent = t("{d}/{n} solved", { d: solved.size, n: c.exercises.length }); };
   const markSolved = (i, status) => { if (!solved.has(i)) logActivity(3); solved.add(i); EX.set(c.id, [...solved]); status.hidden = false; upd(); };
   const one = (e, i) => {
+    const help = explainBox(c, e); // "Explain my mistake", shown after a wrong answer
+    const solvedNow = () => { markSolved(i, status); help.reset(); };
     const status = h("span", { class: "badge", hidden: !solved.has(i) }, t("Solved"));
     const hint = e.hint ? h("p", { class: "mute text-sm", hidden: true }, t("Hint: {hint}", { hint: e.hint })) : null;
     const grade = h("div", { class: "flex flex-wrap gap-2" },
@@ -167,7 +173,10 @@ export function exercises(root, c, codeBlock, playLink) {
       e.code ? codeBlock(e.code, e.answer, e.try && c.playground) : h("p", { class: "text-sm rounded-xl p-3", style: "background:var(--soft)" }, e.answer),
       e.explain ? h("p", { class: "text-sm rounded-xl p-3", style: "background:var(--soft)" }, e.explain) : null,
       h("p", { class: "mute text-xs" }, t("Compare with your attempt. Did you get it?")), grade);
-    const reveal = h("button", { type: "button", class: "btn-ghost", onClick: () => { answer.hidden = false; reveal.hidden = true; } }, t("Reveal the answer"));
+    const reveal = h("button", { type: "button", class: "btn-ghost", onClick: () => {
+      answer.hidden = false; reveal.hidden = true;
+      if (scratch?.value.trim()) help.offer(scratch.value, "Written answer: the learner revealed the model answer and wants to know what is wrong or missing in theirs.");
+    } }, t("Reveal the answer"));
     const scratch = e.run || e.type ? null : h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
       placeholder: t("Try it here first (not saved)…") });
     return h("li", { class: "panel !shadow-none grid gap-3" },
@@ -175,7 +184,8 @@ export function exercises(root, c, codeBlock, playLink) {
         h("span", { class: "w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold", style: "background:var(--soft)" }, String(i + 1)),
         h("p", { class: "font-medium flex-1" }, e.q), status),
       hint,
-      e.run ? sqlRunner(e, () => markSolved(i, status)) : e.type ? drill(e, () => markSolved(i, status)) : scratch,
+      e.run ? sqlRunner(e, solvedNow, help.offer) : e.type ? drill(e, solvedNow, help.offer) : scratch,
+      help.el,
       h("div", { class: "flex flex-wrap gap-2" }, reveal,
         // A query exercise of a course with a playground (DAX.do): run the attempt on the real engine.
         scratch && e.try && playLink ? playLink(c.playground, () => scratch.value, t("▶ Run my attempt on {name}", { name: c.playground?.name })) : null,
@@ -223,7 +233,8 @@ const VERDICT = {
   none: "Not yet: your query returns no rows. Check its conditions (a statement other than SELECT never returns rows).",
   plan: "Not yet: the plan does not use the index asked for, or still scans a whole table (SCAN). Keep EXPLAIN QUERY PLAN in front of the query.",
 };
-function sqlRunner(e, onSolved) {
+// onWrong(query, verdict): a failed check or an SQL error on ✓ Check (for "Explain my mistake").
+function sqlRunner(e, onSolved, onWrong = () => {}) {
   const box = h("textarea", { class: "input font-mono min-h-[110px] w-full", rows: e.start ? Math.min(14, e.start.split("\n").length + 1) : 5, spellcheck: "false", autocapitalize: "off", autocorrect: "off",
     "aria-label": t("Your SQL query"), placeholder: t("Write your SQL query, then ▶ Run (Ctrl + Enter)…") });
   const out = h("div", { class: "grid gap-2", "aria-live": "polite" });
@@ -246,10 +257,13 @@ function sqlRunner(e, onSolved) {
       const [{ runSql }, { gradeResult }] = await engine();
       expected ||= await runSql(e.run.db, e.answer);
       let mine;
-      try { mine = await runSql(e.run.db, box.value); } catch (err) { out.replaceChildren(say(errorText(err), "#e0508b")); return; }
+      try { mine = await runSql(e.run.db, box.value); } catch (err) { out.replaceChildren(say(errorText(err), "#e0508b")); onWrong(box.value, `The query fails in SQLite: ${err.message}`); return; }
       const g = gradeResult(expected, mine, e.run);
       if (g.ok) { onSolved(); out.replaceChildren(say(t("✓ Correct! Same result as the expected answer."), "#18a999"), resultTable(mine)); }
-      else out.replaceChildren(say(t(VERDICT[g.reason] || VERDICT.values, { got: g.got, want: g.want }), "#f08a24"), resultTable(mine));
+      else {
+        out.replaceChildren(say(t(VERDICT[g.reason] || VERDICT.values, { got: g.got, want: g.want }), "#f08a24"), resultTable(mine));
+        onWrong(box.value, `${VERDICT[g.reason] || VERDICT.values} (got ${g.got ?? "?"}, want ${g.want ?? "?"}). Learner's first rows: ${JSON.stringify(mine.values.slice(0, 5))}; columns: ${mine.columns.join(", ")}`);
+      }
     } catch (err) { out.replaceChildren(say(errorText(err), "#e0508b")); }
     finally { busy(false); }
   }

@@ -186,4 +186,15 @@ export default {
   "Saved from an earlier identical answer: not counted in your daily limit.": "Reprise d’une réponse identique déjà expliquée : non comptée dans votre limite du jour.",
   "Ask the AI again": "Redemander à l’IA",
   "Saved explanations reused": "Explications enregistrées réutilisées",
+  // Runnable Python exercises (practice.js pyRunner, training step 5)
+  "Your Python code": "Votre code Python",
+  "Write your Python code, then ▶ Run (Ctrl + Enter)…": "Écrivez votre code Python, puis ▶ Exécuter (Ctrl + Entrée)…",
+  "Your code ran for more than 5 seconds and was stopped (an endless loop?).": "Votre code a tourné plus de 5 secondes et a été arrêté (une boucle sans fin ?).",
+  "Python could not be loaded. Check your connection and try again.": "Python n’a pas pu être chargé. Vérifiez votre connexion et réessayez.",
+  "Loading Python in your browser (about 13 MB, only the first time)…": "Chargement de Python dans votre navigateur (environ 13 Mo, seulement la première fois)…",
+  "Python error:": "Erreur Python :",
+  "The code ran and printed nothing. Call your function with print(…) to see a result.": "Le code s’est exécuté sans rien afficher. Appelez votre fonction avec print(…) pour voir un résultat.",
+  "Not yet: a test fails: {msg}": "Pas encore : un test échoue : {msg}",
+  "✓ Correct! Your code passes every test.": "✓ Correct ! Votre code passe tous les tests.",
+  "Runs in your browser (Python 3.14, standard library). ✓ Check runs hidden tests on your code.": "S’exécute dans votre navigateur (Python 3.14, bibliothèque standard). ✓ Vérifier lance des tests cachés sur votre code.",
 };

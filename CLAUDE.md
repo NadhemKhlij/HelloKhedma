@@ -95,6 +95,12 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   editor opens on (identical in French; CI checks it is not accepted). Query plans: `"run": { "db", "plan": "<index>" }`
   passes when EXPLAIN QUERY PLAN uses that index and scans no table. Take-home cases are consecutive exercises
   "Take-home case, <path> (n/N)" ending with a written answer (plain exercise, model answer).
+- Runnable Python exercises (step 5): `"code": "python"` + `"run": { "python": "<hidden tests: asserts with an English
+  message>" }` (same in the French copy; optional `"start"` code that must fail). The learner's code runs in Pyodide
+  (Python 3.14, standard library only, no pandas yet) in a Web Worker, then the tests in the same namespace and a fresh
+  temporary folder (tests may write the files they need). CI (check-content) runs every answer with the same Pyodide and
+  checks that the tests fail without code. Pyodide is a devDependency copied into js/vendor/pyodide/ by `npm run build`
+  (scripts/copy-pyodide.mjs; gitignored, 13 MB, loaded on the first ▶ Run).
 - Auto-graded exercises: add `"type"` to an exercise (same in the French copy): choice, fill, order, match, groups,
   bug, scenario, logs, regex, cron, json, fixfile (fields in the js/drills.js header). regex / cron / json / fixfile keep
   the solution in `answer` (code, identical in both languages) and the explanation in `explain`. fixfile ("fix this
@@ -213,6 +219,8 @@ Read the header comment of any file before modifying it; update the header if be
 - content/logs/, content/data/ — fictional log and JSON files for the log analysis and jq exercises
 - js/filecheck.js — "fix this file" checks (Kubernetes manifests, GitHub Actions workflows, Dockerfiles), shared with CI;
   YAML read by js/vendor/js-yaml.esm.min.js (self-hosted, loaded on demand)
+- js/pyrun.js + js/pyworker.js — runnable Python exercises (Pyodide from js/vendor/pyodide/, 5 s limit per run, hidden
+  tests), pyRunner in js/practice.js
 - js/sqlrun.js + js/sqlgrade.js — runnable SQL exercises: SQLite (sql.js, js/vendor) in a Web Worker with a 5 s limit on
   a fresh copy of content/sql/<db>.sql; the grader compares the learner's result with the course answer's result
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
@@ -252,7 +260,7 @@ Read the header comment of any file before modifying it; update the header if be
 - supabase/functions/job-search/, delete-account/, cv-tailor/, explain-mistake/, follow-up-reminders/ — Edge Functions
   (cv-tailor: AI CV rewrite with Claude; explain-mistake: why a course answer is wrong, Claude Sonnet 5.5; follow-up-reminders: the opt-in daily e-mail, called by .github/workflows/reminders.yml)
 - scripts/whats-new.sh — before a deploy: what main got since your branch started, shared files, other branches
-- scripts/ — write-config.mjs (build config), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node),
+- scripts/ — write-config.mjs (build config), copy-pyodide.mjs (build: Python engine into js/vendor/pyodide/), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node),
   gen-practice-2e.mjs (rebuilds the dwh / payments datasets and the payments log, fixed seed)
 - .github/workflows/deploy.yml — build, smoke tests, publish to GitHub Pages (main only)
 - .github/workflows/deploy-functions.yml — deploy one Edge Function on demand (Run workflow)

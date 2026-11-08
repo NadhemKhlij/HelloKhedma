@@ -94,6 +94,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-09 | Runnable Python (ROADMAP 4b step 5, Python part): code runs in the browser (Pyodide, 13 MB on first use, self-hosted), hidden tests grade it, "Explain my mistake" on a failed test; 6 Python-course exercises made runnable + 2 new (top_skills, parse_salary), EN + FR; CI runs every answer. pandas and Excel not done (see ROADMAP). No setup needed |
 | 2026-11-09 | New logo (owner picked option B of 4, then "fit the site palette"): lowercase h + dot. Top bar: ink square like the buttons, dot in the path colour (readable on both themes and all six paths); tab, app and preview icons in charcoal / ivory / soft purple from scripts/gen-icons.mjs; browser bar colour follows the theme; no setup needed |
 | 2026-11-08 | Saved "Explain my mistake" answers (ROADMAP 4b row 4c): every explanation kept on the device (same mistake → shown at once, no AI call, "Ask the AI again"); fixed-choice formats shared between learners in explain_cache (no account id, 180 days); admin tile "Saved explanations reused"; privacy policy FR + EN. Owner: O38 |
 | 2026-11-08 | French interface texts split by area into js/fr/ (shell, offers, learning, exercises, cv, tracker, interview), merged by js/i18n-fr.js: the same 1,266 texts, checked identical. Fewer merge conflicts between sessions; scripts/check-i18n.pl now also reports a key found in two files and runs in CI ("Check translations"). No setup needed |

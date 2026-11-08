@@ -455,6 +455,25 @@ test("explain my mistake: the answer is saved on the device and reused for the s
   expect(calls[1].fresh).toBe(true);
 });
 
+// Runnable Python (training step 5, pyrun.js + pyworker.js, Pyodide built into js/vendor/pyodide): a wrong function
+// fails a hidden test and offers "Explain my mistake", the right one passes; ▶ Run shows what the code prints.
+test("runnable Python: hidden tests reject a wrong answer and accept the right one", async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page, "#/course/python");
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+  const item = page.locator('section[data-page="course"] [role=tabpanel] ol.grid > li').filter({ has: page.locator("[data-py-runner]") }).first();
+  const box = item.locator("textarea");
+  await box.fill("def average_salary(jobs):\n    return sum(j['salary'] for j in jobs) / len(jobs)\n\nprint(average_salary([{'salary': 10}, {'salary': 20}]))");
+  await item.getByRole("button", { name: "▶ Run" }).click();
+  await expect(item.locator("pre").first()).toContainText("15.0", { timeout: 90_000 });
+  await item.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(item).toContainText("Not yet: a test fails", { timeout: 30_000 });
+  await expect(item.locator("[data-explain]").getByRole("button", { name: /Explain my mistake/ })).toBeVisible();
+  await box.fill("def average_salary(jobs):\n    if not jobs:\n        return 0\n    return round(sum(j['salary'] for j in jobs) / len(jobs))");
+  await item.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(item).toContainText("Correct! Your code passes every test.", { timeout: 30_000 });
+});
+
 // Password reset (js/auth.js): no e-mail is sent here (Supabase rate-limits them); the checks before sending and the
 // new-password form are tested.
 test("forgot password asks for the e-mail first; the new-password form checks length and match", async ({ page }) => {

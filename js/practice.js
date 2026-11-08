@@ -6,6 +6,7 @@
 //   answer schedules the card for spaced-repetition reviews (srs.js, #/review); a link shows the cards due in the course.
 //   flipCard() and makeQuestions() are shared with the review page (review.js) and the skill check (skillcheck.js).
 // - exercises(): try first in a scratch box (not saved), reveal the answer, then grade yourself ("hk.exercises").
+//   Runnable Python exercises (exercise.run = { python: hidden tests }, training step 5): pyRunner below, pyrun.js.
 //   Runnable SQL exercises (exercise.run = { db, ordered?, minColumns?, plan? }, training step 2): ▶ Run shows the result
 //   table on the practice dataset (sqlrun.js: SQLite in a Web Worker, nothing sent anywhere) and ✓ Check compares it
 //   with the result of the course answer (sqlgrade.js); a correct result marks the exercise solved. With "start" (a
@@ -184,7 +185,7 @@ export function exercises(root, c, codeBlock, playLink) {
         h("span", { class: "w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold", style: "background:var(--soft)" }, String(i + 1)),
         h("p", { class: "font-medium flex-1" }, e.q), status),
       hint,
-      e.run ? sqlRunner(e, solvedNow, help.offer) : e.type ? drill(e, solvedNow, help.offer) : scratch,
+      e.run?.python != null ? pyRunner(e, solvedNow, help.offer) : e.run ? sqlRunner(e, solvedNow, help.offer) : e.type ? drill(e, solvedNow, help.offer) : scratch,
       help.el,
       h("div", { class: "flex flex-wrap gap-2" }, reveal,
         // A query exercise of a course with a playground (DAX.do): run the attempt on the real engine.
@@ -197,6 +198,62 @@ export function exercises(root, c, codeBlock, playLink) {
     t("Exercises marked ▶ run on {name}, a free online engine (no account). The button copies the code and opens it: paste, then run.", { name: c.playground.name }),
     c.playground.about ? h("span", { class: "mute text-xs" }, c.playground.about) : null) : null;
   root.replaceChildren(h("div", { class: "grid gap-3" }, play, count, h("ol", { class: "grid gap-3" }, c.exercises.map(one))));
+}
+
+/* ---------- runnable Python exercises (training step 5) ---------- */
+// exercise.run = { python: "<hidden tests: Python asserts>" } with code "python": ▶ Run shows what the code prints,
+// ✓ Check runs the code then the tests (pyrun.js, Pyodide in a Worker, loaded on the first click). onWrong(code,
+// verdict) after a failed check, for "Explain my mistake".
+function pyRunner(e, onSolved, onWrong = () => {}) {
+  const box = h("textarea", { class: "input font-mono min-h-[130px] w-full", rows: e.start ? Math.min(16, e.start.split("\n").length + 1) : 7, spellcheck: "false", autocapitalize: "off", autocorrect: "off",
+    "aria-label": t("Your Python code"), placeholder: t("Write your Python code, then ▶ Run (Ctrl + Enter)…") });
+  const out = h("div", { class: "grid gap-2", "aria-live": "polite" });
+  const say = (text, color) => h("p", { class: "text-sm font-medium whitespace-pre-wrap", style: color ? `color:${color}` : "" }, text);
+  const printed = (s) => (s?.trim() ? h("pre", { class: "codeblock !text-xs max-h-60 overflow-auto", dir: "ltr" }, h("code", {}, s.trimEnd())) : null);
+  const busy = (on) => { run.disabled = check.disabled = on; };
+  const show = (...els) => out.replaceChildren(...els.filter(Boolean));
+  const fail = (err) => say(err.message === "timeout" ? t("Your code ran for more than 5 seconds and was stopped (an endless loop?).")
+    : t("Python could not be loaded. Check your connection and try again."), "#e0508b");
+  async function go(withTests) {
+    if (!box.value.trim()) { box.focus(); return; }
+    busy(true);
+    const { runPython, pythonLoaded } = await import("./pyrun.js");
+    show(h("p", { class: "mute text-sm" }, pythonLoaded() ? (withTests ? t("Checking…") : t("Running…"))
+      : t("Loading Python in your browser (about 13 MB, only the first time)…")));
+    try {
+      const r = await runPython(box.value, withTests ? e.run.python : "");
+      if (r.error) {
+        show(say(t("Python error:"), "#e0508b"), printed(r.error), printed(r.stdout));
+        if (withTests) onWrong(box.value, `The code raises an error: ${r.error}`);
+      } else if (!withTests) {
+        show(r.stdout.trim() ? printed(r.stdout) : h("p", { class: "mute text-sm" }, t("The code ran and printed nothing. Call your function with print(…) to see a result.")));
+      } else if (r.failed) {
+        show(say(t("Not yet: a test fails: {msg}", { msg: r.failed }), "#f08a24"), printed(r.stdout));
+        onWrong(box.value, `A hidden test fails: ${r.failed}`);
+      } else {
+        onSolved();
+        show(say(t("✓ Correct! Your code passes every test."), "#18a999"), printed(r.stdout));
+      }
+    } catch (err) { show(fail(err)); }
+    finally { busy(false); }
+  }
+  if (e.start) box.value = e.start;
+  box.addEventListener("keydown", (ev) => {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") { ev.preventDefault(); go(false); }
+    // Enter keeps the indentation of the line (4 more spaces after a colon), as Python needs. Tab still moves focus.
+    if (ev.key === "Enter" && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey) {
+      const { selectionStart: a, selectionEnd: b, value } = box;
+      const line = value.slice(value.lastIndexOf("\n", a - 1) + 1, a);
+      const indent = line.match(/^ */)[0] + (/:\s*$/.test(line) ? "    " : "");
+      ev.preventDefault(); box.setRangeText("\n" + indent, a, b, "end");
+    }
+  });
+  const reset = e.start ? h("button", { type: "button", class: "btn-ghost", onClick: () => { box.value = e.start; show(); box.focus(); } }, t("↺ Start again")) : null;
+  const run = h("button", { type: "button", class: "btn-ghost", onClick: () => go(false) }, t("▶ Run"));
+  const check = h("button", { type: "button", class: "btn", onClick: () => go(true) }, t("✓ Check my answer"));
+  return h("div", { class: "grid gap-2", "data-py-runner": true },
+    h("p", { class: "mute text-xs" }, t("Runs in your browser (Python 3.14, standard library). ✓ Check runs hidden tests on your code.")),
+    box, h("div", { class: "flex flex-wrap gap-2" }, run, check, reset), out);
 }
 
 /* ---------- interview questions ---------- */

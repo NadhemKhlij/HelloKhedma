@@ -409,31 +409,36 @@
     {
       "q": "À partir d’une liste de dictionnaires d’offres avec une clé 'salary', renvoyez le salaire moyen arrondi à l’euro près.",
       "code": "python",
-      "answer": "def average_salary(jobs):\n    if not jobs:\n        return 0\n    return round(sum(j[\"salary\"] for j in jobs) / len(jobs))"
+      "answer": "def average_salary(jobs):\n    if not jobs:\n        return 0\n    return round(sum(j[\"salary\"] for j in jobs) / len(jobs))",
+      "run": {"python": "assert average_salary([{\"salary\": 30000}, {\"salary\": 35000}, {\"salary\": 40001}]) == 35000, \"average_salary of 30000, 35000 and 40001 should be 35000 (rounded to the euro)\"\nassert isinstance(average_salary([{\"salary\": 1}, {\"salary\": 2}]), int), \"round the average to a whole number of euros\"\nassert average_salary([]) == 0, \"average_salary([]) should return 0 instead of failing on an empty list\""}
     },
     {
       "q": "Comptez le nombre d’occurrences de chaque mot dans une phrase (sans tenir compte de la casse).",
       "hint": "Découpez, passez en minuscules, et utilisez un dict ou collections.Counter.",
       "code": "python",
-      "answer": "from collections import Counter\n\ndef word_counts(text):\n    return Counter(text.lower().split())"
+      "answer": "from collections import Counter\n\ndef word_counts(text):\n    return Counter(text.lower().split())",
+      "run": {"python": "assert dict(word_counts(\"Data data SQL\")) == {\"data\": 2, \"sql\": 1}, \"word_counts('Data data SQL') should give {'data': 2, 'sql': 1}\"\nassert dict(word_counts(\"\")) == {}, \"an empty sentence has no words\""}
     },
     {
       "q": "Écrivez une fonction qui lit un fichier CSV d’offres et renvoie les intitulés des postes situés à Paris.",
       "hint": "csv.DictReader renvoie un dict par ligne.",
       "code": "python",
-      "answer": "import csv\n\ndef paris_titles(path):\n    with open(path, encoding=\"utf-8\", newline=\"\") as f:\n        return [row[\"title\"] for row in csv.DictReader(f) if row[\"city\"] == \"Paris\"]"
+      "answer": "import csv\n\ndef paris_titles(path):\n    with open(path, encoding=\"utf-8\", newline=\"\") as f:\n        return [row[\"title\"] for row in csv.DictReader(f) if row[\"city\"] == \"Paris\"]",
+      "run": {"python": "with open(\"jobs.csv\", \"w\", encoding=\"utf-8\", newline=\"\") as _f:\n    _f.write(\"title,city\\nData Engineer,Paris\\nData Analyst,Lyon\\nBI Developer,Paris\\n\")\nassert paris_titles(\"jobs.csv\") == [\"Data Engineer\", \"BI Developer\"], \"for a CSV with Paris, Lyon, Paris rows, the result should be ['Data Engineer', 'BI Developer'] in file order\""}
     },
     {
       "q": "Écrivez count_errors(path) qui renvoie le nombre de lignes contenant ERROR dans un fichier de logs, et un test pytest qui utilise la fixture tmp_path.",
       "hint": "pathlib.Path.read_text().splitlines() ; tmp_path fournit un dossier temporaire.",
       "code": "python",
-      "answer": "from pathlib import Path\n\ndef count_errors(path: str) -> int:\n    return sum(1 for line in Path(path).read_text().splitlines() if \"ERROR\" in line)\n\n\ndef test_count_errors(tmp_path):\n    log = tmp_path / \"app.log\"\n    log.write_text(\"INFO ok\\nERROR boom\\nERROR again\\n\")\n    assert count_errors(log) == 2"
+      "answer": "from pathlib import Path\n\ndef count_errors(path: str) -> int:\n    return sum(1 for line in Path(path).read_text().splitlines() if \"ERROR\" in line)\n\n\ndef test_count_errors(tmp_path):\n    log = tmp_path / \"app.log\"\n    log.write_text(\"INFO ok\\nERROR boom\\nERROR again\\n\")\n    assert count_errors(log) == 2",
+      "run": {"python": "with open(\"app.log\", \"w\", encoding=\"utf-8\") as _f:\n    _f.write(\"INFO ok\\nERROR boom\\nWARN slow\\nERROR again\\n\")\nassert count_errors(\"app.log\") == 2, \"a log with 2 ERROR lines out of 4 should give 2\""}
     },
     {
       "q": "Écrivez un générateur read_jsonl(path) qui renvoie un dict par ligne d’un fichier JSON Lines en ignorant les lignes vides.",
       "hint": "Parcourez le fichier ouvert ligne par ligne et appliquez json.loads à chaque ligne non vide.",
       "code": "python",
-      "answer": "import json\nfrom pathlib import Path\n\ndef read_jsonl(path: Path):\n    with path.open(encoding=\"utf-8\") as f:\n        for line in f:\n            if line.strip():\n                yield json.loads(line)"
+      "answer": "import json\nfrom pathlib import Path\n\ndef read_jsonl(path: Path):\n    with path.open(encoding=\"utf-8\") as f:\n        for line in f:\n            if line.strip():\n                yield json.loads(line)",
+      "run": {"python": "import types as _types\nfrom pathlib import Path as _Path\n_Path(\"offers.jsonl\").write_text('{\"id\": 1}\\n\\n{\"id\": 2}\\n', encoding=\"utf-8\")\n_g = read_jsonl(_Path(\"offers.jsonl\"))\nassert isinstance(_g, _types.GeneratorType), \"read_jsonl should be a generator (use yield)\"\nassert list(_g) == [{\"id\": 1}, {\"id\": 2}], \"the blank line should be skipped: expected [{'id': 1}, {'id': 2}]\""}
     },
     {
       "q": "Récupérez tous les éléments d’une API paginée par curseur : chaque réponse contient \"items\" et \"next_cursor\" (null sur la dernière page).",
@@ -445,7 +450,8 @@
       "q": "Créez une dataclass Offer(title, salary_min, salary_max) qui lève ValueError quand salary_min > salary_max et expose une propriété midpoint.",
       "hint": "Validez dans __post_init__ ; @property pour la valeur calculée.",
       "code": "python",
-      "answer": "from dataclasses import dataclass\n\n@dataclass\nclass Offer:\n    title: str\n    salary_min: int\n    salary_max: int\n\n    def __post_init__(self) -> None:\n        if self.salary_min > self.salary_max:\n            raise ValueError(\"salary_min must be <= salary_max\")\n\n    @property\n    def midpoint(self) -> float:\n        return (self.salary_min + self.salary_max) / 2"
+      "answer": "from dataclasses import dataclass\n\n@dataclass\nclass Offer:\n    title: str\n    salary_min: int\n    salary_max: int\n\n    def __post_init__(self) -> None:\n        if self.salary_min > self.salary_max:\n            raise ValueError(\"salary_min must be <= salary_max\")\n\n    @property\n    def midpoint(self) -> float:\n        return (self.salary_min + self.salary_max) / 2",
+      "run": {"python": "assert Offer(\"Data Engineer\", 40000, 50000).midpoint == 45000, \"the midpoint of 40000 and 50000 should be 45000\"\ntry:\n    Offer(\"Data Engineer\", 60000, 50000)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"Offer with salary_min > salary_max should raise ValueError\")"}
     },
     {
       "q": "Écrivez slugify(text) (\"Data Engineer\" -> \"data-engineer\", \"  BI / Reporting \" -> \"bi-reporting\") et un test pytest paramétré qui couvre ces cas et la chaîne vide.",
@@ -476,7 +482,9 @@
       "snippet": "prices = {\"apple\": 1.2, \"pear\": 0.8}\nfor name, price in prices:\n    print(f\"{name}: {price:.2f} €\")",
       "fix": "prices = {\"apple\": 1.2, \"pear\": 0.8}\nfor name, price in prices.items():\n    print(f\"{name}: {price:.2f} €\")",
       "answer": "Parcourir un dict ne donne que ses clés (\"apple\", \"pear\"), et Python essaie de découper chaque chaîne en deux noms. .items() donne des paires (clé, valeur)."
-    }
+    },
+    {"q": "Écrivez top_skills(offers, skills, n=3) : offers est une liste de textes d’offres, skills une liste de noms de compétences ; renvoyez les n compétences présentes dans le plus d’offres (sans tenir compte de la casse, une compétence compte une fois par offre), la plus fréquente en premier, les égalités dans l’ordre de la liste skills.", "hint": "Parcourez les offres ; pour chacune, l’ensemble des compétences dont le nom en minuscules est dans le texte en minuscules ; comptez avec un Counter ; triez par nombre (décroissant), puis par position dans skills.", "code": "python", "answer": "from collections import Counter\n\ndef top_skills(offers, skills, n=3):\n    counts = Counter()\n    for text in offers:\n        low = text.lower()\n        counts.update({s for s in skills if s.lower() in low})\n    ranked = sorted(skills, key=lambda s: (-counts[s], skills.index(s)))\n    return [s for s in ranked if counts[s]][:n]", "run": {"python": "offers = [\"Data Analyst: SQL, Power BI, Excel\", \"SQL and Python, Airflow\", \"Python, sql, Tableau\", \"Excel expert\"]\nskills = [\"Python\", \"SQL\", \"Excel\", \"Power BI\", \"Airflow\"]\nassert top_skills(offers, skills) == [\"SQL\", \"Python\", \"Excel\"], \"expected ['SQL', 'Python', 'Excel'] (SQL in 3 offers, Python 2, Excel 2: ties keep the skills order)\"\nassert top_skills(offers, skills, n=1) == [\"SQL\"], \"n=1 should return only the most frequent skill\"\nassert top_skills([\"SQL SQL SQL\"], [\"SQL\", \"Python\"]) == [\"SQL\"], \"a skill counts once per offer, and skills found nowhere are left out\""}, "explain": "La compréhension d’ensemble fait compter chaque compétence une fois par offre, quel que soit le nombre de mentions. Trier la liste skills avec la clé (-nombre, position) donne un ordre stable et explicable. La recherche de sous-chaîne a ses limites (« R » ou « Go » se trouvent dans d’autres mots) : en vrai, cherchez des mots entiers avec une regex comme \\b, comme le fait la page CV."},
+    {"q": "Écrivez parse_salary(text) qui transforme les textes de salaire des offres en montant annuel en euros (int), ou None s’il n’y a pas de nombre : « 45k€ » → 45000, « 45 000 € » → 45000, « 50,000 EUR » → 50000, « Competitive » → None.", "hint": "Mettez le texte en minuscules, retirez les espaces et séparateurs de milliers (espace, virgule), trouvez le nombre avec une regex, multipliez par 1000 s’il est suivi de k.", "code": "python", "answer": "import re\n\ndef parse_salary(text):\n    t = text.lower().replace(\" \", \"\").replace(\"\\u202f\", \"\").replace(\",\", \"\")\n    m = re.search(r\"(\\d+(?:\\.\\d+)?)(k?)\", t)\n    if not m:\n        return None\n    value = float(m.group(1))\n    if m.group(2) == \"k\":\n        value *= 1000\n    return int(value)", "run": {"python": "for text, want in [(\"45k€\", 45000), (\"45 000 €\", 45000), (\"50,000 EUR\", 50000), (\"Competitive\", None), (\"52.5k\", 52500)]:\n    got = parse_salary(text)\n    assert got == want, f\"parse_salary({text!r}) should return {want!r}, not {got!r}\""}, "explain": "Normaliser d’abord (minuscules, sans espaces ni virgules) ne laisse qu’un motif simple : des chiffres, une partie décimale facultative et un k facultatif. Renvoyer None pour « Competitive » (au lieu de 0) garde les salaires inconnus hors des moyennes. Les vraies offres sont plus désordonnées (fourchettes 45-55k, montants mensuels, le 45 000 € français avec une espace fine insécable) : le lecteur de salaires de HelloKhedma gère ces cas, et chaque nouveau cas devrait venir avec un test comme ceux-ci."}
   ],
   "interview": [
     {

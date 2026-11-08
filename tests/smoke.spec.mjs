@@ -647,11 +647,15 @@ test("French interface and back to English", async ({ page }) => {
   await expect(page.locator('#nav a[data-route="home"]')).toContainText("Home", { timeout: 15_000 });
 });
 
-test("phone width: no page scrolls sideways", async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 812 });
-  for (const route of ["", "offers", "training", "ai", "cv", "interview", "applications"]) {
-    await open(page, `#/${route}`);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow, `#/${route} is wider than the screen`).toBeLessThanOrEqual(0);
-  }
-});
+// In English and in French (longer words: "Connexion", "Aucun parcours pour l’instant" once made Home 50 px too wide).
+for (const lang of ["en", "fr"]) {
+  test(`phone width (${lang}): no page scrolls sideways`, async ({ page }) => {
+    await page.addInitScript((l) => localStorage.setItem("hk.lang", l), lang);
+    await page.setViewportSize({ width: 375, height: 812 });
+    for (const route of ["", "offers", "training", "ai", "cv", "interview", "applications", "skillcheck", "review"]) {
+      await open(page, `#/${route}`);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, `#/${route} is wider than the screen (${lang})`).toBeLessThanOrEqual(0);
+    }
+  });
+}

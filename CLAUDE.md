@@ -157,7 +157,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/i18n.js — interface language (t, tn, FR/EN switch, static page translation); js/i18n-fr.js — French texts
 - js/supabase.js — Supabase client and runtime CONFIG
 - js/config.example.js — template for js/config.js (generated in production, gitignored)
-- js/auth.js — sign-in dialog
+- js/auth.js — sign-in dialog, "Forgot password?" (reset e-mail) and the new-password dialog (reset link or Account →
+  Change password); the reset e-mail text is supabase/templates/reset-password.html (pasted in Supabase by the owner)
 - js/store.js — LocalStore / CloudStore and guest import
 - js/tracker.js — tracker board, details dialog, stats, CSV, calendar files
 - js/jobs.js — client for the job-search function, job-board fallback links

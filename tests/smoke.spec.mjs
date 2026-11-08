@@ -329,6 +329,27 @@ test("runnable SQL exercise: a correct query written differently is accepted, a 
   await expect(runner.locator("table")).toContainText("Paris");
 });
 
+// Password reset (js/auth.js): no e-mail is sent here (Supabase rate-limits them); the checks before sending and the
+// new-password form are tested.
+test("forgot password asks for the e-mail first; the new-password form checks length and match", async ({ page }) => {
+  await open(page, "#/");
+  await page.locator("#authOpen").click();
+  await page.locator("#doForgot").click();
+  await expect(page.locator("#authMsg")).toContainText("Enter your email address above first");
+  await page.locator("#authClose").click();
+  await open(page, "#/account");
+  await expect(page.locator("#changePassword")).toBeHidden();
+  await page.evaluate(() => document.querySelector("#pwDialog").showModal());
+  await page.locator("#newPassword").fill("short");
+  await page.locator("#newPassword2").fill("short");
+  await page.locator("#pwSave").click();
+  await expect(page.locator("#pwMsg")).toContainText("at least 8 characters");
+  await page.locator("#newPassword").fill("long enough 1");
+  await page.locator("#newPassword2").fill("long enough 2");
+  await page.locator("#pwSave").click();
+  await expect(page.locator("#pwMsg")).toContainText("two passwords are different");
+});
+
 // Admin page (js/admin.js): a guest gets the sign-in message, no statistics, and no Admin link on the Account page.
 test("admin page: guests see no statistics and no admin link", async ({ page }) => {
   await open(page, "#/admin");

@@ -1,0 +1,25 @@
+# TEMPORARY (branch probe-mk-links only, never merged): checks the links of the Digital Marketing path from GitHub,
+# because the Claude session's network cannot reach these sites.
+name: Probe marketing links
+on:
+  push:
+    branches: [probe-mk-links]
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: |
+          node -e '
+          const fs = require("fs");
+          const seed = fs.readFileSync("supabase/seed.sql", "utf8").split("\n").filter((l) => /\x27mk/.test(l) || /"https/.test(l));
+          const mk = []; let on = false;
+          for (const l of fs.readFileSync("supabase/seed.sql", "utf8").split("\n")) { if (/pg_temp\.track\(\x27mk\x27/.test(l)) on = true; else if (/pg_temp\.track\(/.test(l)) on = false; if (on) mk.push(l); }
+          const urls = new Set([...mk.join("\n").matchAll(/https?:\/\/[^"\s]+/g)].map((m) => m[0]));
+          for (const f of ["content/projects/mk.json", "content/projects/fr/mk.json"]) for (const p of JSON.parse(fs.readFileSync(f)).projects) for (const d of p.data) urls.add(d.url);
+          (async () => { let bad = 0;
+            for (const u of urls) { try { const r = await fetch(u, { redirect: "follow", headers: { "User-Agent": "Mozilla/5.0 (link check)" }, signal: AbortSignal.timeout(20000) }); console.log(r.status, r.url === u ? "" : "-> " + r.url, u); if (r.status >= 400) bad++; } catch (e) { bad++; console.log("ERR", u, e.message); } }
+            console.log(`${urls.size - bad}/${urls.size} reachable`); })();'

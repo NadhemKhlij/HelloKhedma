@@ -106,7 +106,7 @@ legal notice updated (FR + EN). Sources called from the browser receive the visi
 | Done | Smarter duplicates | The same offer from 2–3 sources shown once ("(H/F)", accents, "SAS"… ignored) | — | S | **Done 2026-11-08** |
 | Done | Adzuna salary statistics | Home: median advertised salary, middle half, 12-month trend and distribution for the path's main title | Adzuna keys (have) | S | **Done 2026-11-08** |
 | Done | Jooble | Large aggregator (many boards); key works on jooble.org | Free key (have) | S | **Done 2026-11-08** |
-| 1 | La bonne alternance (French government) | Work-study offers (alternance, apprenticeship) and companies likely to take apprentices: juniors and career changers | Free token (account on api.apprentissage.beta.gouv.fr, to confirm) | M | Next: owner gets the token |
+| 1 | La bonne alternance (French government) | Work-study offers (alternance, apprenticeship) and companies likely to take apprentices: juniors and career changers | Free token (account on api.apprentissage.beta.gouv.fr, to confirm) | M | **Done 2026-11-09** (job-search function, ROME codes per path, France only) |
 | 2 | Recruitee + Personio career pages | "Companies I follow" for many French / German start-ups and SMEs (public feeds, no key) | None | S | **Done 2026-11-09** (bunq, tado° suggested) |
 | 3 | Adzuna "top companies" + "what's hot" for the path | Home: who hires most for the path, and the volume trend of offers | Adzuna keys (have) | S | Planned |
 | 4 | Arbeitnow | Europe, English-speaking and remote tech jobs, visa-sponsorship flag | Free, no key (check terms) | S | **Done 2026-11-09** (job-search function, visa-sponsorship badge; no visa field in its data: read from its visa_sponsorship=true page) |

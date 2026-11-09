@@ -1,5 +1,14 @@
 // Supabase Edge Function: job-search
-// Proxies France Travail, Adzuna, RapidAPI JSearch and Jooble so API keys never reach the browser.
+// Proxies France Travail, Adzuna, RapidAPI JSearch and Jooble so API keys never reach the browser, and two free key-less
+// sources added 2026-11-09 that cannot (Himalayas: no CORS) or should not (Arbeitnow: 2 MB pages) be called from phones:
+//   Himalayas (himalayas.app/jobs/api/search, remote jobs worldwide): kept when the job is open to the user's country or
+//     worldwide; its terms: the apply link must be its applicationLink (we use it as the job URL), credit + link back
+//     (offers.js CREDITS), no passing the jobs on to other job boards (we only show them). Public allowance, no key.
+//   Arbeitnow (arbeitnow.com/api/job-board-api, Europe, mostly Germany, visa-sponsorship filter): no search, so the first
+//     pages (300 jobs each) and the visa-sponsorship page are read at most once an hour into job_search_cache
+//     ("arbeitnow-v1") and searched here by title; "please do not abuse, link back appreciated" (CREDITS links back).
+//     Outside Germany, Austria and Switzerland only its remote jobs are kept.
+// Both always run with "all" (no secret needed); their jobs mention "visa sponsorship" in `text` when Arbeitnow says so.
 //
 // Secrets (supabase secrets set ...), each source is optional:
 //   FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET
@@ -9,7 +18,7 @@
 //   JOOBLE_API_KEY                  (jooble.org/api/about, free key by e-mail; aggregator, short snippets)
 //   JOOBLE_HOST                     optional, normally unset: Jooble API host (default jooble.org; fr.jooble.org answers
 //                                   403 to a jooble.org key, tested 2026-11-08)
-//   DEFAULT_PROVIDER                optional: all | francetravail | adzuna | jsearch | jooble (default all)
+//   DEFAULT_PROVIDER                optional: all | francetravail | adzuna | jsearch | jooble | himalayas | arbeitnow (default all)
 //                                   "all" uses every source whose secrets are set.
 //   CACHE_TTL_HOURS                 optional: how long identical searches are served from cache (default 6)
 //   RATE_LIMIT_GUEST                optional: searches per hour per IP for guests (default 20)
@@ -39,7 +48,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Source = "francetravail" | "adzuna" | "jsearch" | "jooble";
+type Source = "francetravail" | "adzuna" | "jsearch" | "jooble" | "himalayas" | "arbeitnow";
 type Job = {
   id: string;
   title: string;
@@ -140,6 +149,8 @@ const configured: Record<Source, () => boolean> = {
   francetravail: () => Boolean(Deno.env.get("FRANCE_TRAVAIL_CLIENT_ID") && Deno.env.get("FRANCE_TRAVAIL_CLIENT_SECRET")),
   adzuna: () => Boolean(Deno.env.get("ADZUNA_APP_ID") && Deno.env.get("ADZUNA_APP_KEY")),
   jsearch: () => Boolean(Deno.env.get("RAPIDAPI_KEY")),
+  himalayas: () => true,
+  arbeitnow: () => true,
   jooble: () => Boolean(Deno.env.get("JOOBLE_API_KEY")),
 };
 
@@ -350,6 +361,79 @@ async function jooble(q: string, where: string, country: string, page: number, _
   }));
 }
 
+// ---------- Himalayas (remote jobs) ----------
+// Names Himalayas uses in locationRestrictions, per country code (worldwide jobs have no restriction).
+const HIMALAYAS_NAMES: Record<string, string[]> = { us: ["United States", "USA"], gb: ["United Kingdom", "UK"] };
+const EUROPE = new Set(["fr", "gb", "de", "nl", "at", "be", "ch", "es", "it", "pl"]);
+async function himalayas(q: string, _where: string, country: string, page: number, f: Filters): Promise<Job[]> {
+  const res = await fetch(`https://himalayas.app/jobs/api/search?q=${encodeURIComponent(q)}&page=${page}`, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`Himalayas returned ${res.status}: ${(await providerMessage(res)).slice(0, 100)}`);
+  const data = await res.json();
+  const names = [...(HIMALAYAS_NAMES[country] ?? []), COUNTRY_NAMES[country]].filter(Boolean).map((n) => n.toLowerCase());
+  const open = (r: string[]) => !r?.length || r.some((x) => names.includes(String(x).toLowerCase())
+    || (EUROPE.has(country) && /europe|emea/i.test(String(x))));
+  const since = f.days ? Date.now() - f.days * 86400_000 : 0;
+  return (data?.jobs ?? []).filter((x: Raw) => x.applicationLink && open(x.locationRestrictions) && (!since || x.pubDate * 1000 >= since))
+    .map((x: Raw): Job => ({
+      id: String(x.guid ?? x.applicationLink),
+      title: strip(x.title, 200),
+      company: strip(x.companyName, 120),
+      location: x.locationRestrictions?.length ? `Remote (${x.locationRestrictions.slice(0, 4).join(", ")})` : "Remote (worldwide)",
+      url: x.applicationLink, // required by Himalayas' terms
+      posted: x.pubDate ? new Date(x.pubDate * 1000).toISOString() : null,
+      snippet: strip(x.excerpt || x.description),
+      text: strip(["full remote", x.employmentType, ...(x.seniority ?? []), ...(x.categories ?? []), x.description].filter(Boolean).join(" "), 4000),
+      source: "himalayas",
+      salary: salaryText(x.minSalary, x.maxSalary, String(x.currency ?? ""), x.salaryPeriod === "annual" || !x.salaryPeriod ? "year" : String(x.salaryPeriod)),
+    }));
+}
+
+// ---------- Arbeitnow (Europe, mostly Germany) ----------
+type Arbeit = { title: string; company: string; location: string; remote: boolean; url: string; created: number; text: string; visa: boolean };
+async function arbeitnowPages(): Promise<Arbeit[]> {
+  const key = "arbeitnow-v1";
+  if (admin) {
+    const { data: hit } = await admin.from("job_search_cache").select("results")
+      .eq("key", key).gte("created_at", new Date(Date.now() - 3600_000).toISOString()).maybeSingle();
+    if (hit?.results?.items) return hit.results.items as Arbeit[];
+  }
+  const get = async (qs: string) => {
+    const res = await fetch(`https://www.arbeitnow.com/api/job-board-api${qs}`, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Arbeitnow returned ${res.status}`);
+    return ((await res.json())?.data ?? []) as Raw[];
+  };
+  const [p1, p2, visa] = await Promise.all([get("?page=1"), get("?page=2").catch(() => []), get("?visa_sponsorship=true").catch(() => [])]);
+  const visaSlugs = new Set(visa.map((x) => x.slug));
+  const seen = new Set<string>();
+  const items = [...p1, ...p2, ...visa].filter((x) => x?.url && !seen.has(x.slug) && seen.add(x.slug)).map((x): Arbeit => ({
+    title: strip(x.title, 200), company: strip(x.company_name, 120), location: strip(x.location, 120), remote: Boolean(x.remote),
+    url: x.url, created: Number(x.created_at) || 0, visa: visaSlugs.has(x.slug),
+    text: strip([...(x.job_types ?? []), ...(x.tags ?? []), x.description].join(" "), 1500),
+  }));
+  if (admin && items.length) await admin.from("job_search_cache").upsert({ key, results: { items }, created_at: new Date().toISOString() });
+  return items;
+}
+async function arbeitnow(q: string, where: string, country: string, _page: number, f: Filters): Promise<Job[]> {
+  const words = fold(q).split(/[^a-z0-9+#]+/).filter((w) => w.length > 1);
+  if (!words.length) return [];
+  const local = ["de", "at", "ch"].includes(country);
+  const since = f.days ? Date.now() - f.days * 86400_000 : 0;
+  const place = fold(where);
+  return (await arbeitnowPages())
+    .filter((x) => words.every((w) => fold(x.title).includes(w)))
+    .filter((x) => (local ? !place || fold(x.location).includes(place) || x.remote : x.remote))
+    .filter((x) => !since || x.created * 1000 >= since)
+    .slice(0, 40)
+    .map((x): Job => ({
+      id: x.url, title: x.title, company: x.company, location: x.remote ? `${x.location} (remote)` : x.location, url: x.url,
+      posted: x.created ? new Date(x.created * 1000).toISOString() : null,
+      snippet: x.text.slice(0, 280),
+      text: `${x.remote ? "full remote " : ""}${x.visa ? "visa sponsorship " : ""}${x.text}`,
+      source: "arbeitnow",
+      salary: "",
+    }));
+}
+
 // Adzuna salary statistics for one job title in one country (Home market pulse): the distribution of advertised
 // salaries (histogram: lower bound of each band → number of offers) and the average advertised salary per month.
 async function salaryStats(q: string, country: string) {
@@ -412,15 +496,15 @@ Deno.serve(async (req) => {
   const filters = readFilters(body.filters);
   const wanted = String(body.provider ?? Deno.env.get("DEFAULT_PROVIDER") ?? "all");
   // France Travail comes first so that, for an offer listed on several sources, its full description wins the dedupe.
-  const ALL: Source[] = ["francetravail", "adzuna", "jsearch", "jooble"];
+  const ALL: Source[] = ["francetravail", "adzuna", "jsearch", "jooble", "himalayas", "arbeitnow"];
   const providers: Source[] = wanted === "all" || wanted === "both"
     ? ALL.filter((p) => configured[p]() && !(p === "francetravail" && country !== "fr"))
     : ALL.includes(wanted as Source) ? [wanted as Source] : ["adzuna"];
   if (!providers.length) return json({ error: "No job source is configured for this country." }, 502);
 
   // Guard and cache need the migration 20261028000200_job_search_guard.sql; if it is missing we log and carry on.
-  // "v2": results now carry `text`; bumping the key skips entries cached before that change.
-  const cacheKey = ["v2", providers.join("+"), country, query.toLowerCase(), where.toLowerCase(), page,
+  // "v3": Himalayas and Arbeitnow joined "all" (2026-11-09); bumping the key skips entries cached before that change.
+  const cacheKey = ["v3", providers.join("+"), country, query.toLowerCase(), where.toLowerCase(), page,
     filters.contract, filters.remote, filters.days].join("|");
   if (admin) {
     const { bucket, limit } = await rateBucket(req);
@@ -443,7 +527,7 @@ Deno.serve(async (req) => {
     else if (hit) return json({ ...hit.results, cached: true });
   }
 
-  const fetchers = { francetravail: franceTravail, adzuna, jsearch, jooble };
+  const fetchers = { francetravail: franceTravail, adzuna, jsearch, jooble, himalayas, arbeitnow };
   const results = await Promise.allSettled(providers.map((p) => fetchers[p](query, where, country, page, filters)));
 
   const warnings: string[] = [];

@@ -134,6 +134,77 @@ test("offers: age, level and trust warnings, and their filters", async ({ page }
   await expect(cards.first()).toContainText("Data Engineer");
 });
 
+// More job sources (2026-11-09). No real provider is called: every source is answered by the test.
+const fake = (body, type = "application/json") => ({ status: 200, contentType: type, headers: { "Access-Control-Allow-Origin": "*" },
+  body: typeof body === "string" ? body : JSON.stringify(body) });
+test("job search: Himalayas and Arbeitnow results, visa badge, credits and More offers", async ({ page }) => {
+  const pages = [];
+  const day = (n) => new Date(Date.now() - n * 86_400_000).toISOString();
+  await page.route("**/functions/v1/job-search", async (route) => {
+    const b = route.request().postDataJSON(); pages.push(b.page);
+    const jobs = b.page === 1 ? [
+      { id: "h1", source: "himalayas", title: "Data Engineer", company: "Mutt Data", location: "Remote (worldwide)", url: "https://himalayas.app/companies/x/jobs/y?utm_source=api",
+        posted: day(1), snippet: "Python and SQL.", text: "full remote Python SQL Airflow", salary: "" },
+      { id: "a1", source: "arbeitnow", title: "Data Engineer (m/w/d)", company: "Flaconi", location: "Berlin", url: "https://www.arbeitnow.com/jobs/companies/x/y",
+        posted: day(2), snippet: "Spark.", text: "visa sponsorship Spark Python", salary: "" },
+    ] : b.page === 2 ? [{ id: "h2", source: "himalayas", title: "Senior Data Engineer", company: "Other", location: "Remote (Europe)", url: "https://himalayas.app/companies/z/jobs/w",
+        posted: day(3), snippet: "", text: "full remote dbt", salary: "" }] : [];
+    await route.fulfill(fake({ jobs, warnings: [] }));
+  });
+  await open(page, "#/offers");
+  await page.locator("#searchForm").evaluate((f) => f.requestSubmit());
+  const cards = page.locator("#results > li");
+  await expect(cards).toHaveCount(2);
+  await expect(cards.filter({ hasText: "Flaconi" })).toContainText("Visa sponsorship");
+  await expect(cards.filter({ hasText: "Mutt Data" })).not.toContainText("Visa sponsorship");
+  await expect(page.locator("#sourceCredits")).toContainText("Himalayas");
+  await expect(page.locator("#sourceCredits")).toContainText("Arbeitnow");
+  await page.locator("#moreBtn").click();
+  await expect(cards).toHaveCount(3);
+  expect(pages).toEqual([1, 2]);
+  await page.locator("#moreBtn").click();
+  await expect(page.locator("#searchMsg")).toContainText("No more offers");
+  await expect(page.locator("#moreBtn")).toBeHidden();
+});
+
+test("remote jobs: Remote OK offers are listed, credited by name and linked with the referrer kept", async ({ page }) => {
+  await page.route("https://remotive.com/**", (r) => r.fulfill(fake({ jobs: [] })));
+  await page.route("https://jobicy.com/**", (r) => r.fulfill(fake({ jobs: [] })));
+  await page.route("https://remoteok.com/**", (r) => r.fulfill(fake([{ legal: "API Terms of Service" },
+    { id: "77", position: "Data Engineer", company: "Nomad Co", location: "", url: "https://remoteOK.com/remote-jobs/77",
+      date: new Date().toISOString(), tags: ["data"], description: "<p>Python, SQL</p>", salary_min: 60000, salary_max: 80000 }])));
+  await open(page, "#/offers");
+  await page.evaluate(() => localStorage.removeItem("hk.remoteCache"));
+  await page.locator("#tabRemote").click();
+  await page.locator("#remoteBtn").click();
+  const card = page.locator("#results > li").filter({ hasText: "Nomad Co" });
+  await expect(card).toContainText("Remote OK");
+  await expect(card.getByRole("link", { name: "View offer" })).toHaveAttribute("rel", "noopener");
+  await expect(page.locator("#sourceCredits").getByRole("link", { name: "Remote OK" })).toHaveAttribute("href", "https://remoteok.com");
+});
+
+test("companies: Recruitee and Personio careers feeds are read", async ({ page }) => {
+  await page.route("https://acme.recruitee.com/api/offers/", (r) => r.fulfill(fake({ offers: [{ id: 5, title: "Data Analyst", company_name: "Acme",
+    careers_url: "https://acme.recruitee.com/o/data-analyst", published_at: "2026-11-01 10:00:00 UTC", location: "Amsterdam",
+    description: "<p>SQL and Power BI</p>", requirements: "", remote: true }] })));
+  await page.route("https://beta.jobs.personio.de/xml?language=en", (r) => r.fulfill(fake(`<?xml version="1.0" encoding="UTF-8"?><workzag-jobs>
+    <position><id>42</id><subcompany>Beta GmbH</subcompany><office>Berlin</office><name>DevOps Engineer</name>
+    <jobDescriptions><jobDescription><name>Tasks</name><value><![CDATA[<p>Kubernetes and Terraform</p>]]></value></jobDescription></jobDescriptions>
+    <employmentType>permanent</employmentType><schedule>full-time</schedule><createdAt>2026-11-02T09:00:00+00:00</createdAt></position></workzag-jobs>`, "text/xml")));
+  await open(page, "#/offers");
+  const got = await page.evaluate(async () => {
+    const { fetchCompanyJobs, parseCareersLink } = await import("/js/companies.js");
+    const all = () => true;
+    const r = await fetchCompanyJobs({ provider: "recruitee", slug: "acme", name: "Acme" }, all, "t");
+    const p = await fetchCompanyJobs({ provider: "personio", slug: "beta", name: "Beta" }, all, "t");
+    return { r: r.map((j) => [j.title, j.url, j.text.includes("Power BI")]), p: p.map((j) => [j.title, j.url, j.text.includes("Kubernetes")]),
+      links: [parseCareersLink("https://acme.recruitee.com/o/x"), parseCareersLink("https://beta.jobs.personio.com/job/1")] };
+  });
+  expect(got.r).toEqual([["Data Analyst", "https://acme.recruitee.com/o/data-analyst", true]]);
+  expect(got.p).toEqual([["DevOps Engineer", "https://beta.jobs.personio.de/job/42", true]]);
+  expect(got.links).toEqual([{ provider: "recruitee", slug: "acme" }, { provider: "personio", slug: "beta" }]);
+});
+
 test("market pulse: offers seen on the Offers page feed the Home card", async ({ page }) => {
   await open(page, "#/offers");
   await expect(page.locator("#homePulse")).toContainText("Run a few searches"); // empty state (Home is hidden: text only)

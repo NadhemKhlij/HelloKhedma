@@ -226,8 +226,8 @@ export default {
   "Remote job boards are unavailable ({msg}).": "Les sites de télétravail sont indisponibles ({msg}).",
 
   /* ---------- offers: companies I follow ---------- */
-  "Follow companies you'd love to join: HelloKhedma reads their careers page directly (full job descriptions, updated live), and scores every job against your CV. Works with companies using Greenhouse, Lever, Ashby, Workable or SmartRecruiters.":
-    "Suivez les entreprises que vous aimeriez rejoindre : HelloKhedma lit directement leur page carrières (descriptions complètes, mises à jour en direct) et compare chaque offre à votre CV. Fonctionne avec les entreprises qui utilisent Greenhouse, Lever, Ashby, Workable ou SmartRecruiters.",
+  "Follow companies you'd love to join: HelloKhedma reads their careers page directly (full job descriptions, updated live), and scores every job against your CV. Works with companies using Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee or Personio.":
+    "Suivez les entreprises que vous aimeriez rejoindre : HelloKhedma lit directement leur page carrières (descriptions complètes, mises à jour en direct) et compare chaque offre à votre CV. Fonctionne avec les entreprises qui utilisent Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee ou Personio.",
   "Company name or careers page link": "Nom de l’entreprise ou lien de sa page carrières",
   "Follow": "Suivre",
   "Only roles for my path": "Seulement les postes de mon parcours",
@@ -239,8 +239,8 @@ export default {
   "You don't follow any company yet. Add one above or pick a suggestion.": "Vous ne suivez encore aucune entreprise. Ajoutez-en une ci-dessus ou choisissez une suggestion.",
   "Popular in France, one click to follow:": "Populaires en France, à suivre en un clic :",
   "Looking for {name}'s careers page…": "Recherche de la page carrières de {name}…",
-  "No careers page found for \"{name}\" on Greenhouse, Lever, Ashby, Workable or SmartRecruiters. Try the exact company name, or paste the link of a job on their careers site.":
-    "Aucune page carrières trouvée pour « {name} » sur Greenhouse, Lever, Ashby, Workable ou SmartRecruiters. Essayez le nom exact de l’entreprise, ou collez le lien d’une offre de leur site carrières.",
+  "No careers page found for \"{name}\" on Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee or Personio. Try the exact company name, or paste the link of a job on their careers site.":
+    "Aucune page carrières trouvée pour « {name} » sur Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee ou Personio. Essayez le nom exact de l’entreprise, ou collez le lien d’une offre de leur site carrières.",
   "Following {name} ({provider}{count}).": "Vous suivez {name} ({provider}{count}).",
   ", {n} open job in total": ", {n} offre ouverte au total",
   ", {n} open jobs in total": ", {n} offres ouvertes au total",
@@ -322,4 +322,13 @@ export default {
   "All of Adzuna's offers for this title in this country, not only the ones you looked at.": "Toutes les offres d’Adzuna pour cet intitulé dans ce pays, pas seulement celles que vous avez consultées.",
   "Adzuna, {n} offer with a salary": "Adzuna, {n} offre avec salaire",
   "Adzuna, {n} offers with a salary": "Adzuna, {n} offres avec salaire",
+  // More sources (2026-11-09): Himalayas and Arbeitnow (job-search function), Remote OK (Remote jobs tab)
+  "Himalayas (remote)": "Himalayas (télétravail)",
+  "Arbeitnow (Europe)": "Arbeitnow (Europe)",
+  "🛂 Visa sponsorship": "🛂 Visa sponsorisé",
+  "The employer offers to sponsor a work visa": "L’employeur propose de parrainer un visa de travail",
+  "More offers": "Plus d’offres",
+  "No more offers for this search.": "Plus d’autres offres pour cette recherche.",
+  "{n} new offer since your last search.": "{n} nouvelle offre depuis votre dernière recherche.",
+  "{n} new offers since your last search.": "{n} nouvelles offres depuis votre dernière recherche.",
 };

@@ -1,4 +1,7 @@
-// Remote jobs from Jobicy and Remotive: free public APIs, CORS-enabled, called from the browser.
+// Remote jobs from Jobicy, Remotive and Remote OK: free public APIs, CORS-enabled, called from the browser.
+// Remote OK (added 2026-11-09): one tag per path; its API terms ask for a followed link back to the job's Remote OK page
+// and the name "Remote OK" as the source, never its logo: the job link is that page (offers.js keeps the referrer for it)
+// and CREDITS names it.
 // Their terms: credit the source with a link and send applicants to the original job URL (we do both), and do not
 // poll often (Remotive: max ~4 calls a day), so results are cached in this browser for 6 hours per path.
 // Keyword search on these boards is loose, so we read Jobicy by category for each path (checked 2026-10-29) and the
@@ -11,7 +14,9 @@ import { ls } from "./lib.js";
 const CACHE_KEY = "hk.remoteCache", TTL = 6 * 3600_000;
 const JOBICY_INDUSTRIES = {
   de: ["data-science", "admin"], da: ["data-science"], ba: ["management", "business"], as: ["technical-support", "admin"],
+  do: ["dev", "admin"], ai: ["data-science", "dev"],
 };
+const REMOTEOK_TAGS = { de: "data", da: "analyst", ba: "business", as: "support", do: "devops", ai: "ai" };
 const textOf = (html) => new DOMParser().parseFromString(String(html ?? ""), "text/html").body.textContent || "";
 const squash = (s, max) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 // tags (remote, contract type) go first in `text` so truncation never drops them; the card summary is the description only.
@@ -25,6 +30,17 @@ async function remotive() {
     id: String(x.id), title: x.title, company: x.company_name, location: x.candidate_required_location || "Remote",
     url: x.url, posted: x.publication_date, source: "remotive", salary: x.salary || "", // free text, read by salary.js
     tags: `full remote ${x.job_type === "contract" ? "contractor" : x.job_type === "internship" ? "internship" : ""}`, desc: textOf(x.description),
+  }));
+}
+async function remoteok(tag) {
+  const res = await fetch(`https://remoteok.com/api?tag=${encodeURIComponent(tag)}`);
+  if (!res.ok) throw new Error(`Remote OK returned ${res.status}`);
+  const d = await res.json();
+  return (Array.isArray(d) ? d : []).filter((x) => x?.id && x.position).map((x) => job({ // item 0 is the legal notice
+    id: String(x.id), title: textOf(x.position), company: x.company, location: x.location || "Remote",
+    url: x.url, posted: x.date, source: "remoteok",
+    salary: x.salary_min > 0 ? `${x.salary_min}-${x.salary_max || x.salary_min} USD per year` : "",
+    tags: `full remote ${(x.tags || []).join(" ")}`, desc: textOf(x.description),
   }));
 }
 async function jobicy(industry) {
@@ -53,7 +69,7 @@ export async function searchRemote(pathId, region = "") {
   const warnings = [];
   if (!entry || Date.now() - entry.at > TTL) {
     cached = false;
-    const calls = [remotive(), ...(JOBICY_INDUSTRIES[pathId] || ["dev"]).map(jobicy)];
+    const calls = [remotive(), ...(JOBICY_INDUSTRIES[pathId] || ["dev"]).map(jobicy), remoteok(REMOTEOK_TAGS[pathId] || "dev")];
     const results = await Promise.allSettled(calls);
     const jobs = [];
     results.forEach((r) => (r.status === "fulfilled" ? jobs.push(...r.value) : warnings.push(r.reason?.message || "A source failed.")));

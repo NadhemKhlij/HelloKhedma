@@ -11,7 +11,9 @@
 // Every result is also summarized for the market pulse on Home (pulse.js, this browser only).
 // "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent); "✉ Cover letter" opens
 // letters.js (prompt to copy).
-// Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode").
+// Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode"),
+// when each search was last run ("hk.searchRuns", newest 30): offers posted since then get the "New" badge.
+// "More offers" asks every source for the next page and adds the offers not shown yet (job search tab only).
 // Source credits required by the providers' terms: CREDITS.
 import { $, h, safeUrl, ls, toast } from "./lib.js";
 import { t, tn, LOCALE } from "./i18n.js";
@@ -34,6 +36,16 @@ import { refreshTracker } from "./applications.js";
 const COUNTRIES = ["fr", "gb", "us", "de", "nl", "ca", "au", "be", "ch", "es", "it"];
 export const LOC_KEY = "hk.location";
 const HIDDEN_KEY = "hk.offers.hidden", SEEN_KEY = "hk.offers.seen", SAVED_KEY = "hk.savedSearches", MODE_KEY = "hk.offerMode";
+const RUNS_KEY = "hk.searchRuns";
+// When this search was last run (before now), and remember now. Same search = same title, place, country and source.
+function lastRun(params) {
+  let runs = {}; try { runs = JSON.parse(ls.get(RUNS_KEY) || "{}") || {}; } catch { /* ignore */ }
+  const k = [params.query, params.location, params.country, params.provider].join("|").toLowerCase(), prev = runs[k] || null;
+  runs[k] = new Date().toISOString();
+  ls.set(RUNS_KEY, JSON.stringify(Object.fromEntries(Object.entries(runs).sort((a, b) => b[1].localeCompare(a[1])).slice(0, 30))));
+  return prev;
+}
+const markNew = (jobs, prev) => jobs.map((j) => ({ ...j, isNew: Boolean(prev && j.posted && new Date(j.posted) > new Date(prev)) }));
 const loadList = (k) => { try { return JSON.parse(ls.get(k) || "[]"); } catch { return []; } };
 const saveSet = (k, s) => ls.set(k, JSON.stringify([...s].slice(-500)));
 state.hidden = new Set(loadList(HIDDEN_KEY));
@@ -142,7 +154,7 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
         h("b", { class: "block" }, j.title),
         h("span", { class: "mute text-sm block" }, [j.company, j.location].filter(Boolean).join(" · "))),
       badge),
-    salary || tags.contract || tags.remote || seen || hidden || j.isNew || days != null || level ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
+    salary || tags.contract || tags.remote || seen || hidden || j.isNew || days != null || level || /\bvisa sponsorship\b/i.test(j.text || "") ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
       days != null ? h("span", { class: "chip !py-0 text-xs", style: days > STALE_DAYS ? "border-color:#f08a24;color:#f08a24" : "",
         title: new Date(j.posted).toLocaleDateString(LOCALE) }, ageLabel(days)) : null,
       level ? tag(t(`level|${level}`)) : null,
@@ -152,6 +164,7 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
       j.isNew ? h("span", { class: "chip chip-ok !py-0 text-xs font-bold", style: "color:var(--accent)" }, t("New")) : null,
       tags.contract ? tag(t(tags.contract)) : null,
       tags.remote ? tag(tags.remote === "Remote" ? t("Full remote") : t("Hybrid / remote")) : null,
+      /\bvisa sponsorship\b/i.test(j.text || "") ? h("span", { class: "chip chip-ok !py-0 text-xs", title: t("The employer offers to sponsor a work visa") }, t("🛂 Visa sponsorship")) : null,
       seen ? h("span", { class: "mute text-xs" }, t("Seen")) : null,
       hidden ? h("span", { class: "mute text-xs" }, t("Hidden")) : null) : null,
     skills.length
@@ -160,7 +173,7 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
     h("p", { class: "text-sm mt-2 mute" }, j.snippet),
     trustPanel(flags),
     h("div", { class: "flex flex-wrap items-center gap-2 mt-2" },
-      url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn", onClick: () => markSeen(key) }, t("View offer")) : null,
+      url ? h("a", { href: url, target: "_blank", rel: relOf(j.source), class: "btn", onClick: () => markSeen(key) }, t("View offer")) : null,
       btn, hideBtn,
       h("button", { type: "button", class: "btn-ghost !px-2", title: t("Gaps and a ready-made prompt to adapt your CV to this offer"),
         onClick: () => openTailor({ title: j.title, company: j.company, text: jobText(j) }) }, t("✍ Tailor my CV")),
@@ -169,10 +182,14 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
       h("span", { class: "mute text-xs ml-auto" },
         SOURCE_NAMES[j.source] || (PROVIDER_NAMES[j.source] ? t("Careers page") : j.source))));
 }
-const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch", jooble: "Jooble", remotive: "Remotive", jobicy: "Jobicy" };
+const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch", jooble: "Jooble", remotive: "Remotive", jobicy: "Jobicy",
+  remoteok: "Remote OK", himalayas: "Himalayas", arbeitnow: "Arbeitnow" };
+// Remote OK's terms ask for a link back that brings it traffic: keep the referrer for its links (still no window.opener).
+const relOf = (source) => (source === "remoteok" ? "noopener" : "noopener noreferrer");
 
 export function renderOffers() {
   const hasCv = state.cv.skills.length > 0;
+  $("#moreBtn").hidden = !(state.offerMode === "search" && state.more && state.jobs.length);
   if (!state.jobs.length) { $("#offerTools").hidden = true; $("#results").replaceChildren(); $("#sourceCredits").replaceChildren(); return; }
   let list = state.jobs.map((j) => {
     const skills = extractSkills(jobText(j)).map((s) => s.name);
@@ -249,11 +266,14 @@ const CREDITS = {
   jsearch: ["JSearch by OpenWeb Ninja", "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch"],
   francetravail: ["France Travail", "https://www.francetravail.fr"],
   jooble: ["Jooble", "https://jooble.org"],
+  remoteok: ["Remote OK", "https://remoteok.com"], // name, never the logo (its API terms)
+  himalayas: ["Himalayas", "https://himalayas.app"],
+  arbeitnow: ["Arbeitnow", "https://www.arbeitnow.com"],
 };
 function renderSourceCredits() {
   const used = [...new Set(state.jobs.map((j) => j.source))].filter((s) => CREDITS[s]);
   $("#sourceCredits").replaceChildren(...(used.length ? [t("Job offers: "), ...used.flatMap((s, i) => [
-    i ? " · " : "", h("a", { href: CREDITS[s][1], target: "_blank", rel: "noopener noreferrer", class: "underline" }, CREDITS[s][0])])] : []));
+    i ? " · " : "", h("a", { href: CREDITS[s][1], target: "_blank", rel: relOf(s), class: "underline" }, CREDITS[s][0])])] : []));
 }
 
 /* ---------- saved searches (this browser) ---------- */
@@ -293,14 +313,38 @@ async function onSearch(e) {
   state.jobs = []; state.skillFilter = null; renderOffers();
   try {
     const filters = { contract: $("#fContract").value, remote: $("#fRemote").value, days: Number($("#fDate").value) };
+    const prev = lastRun(params);
     const { jobs, warnings } = await searchJobs({ ...params, filters });
-    msg.textContent = jobs.length ? tn(jobs.length, "{n} offer.", "{n} offers.") + (warnings.length ? " " + warnings.join(" ") : "")
+    const fresh = prev ? markNew(jobs, prev).filter((j) => j.isNew).length : 0;
+    msg.textContent = jobs.length ? tn(jobs.length, "{n} offer.", "{n} offers.") + (fresh ? " " + tn(fresh, "{n} new offer since your last search.", "{n} new offers since your last search.") : "")
+      + (warnings.length ? " " + warnings.join(" ") : "")
       : t("No offers found. Try another title, city or country.");
-    state.jobs = jobs;
+    state.jobs = markNew(jobs, prev);
+    state.more = jobs.length ? { params, filters, page: 1, prev } : null;
   } catch (err) {
     msg.textContent = t("Live search is unavailable ({msg}). Use the job board links below.", { msg: err.message });
   } finally { btn.disabled = false; }
   state.searchJobs = state.jobs; state.searchMsg = msg.textContent; // kept while switching to "Companies I follow"
+  renderOffers();
+}
+
+// "More offers": the next page from every source, without the offers already listed.
+async function onMore() {
+  const m = state.more, btn = $("#moreBtn");
+  if (!m) return;
+  btn.disabled = true; btn.textContent = t("Searching…");
+  try {
+    const { jobs } = await searchJobs({ ...m.params, filters: m.filters, page: m.page + 1 });
+    const have = new Set(state.searchJobs.map((j) => `${j.title}|${j.company}`.toLowerCase()));
+    const added = markNew(jobs, m.prev).filter((j) => !have.has(`${j.title}|${j.company}`.toLowerCase()));
+    state.more = added.length ? { ...m, page: m.page + 1 } : null;
+    state.searchJobs = [...state.searchJobs, ...added];
+    if (state.offerMode === "search") state.jobs = state.searchJobs;
+    $("#searchMsg").textContent = added.length ? tn(state.searchJobs.length, "{n} offer.", "{n} offers.") : t("No more offers for this search.");
+    state.searchMsg = $("#searchMsg").textContent;
+  } catch (err) {
+    toast(t("Live search is unavailable ({msg}). Use the job board links below.", { msg: err.message }));
+  } finally { btn.disabled = false; btn.textContent = t("More offers"); }
   renderOffers();
 }
 
@@ -388,7 +432,7 @@ async function onCompanyFind(ev) {
   try {
     const found = (await findCompany(input)).sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
     if (!found.length) {
-      msg.textContent = t("No careers page found for \"{name}\" on Greenhouse, Lever, Ashby, Workable or SmartRecruiters. Try the exact company name, or paste the link of a job on their careers site.", { name: input });
+      msg.textContent = t("No careers page found for \"{name}\" on Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee or Personio. Try the exact company name, or paste the link of a job on their careers site.", { name: input });
       return;
     }
     const best = found[0]; // a company present on two systems (during a migration) keeps the one with most jobs
@@ -438,6 +482,7 @@ export function initOffers() {
   $("#role").addEventListener("change", renderBoards);
   $("#loc").addEventListener("input", renderBoards);
   $("#searchForm").addEventListener("submit", onSearch);
+  $("#moreBtn").addEventListener("click", onMore);
   for (const id of ["#sortBy", "#fFit", "#fSalary", "#fLevel", "#fTrust", "#fHidden"]) $(id).addEventListener("change", renderOffers);
   // Contract, remote and date also go to the sources: after a search, changing one searches again (cached server-side).
   for (const id of ["#fContract", "#fRemote", "#fDate"]) $(id).addEventListener("change", () => {

@@ -57,9 +57,12 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Backend: Supabase (PostgreSQL, Auth, Row Level Security, Edge Functions `job-search`, `delete-account`, `cv-tailor`,
   `explain-mistake`, `follow-up-reminders`).
 - Job data: France Travail, Adzuna, JSearch and Jooble through the `job-search` function (only providers with secrets set
-  run; France Travail's API is closed to new users, its option is hidden until keys exist);
-  company career pages (Greenhouse, Lever, Ashby, Workable, SmartRecruiters) and remote boards (Jobicy, Remotive)
-  are called directly from the browser (public, key-less APIs).
+  run; France Travail's API is closed to new users, its option is hidden until keys exist), plus Himalayas (remote, no
+  CORS) and Arbeitnow (Europe, 2 MB pages, read hourly into the cache) there, key-less, always in "All sources";
+  company career pages (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee, Personio) and remote boards
+  (Jobicy, Remotive, Remote OK) are called directly from the browser (public, key-less, CORS checked from GitHub's
+  servers 2026-11-09). Credits: offers.js CREDITS (Remote OK: name, never the logo, link keeps the referrer; Himalayas:
+  apply via its applicationLink). New source = check its terms + CORS, CREDITS, privacy policy (FR + EN).
 
 ## Environment variables (names only, never values)
 | Name | Where |

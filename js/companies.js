@@ -3,7 +3,8 @@
 // directly (no Edge Function, no quota). Jobs are normalised to the same shape as job-search results:
 //   { id, title, company, location, url, posted, snippet, text, source }
 // The watchlist is stored in this browser ("hk.watchlist").
-// Providers: Greenhouse, Lever, Ashby, Workable, SmartRecruiters. Adding one: a FETCH entry + parseCareersLink rule,
+// Providers: Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee, Personio (XML feed; checked 2026-11-09 from
+// GitHub's servers: both answer browser calls). Adding one: a FETCH entry + parseCareersLink rule,
 // and add it to the privacy policy in index.html (the browser calls it directly, so it sees the user's IP).
 import { ls } from "./lib.js";
 import { norm } from "./ats.js";
@@ -16,6 +17,7 @@ export const entryKey = (e) => `${e.provider}:${e.slug}`;
 
 export const PROVIDER_NAMES = {
   greenhouse: "Greenhouse", lever: "Lever", ashby: "Ashby", workable: "Workable", smartrecruiters: "SmartRecruiters",
+  recruitee: "Recruitee", personio: "Personio",
 };
 
 // Verified on 2026-10-29 (name → provider). One-click suggestions; anything else can be searched by name or link.
@@ -25,6 +27,7 @@ export const SUGGESTED = [
   ["BlaBlaCar", "lever", "blablacar"], ["Swile", "lever", "swile"], ["Malt", "lever", "malt"], ["Alan", "ashby", "alan"],
   ["Qonto", "ashby", "qonto"], ["Pennylane", "ashby", "pennylane"], ["Back Market", "ashby", "backmarket"],
   ["Ledger", "ashby", "ledger"], ["Hugging Face", "workable", "huggingface"], ["Ubisoft", "smartrecruiters", "Ubisoft2"],
+  ["bunq", "recruitee", "bunq"], ["tado°", "personio", "tado"], // verified 2026-11-09
 ].map(([name, provider, slug]) => ({ name, provider, slug }));
 
 // Job-title words per career path, used by "Only roles for my path" (in addition to the path's job titles).
@@ -37,6 +40,10 @@ const PATH_TITLE_TERMS = {
     "product owner", "consultant fonctionnel", "amoa", "moa"],
   as: ["application support", "support engineer", "production support", "support applicatif", "technical support",
     "sre", "site reliability", "devops", "ops engineer", "incident", "exploitation", "run", "l2", "l3"],
+  do: ["devops", "dev ops", "sre", "site reliability", "platform engineer", "cloud engineer", "infrastructure engineer",
+    "kubernetes", "release engineer", "build engineer", "ingenieur devops", "ingenieur cloud", "systems engineer"],
+  ai: ["ai engineer", "machine learning engineer", "ml engineer", "mlops", "llm", "genai", "generative ai", "applied scientist",
+    "nlp engineer", "ingenieur ia", "ingenieur ml", "prompt engineer", "ai developer"],
 };
 export function titleMatcher(path) {
   const terms = [...(path?.job_titles || []).map(norm), ...(PATH_TITLE_TERMS[path?.id] || [])];
@@ -58,6 +65,20 @@ async function getJson(url) {
   if (!res.ok) throw new Error(`${new URL(url).host} returned ${res.status}`);
   return res.json();
 }
+
+// Personio publishes an XML feed on <slug>.jobs.personio.de (or .com for some accounts).
+async function personioFeed(slug) {
+  for (const tld of ["de", "com"]) {
+    const res = await fetch(`https://${encodeURIComponent(slug)}.jobs.personio.${tld}/xml?language=en`);
+    if (res.status === 404) continue;
+    if (!res.ok) throw new Error(`Personio returned ${res.status}`);
+    const doc = new DOMParser().parseFromString(await res.text(), "text/xml");
+    if (doc.querySelector("parsererror")) return null;
+    return { doc, base: `https://${slug}.jobs.personio.${tld}` };
+  }
+  return null;
+}
+const xmlText = (el, tag) => el.querySelector(`:scope > ${tag}`)?.textContent?.trim() || "";
 
 // Each fetcher returns { name, jobs } or null when the company is not on that provider.
 // wanted(title) keeps the relevant jobs. Greenhouse and SmartRecruiters need one request per job for the description,
@@ -122,6 +143,29 @@ const FETCH = {
       });
     }) };
   },
+  async recruitee(slug) {
+    let d;
+    try { d = await getJson(`https://${encodeURIComponent(slug)}.recruitee.com/api/offers/`); }
+    catch { return null; } // an unknown subdomain does not always answer cleanly
+    if (!d?.offers) return null;
+    return { name: d.offers[0]?.company_name || null, jobs: d.offers.map((x) => job({
+      id: String(x.id), title: x.title, company: x.company_name, url: x.careers_url,
+      posted: x.published_at || x.created_at, location: x.location || [x.city, x.country].filter(Boolean).join(", "),
+      text: [textOf(x.description), textOf(x.requirements), x.employment_type_code, x.remote ? "full remote" : x.hybrid ? "hybrid" : ""]
+        .filter(Boolean).join(" "),
+    })) };
+  },
+  async personio(slug) {
+    const feed = await personioFeed(slug);
+    if (!feed) return null;
+    const items = [...feed.doc.querySelectorAll("position")];
+    return { name: xmlText(items[0] || feed.doc, "subcompany") || null, jobs: items.map((x) => job({
+      id: xmlText(x, "id"), title: xmlText(x, "name"), url: `${feed.base}/job/${xmlText(x, "id")}`,
+      posted: xmlText(x, "createdAt") || null, location: xmlText(x, "office"),
+      text: [...x.querySelectorAll("jobDescription > value")].map((v) => textOf(v.textContent)).join(" ")
+        + ` ${xmlText(x, "employmentType")} ${xmlText(x, "schedule")} ${xmlText(x, "seniority")}`,
+    })) };
+  },
 };
 
 // A careers-page link → { provider, slug }, or null when it is not a recognised link.
@@ -133,6 +177,8 @@ export function parseCareersLink(input) {
     ["ashby", /jobs\.ashbyhq\.com\/([\w.%-]+)/i],
     ["workable", /apply\.workable\.com\/(?!j\/)([\w-]+)/i],
     ["smartrecruiters", /(?:jobs|careers)\.smartrecruiters\.com\/([\w-]+)/i],
+    ["recruitee", /([\w-]+)\.recruitee\.com/i],
+    ["personio", /([\w-]+)\.jobs\.personio\.(?:de|com)/i],
   ];
   for (const [provider, re] of rules) { const m = s.match(re); if (m) return { provider, slug: decodeURIComponent(m[1]) }; }
   return null;

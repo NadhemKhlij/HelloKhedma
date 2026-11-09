@@ -219,7 +219,7 @@ function pyRunner(e, onSolved, onWrong = () => {}) {
     busy(true);
     const { runPython, pythonLoaded, needsPandas } = await import("./pyrun.js");
     show(h("p", { class: "mute text-sm" }, !pythonLoaded() ? t("Loading Python in your browser (about 13 MB, only the first time)…")
-      : needsPandas(box.value + (withTests ? e.run.python : "")) ? t("Loading pandas in your browser (about 15 MB, only the first time)…")
+      : needsPandas(box.value + (withTests ? e.run.python : "")) ? t("Loading pandas in your browser (about 8 MB, only the first time)…")
       : withTests ? t("Checking…") : t("Running…")));
     try {
       const r = await runPython(box.value, withTests ? e.run.python : "");

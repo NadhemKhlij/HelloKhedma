@@ -4,7 +4,7 @@
 // new one. Nothing is sent anywhere: the code and the tests stay in the browser.
 //   runPython(code, tests?) -> { stdout, error?, failed? }  (see pyworker.js), or throws Error("timeout" | "load")
 //   pythonLoaded()          -> true once the engine answered (the UI says "loading Python" before that)
-//   needsPandas(code)       -> true when the code imports pandas or numpy and they are not loaded yet (about 15 MB more,
+//   needsPandas(code)       -> true when the code imports pandas or numpy and they are not loaded yet (about 8 MB more,
 //                              loaded before the run, outside its time limit; runs using them may take 15 s)
 const RUN_MS = 5000, PANDAS_RUN_MS = 15000, LOAD_MS = 90000;
 const PANDAS = /^\s*(import|from)\s+(pandas|numpy)\b/m;

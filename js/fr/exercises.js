@@ -190,7 +190,7 @@ export default {
   "Your Python code": "Votre code Python",
   "Write your Python code, then ▶ Run (Ctrl + Enter)…": "Écrivez votre code Python, puis ▶ Exécuter (Ctrl + Entrée)…",
   "Your code ran too long and was stopped (an endless loop?).": "Votre code a tourné trop longtemps et a été arrêté (une boucle sans fin ?).",
-  "Loading pandas in your browser (about 15 MB, only the first time)…": "Chargement de pandas dans votre navigateur (environ 15 Mo, seulement la première fois)…",
+  "Loading pandas in your browser (about 8 MB, only the first time)…": "Chargement de pandas dans votre navigateur (environ 8 Mo, seulement la première fois)…",
   "Python could not be loaded. Check your connection and try again.": "Python n’a pas pu être chargé. Vérifiez votre connexion et réessayez.",
   "Loading Python in your browser (about 13 MB, only the first time)…": "Chargement de Python dans votre navigateur (environ 13 Mo, seulement la première fois)…",
   "Python error:": "Erreur Python :",

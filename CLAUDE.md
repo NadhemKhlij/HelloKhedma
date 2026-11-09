@@ -104,7 +104,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   checks that the tests fail without code. Pyodide is a devDependency copied into js/vendor/pyodide/ by `npm run build`
   (scripts/copy-pyodide.mjs; gitignored, 13 MB, loaded on the first ▶ Run); the same script downloads pandas and its
   dependencies from jsDelivr at build time, checked against the SHA-256 of pyodide-lock.json (CI stops on a failure),
-  so the site serves them itself; a pandas import loads them (about 15 MB more) before the run.
+  so the site serves them itself; a pandas import loads them (about 8 MB more) before the run.
 - Excel formula exercises (type "sheet", code "excel"): `rows` (the sheet from A1, text or numbers), `cell` (where the
   formula goes), `answer` (a formula using cells), same in French. js/excelcheck.js evaluates with fast-formula-parser
   (MIT, js/vendor/formula.esm.min.js) + our own Excel-rule functions (COUNTIFS, SUMIFS, XLOOKUP, MATCH, MAX…); a

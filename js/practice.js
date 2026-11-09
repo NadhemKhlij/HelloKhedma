@@ -11,6 +11,9 @@
 //   table on the practice dataset (sqlrun.js: SQLite in a Web Worker, nothing sent anywhere) and ✓ Check compares it
 //   with the result of the course answer (sqlgrade.js); a correct result marks the exercise solved. With "start" (a
 //   query, training step 2e: "fix this query"), the editor opens on that query and "↺ Start again" brings it back.
+//   Runnable DAX exercises (exercise.dax = { model, rows?, cols?, filters?, measures?, format?, strictBlank? }): daxrun.js
+//   shows the measure in a table visual computed on a practice model (daxeval.js, in the browser) and ✓ Check compares
+//   every cell with the course answer; "mistakes" give a targeted hint.
 //   Auto-graded formats (exercise.type, training steps 2b, 2c + 2d, drills.js): choice, fill, order, match, groups, bug,
 //   scenario, logs, regex, cron, json, fixfile; a correct answer marks the exercise solved, "Reveal" shows the worked answer.
 // - "🤖 Explain my mistake" (explain.js, training step 4): after a wrong SQL check or auto-graded answer, or once the
@@ -26,6 +29,7 @@ import { logActivity } from "./activity.js";
 import { drill, solution } from "./drills.js";
 import { grade, dueCards } from "./srs.js";
 import { explainBox } from "./explain.js";
+import { daxRunner } from "./daxrun.js";
 
 const store = (key) => ({
   all() { try { return JSON.parse(ls.get(key) || "{}"); } catch { return {}; } },
@@ -178,14 +182,15 @@ export function exercises(root, c, codeBlock, playLink) {
       answer.hidden = false; reveal.hidden = true;
       if (scratch?.value.trim()) help.offer(scratch.value, "Written answer: the learner revealed the model answer and wants to know what is wrong or missing in theirs.");
     } }, t("Reveal the answer"));
-    const scratch = e.run || e.type ? null : h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
+    const scratch = e.run || e.type || e.dax ? null : h("textarea", { class: "input font-mono min-h-[90px] w-full", rows: 4, spellcheck: "false", "aria-label": t("Your attempt (not saved)"),
       placeholder: t("Try it here first (not saved)…") });
     return h("li", { class: "panel !shadow-none grid gap-3" },
       h("div", { class: "flex items-start gap-3" },
         h("span", { class: "w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold", style: "background:var(--soft)" }, String(i + 1)),
         h("p", { class: "font-medium flex-1" }, e.q), status),
       hint,
-      e.run?.python != null ? pyRunner(e, solvedNow, help.offer) : e.run ? sqlRunner(e, solvedNow, help.offer) : e.type ? drill(e, solvedNow, help.offer) : scratch,
+      e.dax ? daxRunner(e, solvedNow, help.offer) : e.run?.python != null ? pyRunner(e, solvedNow, help.offer) : e.run ? sqlRunner(e, solvedNow, help.offer)
+        : e.type ? drill(e, solvedNow, help.offer) : scratch,
       help.el,
       h("div", { class: "flex flex-wrap gap-2" }, reveal,
         // A query exercise of a course with a playground (DAX.do): run the attempt on the real engine.

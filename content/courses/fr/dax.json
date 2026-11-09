@@ -561,6 +561,305 @@
       "code": "dax",
       "try": true,
       "answer": "EVALUATE\nVAR Products =\n    DATATABLE (\n        \"Product\", STRING, \"Revenue\", DOUBLE,\n        {\n            { \"Laptop\", 2700 },\n            { \"Screen\", 900 },\n            { \"Mouse\", 600 },\n            { \"Desk\", 600 }\n        }\n    )\nRETURN\n    TOPN ( 2, Products, [Revenue], DESC )"
+    },
+    {
+      "q": "Sur le modèle d’entraînement : Sales a une ligne par ligne de commande avec Quantity et Net Price (le prix d’une unité après remise). Écrivez [Total Sales], le montant vendu, affiché par année.",
+      "hint": "Il n’y a pas de colonne de montant : un itérateur calcule Quantity × Net Price sur chaque ligne, puis additionne les résultats.",
+      "code": "dax",
+      "answer": "Total Sales =\nSUMX ( Sales, Sales[Quantity] * Sales[Net Price] )",
+      "explain": "SUMX évalue l’expression une fois par ligne de Sales (contexte de ligne), puis additionne. Dans Power BI, on pourrait aussi ajouter une colonne calculée et faire SUM dessus, mais la mesure garde le modèle plus léger. Tous les exercices suivants s’appuient sur cette mesure.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]"
+      },
+      "mistakes": [
+        {
+          "dax": "SUM ( Sales[Net Price] )",
+          "says": "Cela additionne les prix et ignore la quantité : une ligne de 3 unités compte une seule fois. Calculez Quantity × Net Price sur chaque ligne avec un itérateur (SUMX)."
+        },
+        {
+          "dax": "SUM ( Sales[Quantity] ) * SUM ( Sales[Net Price] )",
+          "says": "Multiplier deux totaux ne donne pas le total des produits : multipliez d’abord sur chaque ligne, puis additionnez (SUMX)."
+        }
+      ]
+    },
+    {
+      "q": "Le visuel affiche Product[Category] en lignes. Écrivez [Phones Sales] : la ligne Phones affiche les ventes de Phones, les autres lignes de catégorie sont vides, et le total affiche les ventes de Phones.",
+      "hint": "Un simple filtre booléen dans CALCULATE remplace la catégorie de la ligne. Quel modificateur la conserve ?",
+      "code": "dax",
+      "answer": "Phones Sales =\nCALCULATE ( [Total Sales], KEEPFILTERS ( Product[Category] = \"Phones\" ) )",
+      "explain": "Product[Category] = \"Phones\" est un raccourci pour FILTER ( ALL ( Product[Category] ), … ) : sur la ligne Audio, il remplacerait Audio par Phones. KEEPFILTERS fait une intersection : Audio ∩ Phones est vide, donc la cellule est vide. FILTER ( VALUES ( Product[Category] ), Product[Category] = \"Phones\" ) donne le même résultat.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Category]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "CALCULATE ( [Total Sales], Product[Category] = \"Phones\" )",
+          "says": "Un argument de filtre remplace le filtre de la ligne sur la même colonne : chaque ligne de catégorie affiche le total des Phones. KEEPFILTERS garde le filtre de la ligne et le croise avec le vôtre."
+        }
+      ]
+    },
+    {
+      "q": "Catégories en lignes, Store[Channel] (Online, Shop) en colonnes. Écrivez [Channel Share] : chaque cellule affiche la part du canal dans les ventes de sa catégorie, donc chaque ligne fait 100 %.",
+      "hint": "Le dénominateur est la vente de la même catégorie, tous canaux confondus : gardez le filtre de catégorie, retirez seulement celui du canal.",
+      "code": "dax",
+      "answer": "Channel Share =\nDIVIDE (\n    [Total Sales],\n    CALCULATE ( [Total Sales], REMOVEFILTERS ( Store[Channel] ) )\n)",
+      "explain": "REMOVEFILTERS ( Store[Channel] ) (ou ALL ( Store[Channel] ), ou ALL ( Store )) supprime le filtre de la colonne et garde la catégorie de la ligne : le dénominateur est le total de la catégorie. Sur la ligne de total, il n’y a pas de filtre de catégorie : les cellules deviennent la part de chaque canal dans toutes les ventes.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Category]",
+        "cols": "Store[Channel]",
+        "measures": [
+          "Total Sales"
+        ],
+        "format": "0.0%"
+      },
+      "mistakes": [
+        {
+          "dax": "DIVIDE ( [Total Sales], CALCULATE ( [Total Sales], ALL ( Sales ) ) )",
+          "says": "ALL ( Sales ) retire tous les filtres qui atteignent Sales, la catégorie comprise : vous obtenez la part de chaque cellule dans le total général. Retirez seulement le filtre de canal."
+        },
+        {
+          "dax": "DIVIDE ( [Total Sales], CALCULATE ( [Total Sales], REMOVEFILTERS ( Product[Category] ) ) )",
+          "says": "Cela retire le filtre de catégorie : chaque cellule est donc la part de la catégorie dans le canal. La question demande la part du canal dans la catégorie : retirez le filtre de canal."
+        }
+      ]
+    },
+    {
+      "q": "Écrivez [Avg Sales per Customer], le montant moyen acheté par client sur la période, en ne comptant que les clients qui ont acheté. Affiché par année.",
+      "hint": "Parcourez les clients de la période et faites la moyenne de [Total Sales] pour chacun.",
+      "code": "dax",
+      "answer": "Avg Sales per Customer =\nAVERAGEX ( VALUES ( Sales[CustomerKey] ), [Total Sales] )",
+      "explain": "VALUES ( Sales[CustomerKey] ) liste les clients qui ont acheté dans l’année. Pour chacun, [Total Sales] s’exécute avec transition de contexte : le client en cours devient un filtre, ajouté à l’année. AVERAGEX ( VALUES ( Customer[CustomerKey] ), [Total Sales] ) marche aussi, car AVERAGEX ignore les valeurs vides des clients sans ventes ; DIVIDE ( [Total Sales], DISTINCTCOUNT ( Sales[CustomerKey] ) ) donne le même nombre sans itérateur.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "AVERAGEX ( VALUES ( Sales[CustomerKey] ), SUMX ( Sales, Sales[Quantity] * Sales[Net Price] ) )",
+          "says": "Dans AVERAGEX, SUMX n’est pas filtré par le client en cours : un itérateur crée seulement un contexte de ligne, et seul CALCULATE le transforme en filtre (transition de contexte). Appelez la mesure [Total Sales] (une mesure contient un CALCULATE caché) ou entourez le SUMX de CALCULATE."
+        },
+        {
+          "dax": "DIVIDE ( [Total Sales], COUNTROWS ( Customer ) )",
+          "says": "COUNTROWS ( Customer ) compte les 60 clients chaque année, même ceux qui n’ont rien acheté : l’année ne filtre pas Customer (les filtres vont de Customer vers Sales, pas l’inverse). Comptez les clients présents dans Sales."
+        }
+      ]
+    },
+    {
+      "q": "Écrivez [Strong Months], le nombre de mois dont les ventes dépassent 30 000, affiché par année.",
+      "hint": "Filtrez (FILTER) une table de mois avec une condition sur [Total Sales], puis comptez ses lignes.",
+      "code": "dax",
+      "answer": "Strong Months =\nCOUNTROWS ( FILTER ( VALUES ( 'Date'[Year Month] ), [Total Sales] > 30000 ) )",
+      "explain": "VALUES ( 'Date'[Year Month] ) donne les mois de l’année de la cellule. FILTER évalue [Total Sales] pour chaque mois (transition de contexte), garde ceux au-dessus de 30 000, et COUNTROWS les compte. Une mesure ne peut pas servir dans un filtre booléen de CALCULATE : c’est pourquoi FILTER est nécessaire ici.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "COUNTROWS ( FILTER ( 'Date', [Total Sales] > 30000 ) )",
+          "says": "FILTER ( 'Date', … ) teste chaque jour, et aucun jour seul n’atteint 30 000. Parcourez les mois : VALUES ( 'Date'[Year Month] )."
+        },
+        {
+          "dax": "COUNTROWS ( FILTER ( VALUES ( 'Date'[Year Month] ), SUMX ( Sales, Sales[Quantity] * Sales[Net Price] ) > 30000 ) )",
+          "says": "Sans transition de contexte, SUMX voit les ventes de toute l’année pour chaque mois : tous les mois passent le test. Utilisez la mesure [Total Sales]."
+        }
+      ]
+    },
+    {
+      "q": "Trimestres en lignes, années en colonnes. Écrivez [Sales YoY %], la croissance des ventes par rapport à la même période de l’année précédente (vide quand il n’y a pas d’année précédente).",
+      "hint": "Gardez les ventes actuelles et celles de l’an dernier dans deux variables, puis divisez (DIVIDE) l’écart par l’an dernier.",
+      "code": "dax",
+      "answer": "Sales YoY % =\nVAR Current = [Total Sales]\nVAR LastYear = CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )\nRETURN\n    DIVIDE ( Current - LastYear, LastYear )",
+      "explain": "SAMEPERIODLASTYEAR recule d’un an les dates de la cellule (T2 2025 → T2 2024) et, en tant que filtre sur la colonne de dates de la table de dates, remplace les filtres d’année et de trimestre. 2023 n’a pas d’année précédente dans le modèle : LastYear est vide et DIVIDE renvoie une valeur vide au lieu d’une erreur.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Quarter]",
+        "cols": "Date[Year]",
+        "measures": [
+          "Total Sales"
+        ],
+        "format": "0.0%"
+      },
+      "mistakes": [
+        {
+          "dax": "DIVIDE ( [Total Sales], CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( 'Date'[Date] ) ) )",
+          "says": "C’est le rapport cette année ÷ l’an dernier (129 % pour +29 %), pas la croissance. Soustrayez d’abord l’an dernier : DIVIDE ( Current - LastYear, LastYear )."
+        },
+        {
+          "dax": "VAR LastYear = CALCULATE ( [Total Sales], PREVIOUSYEAR ( 'Date'[Date] ) )\nRETURN DIVIDE ( [Total Sales] - LastYear, LastYear )",
+          "says": "PREVIOUSYEAR renvoie toute l’année précédente : chaque trimestre est comparé à une année entière. SAMEPERIODLASTYEAR recule d’un an exactement les dates de la cellule."
+        }
+      ]
+    },
+    {
+      "q": "Les mois de 2025 en lignes (un segment garde 2025). Écrivez [Sales YTD], les ventes du 1er janvier à la fin du mois de la ligne.",
+      "hint": "Une fonction de time intelligence renvoie les dates du début de l’année jusqu’à la dernière date visible.",
+      "code": "dax",
+      "answer": "Sales YTD =\nCALCULATE ( [Total Sales], DATESYTD ( 'Date'[Date] ) )",
+      "explain": "DATESYTD ( 'Date'[Date] ) renvoie les dates du 1er janvier à la dernière date visible dans la cellule ; en filtre sur la colonne de dates de la table de dates, il remplace le filtre de mois. TOTALYTD ( [Total Sales], 'Date'[Date] ) est la même mesure en une seule fonction. Le total vaut la valeur de décembre : toute l’année.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Month]",
+        "filters": {
+          "Date[Year]": [
+            2025
+          ]
+        },
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "CALCULATE ( [Total Sales], FILTER ( ALL ( 'Date' ), 'Date'[Date] <= MAX ( 'Date'[Date] ) ) )",
+          "says": "C’est un cumul depuis la première date du modèle (2023) : il ne repart jamais à zéro en janvier. DATESYTD (ou TOTALYTD) repart chaque année."
+        },
+        {
+          "dax": "CALCULATE ( [Total Sales], DATESMTD ( 'Date'[Date] ) )",
+          "says": "DATESMTD part du premier jour du mois : vous retrouvez les ventes du mois. Le cumul annuel, c’est DATESYTD."
+        }
+      ]
+    },
+    {
+      "q": "Les mois de 2024 en lignes. Écrivez [Sales 3M], les ventes des trois derniers mois jusqu’au mois de la ligne compris (janvier 2024 inclut novembre et décembre 2023).",
+      "hint": "Partez de la dernière date visible et remontez de trois mois.",
+      "code": "dax",
+      "answer": "Sales 3M =\nCALCULATE (\n    [Total Sales],\n    DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -3, MONTH )\n)",
+      "explain": "MAX ( 'Date'[Date] ) est évalué avant que CALCULATE ne change quoi que ce soit : c’est le dernier jour du mois de la ligne. DATESINPERIOD remonte de trois mois depuis ce jour (depuis le 31 mars : du 1er janvier au 31 mars), et le filtre sur la colonne de dates remplace le segment 2024 : voilà pourquoi janvier 2024 peut atteindre 2023.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year Month]",
+        "filters": {
+          "Date[Year]": [
+            2024
+          ]
+        },
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "CALCULATE ( [Total Sales], DATESINPERIOD ( 'Date'[Date], MIN ( 'Date'[Date] ), -3, MONTH ) )",
+          "says": "MIN donne le premier jour du mois : la période s’arrête là et oublie presque tout le mois en cours. Utilisez MAX ( 'Date'[Date] ), la dernière date visible."
+        },
+        {
+          "dax": "CALCULATE ( [Total Sales], DATEADD ( 'Date'[Date], -3, MONTH ) )",
+          "says": "DATEADD recule le mois, il ne l’élargit pas : vous obtenez le mois d’il y a trois mois, seul. DATESINPERIOD renvoie une période de plusieurs mois."
+        }
+      ]
+    },
+    {
+      "q": "Les noms de produits en lignes. Écrivez [Product Rank], le rang de chaque produit selon ses ventes (1 = meilleure vente), vide sur la ligne de total.",
+      "hint": "RANKX sur tous les noms de produits, et ISINSCOPE pour laisser le total vide.",
+      "code": "dax",
+      "answer": "Product Rank =\nIF (\n    ISINSCOPE ( Product[Product] ),\n    RANKX ( ALL ( Product[Product] ), [Total Sales] )\n)",
+      "explain": "RANKX évalue [Total Sales] pour chaque produit de ALL ( Product[Product] ) (transition de contexte), puis place la valeur de la ligne en cours parmi elles. Sur la ligne de total, la valeur est le total général, qui serait classé 1 : ISINSCOPE ( Product[Product] ) y vaut FALSE, donc IF renvoie une valeur vide.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Product]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "RANKX ( VALUES ( Product[Product] ), [Total Sales] )",
+          "says": "Sur une ligne de produit, VALUES ( Product[Product] ) ne contient que ce produit : chaque produit est numéro 1. Classez par rapport à ALL ( Product[Product] )."
+        },
+        {
+          "dax": "IF ( ISINSCOPE ( Product[Product] ), RANKX ( ALL ( Product ), [Total Sales] ) )",
+          "says": "ALL ( Product ) classe par rapport à chaque ligne de la table Product : 24 variantes de couleur, pas les 22 noms de produits du visuel (Aria Earbuds et Phone S existent en deux couleurs). Classez par rapport à ALL ( Product[Product] )."
+        }
+      ]
+    },
+    {
+      "q": "Sales a deux dates. Sales[OrderDate] → 'Date'[Date] est active, Sales[DeliveryDate] → 'Date'[Date] est inactive (voir le modèle). Écrivez [Sales by Delivery Date], les ventes de chaque mois de 2025 par date de livraison.",
+      "hint": "Un modificateur de CALCULATE active, pour une mesure, une relation inactive qui existe déjà.",
+      "code": "dax",
+      "answer": "Sales by Delivery Date =\nCALCULATE ( [Total Sales], USERELATIONSHIP ( Sales[DeliveryDate], 'Date'[Date] ) )",
+      "explain": "USERELATIONSHIP ( Sales[DeliveryDate], 'Date'[Date] ) fait de la relation de livraison la relation active dans ce CALCULATE ; la relation sur la date de commande ne filtre plus. Les commandes passées fin décembre 2024 et livrées en janvier 2025 comptent maintenant en janvier 2025.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Month]",
+        "filters": {
+          "Date[Year]": [
+            2025
+          ]
+        },
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "[Total Sales]",
+          "says": "C’est par date de commande : Sales[OrderDate] → 'Date'[Date] est la relation active. Activez la relation inactive pour cette mesure avec USERELATIONSHIP dans CALCULATE."
+        },
+        {
+          "dax": "CALCULATE ( [Total Sales], TREATAS ( VALUES ( 'Date'[Date] ), Sales[DeliveryDate] ) )",
+          "says": "TREATAS ajoute un filtre sur la date de livraison, mais la relation active filtre toujours la date de commande : vous ne gardez que les commandes commandées et livrées le même mois. USERELATIONSHIP change de relation à la place."
+        }
+      ]
+    },
+    {
+      "q": "Années en lignes, canaux en colonnes. Écrivez [Top 5 Customers Sales], les ventes réalisées par les 5 meilleurs clients de chaque cellule (les 5 meilleurs de 2024 en ligne peuvent différer des 5 meilleurs de 2025 en magasin).",
+      "hint": "TOPN construit une table de 5 clients ; utilisée comme filtre de CALCULATE, elle ne garde qu’eux.",
+      "code": "dax",
+      "answer": "Top 5 Customers Sales =\nCALCULATE (\n    [Total Sales],\n    TOPN ( 5, VALUES ( Sales[CustomerKey] ), [Total Sales] )\n)",
+      "explain": "Les arguments de filtre sont évalués dans le contexte de filtre de la cellule, avant que CALCULATE ne les applique : TOPN classe les clients de cette année et de ce canal selon [Total Sales] et en renvoie 5. En filtre, la table ne garde que leurs ventes. Comme chaque total est recalculé, la ligne de total affiche les 5 meilleurs de l’année tous canaux confondus, pas la somme des cellules.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]",
+        "cols": "Store[Channel]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "CALCULATE ( [Total Sales], TOPN ( 5, VALUES ( Sales[CustomerKey] ), SUMX ( Sales, Sales[Quantity] * Sales[Net Price] ) ) )",
+          "says": "Sans transition de contexte, chaque client obtient la même valeur (le total de la cellule) : TOPN les garde donc tous (les ex aequo sont gardés). Classez-les avec la mesure [Total Sales]."
+        },
+        {
+          "dax": "CALCULATE ( [Total Sales], TOPN ( 5, ALL ( Customer[CustomerKey] ), CALCULATE ( [Total Sales], ALL ( 'Date' ), ALL ( Store ) ) ) )",
+          "says": "Cela choisit les 5 meilleurs clients de toutes les années et de tous les canaux, puis affiche leurs ventes dans la cellule. La question demande les 5 meilleurs de chaque cellule : classez avec [Total Sales] dans les filtres de la cellule."
+        }
+      ]
+    },
+    {
+      "q": "Corrigez cette mesure : elle doit donner le taux de marge de chaque catégorie mais renvoie une erreur. Exécutez-la d’abord pour lire l’erreur.",
+      "hint": "Une mesure n’a pas de ligne en cours : Sales[Quantity] seul ne peut pas être lu. Le coût a besoin d’un itérateur, comme les ventes.",
+      "code": "dax",
+      "answer": "Margin % =\nDIVIDE (\n    [Total Sales] - SUMX ( Sales, Sales[Quantity] * Sales[Unit Cost] ),\n    [Total Sales]\n)",
+      "explain": "Dans une mesure, Sales[Quantity] * Sales[Unit Cost] n’a pas de contexte de ligne, d’où « A single value for column 'Quantity' in table 'Sales' cannot be determined ». SUMX donne un contexte de ligne à chaque ligne, multiplie, puis additionne le coût. Gardez le résultat dans une variable ou une mesure [Total Cost] pour la lisibilité.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Category]",
+        "measures": [
+          "Total Sales"
+        ],
+        "format": "0.0%"
+      },
+      "start": "Margin % =\nDIVIDE ( [Total Sales] - Sales[Quantity] * Sales[Unit Cost], [Total Sales] )",
+      "mistakes": [
+        {
+          "dax": "DIVIDE ( [Total Sales] - SUM ( Sales[Unit Cost] ), [Total Sales] )",
+          "says": "SUM ( Sales[Unit Cost] ) ajoute un coût unitaire par ligne, quelle que soit la quantité. Multipliez par Sales[Quantity] sur chaque ligne avec SUMX."
+        }
+      ]
     }
   ],
   "interview": [

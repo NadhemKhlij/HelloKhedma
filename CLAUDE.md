@@ -14,6 +14,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - `npm run check-links`: checks every URL in supabase/seed.sql (Node 18+).
 - `npm run check-content`: checks every content JSON (structure, French copies, identical code, skills known to
   js/ats.js, projects, AI track scripts). CI runs it before the smoke tests; a problem stops the deploy.
+- `npm run test-dax`: the DAX practice engine (js/daxeval.js) against SQL on the same model (scripts/test-dax.mjs); CI
+  runs it. After changing the engine or the model (`node scripts/gen-dax-model.mjs`), run it and check-content.
 - Translations: `perl scripts/check-i18n.pl js` (every t() text has French, no French key in two js/fr/ files; CI runs it) and
   `powershell -File scripts/check-fr-content.ps1 -Root .` (French course / interview files match the English structure).
 - Course times: `powershell -File scripts/course-times.ps1 -Root .` writes `minutes` and `lessonCount` into
@@ -121,6 +123,17 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   (scripts/copy-pyodide.mjs; gitignored, 13 MB, loaded on the first ▶ Run); the same script downloads pandas and its
   dependencies from jsDelivr at build time, checked against the SHA-256 of pyodide-lock.json (CI stops on a failure),
   so the site serves them itself; a pandas import loads them (about 8 MB more) before the run.
+- Runnable DAX exercises (2026-11-09): `"code": "dax"` + `"dax": { "model": "retail", "rows"?: "Date[Year]", "cols"?:
+  "Product[Category]", "filters"?: { "Store[Channel]": ["Online"] }, "measures"?: ["Total Sales"], "format"?: "0.0%",
+  "strictBlank"?: true }` (identical in the French copy) + optional `"start"` (a measure that must not pass) and
+  `"mistakes": [{ "dax", "says" }]` (typical wrong measures, same formulas in French, "says" translated: a learner whose
+  result equals one gets its hint; CI checks each one runs and is rejected). The measure runs in our own engine
+  (js/daxeval.js: filter and row context, relationships, CALCULATE, context transition, time intelligence, ~105
+  functions) on content/dax/retail.json (scripts/gen-dax-model.mjs, fixed seed; its "measures" library is what
+  "measures" may hand over), shown as a table visual with totals, graded cell by cell (blank = 0 unless strictBlank).
+  The engine is checked against SQL in CI (scripts/test-dax.mjs): add a case there for any engine change. Exercises
+  avoid what it doesn't model (bidirectional / many-to-many relationships, calculation groups). Visuals: rows needed
+  when there are columns; keep them small (≤ 40 cells).
 - Excel formula exercises (type "sheet", code "excel"): `rows` (the sheet from A1, text or numbers), `cell` (where the
   formula goes), `answer` (a formula using cells), same in French. js/excelcheck.js evaluates with fast-formula-parser
   (MIT, js/vendor/formula.esm.min.js) + our own Excel-rule functions (COUNTIFS, SUMIFS, XLOOKUP, MATCH, MAX…); a
@@ -236,7 +249,8 @@ Read the header comment of any file before modifying it; update the header if be
   reports with Done / Ignore), link to Cloudflare Web Analytics for visitors; Admin link on the Account page via is_admin()
 - js/report.js — "⚑ Report a problem" on course and project pages (report_content(), e-mail fallback)
 - scripts/check-content.mjs — content checks run by CI (structure, French copies, identical code, skills, AI track,
-  every runnable SQL answer executed on its dataset and accepted by the grader, every auto-graded exercise checked)
+  every runnable SQL answer executed on its dataset and accepted by the grader, every auto-graded exercise checked,
+  every runnable DAX answer run in the engine with its start and mistakes rejected)
 - js/drills.js — auto-graded exercise formats in the Practice tab (predict the output, fill in, order, match, groups,
   spot the bug, scenarios, log analysis, regex, cron, jq); js/drillcheck.js — their checks, shared with CI (no DOM);
   js/regexrun.js + js/regexworker.js — the learner's regex runs in a Web Worker with a 2 s limit; drill(e, onSolved,
@@ -254,6 +268,10 @@ Read the header comment of any file before modifying it; update the header if be
 - js/filecheck.js — "fix this file" checks (Kubernetes manifests, GitHub Actions workflows, Dockerfiles), shared with CI;
   YAML read by js/vendor/js-yaml.esm.min.js (self-hosted, loaded on demand)
 - js/excelcheck.js — Excel formula exercises: parser + missing functions + grader, shared with CI (no DOM)
+- js/daxeval.js — DAX engine for runnable DAX exercises: parser, evaluator (filter / row context, CALCULATE, time
+  intelligence), table-visual grid and grader, shared with CI (no DOM); js/daxrun.js — daxRunner in the Practice tab
+  (editor, table visual with outlined wrong cells, model panel, known-mistake hints), loads the engine and the model on
+  the first ▶ Run; content/dax/ — practice models (retail.json: Sales, Product, Customer, Store, Date, 2023–2025)
 - js/pyrun.js + js/pyworker.js — runnable Python exercises (Pyodide from js/vendor/pyodide/, 5 s limit per run, hidden
   tests), pyRunner in js/practice.js
 - js/sqlrun.js + js/sqlgrade.js — runnable SQL exercises: SQLite (sql.js, js/vendor) in a Web Worker with a 5 s limit on
@@ -306,7 +324,8 @@ Read the header comment of any file before modifying it; update the header if be
   alerts e-mail, called by the same workflow until nothing remains)
 - scripts/whats-new.sh — before a deploy: what main got since your branch started, shared files, other branches
 - scripts/ — write-config.mjs (build config), copy-pyodide.mjs (build: Python engine into js/vendor/pyodide/), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node),
-  gen-practice-2e.mjs (rebuilds the dwh / payments datasets and the payments log, fixed seed)
+  gen-practice-2e.mjs (rebuilds the dwh / payments datasets and the payments log, fixed seed), gen-dax-model.mjs
+  (rebuilds content/dax/retail.json, fixed seed), test-dax.mjs (DAX engine vs SQL)
 - .github/workflows/deploy.yml — build, smoke tests, publish to GitHub Pages (main only)
 - .github/workflows/deploy-functions.yml — deploy one Edge Function on demand (Run workflow)
 - .github/workflows/reminders.yml — every morning, calls follow-up-reminders then search-alerts (needs REMINDERS_CRON_SECRET)

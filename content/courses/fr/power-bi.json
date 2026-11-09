@@ -442,6 +442,85 @@
       "code": "dax",
       "try": true,
       "answer": "EVALUATE\nVAR Sales =\n    DATATABLE (\n        \"Category\", STRING, \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE,\n        {\n            { \"IT\", \"Laptop\", 3, 900 },\n            { \"IT\", \"Mouse\", 40, 15 },\n            { \"Office\", \"Desk\", 2, 250 },\n            { \"Office\", \"Chair\", 6, 120 }\n        }\n    )\nRETURN\n    GROUPBY ( Sales, [Category], \"Revenue\", SUMX ( CURRENTGROUP (), [Qty] * [Price] ) )"
+    },
+    {
+      "q": "Exécutable, sur le modèle d’entraînement ([Total Sales] est prête, voir le modèle) : écrivez [Avg Unit Price], le prix moyen payé par unité vendue, par catégorie.",
+      "hint": "Prix moyen = argent encaissé ÷ unités vendues.",
+      "code": "dax",
+      "answer": "Avg Unit Price =\nDIVIDE ( [Total Sales], SUM ( Sales[Quantity] ) )",
+      "explain": "DIVIDE ( [Total Sales], SUM ( Sales[Quantity] ) ) pondère chaque ligne par sa quantité : c’est ce qu’un manager appelle prix moyen. DIVIDE renvoie aussi une valeur vide au lieu d’une erreur quand rien n’a été vendu.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Category]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "AVERAGE ( Sales[Net Price] )",
+          "says": "AVERAGE donne le même poids à chaque ligne de commande : une ligne de 4 unités compte comme une ligne de 1. Le vrai prix moyen, c’est ventes ÷ unités vendues."
+        },
+        {
+          "dax": "[Total Sales] / COUNTROWS ( Sales )",
+          "says": "C’est le montant moyen par ligne de commande, pas par unité. Divisez par le nombre d’unités : SUM ( Sales[Quantity] )."
+        }
+      ]
+    },
+    {
+      "q": "Écrivez [% of Total], la part de chaque catégorie dans les ventes de toutes les catégories.",
+      "hint": "Le dénominateur est [Total Sales] sans le filtre de catégorie.",
+      "code": "dax",
+      "answer": "% of Total =\nDIVIDE ( [Total Sales], CALCULATE ( [Total Sales], REMOVEFILTERS ( Product ) ) )",
+      "explain": "CALCULATE ( [Total Sales], REMOVEFILTERS ( Product ) ) ignore la catégorie de la ligne : le dénominateur est le même sur toutes les lignes ; ALL ( Product ) ou ALL ( Product[Category] ) marchent aussi. La ligne de total affiche 100 %.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Category]",
+        "measures": [
+          "Total Sales"
+        ],
+        "format": "0.0%"
+      },
+      "mistakes": [
+        {
+          "dax": "DIVIDE ( [Total Sales], CALCULATE ( [Total Sales] ) )",
+          "says": "CALCULATE sans argument de filtre garde le filtre de la ligne : vous divisez la catégorie par elle-même (100 %). Retirez le filtre de produit au dénominateur."
+        }
+      ]
+    },
+    {
+      "q": "Écrivez [Online Sales], les ventes du canal Online (Store[Channel]), par année.",
+      "hint": "CALCULATE avec un filtre sur la table Store : la relation le transmet à Sales.",
+      "code": "dax",
+      "answer": "Online Sales =\nCALCULATE ( [Total Sales], Store[Channel] = \"Online\" )",
+      "explain": "Store[Channel] = \"Online\" filtre la table Store, et la relation Store → Sales transmet le filtre aux lignes de vente. CALCULATE ( [Total Sales], FILTER ( Sales, RELATED ( Store[Channel] ) = \"Online\" ) ) donne les mêmes chiffres mais parcourt toute la table Sales.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]",
+        "measures": [
+          "Total Sales"
+        ]
+      }
+    },
+    {
+      "q": "Écrivez [Sales PY], les ventes de l’année précédente pour chaque année (vide pour 2023, la première année du modèle).",
+      "hint": "Une fonction de time intelligence recule d’un an les dates de la ligne.",
+      "code": "dax",
+      "answer": "Sales PY =\nCALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )",
+      "explain": "SAMEPERIODLASTYEAR ( 'Date'[Date] ) renvoie les dates de la ligne un an plus tôt ; CALCULATE s’en sert comme nouveau filtre de dates. Il faut une table de dates avec tous les jours (ici 'Date', marquée comme table de dates). Le total affiche les ventes de 2023 et 2024 : toute la période reculée d’un an.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "CALCULATE ( [Total Sales], 'Date'[Year] = YEAR ( TODAY () ) - 1 )",
+          "says": "TODAY () ne suit pas le visuel : chaque ligne affiche la même année. SAMEPERIODLASTYEAR recule d’un an les dates de chaque ligne. (Dans le modèle d’entraînement, TODAY () vaut le 31 décembre 2025.)"
+        }
+      ]
     }
   ],
   "interview": [

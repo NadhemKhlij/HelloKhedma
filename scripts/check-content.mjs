@@ -23,6 +23,10 @@
 //   - Excel formula exercises (type sheet, training step 5, js/excelcheck.js): rows of text / numbers, a target cell, an
 //     answer formula that uses cells, evaluates without error and is accepted by the grader; same rows, cell and
 //     answer in the French copy;
+//   - runnable DAX exercises (exercise.dax, js/daxeval.js + js/daxrun.js): code "dax", the model exists in content/dax/,
+//     the measures it hands over exist in its library, the course answer runs in the engine and is not blank, a
+//     starting measure (exercise.start) is not accepted, every "mistakes" formula runs and is rejected (the visual tells
+//     it apart from the answer); French copies with the same dax settings and mistake formulas, hints translated;
 //   - runnable Python exercises (exercise.run = { python: tests }, training step 5): code "python", the course answer
 //     passes the hidden tests in Pyodide (devDependency pyodide, the same engine as the browser; pandas from the built
 //     js/vendor/pyodide/), the tests alone fail
@@ -99,6 +103,9 @@ function sameShape(where, a, b, { translated = true } = {}) {
     const f = arr(b.exercises)[i] || {};
     if (e.code && (e.answer !== f.answer || e.code !== f.code)) bad(where, `exercise ${i + 1}: code answer differs`);
     if (JSON.stringify(e.run || null) !== JSON.stringify(f.run || null)) bad(where, `exercise ${i + 1}: run settings differ`);
+    if (JSON.stringify(e.dax || null) !== JSON.stringify(f.dax || null)) bad(where, `exercise ${i + 1}: dax settings differ`);
+    if (JSON.stringify(arr(e.mistakes).map((m) => m.dax)) !== JSON.stringify(arr(f.mistakes).map((m) => m.dax))) bad(where, `exercise ${i + 1}: mistakes differ (same formulas, in the same order)`);
+    arr(e.mistakes).forEach((m, k) => { if (str(m.says) && m.says === arr(f.mistakes)[k]?.says && translated) bad(where, `exercise ${i + 1}: mistake ${k + 1} hint is not translated`); });
     if (!e.type && (e.start ?? null) !== (f.start ?? null)) bad(where, `exercise ${i + 1}: starting query differs`);
     if (!!e.try !== !!f.try) bad(where, `exercise ${i + 1}: try differs`);
     if (e.type || f.type) sameDrill(`${where} exercise ${i + 1}`, e, f);
@@ -385,9 +392,53 @@ if (pyRunnable.length) {
   }
 }
 
+/* ---------- runnable DAX exercises ---------- */
+const daxRunnable = [];
+for (const e of index) {
+  for (const l of ["", "fr"]) {
+    const file = C("courses", ...(l ? [l] : []), `${e.id}.json`);
+    const c = existsSync(file) ? load(file) : null;
+    arr(c?.exercises).forEach((x, i) => { if (x.dax || x.mistakes) daxRunnable.push({ where: `courses/${l ? "fr/" : ""}${e.id}.json exercise ${i + 1}`, x, fr: !!l }); });
+  }
+}
+if (daxRunnable.length) {
+  const D = await import("../js/daxeval.js");
+  const models = new Map();
+  const blankGrid = (g) => [...g.cells.flat(), ...(g.rowTotals || []), ...(g.colTotals || []), g.total].every((v) => v == null);
+  for (const { where, x, fr } of daxRunnable) {
+    const spec = x.dax;
+    if (!spec) { bad(where, "mistakes need a dax exercise"); continue; }
+    if (x.code !== "dax") bad(where, "a runnable DAX exercise must have code: \"dax\"");
+    if (x.type || x.run || x.try) bad(where, "a runnable DAX exercise has no type, run or try");
+    if (!/^[a-z0-9_-]+$/.test(spec.model || "") || !existsSync(C("dax", `${spec.model}.json`))) { bad(where, `model "${spec.model}" not found in content/dax/`); continue; }
+    if (!models.has(spec.model)) { const json = load(C("dax", `${spec.model}.json`)); models.set(spec.model, { json, model: D.loadModel(json) }); }
+    const { json, model } = models.get(spec.model);
+    const unknown = arr(spec.measures).filter((n) => !json.measures?.[n]);
+    if (unknown.length) { bad(where, `unknown measures ${unknown.join(", ")} (the model's library: ${Object.keys(json.measures || {}).join(", ")})`); continue; }
+    if (spec.cols && !spec.rows) bad(where, "a visual with columns needs rows too");
+    const lib = Object.fromEntries(arr(spec.measures).map((n) => [n, D.parseMeasure(json.measures[n]).expr]));
+    const opts = { strictBlank: !!spec.strictBlank };
+    const evaluate = (src) => D.evaluateGrid(model, lib, D.parseMeasure(src).expr, spec, { timeLimitMs: 20000 });
+    let g;
+    try { g = evaluate(x.answer); } catch (err) { bad(where, `the answer fails in the DAX engine: ${err.message}`); continue; }
+    if (blankGrid(g)) bad(where, "the answer is blank in every cell (nothing to compare with)");
+    if (!D.gradeGrid(g, g, opts).ok) bad(where, "the grader rejects the course answer");
+    if (x.start != null) {
+      if (!str(x.start)) bad(where, "start must be a measure");
+      else { let s = null; try { s = evaluate(x.start); } catch { /* a measure that fails is a fine starting point */ } if (s && D.gradeGrid(g, s, opts).ok) bad(where, "the starting measure already gives the expected result"); }
+    }
+    arr(x.mistakes).forEach((m, k) => {
+      if (!str(m.dax) || !str(m.says)) { bad(where, `mistake ${k + 1}: needs dax and says`); return; }
+      let mg;
+      try { mg = evaluate(m.dax); } catch (err) { bad(where, `mistake ${k + 1} fails in the engine (a mistake must run to be recognised): ${err.message}`); return; }
+      if (D.gradeGrid(g, mg, opts).ok) bad(where, `mistake ${k + 1} gives the expected result: this visual can't tell it from the answer`);
+    });
+  }
+}
+
 /* ---------- result ---------- */
 const typed = index.reduce((n, e) => n + arr(existsSync(C("courses", `${e.id}.json`)) ? load(C("courses", `${e.id}.json`))?.exercises : []).filter((x) => x.type).length, 0);
-const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${SITE_PATHS.length * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises, ${pyRunnable.length} runnable Python exercises, ${typed} auto-graded exercises`;
+const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${SITE_PATHS.length * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises, ${pyRunnable.length} runnable Python exercises, ${daxRunnable.filter((d) => !d.fr).length} runnable DAX exercises, ${typed} auto-graded exercises`;
 if (problems.length) {
   console.log(`Content check: ${problems.length} problem(s) (${counted})`);
   for (const p of problems) console.log(`  - ${p}`);

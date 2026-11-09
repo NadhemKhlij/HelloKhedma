@@ -561,6 +561,305 @@
       "code": "dax",
       "try": true,
       "answer": "EVALUATE\nVAR Products =\n    DATATABLE (\n        \"Product\", STRING, \"Revenue\", DOUBLE,\n        {\n            { \"Laptop\", 2700 },\n            { \"Screen\", 900 },\n            { \"Mouse\", 600 },\n            { \"Desk\", 600 }\n        }\n    )\nRETURN\n    TOPN ( 2, Products, [Revenue], DESC )"
+    },
+    {
+      "q": "On the practice model: Sales has one row per order line with Quantity and Net Price (the price of one unit after discount). Write [Total Sales], the amount sold, shown by year.",
+      "hint": "There is no amount column: an iterator computes Quantity × Net Price on each line, then adds the results.",
+      "code": "dax",
+      "answer": "Total Sales =\nSUMX ( Sales, Sales[Quantity] * Sales[Net Price] )",
+      "explain": "SUMX evaluates the expression once per row of Sales (row context), then sums. In Power BI you could also add a calculated column and SUM it, but the measure keeps the model smaller. Every later exercise builds on this measure.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]"
+      },
+      "mistakes": [
+        {
+          "dax": "SUM ( Sales[Net Price] )",
+          "says": "This adds up the prices and ignores the quantity: a line of 3 units counts once. Compute Quantity × Net Price on each line with an iterator (SUMX)."
+        },
+        {
+          "dax": "SUM ( Sales[Quantity] ) * SUM ( Sales[Net Price] )",
+          "says": "Multiplying two totals is not the total of the products: multiply on each line first, then add up (SUMX)."
+        }
+      ]
+    },
+    {
+      "q": "The visual shows Product[Category] on rows. Write [Phones Sales]: the Phones row shows the sales of Phones, every other category row is blank, and the total shows the Phones sales.",
+      "hint": "A plain boolean filter in CALCULATE overrides the row's category. Which modifier keeps it?",
+      "code": "dax",
+      "answer": "Phones Sales =\nCALCULATE ( [Total Sales], KEEPFILTERS ( Product[Category] = \"Phones\" ) )",
+      "explain": "Product[Category] = \"Phones\" is short for FILTER ( ALL ( Product[Category] ), … ): on the Audio row it would replace Audio with Phones. KEEPFILTERS intersects instead: Audio ∩ Phones is empty, so the cell is blank. FILTER ( VALUES ( Product[Category] ), Product[Category] = \"Phones\" ) gives the same result.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Category]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "CALCULATE ( [Total Sales], Product[Category] = \"Phones\" )",
+          "says": "A filter argument replaces the row's filter on the same column: every category row shows the Phones total. KEEPFILTERS keeps the row's filter and intersects it with yours."
+        }
+      ]
+    },
+    {
+      "q": "Categories on rows, Store[Channel] (Online, Shop) on columns. Write [Channel Share]: each cell shows the channel's share of its category's sales, so each row adds up to 100 %.",
+      "hint": "The denominator is the sales of the same category in every channel: keep the category filter, remove only the channel one.",
+      "code": "dax",
+      "answer": "Channel Share =\nDIVIDE (\n    [Total Sales],\n    CALCULATE ( [Total Sales], REMOVEFILTERS ( Store[Channel] ) )\n)",
+      "explain": "REMOVEFILTERS ( Store[Channel] ) (or ALL ( Store[Channel] ), or ALL ( Store )) drops the column's filter and keeps the row's category, so the denominator is the category total. On the total row there is no category filter: the cells become each channel's share of all sales.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Category]",
+        "cols": "Store[Channel]",
+        "measures": [
+          "Total Sales"
+        ],
+        "format": "0.0%"
+      },
+      "mistakes": [
+        {
+          "dax": "DIVIDE ( [Total Sales], CALCULATE ( [Total Sales], ALL ( Sales ) ) )",
+          "says": "ALL ( Sales ) removes every filter that reaches Sales, the category included: you get each cell's share of the grand total. Remove only the channel filter."
+        },
+        {
+          "dax": "DIVIDE ( [Total Sales], CALCULATE ( [Total Sales], REMOVEFILTERS ( Product[Category] ) ) )",
+          "says": "This removes the category filter, so each cell is the category's share of the channel. The question asks for the channel's share of the category: remove the channel filter."
+        }
+      ]
+    },
+    {
+      "q": "Write [Avg Sales per Customer], the average amount bought per customer in the period, counting only customers who bought something. Shown by year.",
+      "hint": "Iterate the customers of the period and average [Total Sales] for each one.",
+      "code": "dax",
+      "answer": "Avg Sales per Customer =\nAVERAGEX ( VALUES ( Sales[CustomerKey] ), [Total Sales] )",
+      "explain": "VALUES ( Sales[CustomerKey] ) lists the customers who bought in the year. For each one, [Total Sales] runs with context transition: the current customer becomes a filter, added to the year. AVERAGEX ( VALUES ( Customer[CustomerKey] ), [Total Sales] ) also works, because AVERAGEX ignores the blanks of customers without sales; DIVIDE ( [Total Sales], DISTINCTCOUNT ( Sales[CustomerKey] ) ) gives the same number without an iterator.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "AVERAGEX ( VALUES ( Sales[CustomerKey] ), SUMX ( Sales, Sales[Quantity] * Sales[Net Price] ) )",
+          "says": "Inside AVERAGEX, SUMX is not filtered by the current customer: an iterator only creates a row context, and only CALCULATE turns it into a filter (context transition). Call the measure [Total Sales] (a measure has a hidden CALCULATE) or wrap the SUMX in CALCULATE."
+        },
+        {
+          "dax": "DIVIDE ( [Total Sales], COUNTROWS ( Customer ) )",
+          "says": "COUNTROWS ( Customer ) counts all 60 customers every year, even those who bought nothing: the year doesn't filter Customer (filters flow from Customer to Sales, not back). Count the customers found in Sales."
+        }
+      ]
+    },
+    {
+      "q": "Write [Strong Months], the number of months whose sales are above 30,000, shown by year.",
+      "hint": "FILTER a table of months with a condition on [Total Sales], then count its rows.",
+      "code": "dax",
+      "answer": "Strong Months =\nCOUNTROWS ( FILTER ( VALUES ( 'Date'[Year Month] ), [Total Sales] > 30000 ) )",
+      "explain": "VALUES ( 'Date'[Year Month] ) gives the months of the year in the cell. FILTER evaluates [Total Sales] for each month (context transition), keeps those above 30,000, and COUNTROWS counts them. A measure can't be used in a CALCULATE boolean filter, which is why FILTER is needed here.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "COUNTROWS ( FILTER ( 'Date', [Total Sales] > 30000 ) )",
+          "says": "FILTER ( 'Date', … ) tests each day, and no single day reaches 30,000. Iterate the months: VALUES ( 'Date'[Year Month] )."
+        },
+        {
+          "dax": "COUNTROWS ( FILTER ( VALUES ( 'Date'[Year Month] ), SUMX ( Sales, Sales[Quantity] * Sales[Net Price] ) > 30000 ) )",
+          "says": "Without context transition, SUMX sees the sales of the whole year for every month, so every month passes the test. Use the measure [Total Sales]."
+        }
+      ]
+    },
+    {
+      "q": "Quarters on rows, years on columns. Write [Sales YoY %], the growth of sales against the same period of the previous year (blank when there is no previous year).",
+      "hint": "Store the current sales and last year's sales in two variables, then DIVIDE the difference by last year.",
+      "code": "dax",
+      "answer": "Sales YoY % =\nVAR Current = [Total Sales]\nVAR LastYear = CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )\nRETURN\n    DIVIDE ( Current - LastYear, LastYear )",
+      "explain": "SAMEPERIODLASTYEAR moves the dates of the cell back one year (Q2 2025 → Q2 2024) and, as a filter on the date column of the date table, replaces the year and quarter filters. 2023 has no previous year in the model: LastYear is blank and DIVIDE returns blank instead of an error.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Quarter]",
+        "cols": "Date[Year]",
+        "measures": [
+          "Total Sales"
+        ],
+        "format": "0.0%"
+      },
+      "mistakes": [
+        {
+          "dax": "DIVIDE ( [Total Sales], CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( 'Date'[Date] ) ) )",
+          "says": "This is the ratio this year ÷ last year (129 % for +29 %), not the growth. Subtract last year first: DIVIDE ( Current - LastYear, LastYear )."
+        },
+        {
+          "dax": "VAR LastYear = CALCULATE ( [Total Sales], PREVIOUSYEAR ( 'Date'[Date] ) )\nRETURN DIVIDE ( [Total Sales] - LastYear, LastYear )",
+          "says": "PREVIOUSYEAR returns the whole previous year, so each quarter is compared with a full year. SAMEPERIODLASTYEAR moves exactly the dates of the cell back one year."
+        }
+      ]
+    },
+    {
+      "q": "Months of 2025 on rows (a slicer keeps 2025). Write [Sales YTD], the sales from 1 January to the end of the month of the row.",
+      "hint": "A time intelligence function returns the dates from the start of the year to the last visible date.",
+      "code": "dax",
+      "answer": "Sales YTD =\nCALCULATE ( [Total Sales], DATESYTD ( 'Date'[Date] ) )",
+      "explain": "DATESYTD ( 'Date'[Date] ) returns the dates from 1 January to the last date visible in the cell; as a filter on the date table's date column it replaces the month filter. TOTALYTD ( [Total Sales], 'Date'[Date] ) is the same measure in one function. The total equals December's value: the whole year.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Month]",
+        "filters": {
+          "Date[Year]": [
+            2025
+          ]
+        },
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "CALCULATE ( [Total Sales], FILTER ( ALL ( 'Date' ), 'Date'[Date] <= MAX ( 'Date'[Date] ) ) )",
+          "says": "This is a running total since the first date of the model (2023): it never restarts in January. DATESYTD (or TOTALYTD) restarts each year."
+        },
+        {
+          "dax": "CALCULATE ( [Total Sales], DATESMTD ( 'Date'[Date] ) )",
+          "says": "DATESMTD runs from the first day of the month: you get the month's sales again. Year to date is DATESYTD."
+        }
+      ]
+    },
+    {
+      "q": "The months of 2024 on rows. Write [Sales 3M], the sales of the last three months ending with the month of the row (January 2024 includes November and December 2023).",
+      "hint": "Start from the last visible date and go back three months.",
+      "code": "dax",
+      "answer": "Sales 3M =\nCALCULATE (\n    [Total Sales],\n    DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -3, MONTH )\n)",
+      "explain": "MAX ( 'Date'[Date] ) is evaluated before CALCULATE changes anything: it is the last day of the row's month. DATESINPERIOD goes back three months from that day (from 31 March: 1 January to 31 March), and the filter on the date column replaces the 2024 slicer, which is why January 2024 can reach 2023.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year Month]",
+        "filters": {
+          "Date[Year]": [
+            2024
+          ]
+        },
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "CALCULATE ( [Total Sales], DATESINPERIOD ( 'Date'[Date], MIN ( 'Date'[Date] ), -3, MONTH ) )",
+          "says": "MIN gives the first day of the month, so the period ends there and misses most of the current month. Use MAX ( 'Date'[Date] ), the last visible date."
+        },
+        {
+          "dax": "CALCULATE ( [Total Sales], DATEADD ( 'Date'[Date], -3, MONTH ) )",
+          "says": "DATEADD moves the month back, it doesn't widen it: you get the month three months earlier, alone. DATESINPERIOD returns a period of several months."
+        }
+      ]
+    },
+    {
+      "q": "Product names on rows. Write [Product Rank], the rank of each product by sales (1 = best seller), blank on the total row.",
+      "hint": "RANKX over all the product names, and ISINSCOPE to leave the total blank.",
+      "code": "dax",
+      "answer": "Product Rank =\nIF (\n    ISINSCOPE ( Product[Product] ),\n    RANKX ( ALL ( Product[Product] ), [Total Sales] )\n)",
+      "explain": "RANKX evaluates [Total Sales] for every product of ALL ( Product[Product] ) (context transition), then places the current row's value among them. On the total row the value is the grand total, which would rank 1: ISINSCOPE ( Product[Product] ) is FALSE there, so IF returns blank.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Product]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "RANKX ( VALUES ( Product[Product] ), [Total Sales] )",
+          "says": "On a product row, VALUES ( Product[Product] ) holds only that product, so every product is number 1. Rank against ALL ( Product[Product] )."
+        },
+        {
+          "dax": "IF ( ISINSCOPE ( Product[Product] ), RANKX ( ALL ( Product ), [Total Sales] ) )",
+          "says": "ALL ( Product ) ranks against every row of the Product table: 24 colour variants, not the 22 product names of the visual (Aria Earbuds and Phone S come in two colours). Rank against ALL ( Product[Product] )."
+        }
+      ]
+    },
+    {
+      "q": "Sales has two dates. Sales[OrderDate] → 'Date'[Date] is active, Sales[DeliveryDate] → 'Date'[Date] is inactive (see the model). Write [Sales by Delivery Date], the sales of each month of 2025 by delivery date.",
+      "hint": "A CALCULATE modifier activates an existing inactive relationship for one measure.",
+      "code": "dax",
+      "answer": "Sales by Delivery Date =\nCALCULATE ( [Total Sales], USERELATIONSHIP ( Sales[DeliveryDate], 'Date'[Date] ) )",
+      "explain": "USERELATIONSHIP ( Sales[DeliveryDate], 'Date'[Date] ) makes the delivery relationship the active one inside this CALCULATE; the order-date relationship stops filtering. Orders placed at the end of December 2024 and delivered in January 2025 now count in January 2025.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Month]",
+        "filters": {
+          "Date[Year]": [
+            2025
+          ]
+        },
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "[Total Sales]",
+          "says": "This is by order date: Sales[OrderDate] → 'Date'[Date] is the active relationship. Activate the inactive one for this measure with USERELATIONSHIP inside CALCULATE."
+        },
+        {
+          "dax": "CALCULATE ( [Total Sales], TREATAS ( VALUES ( 'Date'[Date] ), Sales[DeliveryDate] ) )",
+          "says": "TREATAS adds a filter on the delivery date, but the active relationship still filters the order date: you only keep orders ordered and delivered in the same month. USERELATIONSHIP switches the relationship instead."
+        }
+      ]
+    },
+    {
+      "q": "Years on rows, channels on columns. Write [Top 5 Customers Sales], the sales made by the 5 best customers of each cell (the best 5 of 2024 online may differ from the best 5 of 2025 in shops).",
+      "hint": "TOPN builds a table of 5 customers; used as a CALCULATE filter, it keeps only them.",
+      "code": "dax",
+      "answer": "Top 5 Customers Sales =\nCALCULATE (\n    [Total Sales],\n    TOPN ( 5, VALUES ( Sales[CustomerKey] ), [Total Sales] )\n)",
+      "explain": "Filter arguments are evaluated in the cell's filter context, before CALCULATE applies them: TOPN ranks the customers of that year and channel by [Total Sales] and returns 5. As a filter, the table keeps their sales only. Because each total is computed again, the total row shows the best 5 of the year in all channels, not the sum of the cells.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]",
+        "cols": "Store[Channel]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "CALCULATE ( [Total Sales], TOPN ( 5, VALUES ( Sales[CustomerKey] ), SUMX ( Sales, Sales[Quantity] * Sales[Net Price] ) ) )",
+          "says": "Without context transition every customer gets the same value (the total of the cell), so TOPN keeps them all (ties are kept). Rank them by the measure [Total Sales]."
+        },
+        {
+          "dax": "CALCULATE ( [Total Sales], TOPN ( 5, ALL ( Customer[CustomerKey] ), CALCULATE ( [Total Sales], ALL ( 'Date' ), ALL ( Store ) ) ) )",
+          "says": "This picks the 5 best customers of all time and all channels, then shows their sales in the cell. The question asks for the best 5 of each cell: rank with [Total Sales] in the cell's own filters."
+        }
+      ]
+    },
+    {
+      "q": "Fix this measure: it should give the margin rate of each category but returns an error. Run it first to read the error.",
+      "hint": "A measure has no current row: Sales[Quantity] alone can't be read. The cost needs an iterator, like the sales.",
+      "code": "dax",
+      "answer": "Margin % =\nDIVIDE (\n    [Total Sales] - SUMX ( Sales, Sales[Quantity] * Sales[Unit Cost] ),\n    [Total Sales]\n)",
+      "explain": "In a measure, Sales[Quantity] * Sales[Unit Cost] has no row context, hence \"A single value for column 'Quantity' in table 'Sales' cannot be determined\". SUMX gives each line a row context, multiplies, then adds up the cost. Store the result in a variable or a [Total Cost] measure for readability.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Category]",
+        "measures": [
+          "Total Sales"
+        ],
+        "format": "0.0%"
+      },
+      "start": "Margin % =\nDIVIDE ( [Total Sales] - Sales[Quantity] * Sales[Unit Cost], [Total Sales] )",
+      "mistakes": [
+        {
+          "dax": "DIVIDE ( [Total Sales] - SUM ( Sales[Unit Cost] ), [Total Sales] )",
+          "says": "SUM ( Sales[Unit Cost] ) adds one unit cost per line, whatever the quantity. Multiply by Sales[Quantity] on each line with SUMX."
+        }
+      ]
     }
   ],
   "interview": [

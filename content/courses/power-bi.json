@@ -442,6 +442,85 @@
       "code": "dax",
       "try": true,
       "answer": "EVALUATE\nVAR Sales =\n    DATATABLE (\n        \"Category\", STRING, \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE,\n        {\n            { \"IT\", \"Laptop\", 3, 900 },\n            { \"IT\", \"Mouse\", 40, 15 },\n            { \"Office\", \"Desk\", 2, 250 },\n            { \"Office\", \"Chair\", 6, 120 }\n        }\n    )\nRETURN\n    GROUPBY ( Sales, [Category], \"Revenue\", SUMX ( CURRENTGROUP (), [Qty] * [Price] ) )"
+    },
+    {
+      "q": "Runnable, on the practice model ([Total Sales] is ready, see the model): write [Avg Unit Price], the average price paid per unit sold, by category.",
+      "hint": "Average price = money received ÷ units sold.",
+      "code": "dax",
+      "answer": "Avg Unit Price =\nDIVIDE ( [Total Sales], SUM ( Sales[Quantity] ) )",
+      "explain": "DIVIDE ( [Total Sales], SUM ( Sales[Quantity] ) ) weights each line by its quantity, which is what a manager means by average price. DIVIDE also returns blank instead of an error when nothing was sold.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Category]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "AVERAGE ( Sales[Net Price] )",
+          "says": "AVERAGE gives every order line the same weight: a line of 4 units counts like a line of 1. The real average price is sales ÷ units sold."
+        },
+        {
+          "dax": "[Total Sales] / COUNTROWS ( Sales )",
+          "says": "This is the average amount per order line, not per unit. Divide by the number of units: SUM ( Sales[Quantity] )."
+        }
+      ]
+    },
+    {
+      "q": "Write [% of Total], the share of each category in the sales of all categories.",
+      "hint": "The denominator is [Total Sales] with the category filter removed.",
+      "code": "dax",
+      "answer": "% of Total =\nDIVIDE ( [Total Sales], CALCULATE ( [Total Sales], REMOVEFILTERS ( Product ) ) )",
+      "explain": "CALCULATE ( [Total Sales], REMOVEFILTERS ( Product ) ) ignores the category of the row, so the denominator is the same on every row; ALL ( Product ) or ALL ( Product[Category] ) work too. The total row shows 100 %.",
+      "dax": {
+        "model": "retail",
+        "rows": "Product[Category]",
+        "measures": [
+          "Total Sales"
+        ],
+        "format": "0.0%"
+      },
+      "mistakes": [
+        {
+          "dax": "DIVIDE ( [Total Sales], CALCULATE ( [Total Sales] ) )",
+          "says": "CALCULATE without a filter argument keeps the row's filter: you divide the category by itself (100 %). Remove the product filter in the denominator."
+        }
+      ]
+    },
+    {
+      "q": "Write [Online Sales], the sales of the Online channel (Store[Channel]), by year.",
+      "hint": "CALCULATE with a filter on the Store table: the relationship carries it to Sales.",
+      "code": "dax",
+      "answer": "Online Sales =\nCALCULATE ( [Total Sales], Store[Channel] = \"Online\" )",
+      "explain": "Store[Channel] = \"Online\" filters the Store table, and the Store → Sales relationship passes the filter on to the sales lines. CALCULATE ( [Total Sales], FILTER ( Sales, RELATED ( Store[Channel] ) = \"Online\" ) ) gives the same numbers but iterates the whole Sales table.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]",
+        "measures": [
+          "Total Sales"
+        ]
+      }
+    },
+    {
+      "q": "Write [Sales PY], the sales of the previous year for each year (blank for 2023, the first year of the model).",
+      "hint": "A time intelligence function moves the dates of the row back one year.",
+      "code": "dax",
+      "answer": "Sales PY =\nCALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )",
+      "explain": "SAMEPERIODLASTYEAR ( 'Date'[Date] ) returns the dates of the row one year earlier; CALCULATE uses them as the new date filter. It needs a date table with every day (here 'Date', marked as a date table). The total shows the sales of 2023 and 2024: the whole period moved back one year.",
+      "dax": {
+        "model": "retail",
+        "rows": "Date[Year]",
+        "measures": [
+          "Total Sales"
+        ]
+      },
+      "mistakes": [
+        {
+          "dax": "CALCULATE ( [Total Sales], 'Date'[Year] = YEAR ( TODAY () ) - 1 )",
+          "says": "TODAY () doesn't follow the visual: every row shows the same year. SAMEPERIODLASTYEAR moves the dates of each row back one year. (In the practice model, TODAY () is 31 December 2025.)"
+        }
+      ]
     }
   ],
   "interview": [

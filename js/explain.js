@@ -1,6 +1,6 @@
 // "Explain my mistake" (training step 4, ROADMAP Phase 4b): after a wrong answer on a course exercise, a signed-in
 // learner can ask Claude why the attempt is wrong. practice.js creates one box per exercise and calls offer(attempt,
-// verdict) after a wrong check: runnable SQL (sqlRunner), the auto-graded formats (drills.js onWrong) and written
+// verdict) after a wrong check: runnable SQL (sqlRunner), runnable DAX (daxrun.js), the auto-graded formats (drills.js onWrong) and written
 // answers once "Reveal the answer" is open (the scratch box, when the learner typed something).
 // - The exercise (question, material, expected answer, the course's explanation), the attempt and the in-browser check's
 //   verdict go to the explain-mistake Edge Function (Claude Sonnet 5.5, daily limit per account), which stores nothing.
@@ -17,6 +17,7 @@ import { t, lang } from "./i18n.js";
 import { sb } from "./supabase.js";
 import { state } from "./state.js";
 import { isAiCourse, aiScript, aiDir } from "./aitrack.js";
+import { daxMaterial } from "./daxrun.js";
 
 const NOTICE_KEY = "hk.explainOk", SAVED_KEY = "hk.explainSaved", KEEP = 150, LIMIT = 30;
 const ERRORS = {
@@ -45,7 +46,7 @@ function expectedOf(e) {
   }
 }
 const kindOf = (e) => e.type || (e.run ? "sql" : e.code ? `code:${e.code}` : "written");
-const material = (e) => e.snippet || e.start || e.text || (e.file ? `(file ${e.file})` : "");
+const material = (e) => (e.dax ? daxMaterial(e) : e.snippet || e.start || e.text || (e.file ? `(file ${e.file})` : ""));
 
 // Explanations saved on this device: { key: { text, truncated, at } }.
 function readSaved() { try { return JSON.parse(ls.get(SAVED_KEY) || "{}") || {}; } catch { return {}; } }

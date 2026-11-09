@@ -822,6 +822,37 @@ test("excel formulas: a typed number is refused, the right formula passes", asyn
   await expect(item).toContainText("Correct! Your formula returns 99000");
 });
 
+// Runnable DAX (daxrun.js + daxeval.js, practice model content/dax/retail.json): ▶ Run shows the measure in a table
+// visual, an error reads like Power BI's, a known mistake gets its hint and outlined cells, the right measure passes.
+test("runnable DAX: a measure runs in a table visual, a known mistake gets its hint, the right one passes", async ({ page }) => {
+  await open(page, "#/course/dax");
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+  const item = page.locator('section[data-page="course"] [role=tabpanel] ol.grid > li').filter({ has: page.locator("[data-dax-runner]") }).nth(1);
+  const box = item.locator("textarea");
+  await expect(item.locator("[data-dax-runner]")).toContainText("Rows: Product[Category]");
+  await item.locator("details summary").click();
+  await expect(item.locator("details")).toContainText("Sales[DeliveryDate] → Date[Date] (inactive)");
+  await expect(item.locator("details")).toContainText("[Total Sales] = SUMX(Sales, Sales[Quantity] * Sales[Net Price])");
+  await box.fill("Sales[Quantity]");
+  await item.getByRole("button", { name: "▶ Run" }).click();
+  await expect(item).toContainText("DAX error: A single value for column 'Quantity' in table 'Sales' cannot be determined");
+  await box.fill('Phones Sales = CALCULATE ( [Total Sales], Product[Category] = "Phones" )');
+  await item.getByRole("button", { name: "▶ Run" }).click();
+  await expect(item.locator("table")).toContainText("Computers");
+  await expect(item.locator("table")).toContainText("358,103.75");
+  await item.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(item).toContainText("Not yet: 3 of 5 values differ (outlined).");
+  await expect(item).toContainText("KEEPFILTERS keeps the row's filter");
+  await expect(item.locator("td[title]")).toHaveCount(3);
+  await expect(item.locator("[data-explain]").getByRole("button", { name: /Explain my mistake/ })).toBeVisible();
+  const r = await new AxeBuilder({ page }).include('section[data-page="course"] [role=tabpanel]').withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(r.violations.filter((x) => ["serious", "critical"].includes(x.impact)).map((v) => v.id)).toEqual([]);
+  await box.fill('Phones Sales =\nCALCULATE ( [Total Sales], KEEPFILTERS ( Product[Category] = "Phones" ) )');
+  await item.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(item).toContainText("Correct! Your measure gives the expected value in every cell.");
+  await expect(item.locator(".badge")).toContainText("Solved");
+});
+
 // pandas in the browser (copy-pyodide.mjs downloads its files at build time; CI must have them, a local build without
 // network skips this test): a pandas exercise passes its hidden tests.
 test("runnable pandas: a pandas answer passes its hidden tests", async ({ page, request }) => {

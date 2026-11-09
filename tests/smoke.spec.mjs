@@ -105,6 +105,64 @@ test("CV: scored without an offer, then matched with an offer, and the cover let
   await expect(page.locator("#tailorDialog")).toBeVisible();
 });
 
+// "Choose an offer" on the CV page (offerpick.js): offers seen on the Offers page, a tracked one, and the market.
+test("CV: match with an offer seen or tracked, or with the market, without pasting", async ({ page }) => {
+  await open(page, "#/offers");
+  await page.evaluate(async () => {
+    const { state } = await import("/js/state.js");
+    const { renderOffers } = await import("/js/offers.js");
+    const p = state.paths.find((x) => x.id === state.pathId);
+    const title = p.job_titles?.[0] || "Data Engineer";
+    state.jobs = ["Spark and Kafka", "Python and Spark", "Python, SQL and Airflow", "SQL and dbt", "Python and Docker"]
+      .map((skills, i) => ({ id: `o${i}`, source: "adzuna", title, company: `Company ${i}`, location: "Paris",
+        url: `https://example.com/${i}`, posted: null, snippet: "", text: `We use ${skills}. Git.` }));
+    renderOffers();
+  });
+  await page.locator("#results > li").filter({ hasText: "Company 3" }).getByRole("button", { name: "Track" }).click();
+  await expect(page.locator("#results > li").filter({ hasText: "Company 3" })).toContainText("Tracked");
+  await page.goto("/index.html#/cv");
+  await page.fill("#cv", "Data Engineer\nPython and SQL pipelines on Airflow, Git");
+  await page.click("#cvSave");
+  const pick = page.locator("#jdPick");
+  // Best fit first: the Python, SQL and Airflow offer.
+  await expect(pick.locator("optgroup").first().locator("option").first()).toContainText("Company 2");
+  await pick.selectOption({ index: 2 });
+  await expect(page.locator("#jd")).toHaveValue(/Company 2[\s\S]*Airflow/);
+  await expect(page.locator("#atsOut")).toContainText("% match");
+  await page.locator("#atsOut").getByRole("button", { name: /Tailor my CV/ }).click();
+  await expect(page.locator("#tailorDialog")).toContainText("Company 2");
+  await page.keyboard.press("Escape");
+  // The tracked offer kept its text.
+  const tracked = pick.locator('optgroup[label="In your tracker"] option').first();
+  await expect(tracked).toContainText("Company 3");
+  await pick.selectOption(await tracked.getAttribute("value"));
+  await expect(page.locator("#jd")).toHaveValue(/dbt/);
+  // The market: the CV against the skills asked most in the offers seen.
+  await pick.selectOption("market");
+  await expect(page.locator("#jd")).toHaveValue("");
+  await expect(page.locator("#atsOut")).toContainText("of the skills asked most");
+  await expect(page.locator("#atsOut")).toContainText("Spark");
+});
+
+// Who's hiring on Home (pulse.js): Adzuna isn't called from tests, so the block is filled with a function answer.
+test("home: who's hiring, from Adzuna's top companies and regions", async ({ page }) => {
+  await open(page, "#/");
+  await page.evaluate(async () => {
+    const { fillHiring } = await import("/js/pulse.js");
+    const box = document.createElement("div"); box.id = "hiringTest"; box.hidden = true;
+    document.querySelector("#homePulse").append(box);
+    fillHiring(box, { currency: "EUR", week: 214, regionTotal: 1000,
+      companies: [{ name: "Capgemini", count: 41, salary: 52000 }, { name: "Doctolib", count: 12, salary: 0 }],
+      regions: [{ name: "Ile-de-France", count: 610 }, { name: "Auvergne-Rhône-Alpes", count: 140 }] }, "Data Engineer");
+  });
+  const box = page.locator("#hiringTest");
+  await expect(box).toBeVisible();
+  await expect(box).toContainText("214 new offers in the last 7 days");
+  await expect(box).toContainText("Capgemini");
+  await expect(box).toContainText("41 offers");
+  await expect(box).toContainText("61%");
+});
+
 test("offers: age, level and trust warnings, and their filters", async ({ page }) => {
   await open(page, "#/offers");
   // No job search in tests: put two offers in the page state, as a search would.

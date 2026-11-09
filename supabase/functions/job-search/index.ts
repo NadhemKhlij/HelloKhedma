@@ -49,7 +49,8 @@
 //   the app filters the results again, so a source without the filter is still right.
 // Response (JSON):      { jobs: Job[], warnings: string[], cached?: true }   429 when rate limited
 // Salary statistics (Home market pulse): { kind: "salary", query, country } → { histogram: [[from, count]..],
-//   history: [["YYYY-MM", average]..], currency } from Adzuna (all its offers for that title), cached 24 h.
+//   history: [["YYYY-MM", average]..], currency, companies: [{ name, count, salary }], regions: [{ name, count }],
+//   regionTotal, week } from Adzuna (all its offers for that title), cached 24 h.
 // Each Job carries the provider's salary as text (`salary`, Adzuna estimates flagged), read by js/salary.js.
 //
 // Cache (job_search_cache, 6 h) and rate limit (job_search_hits) come from migration 20261028000200; each allowed search
@@ -533,8 +534,11 @@ async function careerjet(q: string, where: string, country: string, page: number
   }));
 }
 
-// Adzuna salary statistics for one job title in one country (Home market pulse): the distribution of advertised
-// salaries (histogram: lower bound of each band → number of offers) and the average advertised salary per month.
+// Adzuna statistics for one job title in one country (Home market pulse): the distribution of advertised
+// salaries (histogram: lower bound of each band → number of offers), the average advertised salary per month, and
+// who is hiring: the companies with the most offers (top_companies: name, offers, average salary), the regions with
+// the most offers (geodata) and the offers posted in the last 7 days (search count). 5 Adzuna calls, cached 24 h;
+// the last three are optional (null / [] when Adzuna does not answer).
 async function salaryStats(q: string, country: string) {
   const appId = Deno.env.get("ADZUNA_APP_ID"), appKey = Deno.env.get("ADZUNA_APP_KEY");
   if (!appId || !appKey) throw new Error("Adzuna is not configured (ADZUNA_APP_ID / ADZUNA_APP_KEY).");
@@ -545,13 +549,27 @@ async function salaryStats(q: string, country: string) {
     if (!res.ok) throw new Error(`Adzuna ${path} returned ${res.status}: ${await providerMessage(res)}`);
     return await res.json();
   };
-  const [hist, history] = await Promise.all([get("histogram"), get("history", { months: "12" }).catch(() => ({}))]);
+  const [hist, history, top, geo, week] = await Promise.all([
+    get("histogram"), get("history", { months: "12" }).catch(() => ({})),
+    get("top_companies").catch(() => ({})), get("geodata").catch(() => ({})),
+    get("search/1", { max_days_old: "7", results_per_page: "1" }).catch(() => ({})),
+  ]);
+  const companies = (Array.isArray(top?.leaderboard) ? top.leaderboard : [])
+    .map((c: Raw) => ({ name: strip(c?.canonical_name, 80), count: Number(c?.count) || 0, salary: Math.round(Number(c?.average_salary) || 0) }))
+    .filter((c: Raw) => c.name && c.count > 0).slice(0, 5);
+  const regions = (Array.isArray(geo?.locations) ? geo.locations : [])
+    .map((l: Raw) => ({ name: strip(l?.location?.display_name, 80), count: Number(l?.count) || 0 }))
+    .filter((l: Raw) => l.name && l.count > 0).sort((a: Raw, b: Raw) => b.count - a.count);
   const pairs = (o: Raw) => Object.entries(o && typeof o === "object" ? o : {})
     .map(([k, v]) => [k, Number(v)] as [string, number]).filter(([, v]) => Number.isFinite(v) && v > 0);
   return {
     histogram: pairs(hist?.histogram).map(([k, v]) => [Number(k), v]).filter(([k]) => Number.isFinite(k)).sort((a, b) => a[0] - b[0]),
     history: pairs(history?.month).sort((a, b) => a[0].localeCompare(b[0])),
     currency: ADZUNA_CURRENCY[country] ?? "",
+    companies,
+    regions: regions.slice(0, 6),
+    regionTotal: regions.reduce((a: number, r: Raw) => a + r.count, 0),
+    week: Number.isFinite(Number(week?.count)) ? Number(week.count) : null,
   };
 }
 
@@ -577,7 +595,7 @@ Deno.serve(async (req) => {
 
   if (body.kind === "salary") {
     // Cached 24 h per country + title; rate-limited like searches (own bucket) so a caller cannot drain the quota.
-    const key = ["salary1", country, query.toLowerCase()].join("|");
+    const key = ["salary2", country, query.toLowerCase()].join("|");
     if (admin) {
       const { bucket, limit } = await rateBucket(req);
       const { data: allowed } = await admin.rpc("job_search_hit", { p_bucket: `salary:${bucket}`, p_limit: limit, p_window_seconds: 3600 });

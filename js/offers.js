@@ -10,7 +10,8 @@
 // offercheck.js adds its age ("Posted 3 days ago", date filter, "Most recent" sort), its level (Junior…Lead, level
 // filter) and the "⚠ Check this offer" warnings (scam signals, stale offer, no company; filter to hide them).
 // Contract, remote and "posted" are also sent to the sources with the search (jobs.js): changing one searches again.
-// Every result is also summarized for the market pulse on Home (pulse.js, this browser only).
+// Every result is also summarized for the market pulse on Home (pulse.js, this browser only) and kept for the CV page's
+// "Choose an offer" (offerpick.js, this browser only); a tracked offer keeps its text there too.
 // "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent); "✉ Cover letter" opens
 // letters.js (prompt to copy).
 // Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode"),
@@ -22,6 +23,7 @@ import { t, tn, LOCALE } from "./i18n.js";
 import { CONFIG } from "./supabase.js";
 import { offerAge, ageLabel, seniority, trustFlags, STALE_DAYS } from "./offercheck.js";
 import { recordOffers } from "./pulse.js";
+import { rememberOffers, rememberTracked } from "./offerpick.js";
 import { state, path, fitColor, skillChip } from "./state.js";
 import { searchJobs, boardLinks } from "./jobs.js";
 import { extractSkills, matchSkills, norm } from "./ats.js";
@@ -129,6 +131,7 @@ async function track(job, btn) {
     await state.store.add({ path_id: state.pathId, title: job.title, company: job.company, location: job.location,
       url: job.url, source: job.source, external_id: job.id, stage: "saved", cv_version: cvUsed(),
       salary: job.salaryInfo ? formatSalary(job.salaryInfo) : undefined }); // shown on the tracker card
+    rememberTracked(job); // its text, for "Choose an offer" on the CV page (this browser only)
     btn.disabled = true; btn.textContent = t("Tracked");
     toast(t("Added to Saved"));
     await refreshTracker();
@@ -217,6 +220,7 @@ export function renderOffers() {
     return { j, skills, fit, tags: offerTags(j), key: offerKey(j), salary, days, level: seniority(j), flags: trustFlags(j, days) };
   });
   recordOffers(list); // market pulse on Home (pulse.js): every result counts, hidden ones too
+  rememberOffers(state.pathId, list.filter((x) => !state.hidden.has(x.key))); // "Choose an offer" on the CV page
   const total = list.length, showHidden = $("#fHidden").checked;
   const hiddenCount = list.filter((x) => state.hidden.has(x.key)).length;
   if (!showHidden) list = list.filter((x) => !state.hidden.has(x.key));

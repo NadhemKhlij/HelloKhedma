@@ -4,7 +4,10 @@
 // 2. "Your CV score": computed as soon as a CV is saved, no offer needed: ATS score (atsscore.js) against the path's
 //    keywords and job titles, fixes sorted by the points they add, the change since the last score of this version
 //    for this path ("hk.cvscore", this browser only), path keywords found / missing + "Close the gaps", skills found;
-// 3. "Match with a job offer" (optional): the pasted offer compared with every version; runs when an offer is pasted.
+// 3. "Match with a job offer" (optional): the offer compared with every version; runs when an offer is pasted, or
+//    chosen in "Choose an offer" (no pasting): offers seen on the Offers page (best fit first) and tracker cards whose
+//    text was kept when tracked (offerpick.js, this browser only), or "The market": the CV against the skills asked
+//    most often in the offers seen for the path (pulse.js marketSkills), with course links for the missing ones.
 // The active version (state.cv) also scores offers (offers.js), feeds the study plan (training.js) and is recorded
 // as "CV sent" on new applications (cvUsed). A version linked to a path becomes active when that path is selected.
 // After a match with a pasted offer, "✍ Tailor my CV for this offer" opens tailor.js and "✉ Cover letter" letters.js.
@@ -24,6 +27,9 @@ import { atsReport, atsView } from "./atsscore.js";
 import { initCvMaker, renderCvMaker } from "./cvmaker.js";
 import { gapTrainings } from "./gaps.js";
 import { logInsight, insightsAsk } from "./insights.js";
+import { recentOffers, trackedOffer, offerAsText } from "./offerpick.js";
+import { marketSkills, skillRow } from "./pulse.js";
+import { STAGES } from "./store.js";
 
 // Loads the active CV version into state.cv. Skills are re-extracted each time: path keywords may have changed.
 export function loadActiveCv() {
@@ -34,8 +40,9 @@ export function loadActiveCv() {
 function refreshCv({ fillEditor = false } = {}) {
   loadActiveCv();
   if (fillEditor) { $("#cv").value = state.cv.text; $("#atsOut").replaceChildren(); $("#cvFileMsg").textContent = ""; }
-  renderCvVersions(); renderCvSkills(); renderOffers(); renderStudyPlan(); markDirty();
-  if ($("#jd").value.trim()) onAts({ quiet: true }); // keep the offer match in step with the CV shown
+  renderCvVersions(); renderCvSkills(); renderOffers(); renderStudyPlan(); markDirty(); renderOfferPick();
+  if (picked?.market) showMarket();
+  else if ($("#jd").value.trim()) onAts({ quiet: true }); // keep the offer match in step with the CV shown
 }
 function switchCv(id) { setActiveCv(id); refreshCv({ fillEditor: true }); }
 // CVs merged from another device ("Save my CVs to my account", cvsync.js).
@@ -50,7 +57,9 @@ export function useCvForPath(pathId) {
   loadActiveCv();
   $("#cv").value = state.cv.text;
   $("#atsOut").replaceChildren();
+  if (picked?.market) picked = null;
   markDirty();
+  renderOfferPick();
 }
 // "Unsaved changes" while the CV box differs from the saved version.
 function markDirty() { $("#cvDirty").hidden = $("#cv").value.trim() === state.cv.text.trim(); }
@@ -117,7 +126,7 @@ function renderCvScore() {
     $("#cvScore").replaceChildren(h("ol", { class: "grid gap-3" },
       step(1, t("Add your CV"), t("Upload a PDF, paste the text, or build one in the CV maker.")),
       step(2, t("Get your score at once"), t("Out of 100, with the fixes that add the most points first.")),
-      step(3, t("Match it with an offer (optional)"), t("Paste a job description to see what that job asks for and you lack."))));
+      step(3, t("Match it with an offer (optional)"), t("Choose an offer you have seen or paste one, to see what that job asks for and you lack."))));
     return;
   }
   const change = scoreChange(r.score), m = r.match;
@@ -224,7 +233,8 @@ function onAts({ quiet = false } = {}) {
   const shortFirst = first.split(/\s+/).length <= 8 ? first : "";
   const jobTitles = [...new Set(titles.filter((x) => jd.toLowerCase().includes(x.toLowerCase())).slice(0, 1).concat(shortFirst ? [shortFirst] : []))].filter(Boolean);
   const report = atsReport(state.cv.text, { required, jobTitles });
-  const offer = { title: shortFirst || t("Pasted job description"), company: "", text: jd };
+  const chosen = picked && picked.jd === jd ? picked : null;
+  const offer = chosen ? { title: chosen.title, company: chosen.company, text: jd } : { title: shortFirst || t("Pasted job description"), company: "", text: jd };
   const fullReport = h("details", { class: "rounded-xl p-3 mt-4", style: "background:var(--soft)" },
     h("summary", { class: "cursor-pointer text-sm font-semibold" }, t("Full ATS report for this offer: {score}/100", { score: report.score })),
     h("div", { class: "mt-3" }, atsView(report)));
@@ -259,6 +269,67 @@ function onAts({ quiet = false } = {}) {
   if (!quiet) logOffer();
 }
 
+// "Choose an offer": the market, offers seen on the Offers page (best fit first) and tracked offers with a kept text.
+// picked: { jd, title, company } of the chosen offer (its text is put in the offer box), or { market: true }.
+let picked = null;
+const fitOf = (text) => (state.cv.text.trim() ? matchSkills(extractSkills(text).map((s) => s.name), state.cv.names) : null);
+const cut = (s, n = 70) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+function renderOfferPick() {
+  const sel = $("#jdPick");
+  if (!sel || !state.pathId) return;
+  const market = marketSkills(state.pathId);
+  const recent = recentOffers(state.pathId).map((o) => ({ o, fit: fitOf(`${o.title} ${o.text}`) }))
+    .sort((a, b) => (b.fit?.total >= 2 ? b.fit.score : -1) - (a.fit?.total >= 2 ? a.fit.score : -1)).slice(0, 40);
+  const stageName = (id) => STAGES.find((s) => s.id === id)?.label || id;
+  const cards = (state.cards || []).filter((c) => !c.path_id || c.path_id === state.pathId)
+    .map((c) => ({ c, o: trackedOffer(c) })).sort((a, b) => Boolean(b.o) - Boolean(a.o)).slice(0, 40);
+  const name = (o) => cut([o.title, o.company].filter(Boolean).join(" · "));
+  const value = picked?.market ? "market" : picked?.value || "";
+  sel.replaceChildren(...[
+    h("option", { value: "" }, recent.length || cards.length || market ? t("Choose an offer…") : t("No offers yet: search on the Offers page, or paste one below")),
+    h("option", { value: "market", disabled: !market },
+      market ? t("📊 The market: the {n} offers you've seen", { n: market.n })
+        : t("📊 The market (search offers for your path first)")),
+    recent.length ? h("optgroup", { label: t("Offers you've seen, best fit first") }, recent.map(({ o, fit }) =>
+      h("option", { value: `r:${o.key}` }, fit?.total >= 2 ? t("{score}% · {offer}", { score: fit.score, offer: name(o) }) : name(o)))) : null,
+    cards.length ? h("optgroup", { label: t("In your tracker") }, cards.map(({ c, o }) =>
+      h("option", { value: `t:${c.id}`, disabled: !o }, o ? t("{stage} · {offer}", { stage: stageName(c.stage), offer: name(c) })
+        : t("{offer} (no text kept: paste it)", { offer: name(c) })))) : null,
+  ].filter(Boolean));
+  sel.value = [...sel.options].some((op) => op.value === value && !op.disabled) ? value : "";
+}
+function onOfferPick(e) {
+  const v = e.target.value;
+  if (!v) return;
+  if (v === "market") { picked = { market: true }; $("#jd").value = ""; $("#jdClear").hidden = true; lastMatch = null; showMarket(); return; }
+  const o = v.startsWith("r:") ? recentOffers(state.pathId).find((x) => `r:${x.key}` === v)
+    : trackedOffer((state.cards || []).find((c) => `t:${c.id}` === v));
+  if (!o) { renderOfferPick(); return; }
+  const jd = offerAsText(o);
+  picked = { value: v, jd, title: o.title, company: o.company };
+  $("#jd").value = jd;
+  onAts();
+}
+// "The market": the CV against the skills asked most often in the offers seen for this path.
+function showMarket() {
+  const out = $("#atsOut"), m = marketSkills(state.pathId);
+  if (!m) { picked = null; out.replaceChildren(); renderOfferPick(); return; }
+  if (!state.cv.text.trim()) { out.replaceChildren(h("p", { class: "text-sm", style: "color:#f08a24" }, t("Add your CV first (upload or paste it above)."))); return; }
+  const have = m.skills.filter((s) => state.cv.names.has(s.name)), missing = m.skills.filter((s) => !state.cv.names.has(s.name));
+  const score = Math.round((100 * have.length) / m.skills.length);
+  out.replaceChildren(...[
+    h("div", { class: "flex flex-wrap items-baseline gap-x-3 gap-y-1" },
+      h("p", { class: "text-2xl font-bold serif", style: `color:${fitColor(score)}` },
+        t("{matched} of {total}", { matched: have.length, total: m.skills.length })),
+      h("p", { class: "mute text-sm" }, t("of the skills asked most in {path} offers are in your CV", { path: path()?.name || "" }))),
+    h("p", { class: "mute text-xs mt-1" }, tn(m.n, "From the {n} offer you've seen on the Offers page (this browser, last 60 days). The % is the share of offers asking for the skill.",
+      "From the {n} offers you've seen on the Offers page (this browser, last 60 days). The % is the share of offers asking for the skill.")),
+    h("ul", { class: "grid gap-1.5 mt-3" }, m.skills.map((s) => skillRow(s, m.n))),
+    missing.length ? h("p", { class: "mute text-sm mt-4 mb-1" }, t("Missing: add the ones you genuinely have · 📘 = open the HelloKhedma course")) : null,
+    missing.length ? gapTrainings(missing.map((s) => s.name)) : h("p", { class: "text-sm mt-3" }, t("Your CV names every one of them. Choose an offer to check a specific job.")),
+  ].filter(Boolean));
+}
+
 // Tabs: "maker" shows the CV maker, anything else the CV check (router.js passes the #/cv/<param>).
 export function showCvTab(param) {
   const maker = param === "maker";
@@ -266,7 +337,7 @@ export function showCvTab(param) {
   for (const [id, on] of [["#cvTabCheck", !maker], ["#cvTabMaker", maker]]) {
     $(id).className = on ? "btn" : "btn-ghost"; $(id).setAttribute("aria-selected", String(on));
   }
-  if (maker) renderCvMaker();
+  if (maker) renderCvMaker(); else renderOfferPick();
 }
 
 export function initCvPage() {
@@ -274,9 +345,13 @@ export function initCvPage() {
   $("#cvTabMaker").addEventListener("click", () => { location.hash = "#/cv/maker"; });
   initCvMaker({ onSaved: () => refreshCv({ fillEditor: true }) });
   showCvTab((location.hash.match(/^#\/cv\/([a-z0-9-]+)/) || [])[1]); // the router ran before the path content loaded
-  $("#atsBtn").addEventListener("click", () => onAts());
+  $("#atsBtn").addEventListener("click", () => (picked?.market ? showMarket() : onAts()));
   // The match updates by itself shortly after an offer is pasted or typed.
-  $("#jd").addEventListener("input", () => { clearTimeout(jdTimer); jdTimer = setTimeout(() => onAts({ quiet: true }), 600); });
+  $("#jd").addEventListener("input", () => {
+    if (picked && picked.jd !== $("#jd").value) { picked = null; $("#jdPick").value = ""; } // edited: a pasted offer now
+    clearTimeout(jdTimer); jdTimer = setTimeout(() => onAts({ quiet: true }), 600);
+  });
+  $("#jdPick").addEventListener("change", onOfferPick);
   // Leaving the box: match now if the text changed since the last match (never redraw an up-to-date result, or the
   // click that moved the focus, e.g. on "Tailor my CV", would land on a replaced button), then send the statistics.
   $("#jd").addEventListener("change", () => {
@@ -284,7 +359,7 @@ export function initCvPage() {
     if ((lastMatch?.jd ?? "") !== $("#jd").value) onAts({ quiet: true });
     logOffer();
   });
-  $("#jdClear").addEventListener("click", () => { $("#jd").value = ""; onAts({ quiet: true }); $("#jd").focus(); });
+  $("#jdClear").addEventListener("click", () => { $("#jd").value = ""; picked = null; $("#jdPick").value = ""; onAts({ quiet: true }); $("#jd").focus(); });
   $("#cv").addEventListener("input", markDirty);
   $("#cvFile").addEventListener("change", onCvFile);
   $("#cvSave").addEventListener("click", onCvSave);

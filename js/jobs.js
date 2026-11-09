@@ -4,7 +4,8 @@
 // career path id (La bonne alternance searches by trade codes, not words). Careerjet and La bonne alternance run too
 // when their keys are set.
 // The Offers filters (contract, remote, posted within) go with the search so the sources return matching offers
-// (the page filters the results again). salaryStats(): Adzuna's advertised-salary statistics for a job title (Home).
+// (the page filters the results again). salaryStats(): Adzuna's statistics for a job title (Home): advertised salaries,
+// top companies, regions and the offers of the last 7 days.
 // boardLinks() builds direct links to job boards as a fallback when the function is unavailable.
 import { sb } from "./supabase.js";
 
@@ -21,7 +22,8 @@ export async function searchJobs({ query, alt = "", path = "", location, provide
   return data; // { jobs, warnings }
 }
 
-// { histogram: [[from, count]..], history: [["YYYY-MM", average]..], currency } or throws.
+// { histogram: [[from, count]..], history: [["YYYY-MM", average]..], currency, companies: [{ name, count, salary }],
+//   regions: [{ name, count }], regionTotal, week } or throws (companies… missing from a function deployed before 2026-11-09).
 export async function salaryStats({ query, country }) {
   const { data, error } = await sb.functions.invoke("job-search", { body: { kind: "salary", query, country } });
   if (error) throw new Error(error.message);

@@ -79,6 +79,8 @@ Done (2026-10-29): "Companies I follow" (career pages on Greenhouse, Lever, Ashb
 "New since last visit"). Done (2026-10-29): "Remote jobs" tab (Jobicy by category + Remotive; Himalayas blocks browser
 calls and Arbeitnow has no search, so they are not used). Next sources to consider: Jooble / Careerjet
 (key on request, France + Tunisia), La Bonne Alternance, Recruitee / Teamtailor career pages, syncing the watchlist to the account.
+Done (2026-11-09): "Choose an offer" on the CV page: match without pasting (offers seen, tracked offers with their text kept
+in this browser, "The market" = the 10 skills asked most in the offers seen). js/offerpick.js.
 Done (2026-10-29): 3.7 several CV versions (named, one can be linked to each path and becomes active with it; switch
 the scoring CV on the Offers page; the CV match compares every version). Local only, like the CV itself.
 
@@ -108,12 +110,15 @@ legal notice updated (FR + EN). Sources called from the browser receive the visi
 | Done | Jooble | Large aggregator (many boards); key works on jooble.org | Free key (have) | S | **Done 2026-11-08** |
 | 1 | La bonne alternance (French government) | Work-study offers (alternance, apprenticeship) and companies likely to take apprentices: juniors and career changers | Free token (account on api.apprentissage.beta.gouv.fr, to confirm) | M | **Done 2026-11-09** (job-search function, ROME codes per path, France only) |
 | 2 | Recruitee + Personio career pages | "Companies I follow" for many French / German start-ups and SMEs (public feeds, no key) | None | S | **Done 2026-11-09** (bunq, tado° suggested) |
-| 3 | Adzuna "top companies" + "what's hot" for the path | Home: who hires most for the path, and the volume trend of offers | Adzuna keys (have) | S | Planned |
+| 3 | Adzuna "top companies" + "what's hot" for the path | Home: who hires most for the path, and the volume trend of offers | Adzuna keys (have) | S | **Done 2026-11-09**: "Who's hiring" (top 5 companies with offers and average salary, top regions, offers of the last 7 days; Adzuna has no volume-trend endpoint) |
 | 4 | Arbeitnow | Europe, English-speaking and remote tech jobs, visa-sponsorship flag | Free, no key (check terms) | S | **Done 2026-11-09** (job-search function, visa-sponsorship badge; no visa field in its data: read from its visa_sponsorship=true page) |
 | 5 | Himalayas + Remote OK | "Remote jobs" tab: more remote offers, salary ranges, time zones (Remote OK asks for a link back) | Free (check terms) | S | **Done 2026-11-09** (Himalayas in the job-search function: no CORS; Remote OK in Remote jobs) |
 | 6 | Search quality | Synonyms per path ("data engineer" OR "ingénieur data", Adzuna what_or), several pages for "All sources", JSearch experience filter, "new since last visit" badge | — | M | **Done 2026-11-09**: "More offers", "new since your last search", DevOps / AI title terms, French titles with their English pair (country France: Adzuna twice, JSearch with OR), "Only titles for my path", quota savings (Adzuna 50 a call, JSearch page 1 only, Jooble as a backup) |
 | 7 | France Travail Offres d'emploi v2 (+ La bonne boîte) | Best French coverage, full descriptions; companies that hire without posting | Closed to new users: request via francetravail.io/contact (draft given 2026-11-08); code ready, option hidden | — | Waiting for France Travail |
 | 8 | Careerjet publisher API | Another aggregator, many countries incl. Tunisia | Publisher account (check terms) | S | **Done 2026-11-09** (job-search function; no Tunisia site in its list) |
+| 9 | Bundesagentur für Arbeit (Germany) | Germany's public job board, full descriptions | Public key value, terms to check first | S | Idea (2026-11-09) |
+| 10 | Choisir le Service Public (France, open data) | Public-sector data / IT jobs | Weekly CSV (127 MB, Licence Ouverte): needs a weekly filter job | M | Idea (2026-11-09) |
+| 11 | Breezy HR / Teamtailor career pages | More companies in "Companies I follow" | Public feeds (Teamtailor only if the company enables it); CORS to check | S | Idea (2026-11-09) |
 | — | LinkedIn, Indeed, Welcome to the Jungle, APEC, Tanitjobs, Keejob | — | No public jobs API; scraping breaks their terms | — | Not planned (job-board links stay) |
 
 ## Phase 4: learning that leads to a job

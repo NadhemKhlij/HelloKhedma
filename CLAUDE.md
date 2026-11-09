@@ -188,7 +188,7 @@ Read the header comment of any file before modifying it; update the header if be
 - `#/review[/<course id>]` → review → review.js (flashcards due today, spaced repetition, srs.js)
 - `#/skillcheck` → skillcheck → skillcheck.js (placement test for the path; passed courses are skipped)
 - `#/ai` → ai → aitrack.js (AI engineer track in English, French or Derja; its courses open in `#/course/ai-…`)
-- `#/cv` → cv → cvpage.js + cvs.js, ats.js, atsscore.js (tab CV check & ATS score); `#/cv/maker` → CV maker tab (cvmaker.js)
+- `#/cv` → cv → cvpage.js + cvs.js, ats.js, atsscore.js, offerpick.js (tab CV check & ATS score); `#/cv/maker` → CV maker tab (cvmaker.js)
 - `#/interview` → interview → interview.js
 - `#/applications` → applications → applications.js + tracker.js, store.js
 - `#/account` → account → account.js
@@ -253,7 +253,11 @@ Read the header comment of any file before modifying it; update the header if be
   demand), A4, Helvetica, no browser header/footer, controlled page breaks; print is only the fallback
 - js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
 - js/offercheck.js — age of an offer, level (Junior…Lead) and trust warnings (scam signals, stale, no company)
-- js/pulse.js — path market pulse on Home, from the offers seen on the Offers page (local only, "hk.pulse.<path>")
+- js/pulse.js — path market pulse on Home, from the offers seen on the Offers page (local only, "hk.pulse.<path>"), and
+  Adzuna's statistics for the path's main title (advertised salaries; who's hiring: top companies, regions, offers of the
+  last 7 days; job-search kind "salary", cached 24 h); marketSkills() also feeds "The market" on #/cv
+- js/offerpick.js — "Choose an offer" on #/cv (match without pasting): offers seen on the Offers page ("hk.recentOffers.<path>",
+  newest 60, 30 days) and the text of tracked offers ("hk.trackedOffers"), this browser only
 - js/tailor.js — "Tailor my CV" dialog: honest gap analysis, prompt to copy for the user's own AI, "Correct, tailor and
   create my CV" (one AI call: corrected + tailored CV opens in the CV maker with the changes and gaps) and "Rewrite
   only" (text) (cv-tailor function, signed-in users, after a notice)

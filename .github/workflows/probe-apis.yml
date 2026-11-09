@@ -1,0 +1,25 @@
+name: probe-apis (temporary)
+on:
+  push:
+    branches: [probe-apis]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe CORS and shape
+        run: |
+          for u in \
+            "https://himalayas.app/jobs/api?limit=2" \
+            "https://himalayas.app/jobs/api/search?q=data%20engineer" \
+            "https://remoteok.com/api?tag=devops" \
+            "https://www.arbeitnow.com/api/job-board-api" \
+            "https://www.arbeitnow.com/api/job-board-api?page=2" \
+            "https://mollie.recruitee.com/api/offers/" \
+            "https://personio.jobs.personio.de/xml" \
+            "https://personio.jobs.personio.de/xml?language=en" ; do
+            echo "=================== $u"
+            curl -s -m 20 -A "Mozilla/5.0 HelloKhedma-probe" -H "Origin: https://hellokhedma.io" -D - -o /tmp/body "$u" | grep -iE "^HTTP|access-control|content-type|retry|ratelimit|x-ratelimit"
+            echo "--- body $(wc -c < /tmp/body) bytes:"; head -c 700 /tmp/body; echo
+          done
+          echo "=================== preflight himalayas"
+          curl -s -m 20 -X OPTIONS -H "Origin: https://hellokhedma.io" -H "Access-Control-Request-Method: GET" -D - -o /dev/null "https://himalayas.app/jobs/api" | grep -iE "^HTTP|access-control"

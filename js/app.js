@@ -100,7 +100,6 @@ function renderAll() {
 
 async function selectPath(id) {
   state.pathId = id;
-  markPathChosen(); // guided first visit: step 1 done
   ls.set(PATH_KEY, id);
   resetOffers();
   try { state.openInit = false; await Promise.all([loadResources(), loadTracks()]); } catch (e) { fail(e); }
@@ -109,6 +108,7 @@ async function selectPath(id) {
   if (state.offerMode === "companies") loadCompanyJobs(); // "only roles for my path" depends on the path
   refreshInterview(); refreshSkillCheck();
   if (state.user) sb.from("profiles").upsert({ user_id: state.user.id, selected_path: id });
+  markPathChosen(); // guided first visit: step 1 done, once the path's content is in (the CV box was just refilled)
 }
 
 // Learning progress merged from another device (learnsync.js): redraw Training, Home and the interview page.

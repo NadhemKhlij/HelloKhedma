@@ -36,6 +36,18 @@ on conflict (id) do update set
   name = excluded.name, blurb = excluded.blurb, color = excluded.color,
   job_titles = excluded.job_titles, sort_order = excluded.sort_order;
 
+-- French job titles (migration 20261109000300), paired with job_titles by position: job_titles_fr[i] is how French
+-- recruiters write job_titles[i] (the same text when they use the English title). The Offers page shows each French
+-- title once, with its English pair, when the country is France.
+update public.career_paths set job_titles_fr = v.t from (values
+  ('de', array['Ingénieur Data','Ingénieur Data','Analytics Engineer','Ingénieur Data Cloud']),
+  ('ba', array['Business Analyst','Analyste Métier','Analyste Fonctionnel','Product Analyst']),
+  ('as', array['Support Applicatif','Support Applicatif','Ingénieur Support N2','Ingénieur de Production']),
+  ('da', array['Data Analyst','Analyste de Données','Analyste BI','Chargé de Reporting']),
+  ('do', array['Ingénieur DevOps','Ingénieur DevOps','Ingénieur SRE','Ingénieur Plateforme','Ingénieur Cloud']),
+  ('ai', array['Ingénieur IA','Ingénieur IA','Ingénieur LLM','Ingénieur IA Générative','Ingénieur IA Appliquée'])
+) as v(id, t) where public.career_paths.id = v.id;
+
 -- Data Engineer ---------------------------------------------------------------
 select pg_temp.seed('de','tool','[
  ["PostgreSQL / DuckDB","Practice locally for free"],["Airflow or Dagster","Orchestration"],

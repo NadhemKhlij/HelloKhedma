@@ -331,4 +331,5 @@ export default {
   "No more offers for this search.": "Plus d’autres offres pour cette recherche.",
   "{n} new offer since your last search.": "{n} nouvelle offre depuis votre dernière recherche.",
   "{n} new offers since your last search.": "{n} nouvelles offres depuis votre dernière recherche.",
+  "Only titles for my path": "Seulement les intitulés de mon parcours",
 };

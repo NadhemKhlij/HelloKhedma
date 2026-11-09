@@ -63,6 +63,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   (Jobicy, Remotive, Remote OK) are called directly from the browser (public, key-less, CORS checked from GitHub's
   servers 2026-11-09). Credits: offers.js CREDITS (Remote OK: name, never the logo, link keeps the referrer; Himalayas:
   apply via its applicationLink). New source = check its terms + CORS, CREDITS, privacy policy (FR + EN).
+  Free quotas (2026-11-09): Adzuna 250 calls/day (asks 50 offers a call), JSearch 200/month (page 1 only), Jooble 500 for
+  the key's life (backup only: when the others found < 10 offers). Country France: French titles (career_paths.
+  job_titles_fr, paired by position with job_titles) are searched with their English pair (`alt`).
 
 ## Environment variables (names only, never values)
 | Name | Where |

@@ -1,8 +1,10 @@
 // Offers page (#/offers): three tabs feeding one results list (state.jobs), each keeping its own results and
 // message (state.<mode>Jobs / state.<mode>Msg, mode "company" for the companies tab):
-// - Job search: jobs.js → job-search Edge Function (France Travail, Adzuna, JSearch, Jooble); job-board links as fallback.
+// - Job search: jobs.js → job-search Edge Function (France Travail, Adzuna, JSearch, Himalayas, Arbeitnow; Jooble as a
+//   backup); job-board links as fallback. Country France: French titles with their English pair (titleOptions), both
+//   searched. "Only titles for my path" (on by default) hides offers whose title is not one of the path's (titleMatcher).
 // - Companies I follow: companies.js (career-page APIs, watchlist in this browser, "New since last visit").
-// - Remote jobs: remote.js (Jobicy, Remotive; titles filtered to the path).
+// - Remote jobs: remote.js (Jobicy, Remotive, Remote OK; titles filtered to the path).
 // Every offer gets its skills, contract / remote tags (from the text), a fit score against the active CV and its salary
 // (salary.js: provider field or description; the "≥ N k€" filter and the salary sort use the yearly amount, euros only).
 // offercheck.js adds its age ("Posted 3 days ago", date filter, "Most recent" sort), its level (Junior…Lead, level
@@ -52,13 +54,27 @@ state.hidden = new Set(loadList(HIDDEN_KEY));
 state.seen = new Set(loadList(SEEN_KEY));
 
 /* ---------- search controls ---------- */
+// Job titles: when the country is France, each French title (career_paths.job_titles_fr, paired by position with
+// job_titles) comes with its English pair, and the search sends both (query = French, alt = English: job-search).
+const frenchMarket = () => $("#country").value === "fr";
+function titleOptions(p) {
+  const en = p?.job_titles || [], fr = p?.job_titles_fr || [];
+  if (!frenchMarket() || !fr.length) return en.map((x) => h("option", { value: x }, x));
+  const used = new Set();
+  return en.map((x, i) => {
+    const f = fr[i] || x;
+    if (used.has(f.toLowerCase())) return null;
+    used.add(f.toLowerCase());
+    return f.toLowerCase() === x.toLowerCase() ? h("option", { value: f }, f) : h("option", { value: f, "data-alt": x }, `${f} · ${x}`);
+  }).filter(Boolean);
+}
 export function renderSearchControls() {
   const p = path();
-  $("#role").replaceChildren(...(p?.job_titles || []).map((x) => h("option", { value: x }, x)));
   renderRemoteRoles();
   if (!$("#country").children.length) {
     $("#country").replaceChildren(...COUNTRIES.map((c) => h("option", { value: c, selected: c === (CONFIG.DEFAULT_COUNTRY || "fr") }, c.toUpperCase())));
   }
+  $("#role").replaceChildren(...titleOptions(p));
   renderBoards();
 }
 function renderBoards() {
@@ -233,6 +249,9 @@ export function renderOffers() {
     : x.salary?.currency === "EUR" && x.salary.yearMax >= Number(salaryFilter));
   // Date: offers without a date are left out (their age can't be checked). Level: offers that state no level stay in.
   const maxDays = Number($("#fDate").value), level = $("#fLevel").value, hideFlagged = $("#fTrust").checked;
+  // Job search only (the other tabs already keep the path's titles): sources match words anywhere in the offer.
+  const titleOk = state.offerMode === "search" && $("#fTitle").checked ? titleMatcher(path()) : () => true;
+  $("#fTitleWrap").hidden = state.offerMode !== "search";
   const flaggedCount = list.filter((x) => x.flags.some((f) => f.serious)).length;
   list = list.filter((x) =>
     (!state.skillFilter || x.skills.includes(state.skillFilter))
@@ -242,7 +261,8 @@ export function renderOffers() {
     && salaryOk(x)
     && (!maxDays || (x.days != null && x.days <= maxDays))
     && (!level || !x.level || x.level === level)
-    && (!hideFlagged || !x.flags.some((f) => f.serious)));
+    && (!hideFlagged || !x.flags.some((f) => f.serious))
+    && titleOk(x.j.title));
   const sort = $("#sortBy").value;
   if (hasCv && sort === "fit") list = [...list].sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1));
   if (sort === "salary") list = [...list].sort((a, b) => (b.salary?.yearMax ?? -1) - (a.salary?.yearMax ?? -1));
@@ -277,7 +297,8 @@ function renderSourceCredits() {
 }
 
 /* ---------- saved searches (this browser) ---------- */
-const currentSearch = () => ({ query: $("#role").value, location: $("#loc").value.trim(), provider: $("#provider").value, country: $("#country").value });
+const currentSearch = () => ({ query: $("#role").value, alt: $("#role").selectedOptions[0]?.dataset.alt || "", location: $("#loc").value.trim(),
+  provider: $("#provider").value, country: $("#country").value });
 const sameSearch = (a, b) => ["query", "location", "provider", "country"].every((k) => a[k] === b[k]);
 
 function renderSavedSearches() {
@@ -297,8 +318,9 @@ function onSaveSearch() {
 }
 function runSavedSearch(s) {
   // A search saved on another path may use a job title that is not in the current list.
-  if (![...$("#role").options].some((o) => o.value === s.query)) $("#role").append(h("option", { value: s.query }, s.query));
-  $("#role").value = s.query; $("#loc").value = s.location; $("#country").value = s.country;
+  $("#country").value = s.country; $("#role").replaceChildren(...titleOptions(path())); // titles depend on the country
+  if (![...$("#role").options].some((o) => o.value === s.query)) $("#role").append(h("option", { value: s.query, ...(s.alt ? { "data-alt": s.alt } : {}) }, s.query));
+  $("#role").value = s.query; $("#loc").value = s.location;
   $("#provider").value = s.provider; if (!$("#provider").value) $("#provider").value = "all"; // a source no longer offered
   renderBoards();
   $("#searchForm").requestSubmit();
@@ -483,7 +505,8 @@ export function initOffers() {
   $("#loc").addEventListener("input", renderBoards);
   $("#searchForm").addEventListener("submit", onSearch);
   $("#moreBtn").addEventListener("click", onMore);
-  for (const id of ["#sortBy", "#fFit", "#fSalary", "#fLevel", "#fTrust", "#fHidden"]) $(id).addEventListener("change", renderOffers);
+  for (const id of ["#sortBy", "#fFit", "#fSalary", "#fLevel", "#fTrust", "#fHidden", "#fTitle"]) $(id).addEventListener("change", renderOffers);
+  $("#country").addEventListener("change", () => { $("#role").replaceChildren(...titleOptions(path())); renderBoards(); });
   // Contract, remote and date also go to the sources: after a search, changing one searches again (cached server-side).
   for (const id of ["#fContract", "#fRemote", "#fDate"]) $(id).addEventListener("change", () => {
     if (state.offerMode === "search" && state.searchMsg && !$("#searchBtn").disabled) $("#searchForm").requestSubmit();

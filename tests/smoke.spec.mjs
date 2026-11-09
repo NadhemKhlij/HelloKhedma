@@ -167,6 +167,31 @@ test("job search: Himalayas and Arbeitnow results, visa badge, credits and More 
   await expect(page.locator("#moreBtn")).toBeHidden();
 });
 
+test("job search in France: French titles with their English pair, both sent; titles outside the path hidden", async ({ page }) => {
+  const sent = [];
+  await page.route("**/functions/v1/job-search", async (route) => {
+    sent.push(route.request().postDataJSON());
+    await route.fulfill(fake({ warnings: [], jobs: [
+      { id: "1", source: "adzuna", title: "Ingénieur Data H/F", company: "Acme", location: "Paris", url: "https://example.com/1", posted: null, snippet: "", text: "Python SQL", salary: "" },
+      { id: "2", source: "adzuna", title: "Comptable", company: "Beta", location: "Paris", url: "https://example.com/2", posted: null, snippet: "", text: "data", salary: "" },
+    ] }));
+  });
+  await open(page, "#/offers");
+  await page.evaluate(async () => {
+    const { path } = await import("/js/state.js");
+    const p = path(); p.job_titles = ["Data Engineer", "Ingénieur Data", "Analytics Engineer"]; p.job_titles_fr = ["Ingénieur Data", "Ingénieur Data", "Analytics Engineer"];
+    const c = document.querySelector("#country"); c.value = "fr"; c.dispatchEvent(new Event("change"));
+  });
+  await expect(page.locator("#role option")).toHaveText(["Ingénieur Data · Data Engineer", "Analytics Engineer"]);
+  await page.locator("#searchForm").evaluate((f) => f.requestSubmit());
+  await expect(page.locator("#results > li")).toHaveCount(1); // "Comptable" is not a title of the path
+  expect(sent[0]).toMatchObject({ query: "Ingénieur Data", alt: "Data Engineer", country: "fr" });
+  await page.uncheck("#fTitle");
+  await expect(page.locator("#results > li")).toHaveCount(2);
+  await page.evaluate(() => { const c = document.querySelector("#country"); c.value = "gb"; c.dispatchEvent(new Event("change")); });
+  await expect(page.locator("#role option").first()).toHaveText("Data Engineer");
+});
+
 test("remote jobs: Remote OK offers are listed, credited by name and linked with the referrer kept", async ({ page }) => {
   await page.route("https://remotive.com/**", (r) => r.fulfill(fake({ jobs: [] })));
   await page.route("https://jobicy.com/**", (r) => r.fulfill(fake({ jobs: [] })));

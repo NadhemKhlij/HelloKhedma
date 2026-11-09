@@ -10,6 +10,15 @@
 //     Outside Germany, Austria and Switzerland only its remote jobs are kept.
 // Both always run with "all" (no secret needed); their jobs mention "visa sponsorship" in `text` when Arbeitnow says so.
 //
+// Free quotas (checked 2026-11-09): Adzuna 250 calls a day, JSearch 200 a month, Jooble 500 for the life of the key. So:
+//   - Adzuna asks for 50 offers a call (the maximum page size, same cost as 20);
+//   - Jooble is no longer part of "all": it runs as a backup when the other sources found fewer than 10 offers on page 1
+//     (or when chosen alone), and asks for 50 offers a call;
+//   - "More offers" (page > 1) skips JSearch (its /search-v2 has no page numbers) and Jooble.
+// French titles (owner request 2026-11-09): `alt` is the English title when `query` is the French one (Offers page, country
+// France, career_paths.job_titles_fr): Adzuna is called for both titles, JSearch gets "fr" OR "en" in one call, and the
+// English boards (Himalayas, Arbeitnow) get the English title.
+//
 // Secrets (supabase secrets set ...), each source is optional:
 //   FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET
 //                                   (francetravail.io, API "Offres d'emploi v2"; France only, full descriptions)
@@ -25,7 +34,7 @@
 //   RATE_LIMIT_USER                 optional: searches per hour per signed-in user (default 60)
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 //
-// Request  (POST JSON): { query, location?, provider?, country?, page?, filters? }
+// Request  (POST JSON): { query, alt?, location?, provider?, country?, page?, filters? }   alt: see French titles above
 //   filters (Offers page, all optional): { contract: "CDI"|"CDD"|"Freelance"|"Internship"|"Apprenticeship",
 //   remote: "Remote"|"any-remote", days: 1|3|7|30 }. Sent to the sources that support them (Adzuna: max_days_old,
 //   permanent / contract, newest first when a date is asked; JSearch: date_posted, employment_types, work_from_home);
@@ -221,7 +230,8 @@ async function franceTravail(q: string, where: string, country: string, page: nu
   }));
 }
 
-async function adzuna(q: string, where: string, country: string, page: number, f: Filters): Promise<Job[]> {
+async function adzuna(q: string, where: string, country: string, page: number, f: Filters, alt = ""): Promise<Job[]> {
+  if (alt) return (await Promise.all([adzuna(q, where, country, page, f), adzuna(alt, where, country, page, f)])).flat();
   const appId = Deno.env.get("ADZUNA_APP_ID");
   const appKey = Deno.env.get("ADZUNA_APP_KEY");
   if (!appId || !appKey) throw new Error("Adzuna is not configured (ADZUNA_APP_ID / ADZUNA_APP_KEY).");
@@ -230,7 +240,7 @@ async function adzuna(q: string, where: string, country: string, page: number, f
   url.search = new URLSearchParams({
     app_id: appId,
     app_key: appKey,
-    results_per_page: "20",
+    results_per_page: "50",
     what: q,
     ...(where ? { where } : {}),
     ...(f.days ? { max_days_old: String(f.days), sort_by: "date" } : {}),
@@ -260,9 +270,11 @@ const EMPLOYMENT: Record<string, string> = {
   FULLTIME: "full-time", PARTTIME: "part-time", CONTRACTOR: "contractor", INTERN: "internship", // full-time ≠ CDI
 };
 
-async function jsearch(q: string, where: string, country: string, page: number, f: Filters): Promise<Job[]> {
+async function jsearch(q: string, where: string, country: string, page: number, f: Filters, alt = ""): Promise<Job[]> {
   const key = Deno.env.get("RAPIDAPI_KEY");
   if (!key) throw new Error("JSearch is not configured (RAPIDAPI_KEY).");
+  if (page > 1) return []; // /search-v2 pages with a cursor only: never spend a credit to get page 1 again
+  if (alt) q = `"${q}" OR "${alt}"`; // Google for Jobs understands OR
 
   // JSearch replaced /search with /search-v2 (cursor pagination, same job fields); older plans may still have /search.
   // The app only asks for page 1, so no cursor is needed.
@@ -333,7 +345,7 @@ async function jooble(q: string, where: string, country: string, page: number, _
     const res = await fetch(`https://${host}/api/${encodeURIComponent(key)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ keywords: q, location: loc, page: String(page) }),
+      body: JSON.stringify({ keywords: q, location: loc, page: String(page), ResultOnPage: "50" }),
     });
     if (!res.ok) throw new Error(`Jooble (${host}) returned ${res.status}: ${(await providerMessage(res)).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 100)}`);
     return await res.json();
@@ -365,7 +377,8 @@ async function jooble(q: string, where: string, country: string, page: number, _
 // Names Himalayas uses in locationRestrictions, per country code (worldwide jobs have no restriction).
 const HIMALAYAS_NAMES: Record<string, string[]> = { us: ["United States", "USA"], gb: ["United Kingdom", "UK"] };
 const EUROPE = new Set(["fr", "gb", "de", "nl", "at", "be", "ch", "es", "it", "pl"]);
-async function himalayas(q: string, _where: string, country: string, page: number, f: Filters): Promise<Job[]> {
+async function himalayas(q: string, _where: string, country: string, page: number, f: Filters, alt = ""): Promise<Job[]> {
+  if (alt) q = alt; // an English board: the English title
   const res = await fetch(`https://himalayas.app/jobs/api/search?q=${encodeURIComponent(q)}&page=${page}`, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`Himalayas returned ${res.status}: ${(await providerMessage(res)).slice(0, 100)}`);
   const data = await res.json();
@@ -413,7 +426,8 @@ async function arbeitnowPages(): Promise<Arbeit[]> {
   if (admin && items.length) await admin.from("job_search_cache").upsert({ key, results: { items }, created_at: new Date().toISOString() });
   return items;
 }
-async function arbeitnow(q: string, where: string, country: string, _page: number, f: Filters): Promise<Job[]> {
+async function arbeitnow(q: string, where: string, country: string, _page: number, f: Filters, alt = ""): Promise<Job[]> {
+  if (alt) q = alt; // English (and German) offers: the English title
   const words = fold(q).split(/[^a-z0-9+#]+/).filter((w) => w.length > 1);
   if (!words.length) return [];
   const local = ["de", "at", "ch"].includes(country);
@@ -471,6 +485,8 @@ Deno.serve(async (req) => {
   if (!query) return json({ error: "query is required." }, 400);
 
   const where = String(body.location ?? "").trim().slice(0, 100);
+  const altRaw = String(body.alt ?? "").trim().slice(0, 100);
+  const alt = altRaw.toLowerCase() === query.toLowerCase() ? "" : altRaw;
   const country = COUNTRIES.has(String(body.country)) ? String(body.country) : "fr";
   const page = Math.min(Math.max(parseInt(body.page, 10) || 1, 1), 5);
 
@@ -497,14 +513,15 @@ Deno.serve(async (req) => {
   const wanted = String(body.provider ?? Deno.env.get("DEFAULT_PROVIDER") ?? "all");
   // France Travail comes first so that, for an offer listed on several sources, its full description wins the dedupe.
   const ALL: Source[] = ["francetravail", "adzuna", "jsearch", "jooble", "himalayas", "arbeitnow"];
-  const providers: Source[] = wanted === "all" || wanted === "both"
-    ? ALL.filter((p) => configured[p]() && !(p === "francetravail" && country !== "fr"))
+  const all = wanted === "all" || wanted === "both";
+  const providers: Source[] = all
+    ? ALL.filter((p) => configured[p]() && !(p === "francetravail" && country !== "fr") && p !== "jooble" && !(p === "jsearch" && page > 1))
     : ALL.includes(wanted as Source) ? [wanted as Source] : ["adzuna"];
   if (!providers.length) return json({ error: "No job source is configured for this country." }, 502);
 
   // Guard and cache need the migration 20261028000200_job_search_guard.sql; if it is missing we log and carry on.
-  // "v3": Himalayas and Arbeitnow joined "all" (2026-11-09); bumping the key skips entries cached before that change.
-  const cacheKey = ["v3", providers.join("+"), country, query.toLowerCase(), where.toLowerCase(), page,
+  // "v4": French + English titles (alt) and Jooble as a backup (2026-11-09); a new key skips entries cached before.
+  const cacheKey = ["v4", providers.join("+"), country, query.toLowerCase(), alt.toLowerCase(), where.toLowerCase(), page,
     filters.contract, filters.remote, filters.days].join("|");
   if (admin) {
     const { bucket, limit } = await rateBucket(req);
@@ -528,7 +545,13 @@ Deno.serve(async (req) => {
   }
 
   const fetchers = { francetravail: franceTravail, adzuna, jsearch, jooble, himalayas, arbeitnow };
-  const results = await Promise.allSettled(providers.map((p) => fetchers[p](query, where, country, page, filters)));
+  const results = await Promise.allSettled(providers.map((p) => fetchers[p](query, where, country, page, filters, alt)));
+  // Jooble as a backup (lifetime quota): only when the other sources found fewer than 10 offers on the first page.
+  const found = results.reduce((n, r) => n + (r.status === "fulfilled" ? r.value.length : 0), 0);
+  if (all && page === 1 && found < 10 && configured.jooble()) {
+    const [backup] = await Promise.allSettled([jooble(query, where, country, page, filters)]);
+    if (backup.status === "fulfilled") results.push(backup); // a failed or empty backup is not a warning
+  }
 
   const warnings: string[] = [];
   const seen = new Set<string>();

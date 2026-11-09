@@ -46,7 +46,7 @@ const PATH_TITLE_TERMS = {
     "nlp engineer", "ingenieur ia", "ingenieur ml", "prompt engineer", "ai developer"],
 };
 export function titleMatcher(path) {
-  const terms = [...(path?.job_titles || []).map(norm), ...(PATH_TITLE_TERMS[path?.id] || [])];
+  const terms = [...(path?.job_titles || []), ...(path?.job_titles_fr || [])].map(norm).concat(PATH_TITLE_TERMS[path?.id] || []);
   if (!terms.length) return () => true;
   const re = new RegExp(`(?<![a-z0-9])(${terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?![a-z0-9])`);
   return (title) => re.test(norm(title));

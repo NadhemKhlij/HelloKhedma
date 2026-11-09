@@ -29,6 +29,8 @@ const routeOf = () => {
 };
 
 export function showRoute(moveFocus) {
+  // Switching tabs with the keyboard (#/cv ↔ #/cv/maker): the focus stays on the tab, not the page title.
+  if (document.activeElement?.matches?.('[role="tab"]')) moveFocus = false;
   const { r, param } = routeOf();
   const nav = NAV_OF[r] || r;
   document.querySelectorAll("[data-page]").forEach((s) => { s.hidden = s.dataset.page !== r; });

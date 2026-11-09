@@ -49,7 +49,7 @@ function renderLangToggle() {
   const btn = $("#langToggle");
   btn.replaceChildren(...["EN", "FR"].map((x) => h("span", { class: `lang-opt${x.toLowerCase() === lang ? " on" : ""}`, "aria-hidden": "true" }, x)));
   btn.title = lang === "fr" ? "Switch to English" : "Passer en français";
-  btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("aria-label", `EN / FR: ${btn.title}`); // the visible letters are part of the name (WCAG 2.5.3)
   btn.setAttribute("lang", lang === "fr" ? "en" : "fr");
   btn.addEventListener("click", () => setLang(lang === "fr" ? "en" : "fr"));
 }

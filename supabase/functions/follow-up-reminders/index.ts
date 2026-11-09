@@ -8,7 +8,8 @@
 //   - the daily run: header x-cron-secret = CRON_SECRET (GitHub Actions, .github/workflows/reminders.yml, with the
 //     anon key as Authorization because "Verify JWT" is on);
 //   - "Send me a test e-mail now": a signed-in user's session token, body { "test": true }; sends that user's digest
-//     right away (or says there is nothing due), once a day (profiles.reminders_test_on).
+//     right away, or, when nothing is due, a short e-mail saying the reminders work; once a day (profiles.reminders_test_on).
+//     A Resend refusal comes back as { error: "The e-mail could not be sent (Resend <status>: <its message>)." }.
 // Secrets (Supabase → Edge Functions → Secrets): RESEND_API_KEY (Resend, sending domain mail.hellokhedma.io),
 // CRON_SECRET (same value as the GitHub secret REMINDERS_CRON_SECRET); optional REMINDERS_FROM
 // (default "HelloKhedma <no-reply@mail.hellokhedma.io>"), SITE_URL (default https://hellokhedma.io).
@@ -50,6 +51,8 @@ const TEXT = {
     at: "at", open: "Open my tracker", colon: ":",
     footer: "You get this e-mail because you turned on e-mail reminders in HelloKhedma. Turn them off on the Account page:",
     test: "This is the test e-mail you asked for.", nothing: "Nothing is due today: no e-mail would be sent.",
+    testSubject: "HelloKhedma: your e-mail reminders work",
+    testNothing: "Your e-mail reminders are on and reach this inbox. Nothing is due today, so no reminder would be sent this morning: you get one on the days a follow-up is due or an interview is coming up.",
   },
   fr: {
     subject: (n: number) => `HelloKhedma : ${n} chose${n > 1 ? "s" : ""} à faire pour votre recherche aujourd’hui`,
@@ -59,6 +62,8 @@ const TEXT = {
     at: "chez", open: "Ouvrir mon suivi", colon: " :",
     footer: "Vous recevez cet e-mail car vous avez activé les rappels par e-mail dans HelloKhedma. Pour les arrêter, page Compte :",
     test: "Voici l’e-mail de test que vous avez demandé.", nothing: "Rien n’est prévu aujourd’hui : aucun e-mail ne serait envoyé.",
+    testSubject: "HelloKhedma : vos rappels par e-mail fonctionnent",
+    testNothing: "Vos rappels par e-mail sont activés et arrivent dans cette boîte. Rien n’est prévu aujourd’hui, donc aucun rappel ne serait envoyé ce matin : vous en recevez un les jours où une relance est due ou un entretien approche.",
   },
 };
 
@@ -98,7 +103,20 @@ async function send(to: string, mail: { subject: string; text: string; html: str
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from: FROM, to: [to], subject: mail.subject, text: mail.text, html: mail.html }),
   });
-  if (!res.ok) throw new Error(`Resend ${res.status}`);
+  if (!res.ok) {
+    const why = await res.json().then((d) => d?.message || d?.name || "", () => "");
+    throw new Error(`Resend ${res.status}${why ? `: ${String(why).slice(0, 200)}` : ""}`);
+  }
+}
+// The test e-mail when nothing is due: it still proves the e-mails reach the inbox.
+function renderNothing(lang: Lang) {
+  const T = TEXT[lang];
+  const text = [T.testNothing, "", `${T.open}${T.colon} ${SITE}/#/applications`, "", `${T.footer} ${SITE}/#/account`].join("\n");
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#222;max-width:560px">
+<p>${esc(T.testNothing)}</p>
+<p style="margin:20px 0"><a href="${SITE}/#/applications" style="background:#222;color:#fff;padding:10px 16px;border-radius:10px;text-decoration:none">${esc(T.open)}</a></p>
+<p style="color:#888;font-size:12px">${esc(T.footer)} <a href="${SITE}/#/account" style="color:#888">${SITE}/#/account</a></p></div>`;
+  return { subject: T.testSubject, text, html };
 }
 
 async function appsOf(userId: string) {
@@ -127,10 +145,11 @@ Deno.serve(async (req) => {
     if (p.reminders_test_on === today) return json({ error: "One test e-mail a day: try again tomorrow." }, 429);
     const lang: Lang = p.reminders_lang === "fr" ? "fr" : "en";
     const d = digest(await appsOf(user.id), today, now);
-    if (!d.count) return json({ sent: false, reason: TEXT[lang].nothing });
-    await send(user.email, render(d, lang, today, true));
+    // Nothing due: a short e-mail all the same, so the test shows the e-mails arrive.
+    try { await send(user.email, d.count ? render(d, lang, today, true) : renderNothing(lang)); }
+    catch (e) { console.error("test e-mail failed:", (e as Error).message); return json({ error: `The e-mail could not be sent (${(e as Error).message}).` }, 502); }
     await admin.from("profiles").update({ reminders_test_on: today }).eq("user_id", user.id);
-    return json({ sent: true });
+    return json({ sent: true, due: d.count });
   }
 
   // 2. The daily run.

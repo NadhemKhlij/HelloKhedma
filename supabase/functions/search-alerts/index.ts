@@ -116,7 +116,10 @@ async function send(to: string, mail: { subject: string; text: string; html: str
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from: FROM, to: [to], subject: mail.subject, text: mail.text, html: mail.html }),
   });
-  if (!res.ok) throw new Error(`Resend ${res.status}`);
+  if (!res.ok) {
+    const why = await res.json().then((d) => d?.message || d?.name || "", () => "");
+    throw new Error(`Resend ${res.status}${why ? `: ${String(why).slice(0, 200)}` : ""}`);
+  }
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const count = (kind: string, n = 1) => admin.rpc("count_usage_n", { p_kind: kind, p_n: n }).then(({ error }) => { if (error) console.error("usage count failed:", error.message); });
@@ -163,7 +166,8 @@ Deno.serve(async (req) => {
     await count("alert_search", alerts.length);
     const sections = await runUser(alerts as Alert[], today, true, new Map());
     if (!sections.length) return json({ sent: false, reason: TEXT[lang].nothing });
-    await send(user.email, render(sections, lang, true));
+    try { await send(user.email, render(sections, lang, true)); }
+    catch (e) { console.error("test e-mail failed:", (e as Error).message); return json({ error: `The e-mail could not be sent (${(e as Error).message}).` }, 502); }
     await count("alert_email");
     return json({ sent: true });
   }

@@ -18,14 +18,18 @@
 //   fixfile  { q, code: "yaml" | "dockerfile", start: the file to fix, rules: [id | { id, ...params }], answer: a fixed
 //            file, explain }   edit the file until every check passes (Kubernetes, GitHub Actions, Dockerfile; step 2d,
 //            rules in filecheck.js, loaded on demand with the self-hosted YAML parser); edits kept until the page reloads
-// (regex, cron, json and fixfile keep the solution in answer, shown as code, and the explanation in explain.)
+//   sheet    { q, code: "excel", rows: [[A1, B1…], [A2…]…] (text or numbers), cell: "F2" (where the formula goes),
+//            answer: a formula, explain }   type a formula; same value as the answer's on the sheet and on a changed
+//            copy (excelcheck.js, the self-hosted parser loaded on demand); a typed number or a formula without a
+//            cell reference is not accepted
+// (regex, cron, json, fixfile and sheet keep the solution in answer, shown as code, and the explanation in explain.)
 // Accepted answers: equal after trimming and ignoring case and extra spaces, or "/regex/flags" (drillcheck.accepts).
 // solution(e) draws the worked answer shown by "Reveal the answer" (before the explanation in e.answer).
 import { h } from "./lib.js";
 import { t, tn, lang } from "./i18n.js";
 import { accepts, parseCron, sameCron, nextRuns, jq, sameList } from "./drillcheck.js";
 
-export const DRILL_TYPES = ["choice", "fill", "order", "match", "groups", "bug", "scenario", "logs", "regex", "cron", "json", "fixfile"];
+export const DRILL_TYPES = ["choice", "fill", "order", "match", "groups", "bug", "scenario", "logs", "regex", "cron", "json", "fixfile", "sheet"];
 const OK = "#18a999", BAD = "#e0508b", WARN = "#f08a24";
 const say = (text, color) => h("p", { class: "text-sm font-medium", style: color ? `color:${color}` : "" }, text);
 const out = () => h("div", { class: "grid gap-2", "aria-live": "polite" });
@@ -384,7 +388,42 @@ function fixfile(e, done, miss) {
     area, h("div", { class: "flex flex-wrap gap-2" }, btn(t("✓ Check my file"), check), btn(t("↺ Start again"), reset, "btn-ghost")), fb];
 }
 
-const DRAW = { choice, fill, order, match, groups, bug, scenario, logs, regex, cron, json, fixfile };
+/* ---------- sheet: an Excel formula on a small sheet ---------- */
+const SHEET_WHY = {
+  equals: "A formula starts with =.",
+  constant: "Use the cells of the sheet: a typed result does not update when the data changes.",
+  error: "Your formula returns {mine}. Check the function names, the ranges and the quotes around text.",
+  value: "Your formula returns {mine}: not the expected result yet.",
+  general: "Right result on this data, but not in general: with other numbers your formula gives another result than the expected one. Avoid typed totals.",
+};
+function sheet(e, done, miss) {
+  const fb = out();
+  const cols = Math.max(...e.rows.map((r) => r.length));
+  const grid = h("div", { class: "overflow-x-auto rounded-xl", style: "border:1px solid var(--line)", dir: "ltr" },
+    h("table", { class: "text-xs font-mono w-full" },
+      h("thead", {}, h("tr", { style: "background:var(--soft)" }, h("th", { class: "px-2 py-1" }, ""),
+        ...[...Array(cols).keys()].map((c) => h("th", { class: "px-2 py-1 text-left mute font-normal" }, String.fromCharCode(65 + c))))),
+      h("tbody", {}, e.rows.map((r, i) => h("tr", { style: "border-top:1px solid var(--line)" },
+        h("td", { class: "px-2 py-1 mute", style: "background:var(--soft)" }, String(i + 1)),
+        ...[...Array(cols).keys()].map((c) => h("td", { class: `px-2 py-1 whitespace-nowrap ${typeof r[c] === "number" ? "text-right" : ""}`, style: i === 0 ? "font-weight:600" : "" }, r[c] ?? "")))))));
+  const input = h("input", { class: "input font-mono w-full", dir: "ltr", spellcheck: "false", autocapitalize: "off", autocorrect: "off",
+    placeholder: "=", "aria-label": t("Your formula in {cell}", { cell: e.cell }), onKeydown: (ev) => { if (ev.key === "Enter") { ev.preventDefault(); check(); } } });
+  async function check() {
+    if (!input.value.trim()) { input.focus(); return; }
+    let lib;
+    try { lib = await import("./excelcheck.js"); } catch { fb.replaceChildren(say(t("This check could not load. Check your connection and try again."), BAD)); return; }
+    const g = lib.grade(e.rows, e.answer, input.value);
+    const mine = lib.show(g.mine);
+    if (g.ok) { mark(input, true); fb.replaceChildren(say(t("✓ Correct! Your formula returns {mine}.", { mine }), OK)); done(); return; }
+    mark(input, false);
+    fb.replaceChildren(say(t(SHEET_WHY[g.reason], { mine }), g.reason === "general" ? WARN : BAD));
+    miss(input.value, `${SHEET_WHY[g.reason].replace("{mine}", mine)} (expected ${lib.show(g.want)}; sheet ${JSON.stringify(e.rows).slice(0, 600)})`);
+  }
+  return [grid, h("label", { class: "grid gap-1 text-sm" }, h("span", { class: "mute" }, t("Your formula in {cell}", { cell: e.cell })), input),
+    h("div", {}, btn(t("✓ Check my answer"), check)), fb];
+}
+
+const DRAW = { choice, fill, order, match, groups, bug, scenario, logs, regex, cron, json, fixfile, sheet };
 // onWrong(attempt, verdict): called after each wrong check (not by scenario, whose choices explain themselves).
 export function drill(e, onSolved, onWrong = () => {}) {
   let fired = false;
@@ -409,6 +448,6 @@ export function solution(e) {
       e.fix ? h("div", { class: "grid gap-1" }, h("p", { class: "mute text-xs" }, t("Fixed version:")), pre(e.fix, e.lang)) : null);
     case "scenario": return box(h("ol", { class: "list-decimal pl-5 grid gap-1" }, e.steps.map((s) => h("li", {}, s.choices.filter((c) => c.best).map((c) => c.label).join(" / ")))));
     case "logs": return box(...e.fields.map((f) => h("p", {}, label(`${f.label} `), h("code", { class: "inline-code" }, plain(f.accept)))));
-    default: return null; // regex, cron, json, fixfile: the answer is the code shown below
+    default: return null; // regex, cron, json, fixfile, sheet: the answer is the code shown below
   }
 }

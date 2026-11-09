@@ -14,4 +14,8 @@ Third-party code served from this site (no CDN, so no visitor data goes to a thi
 - pyodide/ (not in git): Pyodide 314.0.7 (MPL-2.0, https://pyodide.org, CPython 3.14 compiled to WebAssembly), copied
   from the npm devDependency by scripts/copy-pyodide.mjs at build time. js/pyworker.js loads it on demand for the
   runnable Python exercises; CI runs the same version in scripts/check-content.mjs. Standard library only.
+- formula.esm.min.js: fast-formula-parser 1.0.19 (MIT, fast-formula-parser.LICENSE, with its MIT dependencies chevrotain,
+  jstat, bessel, bahttext), bundled with `esbuild entry.mjs --bundle --format=esm --platform=browser --minify
+  --legal-comments=inline` where entry.mjs is `export { default as FormulaParser, FormulaError } from "fast-formula-parser";`.
+  Imported by js/excelcheck.js (Excel formula exercises), loaded on demand; CI imports the same file.
 Fonts are in fonts/ (Inter and Source Serif 4 from @fontsource, SIL Open Font License).

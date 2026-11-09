@@ -99,10 +99,17 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   DevOps (ci-cd; log content/logs/checkout-deploy.log).
 - Runnable Python exercises (step 5): `"code": "python"` + `"run": { "python": "<hidden tests: asserts with an English
   message>" }` (same in the French copy; optional `"start"` code that must fail). The learner's code runs in Pyodide
-  (Python 3.14, standard library only, no pandas yet) in a Web Worker, then the tests in the same namespace and a fresh
+  (Python 3.14, standard library + pandas / numpy) in a Web Worker, then the tests in the same namespace and a fresh
   temporary folder (tests may write the files they need). CI (check-content) runs every answer with the same Pyodide and
   checks that the tests fail without code. Pyodide is a devDependency copied into js/vendor/pyodide/ by `npm run build`
-  (scripts/copy-pyodide.mjs; gitignored, 13 MB, loaded on the first ▶ Run).
+  (scripts/copy-pyodide.mjs; gitignored, 13 MB, loaded on the first ▶ Run); the same script downloads pandas and its
+  dependencies from jsDelivr at build time, checked against the SHA-256 of pyodide-lock.json (CI stops on a failure),
+  so the site serves them itself; a pandas import loads them (about 15 MB more) before the run.
+- Excel formula exercises (type "sheet", code "excel"): `rows` (the sheet from A1, text or numbers), `cell` (where the
+  formula goes), `answer` (a formula using cells), same in French. js/excelcheck.js evaluates with fast-formula-parser
+  (MIT, js/vendor/formula.esm.min.js) + our own Excel-rule functions (COUNTIFS, SUMIFS, XLOOKUP, MATCH, MAX…); a
+  formula passes when it gives the answer's value on the sheet and on a changed copy. No array maths, FILTER / SORT /
+  UNIQUE, or Table[Column] references. CI evaluates every answer.
 - Auto-graded exercises: add `"type"` to an exercise (same in the French copy): choice, fill, order, match, groups,
   bug, scenario, logs, regex, cron, json, fixfile (fields in the js/drills.js header). regex / cron / json / fixfile keep
   the solution in `answer` (code, identical in both languages) and the explanation in `explain`. fixfile ("fix this
@@ -224,6 +231,7 @@ Read the header comment of any file before modifying it; update the header if be
 - content/logs/, content/data/ — fictional log and JSON files for the log analysis and jq exercises
 - js/filecheck.js — "fix this file" checks (Kubernetes manifests, GitHub Actions workflows, Dockerfiles), shared with CI;
   YAML read by js/vendor/js-yaml.esm.min.js (self-hosted, loaded on demand)
+- js/excelcheck.js — Excel formula exercises: parser + missing functions + grader, shared with CI (no DOM)
 - js/pyrun.js + js/pyworker.js — runnable Python exercises (Pyodide from js/vendor/pyodide/, 5 s limit per run, hidden
   tests), pyRunner in js/practice.js
 - js/sqlrun.js + js/sqlgrade.js — runnable SQL exercises: SQLite (sql.js, js/vendor) in a Web Worker with a 5 s limit on

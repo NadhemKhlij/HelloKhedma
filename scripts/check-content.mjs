@@ -20,8 +20,12 @@
 //   - "fix this file" exercises (type fixfile, training step 2d, js/filecheck.js): known rules of the right file kind,
 //     the course answer passes every check and the starting file fails at least one; French copies with the same
 //     starting file, rules and answer;
+//   - Excel formula exercises (type sheet, training step 5, js/excelcheck.js): rows of text / numbers, a target cell, an
+//     answer formula that uses cells, evaluates without error and is accepted by the grader; same rows, cell and
+//     answer in the French copy;
 //   - runnable Python exercises (exercise.run = { python: tests }, training step 5): code "python", the course answer
-//     passes the hidden tests in Pyodide (devDependency pyodide, the same engine as the browser), the tests alone fail
+//     passes the hidden tests in Pyodide (devDependency pyodide, the same engine as the browser; pandas from the built
+//     js/vendor/pyodide/), the tests alone fail
 //     (they test something), a starting code (exercise.start) fails them.
 // The same rules as scripts/check-fr-content.ps1 (French) and the course smoke test, plus the structure rules above.
 import { readFileSync, existsSync, readdirSync } from "node:fs";
@@ -32,6 +36,7 @@ import { SKILLS } from "../js/ats.js";
 import { gradeResult } from "../js/sqlgrade.js";
 import { blanks as countBlanks, parseCron, regexRun, jq } from "../js/drillcheck.js";
 import { checkFile, RULES as FILE_RULES } from "../js/filecheck.js";
+import { evaluate as evalFormula, grade as gradeFormula, usesCell } from "../js/excelcheck.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const C = (...p) => join(ROOT, "content", ...p);
@@ -102,7 +107,7 @@ function sameShape(where, a, b, { translated = true } = {}) {
 }
 
 /* ---------- auto-graded exercise formats (js/drills.js) ---------- */
-const TYPES = new Set(["choice", "fill", "order", "match", "groups", "bug", "scenario", "logs", "regex", "cron", "json", "fixfile"]);
+const TYPES = new Set(["choice", "fill", "order", "match", "groups", "bug", "scenario", "logs", "regex", "cron", "json", "fixfile", "sheet"]);
 const fileText = (f) => (/^(logs|data)\/[a-z0-9_.-]+$/.test(f || "") && existsSync(C(f)) ? readFileSync(C(f), "utf8") : null);
 const regexOk = (a) => { const m = /^\/(.+)\/([a-z]*)$/s.exec(a); if (!m) return true; try { new RegExp(m[1], m[2]); return true; } catch { return false; } };
 const acceptList = (where, list) => {
@@ -186,11 +191,20 @@ function checkDrill(where, e) {
     const start = checkFile(e.code, e.start, e.rules);
     if (!start.error && start.results.every((r) => r.ok)) bad(where, "the starting file already passes every check");
   }
+  if (t === "sheet") {
+    if (e.code !== "excel") bad(where, 'needs code: "excel"');
+    if (!arr(e.rows).length || !e.rows.every((r) => Array.isArray(r) && r.every((v) => typeof v === "string" || typeof v === "number"))) { bad(where, "rows must be rows of text or numbers"); return; }
+    if (!/^[A-Z]{1,2}\d+$/.test(e.cell || "")) bad(where, 'cell must be a cell name like "F2"');
+    if (!str(e.answer) || !e.answer.trim().startsWith("=") || !usesCell(e.answer)) { bad(where, "the answer must be a formula that uses cells"); return; }
+    const r = evalFormula(e.rows, e.answer);
+    if (r.error) bad(where, `the answer returns ${r.error}${r.detail ? ` (${r.detail})` : ""}`);
+    else if (!gradeFormula(e.rows, e.answer, e.answer).ok) bad(where, "the grader rejects the course answer");
+  }
 }
 // The two languages of a typed exercise: same type and shape, same correct answer, files and code.
 function sameDrill(where, a, b) {
   if (a.type !== b.type) { bad(where, `type ${a.type} vs ${b.type}`); return; }
-  for (const k of ["snippet", "lang", "correct", "line", "file", "mode", "flags", "text", "fix", "start", "rules"]) if (JSON.stringify(a[k] ?? null) !== JSON.stringify(b[k] ?? null)) bad(where, `${k} differs between the two languages`);
+  for (const k of ["snippet", "lang", "correct", "line", "file", "mode", "flags", "text", "fix", "start", "rules", "rows", "cell"]) if (JSON.stringify(a[k] ?? null) !== JSON.stringify(b[k] ?? null)) bad(where, `${k} differs between the two languages`);
   for (const k of ["options", "blanks", "steps", "pairs", "groups", "fields"]) if (arr(a[k]).length !== arr(b[k]).length) bad(where, `${k}: ${arr(a[k]).length} vs ${arr(b[k]).length}`);
   arr(a.groups).forEach((g, k) => { if (arr(g.items).length !== arr(arr(b.groups)[k]?.items).length) bad(where, `group ${k + 1}: item count differs`); });
   if (a.type === "scenario") arr(a.steps).forEach((s, k) => {
@@ -347,10 +361,15 @@ for (const e of index) {
 }
 if (pyRunnable.length) {
   const { loadPyodide } = await import("pyodide");
-  const py = await loadPyodide();
+  // The built copy (npm run build) holds the pandas files downloaded by scripts/copy-pyodide.mjs: use it when present.
+  const built = join(ROOT, "js", "vendor", "pyodide") + "/";
+  const py = await loadPyodide(existsSync(built + "pyodide.asm.wasm") ? { indexURL: built } : {});
   py.setStdout({ batched: () => {} }); py.setStderr({ batched: () => {} });
   // Same steps as js/pyworker.js: a fresh namespace and folder, the code, then the tests. Returns null when they pass.
   const attempt = async (code, tests) => {
+    if (/^\s*(import|from)\s+(pandas|numpy)\b/m.test(`${code}\n${tests}`)) {
+      try { await py.loadPackagesFromImports(`${code}\n${tests}`); } catch (err) { return `pandas could not be loaded (run npm run build first): ${String(err.message).split("\n")[0]}`; }
+    }
     py.runPython("import os, tempfile\nos.chdir(tempfile.mkdtemp())", { globals: py.globals.get("dict")() });
     const ns = py.globals.get("dict")();
     try { await py.runPythonAsync(code, { globals: ns }); } catch (err) { return `the code fails: ${String(err.message).trim().split("\n").at(-1)}`; }

@@ -503,6 +503,38 @@ test("runnable Python: hidden tests reject a wrong answer and accept the right o
   await expect(item).toContainText("Correct! Your code passes every test.", { timeout: 30_000 });
 });
 
+// Excel formula exercises (drills.js "sheet", excelcheck.js): a typed result is refused, a wrong formula shows its value,
+// the right formula passes.
+test("excel formulas: a typed number is refused, the right formula passes", async ({ page }) => {
+  await open(page, "#/course/excel");
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+  const item = page.locator('section[data-page="course"] [role=tabpanel] ol.grid > li').filter({ has: page.locator('[data-drill="sheet"]') }).nth(1);
+  const input = item.locator('[data-drill="sheet"] input');
+  const check = item.getByRole("button", { name: /Check my answer/ });
+  await input.fill("=99000"); await check.click();
+  await expect(item).toContainText("Use the cells of the sheet");
+  await input.fill('=SUMIFS(D2:D7,E2:E7,"Paris")'); await check.click();
+  await expect(item).toContainText("not the expected result yet");
+  await input.fill('=SUMIFS(D2:D7,D2:D7,">=47000",E2:E7,"paris")'); await check.click();
+  await expect(item).toContainText("Correct! Your formula returns 99000");
+});
+
+// pandas in the browser (copy-pyodide.mjs downloads its files at build time; CI must have them, a local build without
+// network skips this test): a pandas exercise passes its hidden tests.
+test("runnable pandas: a pandas answer passes its hidden tests", async ({ page, request }) => {
+  test.setTimeout(180_000);
+  const lock = await (await request.get("/js/vendor/pyodide/pyodide-lock.json")).json();
+  const wheel = (await request.get(`/js/vendor/pyodide/${lock.packages.pandas.file_name}`)).status();
+  if (!process.env.CI) test.skip(wheel !== 200, "pandas files not downloaded in this local build");
+  expect(wheel, "pandas file served by the site").toBe(200);
+  await open(page, "#/course/pandas");
+  await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
+  const item = page.locator('section[data-page="course"] [role=tabpanel] ol.grid > li').filter({ hasText: "top_companies" }).first();
+  await item.locator("textarea").fill('import pandas as pd\n\ndef top_companies(df, n=3):\n    return df["company"].value_counts().head(n).index.tolist()');
+  await item.getByRole("button", { name: /Check my answer/ }).click();
+  await expect(item).toContainText("Correct! Your code passes every test.", { timeout: 150_000 });
+});
+
 // Password reset (js/auth.js): no e-mail is sent here (Supabase rate-limits them); the checks before sending and the
 // new-password form are tested.
 test("forgot password asks for the e-mail first; the new-password form checks length and match", async ({ page }) => {

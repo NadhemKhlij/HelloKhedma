@@ -212,14 +212,15 @@ function pyRunner(e, onSolved, onWrong = () => {}) {
   const printed = (s) => (s?.trim() ? h("pre", { class: "codeblock !text-xs max-h-60 overflow-auto", dir: "ltr" }, h("code", {}, s.trimEnd())) : null);
   const busy = (on) => { run.disabled = check.disabled = on; };
   const show = (...els) => out.replaceChildren(...els.filter(Boolean));
-  const fail = (err) => say(err.message === "timeout" ? t("Your code ran for more than 5 seconds and was stopped (an endless loop?).")
+  const fail = (err) => say(err.message === "timeout" ? t("Your code ran too long and was stopped (an endless loop?).")
     : t("Python could not be loaded. Check your connection and try again."), "#e0508b");
   async function go(withTests) {
     if (!box.value.trim()) { box.focus(); return; }
     busy(true);
-    const { runPython, pythonLoaded } = await import("./pyrun.js");
-    show(h("p", { class: "mute text-sm" }, pythonLoaded() ? (withTests ? t("Checking…") : t("Running…"))
-      : t("Loading Python in your browser (about 13 MB, only the first time)…")));
+    const { runPython, pythonLoaded, needsPandas } = await import("./pyrun.js");
+    show(h("p", { class: "mute text-sm" }, !pythonLoaded() ? t("Loading Python in your browser (about 13 MB, only the first time)…")
+      : needsPandas(box.value + (withTests ? e.run.python : "")) ? t("Loading pandas in your browser (about 15 MB, only the first time)…")
+      : withTests ? t("Checking…") : t("Running…")));
     try {
       const r = await runPython(box.value, withTests ? e.run.python : "");
       if (r.error) {
@@ -252,7 +253,7 @@ function pyRunner(e, onSolved, onWrong = () => {}) {
   const run = h("button", { type: "button", class: "btn-ghost", onClick: () => go(false) }, t("▶ Run"));
   const check = h("button", { type: "button", class: "btn", onClick: () => go(true) }, t("✓ Check my answer"));
   return h("div", { class: "grid gap-2", "data-py-runner": true },
-    h("p", { class: "mute text-xs" }, t("Runs in your browser (Python 3.14, standard library). ✓ Check runs hidden tests on your code.")),
+    h("p", { class: "mute text-xs" }, t("Runs in your browser (Python 3.14 with pandas). ✓ Check runs hidden tests on your code.")),
     box, h("div", { class: "flex flex-wrap gap-2" }, run, check, reset), out);
 }
 

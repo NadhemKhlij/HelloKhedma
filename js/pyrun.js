@@ -4,7 +4,11 @@
 // new one. Nothing is sent anywhere: the code and the tests stay in the browser.
 //   runPython(code, tests?) -> { stdout, error?, failed? }  (see pyworker.js), or throws Error("timeout" | "load")
 //   pythonLoaded()          -> true once the engine answered (the UI says "loading Python" before that)
-const RUN_MS = 5000, LOAD_MS = 90000;
+//   needsPandas(code)       -> true when the code imports pandas or numpy and they are not loaded yet (about 15 MB more,
+//                              loaded before the run, outside its time limit; runs using them may take 15 s)
+const RUN_MS = 5000, PANDAS_RUN_MS = 15000, LOAD_MS = 90000;
+const PANDAS = /^\s*(import|from)\s+(pandas|numpy)\b/m;
+let pandasLoaded = false;
 let worker = null, ready = null, seq = 0;
 const pending = new Map();
 
@@ -20,17 +24,30 @@ function start() {
   ready.loaded = false;
   ready.then(() => { if (ready) ready.loaded = true; }, () => {});
 }
-function stop() { worker?.terminate(); worker = null; ready = null; pending.clear(); }
+function stop() { worker?.terminate(); worker = null; ready = null; pending.clear(); pandasLoaded = false; }
 
 export const pythonLoaded = () => !!ready?.loaded;
+export const needsPandas = (code) => PANDAS.test(code) && !pandasLoaded;
+
+function send(msg, ms) {
+  const id = ++seq;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { stop(); reject(new Error(ms === LOAD_MS ? "load" : "timeout")); }, ms);
+    pending.set(id, (d) => { clearTimeout(timer); resolve(d); });
+    worker.postMessage({ id, ...msg });
+  });
+}
 
 export async function runPython(code, tests = "") {
   if (!worker) start();
   await ready;
-  const id = ++seq;
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => { stop(); reject(new Error("timeout")); }, RUN_MS);
-    pending.set(id, (d) => { clearTimeout(timer); if (d.error === "load" && d.stdout == null) reject(new Error("load")); else resolve(d); });
-    worker.postMessage({ id, code, tests });
-  });
+  const pandas = PANDAS.test(`${code}\n${tests}`);
+  if (pandas && !pandasLoaded) {
+    const p = await send({ prepare: `${code}\n${tests}` }, LOAD_MS);
+    if (p.error) throw new Error("load");
+    pandasLoaded = true;
+  }
+  const d = await send({ code, tests }, pandas ? PANDAS_RUN_MS : RUN_MS);
+  if (d.error === "load" && d.stdout == null) throw new Error("load");
+  return d;
 }

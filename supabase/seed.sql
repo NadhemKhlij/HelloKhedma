@@ -31,7 +31,9 @@ insert into public.career_paths (id, name, blurb, color, job_titles, sort_order)
  ('do','DevOps Engineer','CI/CD, containers, cloud, automation','#3b82f6',
    array['DevOps Engineer','Ingénieur DevOps','Site Reliability Engineer','Platform Engineer','Cloud Engineer'],5),
  ('ai','AI Engineer','LLM apps, agents, RAG, evals','#16a34a',
-   array['AI Engineer','Ingénieur IA','LLM Engineer','Generative AI Engineer','Applied AI Engineer'],6)
+   array['AI Engineer','Ingénieur IA','LLM Engineer','Generative AI Engineer','Applied AI Engineer'],6),
+ ('mk','Digital Marketing','SEO, ads, analytics, campaigns','#0891b2',
+   array['Digital Marketing Specialist','Marketing Analyst','Growth Marketer','SEO Specialist','Performance Marketing Manager'],7)
 on conflict (id) do update set
   name = excluded.name, blurb = excluded.blurb, color = excluded.color,
   job_titles = excluded.job_titles, sort_order = excluded.sort_order;
@@ -45,7 +47,8 @@ update public.career_paths set job_titles_fr = v.t from (values
   ('as', array['Support Applicatif','Support Applicatif','Ingénieur Support N2','Ingénieur de Production']),
   ('da', array['Data Analyst','Analyste de Données','Analyste BI','Chargé de Reporting']),
   ('do', array['Ingénieur DevOps','Ingénieur DevOps','Ingénieur SRE','Ingénieur Plateforme','Ingénieur Cloud']),
-  ('ai', array['Ingénieur IA','Ingénieur IA','Ingénieur LLM','Ingénieur IA Générative','Ingénieur IA Appliquée'])
+  ('ai', array['Ingénieur IA','Ingénieur IA','Ingénieur LLM','Ingénieur IA Générative','Ingénieur IA Appliquée']),
+  ('mk', array['Chargé de Marketing Digital','Chargé d’Études Marketing','Growth Marketer','Chargé de Référencement','Traffic Manager'])
 ) as v(id, t) where public.career_paths.id = v.id;
 
 -- Data Engineer ---------------------------------------------------------------
@@ -116,6 +119,21 @@ select pg_temp.seed('ai','tip','[
  "Build one project with Derja, French and Arabic users in mind: few candidates in Europe can show that, and Tunisian clients need it.",
  "In interviews, tell the story of a mistake the model made, how you measured it and how you fixed it."]'::jsonb);
 select pg_temp.seed('ai','keyword','["LLM","Prompt engineering","Claude API","OpenAI API","AI agents","RAG","Vector database","LLMOps","LangChain","AI coding tools","Python","REST API","Docker","Git","SQL"]'::jsonb);
+
+-- Digital Marketing ---------------------------------------------------------------------
+-- Courses: the existing Excel, statistics (A/B testing), BI tools (Looker Studio, storytelling) and SQL courses until
+-- the marketing courses are written (ROADMAP "Digital Marketing path").
+select pg_temp.seed('mk','tool','[
+ ["Google Analytics 4","Measure traffic, conversions and the funnel; a free demo account to practise"],
+ ["Google Search Console","See how a site appears in Google: queries, pages, indexing"],
+ ["Google Ads + Meta Ads Manager","Run and read paid search and paid social campaigns"],
+ ["HubSpot or Brevo","CRM, e-mails and marketing automation, with free plans"],
+ ["Looker Studio + Google Sheets","Free reporting: connect GA4 and a spreadsheet, build a dashboard"]]'::jsonb);
+select pg_temp.seed('mk','tip','[
+ "Build one public case study: a real website or campaign, the goal, what you changed and the numbers before and after.",
+ "Learn to read the funnel: impressions, clicks, sessions, leads, sales. Interviews test whether you know which metric answers which question.",
+ "Take the free Google Analytics and Google Ads certifications (Skillshop) and add them to your CV and LinkedIn."]'::jsonb);
+select pg_temp.seed('mk','keyword','["SEO","Google Ads","Paid social","Social media marketing","Content marketing","Copywriting","Email marketing","Marketing automation","CRM","Google Analytics","Google Tag Manager","Marketing analytics","Conversion rate optimization","A/B testing","KPI","Excel","Looker","SQL"]'::jsonb);
 
 -- =====================================================================================
 -- Learning tracks. Step = [title, description, kind, provider, url, est_hours, is_free?]
@@ -297,6 +315,33 @@ select pg_temp.track('ai','ai-production','Evaluation, production and maintenanc
  ["Project: a support agent ready for production","Tools, guardrails, logs, cost per ticket, an eval in GitHub Actions and Docker (see the portfolio projects below).","project","Your repo","",20],
  ["Project: a documented model migration","Move one of your projects to a newer model or SDK version with an eval, a canary and a CHANGELOG entry with the numbers.","project","Your repo","",6]]'::jsonb);
 
+-- Digital Marketing ---------------------------------------------------------------------
+select pg_temp.track('mk','mk-foundations','Marketing foundations: funnel, channels and analytics','beginner',
+ 'The base every digital marketing interview checks: how customers are found, converted and measured.',
+ 'Explain the funnel and the main channels, set up and read Google Analytics 4, and build a KPI sheet a manager can use.',1,'[
+ ["HubSpot Academy courses","Free courses on inbound marketing, content, e-mail and social media, with certificates.","learn","HubSpot Academy","https://academy.hubspot.com/courses",6],
+ ["Set up Google Analytics 4","Create a property, add the tag and check that data arrives.","learn","Google Analytics Help","https://support.google.com/analytics/answer/9304153",2],
+ ["Google Analytics demo account","Explore real GA4 data from the Google Merchandise Store: channels, pages, conversions.","practice","Google Analytics Help","https://support.google.com/analytics/answer/6367342",3],
+ ["Google Analytics certification","The free official course and exam.","learn","Google Skillshop","https://skillshop.withgoogle.com/",6],
+ ["Practice: a marketing KPI sheet","In Google Sheets or Excel, track sessions, leads, cost, conversion rate, cost per lead and revenue per channel over 8 weeks of sample data, with one chart per KPI.","practice","Your sheet","",3]]'::jsonb);
+select pg_temp.track('mk','mk-acquisition','Acquisition: SEO, paid search and paid social','intermediate',
+ 'The channels that bring visitors and leads, and how to work each one.',
+ 'Audit a site for SEO, plan a Google Ads campaign, set up paid social and read the results of each channel.',2,'[
+ ["SEO Starter Guide","Google’s own guide: how search works, titles, content, links and what to avoid.","learn","Google Search Central","https://developers.google.com/search/docs/fundamentals/seo-starter-guide",3],
+ ["Beginner’s Guide to SEO","Keyword research, on-page, technical SEO and links, step by step.","learn","Moz","https://moz.com/beginners-guide-to-seo",6],
+ ["Search Console Help","Read the queries, pages and indexing reports of a site.","learn","Google","https://support.google.com/webmasters",2],
+ ["Google Ads Help","Campaign types, keywords, bidding and conversion tracking.","learn","Google","https://support.google.com/google-ads",4],
+ ["Meta Blueprint","Free courses on Facebook and Instagram advertising.","learn","Meta","https://www.facebook.com/business/learn",5],
+ ["Practice: an SEO audit of a real site","Pick a small site (a local business, an association), list its technical, content and link problems and write a prioritised plan.","practice","Your document","",6]]'::jsonb);
+select pg_temp.track('mk','mk-analytics','Measurement, experiments and reporting','advanced',
+ 'What separates a marketer who reports from one who decides: clean data, tests and clear dashboards.',
+ 'Query marketing data with SQL, size and read an A/B test, and publish a dashboard that answers a business question.',3,'[
+ ["Intro to SQL","Select, filter, join and aggregate: enough to query marketing data.","learn","Kaggle Learn","https://www.kaggle.com/learn/intro-to-sql",4],
+ ["GA4 e-commerce sample dataset","A real anonymised GA4 export of the Google Merchandise Store in BigQuery, free with the sandbox.","practice","Google Analytics","https://developers.google.com/analytics/bigquery/web-ecommerce-demo-dataset",5],
+ ["A/B test sample size calculator","How many visitors a test needs before its result means anything.","practice","Evan Miller","https://www.evanmiller.org/ab-testing/sample-size.html",1],
+ ["Looker Studio Help","Connect GA4 and Sheets, build charts and filters, share a report.","learn","Google","https://support.google.com/looker-studio",3],
+ ["Project: a campaign performance dashboard","A Looker Studio report with the funnel, cost per lead and conversion by channel, and three written recommendations.","project","Your report","",10]]'::jsonb);
+
 -- =====================================================================================
 -- French texts (shown when the interface is French). Needs migration 20261029000200_content_fr.sql.
 -- Rows are matched on their English title (the id key): when you rename an English title, update it here too.
@@ -311,7 +356,8 @@ from (values
   ('as', 'Support applicatif', 'Incidents, supervision, run'),
   ('da', 'Data Analyst', 'Analyses, tableaux de bord, storytelling'),
   ('do', 'DevOps Engineer', 'CI/CD, conteneurs, cloud, automatisation'),
-  ('ai', 'AI Engineer', 'Applications LLM, agents, RAG, évaluations')
+  ('ai', 'AI Engineer', 'Applications LLM, agents, RAG, évaluations'),
+  ('mk', 'Marketing digital', 'SEO, publicité, analytics, campagnes')
 ) as v(id, n, b)
 where p.id = v.id;
 
@@ -547,3 +593,42 @@ select pg_temp.track_fr('ai-production','Évaluation, production et maintenance'
  ["Practice: an eval set for your project","Pratique : un jeu d’évaluation pour votre projet","Écrivez 30 à 50 cas réels avec la réponse attendue, notez-les en code ou avec un juge calibré, et relancez-les après chaque changement."],
  ["Project: a support agent ready for production","Projet : un agent de support prêt pour la production","Outils, garde-fous, logs, coût par ticket, une évaluation dans GitHub Actions et Docker (voir les projets de portfolio plus bas)."],
  ["Project: a documented model migration","Projet : une migration de modèle documentée","Passez l’un de vos projets à un modèle ou à une version de SDK plus récents avec une évaluation, un canary et une entrée de CHANGELOG avec les chiffres."]]'::jsonb);
+
+-- Digital Marketing ---------------------------------------------------------------------
+select pg_temp.res_fr('mk','tool','[
+ ["Google Analytics 4","Google Analytics 4","Mesurer le trafic, les conversions et le tunnel ; un compte de démonstration gratuit pour s’entraîner"],
+ ["Google Search Console","Google Search Console","Voir comment un site apparaît dans Google : requêtes, pages, indexation"],
+ ["Google Ads + Meta Ads Manager","Google Ads + Meta Ads Manager","Lancer et lire des campagnes de référencement payant et de publicité sur les réseaux sociaux"],
+ ["HubSpot or Brevo","HubSpot ou Brevo","CRM, e-mails et marketing automation, avec des offres gratuites"],
+ ["Looker Studio + Google Sheets","Looker Studio + Google Sheets","Un reporting gratuit : connecter GA4 et un tableur, construire un tableau de bord"]]'::jsonb);
+select pg_temp.res_fr('mk','tip','[
+ ["Build one public case study: a real website or campaign, the goal, what you changed and the numbers before and after.","Construisez une étude de cas publique : un vrai site ou une vraie campagne, l’objectif, ce que vous avez changé et les chiffres avant et après."],
+ ["Learn to read the funnel: impressions, clicks, sessions, leads, sales. Interviews test whether you know which metric answers which question.","Apprenez à lire le tunnel : impressions, clics, sessions, leads, ventes. Les entretiens vérifient que vous savez quel indicateur répond à quelle question."],
+ ["Take the free Google Analytics and Google Ads certifications (Skillshop) and add them to your CV and LinkedIn.","Passez les certifications gratuites Google Analytics et Google Ads (Skillshop) et ajoutez-les à votre CV et à LinkedIn."]]'::jsonb);
+
+-- Learning tracks: Digital Marketing ----------------------------------------------------
+select pg_temp.track_fr('mk-foundations','Les bases du marketing : tunnel, canaux et analytics',
+ 'La base que vérifie tout entretien en marketing digital : comment les clients sont trouvés, convertis et mesurés.',
+ 'Expliquer le tunnel et les principaux canaux, configurer et lire Google Analytics 4, et construire un tableau d’indicateurs utile à un manager.','[
+ ["HubSpot Academy courses","Les cours HubSpot Academy","Des cours gratuits sur l’inbound marketing, le contenu, l’e-mail et les réseaux sociaux, avec certificats."],
+ ["Set up Google Analytics 4","Configurer Google Analytics 4","Créer une propriété, ajouter la balise et vérifier que les données arrivent."],
+ ["Google Analytics demo account","Le compte de démonstration Google Analytics","Explorer de vraies données GA4 du Google Merchandise Store : canaux, pages, conversions."],
+ ["Google Analytics certification","La certification Google Analytics","Le cours et l’examen officiels, gratuits."],
+ ["Practice: a marketing KPI sheet","Pratique : un tableau d’indicateurs marketing","Dans Google Sheets ou Excel, suivez sessions, leads, coût, taux de conversion, coût par lead et chiffre d’affaires par canal sur 8 semaines de données d’exemple, avec un graphique par indicateur."]]'::jsonb);
+select pg_temp.track_fr('mk-acquisition','Acquisition : SEO, référencement payant et réseaux sociaux',
+ 'Les canaux qui apportent visiteurs et leads, et comment travailler chacun.',
+ 'Auditer le SEO d’un site, préparer une campagne Google Ads, mettre en place de la publicité sur les réseaux sociaux et lire les résultats de chaque canal.','[
+ ["SEO Starter Guide","Le guide de démarrage SEO","Le guide de Google lui-même : le fonctionnement de la recherche, les titres, le contenu, les liens et ce qu’il faut éviter."],
+ ["Beginner’s Guide to SEO","Le guide du SEO pour débutants","Recherche de mots-clés, optimisation des pages, SEO technique et liens, étape par étape."],
+ ["Search Console Help","L’aide de Search Console","Lire les rapports de requêtes, de pages et d’indexation d’un site."],
+ ["Google Ads Help","L’aide de Google Ads","Types de campagnes, mots-clés, enchères et suivi des conversions."],
+ ["Meta Blueprint","Meta Blueprint","Des cours gratuits sur la publicité Facebook et Instagram."],
+ ["Practice: an SEO audit of a real site","Pratique : l’audit SEO d’un vrai site","Choisissez un petit site (un commerce local, une association), listez ses problèmes techniques, de contenu et de liens, et écrivez un plan par priorité."]]'::jsonb);
+select pg_temp.track_fr('mk-analytics','Mesure, tests et reporting',
+ 'Ce qui distingue le marketeur qui rapporte de celui qui décide : des données propres, des tests et des tableaux de bord clairs.',
+ 'Interroger des données marketing en SQL, dimensionner et lire un test A/B, et publier un tableau de bord qui répond à une question métier.','[
+ ["Intro to SQL","Introduction au SQL","Sélectionner, filtrer, joindre et agréger : de quoi interroger des données marketing."],
+ ["GA4 e-commerce sample dataset","Le jeu de données e-commerce GA4","Un vrai export GA4 anonymisé du Google Merchandise Store dans BigQuery, gratuit avec le bac à sable."],
+ ["A/B test sample size calculator","Le calculateur de taille d’échantillon d’un test A/B","Combien de visiteurs il faut à un test avant que son résultat veuille dire quelque chose."],
+ ["Looker Studio Help","L’aide de Looker Studio","Connecter GA4 et Sheets, construire graphiques et filtres, partager un rapport."],
+ ["Project: a campaign performance dashboard","Projet : un tableau de bord de performance des campagnes","Un rapport Looker Studio avec le tunnel, le coût par lead et la conversion par canal, et trois recommandations écrites."]]'::jsonb);

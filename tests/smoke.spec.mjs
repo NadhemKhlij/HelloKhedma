@@ -466,7 +466,7 @@ test("portfolio projects: every path has projects and a project page works", asy
   const box = project.locator("ol input[type=checkbox]").first();
   await box.check();
   await expect(project).toContainText("1/");
-  for (const p of ["de", "da", "ba", "as", "do"]) { // the AI Engineer path ("ai") has its projects in content/ai
+  for (const p of ["de", "da", "ba", "as", "do", "mk"]) { // the AI Engineer path ("ai") has its projects in content/ai
     const n = await page.evaluate(async (id) => (await (await fetch(`/content/projects/${id}.json`)).json()).projects.length, p);
     expect(n, `projects for ${p}`).toBeGreaterThanOrEqual(3);
   }

@@ -51,6 +51,7 @@ export default {
   "Cloud & DevOps": "Cloud et DevOps",
   "Methods": "Méthodes",
   "Support & IT": "Support et IT",
+  "Marketing": "Marketing",
   "Tools": "Outils",
   "Path keywords": "Mots-clés du parcours",
 

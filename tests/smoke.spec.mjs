@@ -67,6 +67,47 @@ test("accessibility: skip link and arrow keys in tab bars", async ({ page }) => 
   await expect(page).toHaveURL(/#\/cv\/maker$/);
 });
 
+// Guided first visit (guide.js): a newcomer gets three steps on Home that tick themselves off; an existing user never
+// sees it; "Skip the guide" hides it for good.
+test("guided first visit: role, CV, first search, then closed", async ({ page }) => {
+  await page.route("**/functions/v1/job-search", (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" },
+    body: JSON.stringify({ warnings: [], jobs: [] }) }));
+  await open(page, "#/");
+  const guide = page.locator("#homeGuide");
+  await expect(guide).toContainText("Get started in 3 steps");
+  await expect(guide).toContainText("0 of 3 done");
+  await expect(page.locator("#homeQuick")).toBeHidden();
+  await guide.getByRole("button").nth(1).click(); // the second career path
+  await expect(guide).toContainText("1 of 3 done");
+  await guide.getByRole("link", { name: "Upload or paste my CV" }).click();
+  await expect(page.locator("#guideBar")).toContainText("Step 2 of 3");
+  await page.fill("#cv", "Business Analyst\nRequirements, SQL, Jira");
+  await page.click("#cvSave");
+  await expect(page.locator("#guideBar")).toContainText("Last step");
+  await page.locator("#guideBar").getByRole("link", { name: "Find offers →" }).click();
+  await expect(page.locator("#guideBar")).toContainText("Step 3 of 3");
+  await page.locator("#searchForm").evaluate((f) => f.requestSubmit());
+  await expect(page.locator("#guideBar")).toContainText("All three steps done");
+  await page.goto("/index.html#/");
+  await expect(guide).toContainText("You're all set");
+  await guide.getByRole("button", { name: "Close the guide" }).click();
+  await expect(guide).toBeEmpty();
+  await expect(page.locator("#homeQuick")).toBeVisible();
+  await page.reload();
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(guide).toBeEmpty();
+});
+test("guided first visit: not shown to someone who already used the site, and can be skipped", async ({ page }) => {
+  await page.addInitScript(() => { if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("hk.path", "da"); } });
+  await open(page, "#/");
+  await expect(page.locator("#homeGuide")).toBeEmpty();
+  await page.evaluate(() => { localStorage.clear(); });
+  await page.reload();
+  await expect(page.locator("#homeGuide")).toContainText("Get started");
+  await page.locator("#homeGuide").getByRole("button", { name: "Skip the guide" }).click();
+  await expect(page.locator("#homeGuide")).toBeEmpty();
+});
+
 test("home shows the career paths and a path can be selected", async ({ page }) => {
   await open(page);
   await expect(page.locator("#h-home")).toHaveText(/Good (morning|afternoon|evening)/);

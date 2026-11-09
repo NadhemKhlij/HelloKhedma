@@ -185,7 +185,7 @@ Read the header comment of any file before modifying it; update the header if be
 - CHECKLIST.md updated with any new owner task (migration to run, function to deploy, secret to set).
 
 ## Routes (`#/<route>[/<param>]`, router in js/router.js)
-- `#/` → home → home.js (path cards: app.js)
+- `#/` → home → home.js (path cards: app.js; first-visit guide: guide.js)
 - `#/offers` → offers → offers.js + jobs.js, companies.js, remote.js (three tabs)
 - `#/training` → training → training.js (My learning, roadmap of tracks, study plan) + courses.js (course list)
 - `#/course/<id>` → course → courses.js
@@ -209,6 +209,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/home.js, js/offers.js, js/training.js, js/cvpage.js, js/applications.js, js/account.js — one module per page
 - js/lib.js — DOM helpers (h, svg, $), localStorage wrapper, toast, download
 - js/icons.js — path card illustrations and the progress ring (Home)
+- js/guide.js — guided first visit for a newcomer (nothing saved yet; "hk.guide" on | done | skip): 3 steps on Home (role,
+  CV, first search) that tick themselves off, a reminder line on #/cv and #/offers (#guideBar), skipped by existing users
 - js/i18n.js — interface language (t, tn, FR/EN switch, static page translation); js/i18n-fr.js — merges the French texts of js/fr/*.js (one file per area)
 - js/supabase.js — Supabase client and runtime CONFIG
 - js/config.example.js — template for js/config.js (generated in production, gitignored)

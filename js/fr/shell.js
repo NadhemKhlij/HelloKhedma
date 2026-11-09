@@ -1,6 +1,33 @@
 // French texts: page shell, navigation, Home, account, sign-in and password reset, admin page.
 // Merged into one dictionary by js/i18n-fr.js (see its header for the rules).
 export default {
+  /* ---------- guided first visit (guide.js) ---------- */
+  " (done)": " (fait)",
+  "Choose your role": "Choisissez votre métier",
+  "Offers, courses, CV keywords and interview questions all follow it. You can change it at any time.": "Les offres, les cours, les mots-clés du CV et les questions d’entretien s’y adaptent. Vous pouvez le changer à tout moment.",
+  "You get its ATS score out of 100 at once, with the fixes that add the most points. It stays in this browser.": "Vous obtenez tout de suite son score ATS sur 100, avec les corrections qui rapportent le plus de points. Il reste dans ce navigateur.",
+  "Upload or paste my CV": "Importer ou coller mon CV",
+  "I have no CV: build one": "Je n’ai pas de CV : en créer un",
+  "Find your first offers": "Trouvez vos premières offres",
+  "Live {title} offers from several job boards, each scored against your CV.": "Des offres {title} en direct, de plusieurs sites d’emploi, chacune notée par rapport à votre CV.",
+  "Search {title} offers": "Chercher des offres {title}",
+  "🎉 You're all set": "🎉 Tout est prêt",
+  "Get started in 3 steps": "Bien démarrer en 3 étapes",
+  "{n} of 3 done": "{n} sur 3 faites",
+  "Getting started": "Bien démarrer",
+  "Next, when you are ready:": "Ensuite, quand vous voulez :",
+  "Press “Track” on the offers you like: they go to your tracker, with follow-up reminders.": "Appuyez sur « Ajouter au suivi » sur les offres qui vous plaisent : elles vont dans votre suivi, avec des rappels de relance.",
+  "Take the skill check": "Passez le test de positionnement",
+  ": the courses you already master leave your study plan.": " : les cours que vous maîtrisez déjà sortent de votre plan d’étude.",
+  "Sign in to keep your tracker and progress on every device.": "Connectez-vous pour retrouver votre suivi et votre progression sur tous vos appareils.",
+  "Close the guide": "Fermer le guide",
+  "Skip the guide": "Passer le guide",
+  "Step 2 of 3: upload your CV (PDF) or paste its text, then press “Save and score my CV”. No CV yet? Open the CV maker tab.": "Étape 2 sur 3 : importez votre CV (PDF) ou collez son texte, puis appuyez sur « Enregistrer et noter mon CV ». Pas encore de CV ? Ouvrez l’onglet Créateur de CV.",
+  "✓ Your CV is saved. Last step: find your first offers.": "✓ Votre CV est enregistré. Dernière étape : trouvez vos premières offres.",
+  "Step 3 of 3: choose a city (or leave it empty for the whole country) and press Search.": "Étape 3 sur 3 : choisissez une ville (ou laissez vide pour tout le pays) et appuyez sur Rechercher.",
+  "✓ All three steps done. Press “Track” on the offers you like.": "✓ Les trois étapes sont faites. Appuyez sur « Ajouter au suivi » sur les offres qui vous plaisent.",
+  "Find offers →": "Trouver des offres →",
+  "Back to the guide": "Retour au guide",
   "Skip to content": "Aller au contenu",
   /* ---------- page shell, navigation, account ---------- */
   "Main": "Principal",

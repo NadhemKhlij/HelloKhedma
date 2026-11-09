@@ -92,6 +92,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-09 | Guided first visit: a newcomer (nothing saved in the browser) gets "Get started in 3 steps" on Home: choose your role, add your CV (upload, paste or CV maker), find your first offers. Steps tick themselves off; #/cv and #/offers show the current step; "Skip the guide" or "Close the guide" hides it for good. Existing users (and accounts with applications on a new device) never see it. Nothing for the owner |
 | 2026-11-09 | Accessibility pass (ROADMAP 1.9): axe-core audit of every page and dialog, light and dark, the six path colours, English and French, desktop and phone. Fixed: text contrast (path colours and green / orange / pink status colours are darkened as needed in light theme, lightened in dark: --accent-ink, --ok / --warn / --bad), "Skip to content" link, ←/→ in tab bars, keyboard-scrollable code blocks. Smoke tests now fail on any serious accessibility problem. Nothing for the owner |
 | 2026-11-09 | O42 done by the owner: job-search redeployed, a source answering 429 (quota reached) is paused for an hour |
 | 2026-11-09 | Fix (owner report: no offers in "Choose an offer"): the tracker cards load after the CV page is drawn, so they were missing from the list; it is now redrawn when they load. Offers tracked before texts were kept can be chosen: open the offer, paste its text once, it is kept for next time. Offers seen before the update appear after a new search |

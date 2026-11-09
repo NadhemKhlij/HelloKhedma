@@ -99,6 +99,9 @@ the scoring CV on the Offers page; the CV match compares every version). Local o
 | 3.9 | Path market pulse on Home, from your own search results: typical salary range, top 10 requested skills (with your CV gaps), % remote, % with a salary | Know the market for your path at a glance | M |
 | 3.10 | Import from LinkedIn: guide to "Save to PDF" from your profile (the existing CV upload reads it), then read the LinkedIn data export (.zip: Positions, Skills, Education CSV) in the browser to prefill a CV version; nothing is sent | Start from what is already on LinkedIn without retyping | M |
 
+Done (2026-11-09): guided first visit (js/guide.js): a newcomer gets 3 steps on Home (role, CV, first search) that tick
+themselves off, with a reminder line on the CV and Offers pages; existing users never see it.
+
 ## Phase 3b: job sources plan (owner request, 2026-11-08)
 Goal: more offers, more relevant, for France first and then Tunisia / remote. Rules for every new source: read its terms
 first (attribution, caching, reuse), keys only in Supabase secrets, credit shown under the results, privacy policy and

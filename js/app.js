@@ -5,6 +5,7 @@
 // - Data: path content from Supabase (career_paths, path_resources here; tracks in training.js); applications through
 //   state.store (LocalStore for guests, CloudStore when signed in, see store.js); onUser() imports guest data on sign-in.
 // - selectPath() reloads the path content and redraws every page; the CV version linked to the path becomes active.
+// - initGuide(): the guided first visit for a newcomer (guide.js; Home panel + a reminder line on #/cv and #/offers).
 // - Also here: keyboard helpers (skip link, arrow keys in tab bars: initKeyboard), theme toggle ("hk.theme", shows the current theme; the browser bar colour follows the page), EN / FR button (both shown, the current one highlighted), error toasts + optional Sentry (CONFIG.SENTRY_DSN), optional Cloudflare Web Analytics (CONFIG.CF_ANALYTICS_TOKEN),
 //   PWA registration (sw.js) and the "Install the app" link.
 // - Every user-facing text goes through t() / tn(). i18n.js is imported first so the static page is translated
@@ -21,6 +22,7 @@ import { state, path, byKind, fail } from "./state.js";
 import { pathArt } from "./icons.js";
 import { showRoute, refreshInterview, refreshSkillCheck, coursesReady } from "./router.js";
 import { PROG_KEY, loadTracks, loadProgress, renderLearn, initTraining } from "./training.js";
+import { initGuide, markPathChosen, guideSeenOnAccount } from "./guide.js";
 import { renderSearchControls, renderOffers, resetOffers, loadCompanyJobs, initOffers } from "./offers.js";
 import { renderCvVersions, renderCvSkills, useCvForPath, initCvPage } from "./cvpage.js";
 import { refreshTracker, initApplications } from "./applications.js";
@@ -98,6 +100,7 @@ function renderAll() {
 
 async function selectPath(id) {
   state.pathId = id;
+  markPathChosen(); // guided first visit: step 1 done
   ls.set(PATH_KEY, id);
   resetOffers();
   try { state.openInit = false; await Promise.all([loadResources(), loadTracks()]); } catch (e) { fail(e); }
@@ -136,6 +139,7 @@ async function onUser(user) {
   cvSyncUser(user).catch((e) => console.warn("CV sync:", e.message)); // opt-in CV sync (no-op when it is off)
   learnSyncUser(user).catch((e) => console.warn("Learning sync:", e.message)); // lessons, quizzes, XP… on every device
   await Promise.all([refreshTracker(), loadProgress()]);
+  if (user && state.cards.length) guideSeenOnAccount(); // an existing account on a new device: no first-visit guide
   renderLearn(); renderStatus();
 }
 
@@ -251,6 +255,7 @@ async function init() {
   await loadProgress();
   renderAll(); refreshSkillCheck();
   await refreshTracker();
+  initGuide({ selectPath }); // guided first visit for a newcomer (Home, guide.js)
   initAuth({ onUser });
 }
 

@@ -1,15 +1,17 @@
 // Job search ("Job search" tab): calls the job-search Edge Function, which queries France Travail, Adzuna, JSearch,
 // Himalayas and Arbeitnow server-side, Jooble as a backup (only the providers whose secrets are set), so API keys never
-// reach the browser. alt: the English title sent with a French one (country France), searched together.
+// reach the browser. alt: the English title sent with a French one (country France), searched together; path: the
+// career path id (La bonne alternance searches by trade codes, not words). Careerjet and La bonne alternance run too
+// when their keys are set.
 // The Offers filters (contract, remote, posted within) go with the search so the sources return matching offers
 // (the page filters the results again). salaryStats(): Adzuna's advertised-salary statistics for a job title (Home).
 // boardLinks() builds direct links to job boards as a fallback when the function is unavailable.
 import { sb } from "./supabase.js";
 
 // Calls the job-search Edge Function. Keys stay server-side.
-export async function searchJobs({ query, alt = "", location, provider, country, page = 1, filters = {} }) {
+export async function searchJobs({ query, alt = "", path = "", location, provider, country, page = 1, filters = {} }) {
   const { data, error } = await sb.functions.invoke("job-search", {
-    body: { query, ...(alt ? { alt } : {}), location, provider, country, page, filters },
+    body: { query, ...(alt ? { alt } : {}), ...(path ? { path } : {}), location, provider, country, page, filters },
   });
   if (error) {
     let msg = error.message;

@@ -332,4 +332,5 @@ export default {
   "{n} new offer since your last search.": "{n} nouvelle offre depuis votre dernière recherche.",
   "{n} new offers since your last search.": "{n} nouvelles offres depuis votre dernière recherche.",
   "Only titles for my path": "Seulement les intitulés de mon parcours",
+  "La bonne alternance (work-study, France)": "La bonne alternance (alternance, France)",
 };

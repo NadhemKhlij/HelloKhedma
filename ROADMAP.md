@@ -113,7 +113,7 @@ legal notice updated (FR + EN). Sources called from the browser receive the visi
 | 5 | Himalayas + Remote OK | "Remote jobs" tab: more remote offers, salary ranges, time zones (Remote OK asks for a link back) | Free (check terms) | S | **Done 2026-11-09** (Himalayas in the job-search function: no CORS; Remote OK in Remote jobs) |
 | 6 | Search quality | Synonyms per path ("data engineer" OR "ingénieur data", Adzuna what_or), several pages for "All sources", JSearch experience filter, "new since last visit" badge | — | M | **Done 2026-11-09**: "More offers", "new since your last search", DevOps / AI title terms, French titles with their English pair (country France: Adzuna twice, JSearch with OR), "Only titles for my path", quota savings (Adzuna 50 a call, JSearch page 1 only, Jooble as a backup) |
 | 7 | France Travail Offres d'emploi v2 (+ La bonne boîte) | Best French coverage, full descriptions; companies that hire without posting | Closed to new users: request via francetravail.io/contact (draft given 2026-11-08); code ready, option hidden | — | Waiting for France Travail |
-| 8 | Careerjet publisher API | Another aggregator, many countries incl. Tunisia | Publisher account (check terms) | S | Later |
+| 8 | Careerjet publisher API | Another aggregator, many countries incl. Tunisia | Publisher account (check terms) | S | **Done 2026-11-09** (job-search function; no Tunisia site in its list) |
 | — | LinkedIn, Indeed, Welcome to the Jungle, APEC, Tanitjobs, Keejob | — | No public jobs API; scraping breaks their terms | — | Not planned (job-board links stay) |
 
 ## Phase 4: learning that leads to a job

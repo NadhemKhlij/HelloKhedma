@@ -9,6 +9,13 @@
 //     ("arbeitnow-v1") and searched here by title; "please do not abuse, link back appreciated" (CREDITS links back).
 //     Outside Germany, Austria and Switzerland only its remote jobs are kept.
 // Both always run with "all" (no secret needed); their jobs mention "visa sponsorship" in `text` when Arbeitnow says so.
+// Two sources with the owner's free accounts (2026-11-09; spec read from api.apprentissage.beta.gouv.fr/api/documentation/json):
+//   La bonne alternance (LBA_API_TOKEN, French government, work-study offers, France only): GET /api/job/v1/search with a
+//     Bearer token; no keyword search, so the career path (`path` in the request) picks ROME codes (LBA_ROMES) and the
+//     place becomes a département (Geo API); titles are then kept when they share a word with the searched titles.
+//   Careerjet (CAREERJET_API_KEY, publisher key for hellokhedma.io, ~90 country sites, no Tunisia): GET /v4/query, HTTP
+//     Basic auth with the key as user name; its rules require the visitor's IP address and browser (user agent) with
+//     every call (privacy policy); job links go through Careerjet's click tracking (its publisher model).
 //
 // Free quotas (checked 2026-11-09): Adzuna 250 calls a day, JSearch 200 a month, Jooble 500 for the life of the key. So:
 //   - Adzuna asks for 50 offers a call (the maximum page size, same cost as 20);
@@ -34,7 +41,8 @@
 //   RATE_LIMIT_USER                 optional: searches per hour per signed-in user (default 60)
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 //
-// Request  (POST JSON): { query, alt?, location?, provider?, country?, page?, filters? }   alt: see French titles above
+// Request  (POST JSON): { query, alt?, path?, location?, provider?, country?, page?, filters? }   alt: see French titles
+//   above; path: career path id (de, da, ba, as, do, ai), used by La bonne alternance
 //   filters (Offers page, all optional): { contract: "CDI"|"CDD"|"Freelance"|"Internship"|"Apprenticeship",
 //   remote: "Remote"|"any-remote", days: 1|3|7|30 }. Sent to the sources that support them (Adzuna: max_days_old,
 //   permanent / contract, newest first when a date is asked; JSearch: date_posted, employment_types, work_from_home);
@@ -57,7 +65,9 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Source = "francetravail" | "adzuna" | "jsearch" | "jooble" | "himalayas" | "arbeitnow";
+type Source = "francetravail" | "adzuna" | "jsearch" | "jooble" | "himalayas" | "arbeitnow" | "lba" | "careerjet";
+// Per-request details some sources need: the visitor's IP and browser (Careerjet's rule), the career path (LBA codes).
+type Ctx = { ip: string; ua: string; path: string };
 type Job = {
   id: string;
   title: string;
@@ -160,6 +170,8 @@ const configured: Record<Source, () => boolean> = {
   jsearch: () => Boolean(Deno.env.get("RAPIDAPI_KEY")),
   himalayas: () => true,
   arbeitnow: () => true,
+  lba: () => Boolean(Deno.env.get("LBA_API_TOKEN")),
+  careerjet: () => Boolean(Deno.env.get("CAREERJET_API_KEY")),
   jooble: () => Boolean(Deno.env.get("JOOBLE_API_KEY")),
 };
 
@@ -448,6 +460,79 @@ async function arbeitnow(q: string, where: string, country: string, _page: numbe
     }));
 }
 
+// ---------- La bonne alternance (work-study offers, France) ----------
+// ROME codes (France Travail's job directory) per career path.
+const LBA_ROMES: Record<string, string> = {
+  de: "M1805,M1810", da: "M1403,M1805", ba: "M1806", as: "M1810,M1802", do: "M1801,M1810", ai: "M1805,M1403",
+};
+async function lba(q: string, where: string, country: string, page: number, f: Filters, alt = "", ctx?: Ctx): Promise<Job[]> {
+  const token = Deno.env.get("LBA_API_TOKEN");
+  if (!token) throw new Error("La bonne alternance is not configured (LBA_API_TOKEN).");
+  if (country !== "fr" || page > 1) return [];
+  const romes = LBA_ROMES[ctx?.path ?? ""] ?? "M1805";
+  const url = new URL("https://api.apprentissage.beta.gouv.fr/api/job/v1/search");
+  url.searchParams.set("romes", romes);
+  const dep = where ? await departementOf(where).catch(() => null) : null;
+  if (dep) url.searchParams.append("departements", dep);
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
+  if (!res.ok) throw new Error(`La bonne alternance returned ${res.status}: ${(await providerMessage(res)).slice(0, 120)}`);
+  const data = await res.json();
+  const words = new Set(fold(`${q} ${alt}`).split(/[^a-z0-9+#]+/).filter((w) => w.length > 2 && !["les", "des", "and", "the"].includes(w)));
+  const since = f.days ? Date.now() - f.days * 86400_000 : 0;
+  return (data?.jobs ?? [])
+    .filter((x: Raw) => x?.offer?.title && x?.apply?.url)
+    .filter((x: Raw) => fold(x.offer.title).split(/[^a-z0-9+#]+/).some((w: string) => words.has(w)))
+    .filter((x: Raw) => !since || !x.offer.publication?.creation || new Date(x.offer.publication.creation).getTime() >= since)
+    .slice(0, 50)
+    .map((x: Raw): Job => ({
+      id: String(x.identifier?.id ?? x.apply.url),
+      title: strip(x.offer.title, 200),
+      company: strip(x.workplace?.name || x.workplace?.brand || x.workplace?.legal_name, 120),
+      location: strip(x.workplace?.location?.address, 120),
+      url: x.apply.url,
+      posted: x.offer.publication?.creation ?? null,
+      snippet: strip(x.offer.description),
+      text: strip(["alternance apprenticeship", [].concat(x.contract?.type ?? []).join(" "), x.contract?.remote, x.offer.description,
+        [].concat(x.offer.desired_skills ?? []).join(" ")].filter(Boolean).join(" "), 4000),
+      source: "lba",
+      salary: "",
+    }));
+}
+
+// ---------- Careerjet (publisher API) ----------
+const CAREERJET_LOCALES: Record<string, string> = {
+  fr: "fr_FR", gb: "en_GB", us: "en_US", de: "de_DE", nl: "nl_NL", ca: "en_CA", au: "en_AU", at: "de_AT", be: "fr_BE",
+  ch: "fr_CH", es: "es_ES", it: "it_IT", pl: "pl_PL", br: "pt_BR", in: "en_IN", nz: "en_NZ", sg: "en_SG", za: "en_ZA", mx: "es_MX",
+};
+async function careerjet(q: string, where: string, country: string, page: number, _f: Filters, _alt = "", ctx?: Ctx): Promise<Job[]> {
+  const key = Deno.env.get("CAREERJET_API_KEY");
+  if (!key) throw new Error("Careerjet is not configured (CAREERJET_API_KEY).");
+  const call = async (loc: string) => {
+    const url = new URL("https://search.api.careerjet.net/v4/query");
+    for (const [k, v] of Object.entries({ keywords: q, locale_code: CAREERJET_LOCALES[country] ?? "en_GB", page_size: "50",
+      page: String(Math.min(page, 10)), user_ip: ctx?.ip || "127.0.0.1", user_agent: ctx?.ua || "HelloKhedma", ...(loc ? { location: loc } : {}) })) {
+      url.searchParams.set(k, v);
+    }
+    const res = await fetch(url, { headers: { Authorization: `Basic ${btoa(`${key}:`)}`, Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Careerjet returned ${res.status}: ${(await providerMessage(res)).slice(0, 120)}`);
+    return await res.json();
+  };
+  let data = await call(where);
+  if (data?.type === "LOCATIONS" && where) data = await call(""); // place not found or ambiguous: whole country
+  return (data?.jobs ?? []).filter((x: Raw) => x?.url && x?.title).map((x: Raw): Job => ({
+    id: String(x.url),
+    title: strip(x.title, 200),
+    company: strip(x.company, 120),
+    location: strip(Array.isArray(x.locations) ? x.locations.join(", ") : x.locations, 120),
+    url: x.url,
+    posted: x.date ? new Date(x.date).toISOString() : null,
+    snippet: strip(x.description),
+    text: strip([x.description, x.salary].filter(Boolean).join(" "), 2000),
+    source: "careerjet",
+    salary: strip(x.salary, 80),
+  }));
+}
+
 // Adzuna salary statistics for one job title in one country (Home market pulse): the distribution of advertised
 // salaries (histogram: lower bound of each band → number of offers) and the average advertised salary per month.
 async function salaryStats(q: string, country: string) {
@@ -512,16 +597,21 @@ Deno.serve(async (req) => {
   const filters = readFilters(body.filters);
   const wanted = String(body.provider ?? Deno.env.get("DEFAULT_PROVIDER") ?? "all");
   // France Travail comes first so that, for an offer listed on several sources, its full description wins the dedupe.
-  const ALL: Source[] = ["francetravail", "adzuna", "jsearch", "jooble", "himalayas", "arbeitnow"];
+  const ALL: Source[] = ["francetravail", "adzuna", "jsearch", "jooble", "himalayas", "arbeitnow", "careerjet", "lba"];
   const all = wanted === "all" || wanted === "both";
   const providers: Source[] = all
     ? ALL.filter((p) => configured[p]() && !(p === "francetravail" && country !== "fr") && p !== "jooble" && !(p === "jsearch" && page > 1))
     : ALL.includes(wanted as Source) ? [wanted as Source] : ["adzuna"];
   if (!providers.length) return json({ error: "No job source is configured for this country." }, 502);
 
+  const ctx: Ctx = {
+    ip: req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "",
+    ua: (req.headers.get("user-agent") || "").slice(0, 300),
+    path: /^(de|da|ba|as|do|ai)$/.test(String(body.path)) ? String(body.path) : "",
+  };
   // Guard and cache need the migration 20261028000200_job_search_guard.sql; if it is missing we log and carry on.
-  // "v4": French + English titles (alt) and Jooble as a backup (2026-11-09); a new key skips entries cached before.
-  const cacheKey = ["v4", providers.join("+"), country, query.toLowerCase(), alt.toLowerCase(), where.toLowerCase(), page,
+  // "v5": La bonne alternance (needs the path) and Careerjet (2026-11-09); a new key skips entries cached before.
+  const cacheKey = ["v5", providers.join("+"), country, query.toLowerCase(), alt.toLowerCase(), ctx.path, where.toLowerCase(), page,
     filters.contract, filters.remote, filters.days].join("|");
   if (admin) {
     const { bucket, limit } = await rateBucket(req);
@@ -544,8 +634,8 @@ Deno.serve(async (req) => {
     else if (hit) return json({ ...hit.results, cached: true });
   }
 
-  const fetchers = { francetravail: franceTravail, adzuna, jsearch, jooble, himalayas, arbeitnow };
-  const results = await Promise.allSettled(providers.map((p) => fetchers[p](query, where, country, page, filters, alt)));
+  const fetchers = { francetravail: franceTravail, adzuna, jsearch, jooble, himalayas, arbeitnow, lba, careerjet };
+  const results = await Promise.allSettled(providers.map((p) => fetchers[p](query, where, country, page, filters, alt, ctx)));
   // Jooble as a backup (lifetime quota): only when the other sources found fewer than 10 offers on the first page.
   const found = results.reduce((n, r) => n + (r.status === "fulfilled" ? r.value.length : 0), 0);
   if (all && page === 1 && found < 10 && configured.jooble()) {

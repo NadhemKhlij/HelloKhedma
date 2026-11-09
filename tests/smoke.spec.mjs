@@ -147,6 +147,10 @@ test("job search: Himalayas and Arbeitnow results, visa badge, credits and More 
         posted: day(1), snippet: "Python and SQL.", text: "full remote Python SQL Airflow", salary: "" },
       { id: "a1", source: "arbeitnow", title: "Data Engineer (m/w/d)", company: "Flaconi", location: "Berlin", url: "https://www.arbeitnow.com/jobs/companies/x/y",
         posted: day(2), snippet: "Spark.", text: "visa sponsorship Spark Python", salary: "" },
+      { id: "l1", source: "lba", title: "Alternance Data Engineer", company: "Banque X", location: "75008 Paris", url: "https://labonnealternance.apprentissage.beta.gouv.fr/x",
+        posted: day(3), snippet: "", text: "alternance apprenticeship Python SQL", salary: "" },
+      { id: "c1", source: "careerjet", title: "Data Engineer", company: "Cora", location: "Lyon", url: "https://jobviewtrack.com/x",
+        posted: day(4), snippet: "", text: "Python", salary: "" },
     ] : b.page === 2 ? [{ id: "h2", source: "himalayas", title: "Senior Data Engineer", company: "Other", location: "Remote (Europe)", url: "https://himalayas.app/companies/z/jobs/w",
         posted: day(3), snippet: "", text: "full remote dbt", salary: "" }] : [];
     await route.fulfill(fake({ jobs, warnings: [] }));
@@ -154,13 +158,15 @@ test("job search: Himalayas and Arbeitnow results, visa badge, credits and More 
   await open(page, "#/offers");
   await page.locator("#searchForm").evaluate((f) => f.requestSubmit());
   const cards = page.locator("#results > li");
-  await expect(cards).toHaveCount(2);
+  await expect(cards).toHaveCount(4);
   await expect(cards.filter({ hasText: "Flaconi" })).toContainText("Visa sponsorship");
+  await expect(page.locator("#sourceCredits")).toContainText("La bonne alternance");
+  await expect(page.locator("#sourceCredits")).toContainText("Careerjet");
   await expect(cards.filter({ hasText: "Mutt Data" })).not.toContainText("Visa sponsorship");
   await expect(page.locator("#sourceCredits")).toContainText("Himalayas");
   await expect(page.locator("#sourceCredits")).toContainText("Arbeitnow");
   await page.locator("#moreBtn").click();
-  await expect(cards).toHaveCount(3);
+  await expect(cards).toHaveCount(5);
   expect(pages).toEqual([1, 2]);
   await page.locator("#moreBtn").click();
   await expect(page.locator("#searchMsg")).toContainText("No more offers");

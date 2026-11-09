@@ -66,6 +66,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   Free quotas (2026-11-09): Adzuna 250 calls/day (asks 50 offers a call), JSearch 200/month (page 1 only), Jooble 500 for
   the key's life (backup only: when the others found < 10 offers). Country France: French titles (career_paths.
   job_titles_fr, paired by position with job_titles) are searched with their English pair (`alt`).
+  With the owner's keys: La bonne alternance (work-study, France; ROME codes per path LBA_ROMES, the app sends `path`)
+  and Careerjet (~90 country sites, no Tunisia; the visitor's IP + user agent go with each call, privacy policy).
 
 ## Environment variables (names only, never values)
 | Name | Where |
@@ -75,6 +77,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 | DEFAULT_COUNTRY, CONTACT_EMAIL, SENTRY_DSN, CF_ANALYTICS_TOKEN (optional) | GitHub → Actions → Variables; local js/config.js |
 | ADZUNA_APP_ID, ADZUNA_APP_KEY, RAPIDAPI_KEY, JOOBLE_API_KEY (+ optional JOOBLE_HOST), FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET | Supabase → Edge Functions → Secrets |
 | DEFAULT_PROVIDER, CACHE_TTL_HOURS, RATE_LIMIT_GUEST, RATE_LIMIT_USER (optional) | Supabase → Edge Functions → Secrets |
+| LBA_API_TOKEN (La bonne alternance), CAREERJET_API_KEY (Careerjet publisher key, hellokhedma.io) | Supabase → Edge Functions → Secrets (job-search) |
 | ANTHROPIC_API_KEY; CV_TAILOR_DAILY_LIMIT, CV_TAILOR_MODEL (optional) | Supabase → Edge Functions → Secrets (cv-tailor) |
 | EXPLAIN_DAILY_LIMIT, EXPLAIN_MODEL, ASK_DAILY_LIMIT (optional; uses ANTHROPIC_API_KEY) | Supabase → Edge Functions → Secrets (explain-mistake) |
 | RESEND_API_KEY, CRON_SECRET; REMINDERS_FROM, SITE_URL (optional) | Supabase → Edge Functions → Secrets (follow-up-reminders) |

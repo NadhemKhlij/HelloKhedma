@@ -199,7 +199,7 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
         SOURCE_NAMES[j.source] || (PROVIDER_NAMES[j.source] ? t("Careers page") : j.source))));
 }
 const SOURCE_NAMES = { francetravail: "France Travail", adzuna: "Adzuna", jsearch: "JSearch", jooble: "Jooble", remotive: "Remotive", jobicy: "Jobicy",
-  remoteok: "Remote OK", himalayas: "Himalayas", arbeitnow: "Arbeitnow" };
+  remoteok: "Remote OK", himalayas: "Himalayas", arbeitnow: "Arbeitnow", lba: "La bonne alternance", careerjet: "Careerjet" };
 // Remote OK's terms ask for a link back that brings it traffic: keep the referrer for its links (still no window.opener).
 const relOf = (source) => (source === "remoteok" ? "noopener" : "noopener noreferrer");
 
@@ -289,6 +289,8 @@ const CREDITS = {
   remoteok: ["Remote OK", "https://remoteok.com"], // name, never the logo (its API terms)
   himalayas: ["Himalayas", "https://himalayas.app"],
   arbeitnow: ["Arbeitnow", "https://www.arbeitnow.com"],
+  lba: ["La bonne alternance", "https://labonnealternance.apprentissage.beta.gouv.fr"],
+  careerjet: ["Careerjet", "https://www.careerjet.com"],
 };
 function renderSourceCredits() {
   const used = [...new Set(state.jobs.map((j) => j.source))].filter((s) => CREDITS[s]);
@@ -297,7 +299,7 @@ function renderSourceCredits() {
 }
 
 /* ---------- saved searches (this browser) ---------- */
-const currentSearch = () => ({ query: $("#role").value, alt: $("#role").selectedOptions[0]?.dataset.alt || "", location: $("#loc").value.trim(),
+const currentSearch = () => ({ query: $("#role").value, alt: $("#role").selectedOptions[0]?.dataset.alt || "", path: state.pathId || "", location: $("#loc").value.trim(),
   provider: $("#provider").value, country: $("#country").value });
 const sameSearch = (a, b) => ["query", "location", "provider", "country"].every((k) => a[k] === b[k]);
 

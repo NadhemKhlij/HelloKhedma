@@ -57,7 +57,8 @@
 // Cache (job_search_cache) and rate limit (job_search_hits) come from migration 20261028000200. Since 2026-11-09 each
 // source's answer is saved on its own ("s1|<source>|…", see SOURCE_TTL_H), with the place and title normalised, so a search
 // only calls the sources with nothing fresh saved; source calls and saved answers are counted per day ('source_call',
-// 'source_saved', count_usage_n(), migration 20261109000400, admin page). Each allowed search
+// 'source_saved', count_usage_n(), migration 20261109000400, admin page). A source answering 429 (JSearch's monthly quota
+// used up) is skipped for an hour ("pause|<source>" row, PAUSE_MS) instead of being asked again on every search. Each allowed search
 // also bumps the anonymous daily counter usage_daily (count_usage(), migration 20261106000200, admin page). Guests are
 // limited per IP stored only as a SHA-256 hash, purged after 24 h, as stated in the privacy policy.
 // Deploying from the dashboard: paste from a commit-pinned raw GitHub link (the plain raw link is cached ~5 min).
@@ -126,6 +127,8 @@ const CACHE_TTL_H = envNum("CACHE_TTL_HOURS", 6);
 const SOURCE_TTL_H: Partial<Record<string, number>> = {
   jsearch: 24, jooble: 24, adzuna: 12, lba: 12, francetravail: CACHE_TTL_H, himalayas: CACHE_TTL_H, careerjet: CACHE_TTL_H,
 };
+// A source that answered 429 (quota reached, too many requests) is not called again for this long ("pause|<source>").
+const PAUSE_MS = 3600_000;
 // Rows older than this are deleted (salary statistics are kept 24 h too).
 const MAX_TTL_MS = Math.max(24, CACHE_TTL_H) * 3600_000;
 // Search texts in cache keys: same key for "Paris", "paris " and "Paris, France"; "Île" and "Ile".
@@ -648,6 +651,7 @@ Deno.serve(async (req) => {
   const sourceKey = (p: Source) => ["s1", p, country, normText(query), normText(alt), p === "lba" ? ctx.path : "",
     normPlace(where), page, filters.contract, filters.remote, filters.days].join("|");
   const saved = new Map<Source, Job[]>();
+  const paused = new Set<Source>(); // answered "429 too many requests / quota reached" less than PAUSE_MS ago
   if (admin) {
     const { bucket, limit } = await rateBucket(req);
     const { data: allowed, error } = await admin.rpc("job_search_hit", {
@@ -663,18 +667,21 @@ Deno.serve(async (req) => {
     const { error: countErr } = await admin.rpc("count_usage", { p_kind: "job_search" });
     if (countErr) console.error("usage count failed:", countErr.message);
 
-    const keys = [...providers, "jooble" as Source].filter((p) => SOURCE_TTL_H[p]).map(sourceKey);
+    const keys = [...providers, "jooble" as Source].filter((p) => SOURCE_TTL_H[p]).flatMap((p) => [sourceKey(p), `pause|${p}`]);
     const { data: rows, error: cacheErr } = await admin.from("job_search_cache").select("key, results, created_at").in("key", keys)
       .gte("created_at", new Date(Date.now() - MAX_TTL_MS).toISOString());
     if (cacheErr) console.error("cache read failed:", cacheErr.message);
     for (const r of rows ?? []) {
       const p = String(r.key).split("|")[1] as Source;
+      if (String(r.key).startsWith("pause|")) { if (Date.now() - new Date(r.created_at).getTime() < PAUSE_MS) paused.add(p); continue; }
       if (Date.now() - new Date(r.created_at).getTime() < SOURCE_TTL_H[p] * 3600_000 && Array.isArray(r.results?.jobs)) saved.set(p, r.results.jobs);
     }
   }
 
   const fetchers = { francetravail: franceTravail, adzuna, jsearch, jooble, himalayas, arbeitnow, lba, careerjet };
-  const call = (p: Source) => saved.has(p) ? Promise.resolve(saved.get(p)!) : fetchers[p](query, where, country, page, filters, alt, ctx);
+  const call = (p: Source) => saved.has(p) ? Promise.resolve(saved.get(p)!)
+    : paused.has(p) ? Promise.resolve([] as Job[]) // skipped quietly until the pause ends
+    : fetchers[p](query, where, country, page, filters, alt, ctx);
   const results = await Promise.allSettled(providers.map(call));
   const used: Source[] = [...providers];
   // Jooble as a backup (lifetime quota): only when the other sources found fewer than 10 offers on the first page.
@@ -686,15 +693,21 @@ Deno.serve(async (req) => {
   // Save the answers that came from a source (an empty answer too: it is an answer), and count calls / savings.
   if (admin) {
     const fresh = used.map((p, i) => [p, results[i]] as const)
-      .filter(([p, r]) => SOURCE_TTL_H[p] && !saved.has(p) && r.status === "fulfilled");
+      .filter(([p, r]) => SOURCE_TTL_H[p] && !saved.has(p) && !paused.has(p) && r.status === "fulfilled");
     const now = new Date().toISOString();
+    // A source that answered 429 (too many requests, quota reached: JSearch's 200 a month) is paused for PAUSE_MS.
+    const limited = used.filter((p, i) => results[i].status === "rejected" && / returned 429\b/.test(String((results[i] as PromiseRejectedResult).reason?.message)));
+    if (limited.length) {
+      const { error } = await admin.from("job_search_cache").upsert(limited.map((p) => ({ key: `pause|${p}`, results: {}, created_at: now })));
+      if (error) console.error("pause write failed:", error.message);
+    }
     if (fresh.length) {
       const { error } = await admin.from("job_search_cache").upsert(fresh.map(([p, r]) =>
         ({ key: sourceKey(p), results: { jobs: (r as PromiseFulfilledResult<Job[]>).value }, created_at: now })));
       if (error) console.error("cache write failed:", error.message);
     }
     await admin.from("job_search_cache").delete().lt("created_at", new Date(Date.now() - MAX_TTL_MS).toISOString());
-    const calls = used.filter((p) => SOURCE_TTL_H[p] && !saved.has(p)).length, hits = used.filter((p) => saved.has(p)).length;
+    const calls = used.filter((p) => SOURCE_TTL_H[p] && !saved.has(p) && !paused.has(p)).length, hits = used.filter((p) => saved.has(p)).length;
     for (const [kind, n] of [["source_call", calls], ["source_saved", hits]] as const) {
       if (n) { const { error } = await admin.rpc("count_usage_n", { p_kind: kind, p_n: n }); if (error) console.error("usage count failed:", error.message); }
     }

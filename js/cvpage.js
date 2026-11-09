@@ -14,7 +14,7 @@
 // Under the missing skills, "Close the gaps" (gaps.js) lists the HelloKhedma courses, roadmap steps and projects for them.
 // The offer's own ATS report is under "Full ATS report for this offer". Two tabs: this CV check
 // (#/cv) and the CV maker (#/cv/maker, cvmaker.js), whose "Use as a CV version" refreshes this page.
-import { $, h, ls, toast } from "./lib.js";
+import { $, h, ls, toast, safeUrl } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { state, path, pathName, byKind, fitColor, skillChip } from "./state.js";
 import { extractSkills, matchSkills, readCvFile } from "./ats.js";
@@ -27,7 +27,7 @@ import { atsReport, atsView } from "./atsscore.js";
 import { initCvMaker, renderCvMaker } from "./cvmaker.js";
 import { gapTrainings } from "./gaps.js";
 import { logInsight, insightsAsk } from "./insights.js";
-import { recentOffers, trackedOffer, offerAsText } from "./offerpick.js";
+import { recentOffers, trackedOffer, offerAsText, rememberTracked } from "./offerpick.js";
 import { marketSkills, skillRow } from "./pulse.js";
 import { STAGES } from "./store.js";
 
@@ -234,6 +234,10 @@ function onAts({ quiet = false } = {}) {
   const jobTitles = [...new Set(titles.filter((x) => jd.toLowerCase().includes(x.toLowerCase())).slice(0, 1).concat(shortFirst ? [shortFirst] : []))].filter(Boolean);
   const report = atsReport(state.cv.text, { required, jobTitles });
   const chosen = picked && picked.jd === jd ? picked : null;
+  // Text pasted for a tracked offer that had none: kept for next time (this browser only).
+  if (chosen?.paste && chosen.card?.external_id && jd.trim().length > 80) {
+    rememberTracked({ source: chosen.card.source, id: chosen.card.external_id, title: chosen.title, company: chosen.company, text: jd });
+  }
   const offer = chosen ? { title: chosen.title, company: chosen.company, text: jd } : { title: shortFirst || t("Pasted job description"), company: "", text: jd };
   const fullReport = h("details", { class: "rounded-xl p-3 mt-4", style: "background:var(--soft)" },
     h("summary", { class: "cursor-pointer text-sm font-semibold" }, t("Full ATS report for this offer: {score}/100", { score: report.score })),
@@ -274,7 +278,8 @@ function onAts({ quiet = false } = {}) {
 let picked = null;
 const fitOf = (text) => (state.cv.text.trim() ? matchSkills(extractSkills(text).map((s) => s.name), state.cv.names) : null);
 const cut = (s, n = 70) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-function renderOfferPick() {
+// Also called by refreshTracker (applications.js): the tracker cards load after this page is first drawn.
+export function renderOfferPick() {
   const sel = $("#jdPick");
   if (!sel || !state.pathId) return;
   const market = marketSkills(state.pathId);
@@ -293,8 +298,8 @@ function renderOfferPick() {
     recent.length ? h("optgroup", { label: t("Offers you've seen, best fit first") }, recent.map(({ o, fit }) =>
       h("option", { value: `r:${o.key}` }, fit?.total >= 2 ? t("{score}% · {offer}", { score: fit.score, offer: name(o) }) : name(o)))) : null,
     cards.length ? h("optgroup", { label: t("In your tracker") }, cards.map(({ c, o }) =>
-      h("option", { value: `t:${c.id}`, disabled: !o }, o ? t("{stage} · {offer}", { stage: stageName(c.stage), offer: name(c) })
-        : t("{offer} (no text kept: paste it)", { offer: name(c) })))) : null,
+      h("option", { value: `t:${c.id}` }, o ? t("{stage} · {offer}", { stage: stageName(c.stage), offer: name(c) })
+        : t("{offer} (paste its text)", { offer: name(c) })))) : null,
   ].filter(Boolean));
   sel.value = [...sel.options].some((op) => op.value === value && !op.disabled) ? value : "";
 }
@@ -302,11 +307,20 @@ function onOfferPick(e) {
   const v = e.target.value;
   if (!v) return;
   if (v === "market") { picked = { market: true }; $("#jd").value = ""; $("#jdClear").hidden = true; lastMatch = null; showMarket(); return; }
-  const o = v.startsWith("r:") ? recentOffers(state.pathId).find((x) => `r:${x.key}` === v)
-    : trackedOffer((state.cards || []).find((c) => `t:${c.id}` === v));
+  const card = v.startsWith("t:") ? (state.cards || []).find((c) => `t:${c.id}` === v) : null;
+  const o = card ? trackedOffer(card) : recentOffers(state.pathId).find((x) => `r:${x.key}` === v);
+  if (card && !o) { // tracked before its text was kept, by hand or on another device: paste it once, kept from then on
+    picked = { value: v, jd: "", title: card.title, company: card.company, card, paste: true };
+    $("#jd").value = ""; $("#jdClear").hidden = true; lastMatch = null;
+    const url = safeUrl(card.url);
+    $("#atsOut").replaceChildren(h("p", { class: "text-sm" }, t("No text was kept for this offer (tracked before this update, by hand or on another device). Open it, copy its description and paste it in the box above: it is kept for next time."),
+      url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn-ghost mt-2 inline-flex" }, t("Open the offer ↗")) : null));
+    $("#jd").focus();
+    return;
+  }
   if (!o) { renderOfferPick(); return; }
   const jd = offerAsText(o);
-  picked = { value: v, jd, title: o.title, company: o.company };
+  picked = { value: v, jd, title: o.title, company: o.company, card };
   $("#jd").value = jd;
   onAts();
 }
@@ -348,7 +362,8 @@ export function initCvPage() {
   $("#atsBtn").addEventListener("click", () => (picked?.market ? showMarket() : onAts()));
   // The match updates by itself shortly after an offer is pasted or typed.
   $("#jd").addEventListener("input", () => {
-    if (picked && picked.jd !== $("#jd").value) { picked = null; $("#jdPick").value = ""; } // edited: a pasted offer now
+    if (picked?.paste) picked.jd = $("#jd").value; // the text of the chosen tracked offer being pasted
+    else if (picked && picked.jd !== $("#jd").value) { picked = null; $("#jdPick").value = ""; } // edited: a pasted offer now
     clearTimeout(jdTimer); jdTimer = setTimeout(() => onAts({ quiet: true }), 600);
   });
   $("#jdPick").addEventListener("change", onOfferPick);

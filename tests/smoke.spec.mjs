@@ -144,6 +144,26 @@ test("CV: match with an offer seen or tracked, or with the market, without pasti
   await expect(page.locator("#atsOut")).toContainText("Spark");
 });
 
+// A card tracked before offer texts were kept: listed (the tracker loads after the CV page), its text pasted once is kept.
+test("CV: a tracked offer with no kept text can be pasted once, then is kept", async ({ page }) => {
+  await page.addInitScript(() => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1");
+    localStorage.setItem("hk.applications.v1", JSON.stringify([{ id: "a1", title: "Data Engineer", company: "Acme", source: "adzuna",
+      external_id: "9", stage: "applied", url: "https://example.com/9", created_at: new Date().toISOString() }])); } });
+  await open(page, "#/cv");
+  await page.fill("#cv", "Data Engineer\nPython and SQL pipelines on Airflow, Git");
+  await page.click("#cvSave");
+  const opt = page.locator('#jdPick optgroup[label="In your tracker"] option').first();
+  await expect(opt).toContainText("Acme (paste its text)");
+  await page.locator("#jdPick").selectOption(await opt.getAttribute("value"));
+  await expect(page.locator("#atsOut")).toContainText("No text was kept for this offer");
+  await page.fill("#jd", "We are hiring a Data Engineer to build pipelines with Python, SQL, Spark and Airflow on AWS. Git and Docker.");
+  await expect(page.locator("#atsOut")).toContainText("% match");
+  await page.locator("#jd").blur();
+  await page.reload();
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator('#jdPick optgroup[label="In your tracker"] option').first()).toContainText("Applied · Data Engineer · Acme");
+});
+
 // Who's hiring on Home (pulse.js): Adzuna isn't called from tests, so the block is filled with a function answer.
 test("home: who's hiring, from Adzuna's top companies and regions", async ({ page }) => {
   await open(page, "#/");

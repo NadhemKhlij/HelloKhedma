@@ -1,6 +1,6 @@
 // Applications page (#/applications): connects the tracker UI (tracker.js) to the store (state.store, store.js).
 // refreshTracker() reloads the cards and redraws everything that shows them: board, stats, Home, the "Tracked"
-// markers on Offers and the upcoming interviews. Also the "Add application" form and CSV export / import.
+// markers on Offers, the upcoming interviews and "Choose an offer" on the CV page. Also the "Add application" form and CSV export / import.
 // New applications record the active CV version as "CV sent" (cvUsed, cvpage.js).
 import { $, safeUrl, ls, toast, download } from "./lib.js";
 import { t, tn } from "./i18n.js";
@@ -10,7 +10,7 @@ import { renderBoard, renderStats, openDetails, toCsv, parseCsv } from "./tracke
 import { loadCvs } from "./cvs.js";
 import { renderHome } from "./home.js";
 import { renderOffers } from "./offers.js";
-import { cvUsed } from "./cvpage.js";
+import { cvUsed, renderOfferPick } from "./cvpage.js";
 import { refreshInterview } from "./router.js";
 
 const GOAL_KEY = "hk.weeklyGoal";
@@ -36,6 +36,7 @@ export async function refreshTracker() {
   renderHome();
   if (state.jobs.length) renderOffers(); // refresh the "Tracked" markers
   refreshInterview();
+  renderOfferPick(); // "Choose an offer" on the CV page lists the tracker cards
 }
 
 function onCsvExport() {

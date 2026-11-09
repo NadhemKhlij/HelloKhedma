@@ -269,6 +269,12 @@ export default {
   "AI answers are not set up yet.": "Les réponses par l’IA ne sont pas encore activées.",
   "This question is too long.": "Cette question est trop longue.",
   "Lesson questions": "Questions sur les leçons",
+  "✓ HelloKhedma course finished": "✓ Cours HelloKhedma terminé",
+  "HelloKhedma course · {n}% done": "Cours HelloKhedma · {n} % fait",
+  "HelloKhedma course: lessons, exercises and quiz here": "Cours HelloKhedma : leçons, exercices et quiz ici",
+  "also: {provider} ↗": "aussi : {provider} ↗",
+  "Continue the course": "Continuer le cours",
+  "Start the course": "Commencer le cours",
   "Job source calls saved": "Appels aux sources d’offres évités",
   "{hits} of {all} answers reused, 30 days": "{hits} réponses réutilisées sur {all}, 30 jours",
 };

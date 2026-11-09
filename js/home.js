@@ -10,7 +10,7 @@ import { nextActions } from "./tracker.js";
 import { openCardLetter } from "./letters.js";
 import { openOfferCoach } from "./offercoach.js";
 import { renderPulse } from "./pulse.js";
-import { stepsOf } from "./training.js";
+import { stepsOf, stepDone } from "./training.js";
 import { progressRing } from "./icons.js";
 import { streak } from "./activity.js";
 import { dueCards } from "./srs.js";
@@ -30,8 +30,8 @@ function renderGreeting() {
 
 export function renderHome() {
   renderGreeting();
-  const all = state.tracks.flatMap(stepsOf), done = all.filter((s) => state.done.has(s.id)).length;
-  const next = all.find((s) => !state.done.has(s.id));
+  const all = state.tracks.flatMap(stepsOf), done = all.filter(stepDone).length;
+  const next = all.find((s) => !stepDone(s));
   const count = (stage) => state.cards.filter((c) => c.stage === stage).length;
   // A whole-card link; the call to action looks like a small button.
   const card = (title, big, detail, href, cta, side) => h("a", { href, class: "panel flex flex-col gap-1 md:min-h-[168px]" },

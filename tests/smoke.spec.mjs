@@ -266,6 +266,27 @@ test("offers: an alert on a saved search, guest then signed in", async ({ page }
   expect(calls).toContain("DELETE");
 });
 
+// Roadmap steps with a HelloKhedma course (training_steps.course_id): the step opens our course, the outside resource
+// stays as an extra, and "Next up" starts the course.
+test("training: roadmap steps open our own courses", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("hk.path", "da"));
+  await page.route("**/rest/v1/training_tracks**", (r) => r.fulfill(fake([{ id: "da-viz", path_id: "da", title: "Python, BI and visual storytelling",
+    summary: "", outcome: "", level: "intermediate", sort_order: 2, training_steps: [
+      { id: "11111111-1111-1111-1111-111111111111", title: "DAX: measures, CALCULATE and time intelligence", description: "The formulas behind every report.",
+        kind: "learn", provider: "HelloKhedma", url: null, est_hours: 5, is_free: true, sort_order: 1, course_id: "dax" },
+      { id: "22222222-2222-2222-2222-222222222222", title: "Power BI", description: "Documentation and training.",
+        kind: "learn", provider: "Microsoft Learn", url: "https://learn.microsoft.com/power-bi/", est_hours: 8, is_free: true, sort_order: 2, course_id: "power-bi" },
+      { id: "33333333-3333-3333-3333-333333333333", title: "Tableau free training", description: "",
+        kind: "learn", provider: "Tableau", url: "https://www.tableau.com/learn/training", est_hours: 8, is_free: true, sort_order: 3 }] }])));
+  await open(page, "#/training");
+  const dax = page.locator("#tracks a", { hasText: "DAX: measures" });
+  await expect(dax).toHaveAttribute("href", "#/course/dax");
+  await expect(page.locator("#tracks")).toContainText("HelloKhedma course: lessons, exercises and quiz here");
+  await expect(page.locator("#tracks a", { hasText: "also: Microsoft Learn" })).toHaveAttribute("href", "https://learn.microsoft.com/power-bi/");
+  await expect(page.locator("#tracks a", { hasText: "Tableau free training" })).toHaveAttribute("target", "_blank");
+  await expect(page.locator("#nextUp").getByRole("link", { name: "Start the course" })).toHaveAttribute("href", "#/course/dax");
+});
+
 // Who's hiring on Home (pulse.js): Adzuna isn't called from tests, so the block is filled with a function answer.
 test("home: who's hiring, from Adzuna's top companies and regions", async ({ page }) => {
   await open(page, "#/");

@@ -93,7 +93,7 @@ select pg_temp.seed('da','tip','[
  "Publish 2 or 3 dashboards on public data, each answering a clear business question.",
  "Lead with the insight, then the method; recruiters skim.",
  "Practise explaining a metric definition out loud: it is a classic interview test."]'::jsonb);
-select pg_temp.seed('da','keyword','["SQL","Excel","Power BI","Tableau","Python","Pandas","A/B testing","Statistics","Data storytelling","KPI","Looker Studio","Data cleaning"]'::jsonb);
+select pg_temp.seed('da','keyword','["SQL","Excel","Power BI","DAX","Tableau","Python","Pandas","A/B testing","Statistics","Data storytelling","KPI","Looker Studio","Data cleaning"]'::jsonb);
 
 -- DevOps Engineer ------------------------------------------------------------------------
 select pg_temp.seed('do','tool','[
@@ -239,6 +239,7 @@ select pg_temp.track('as','as-advanced','Reliability and certification','advance
 select pg_temp.track('da','da-foundations','SQL, statistics and clean data','beginner',
  'Answer business questions correctly before making them pretty.',
  'Query data with SQL, clean it, and use basic statistics to support a conclusion.',1,'[
+ ["Excel for analysts","Lookups, pivot tables, conditional sums and clean data: still the daily tool of most analysts.","learn","HelloKhedma","",4],
  ["Intro to SQL","Select, filter, join and aggregate.","learn","Kaggle Learn","https://www.kaggle.com/learn/intro-to-sql",4],
  ["Advanced SQL","CTEs and window functions for analysis.","learn","Kaggle Learn","https://www.kaggle.com/learn/advanced-sql",5],
  ["Statistics and probability","Distributions, sampling, confidence and tests.","learn","Khan Academy","https://www.khanacademy.org/math/statistics-probability",10],
@@ -250,6 +251,7 @@ select pg_temp.track('da','da-viz','Python, BI and visual storytelling','interme
  ["pandas","Manipulate and summarise data in Python.","learn","Kaggle Learn","https://www.kaggle.com/learn/pandas",4],
  ["Data visualization","Charts that show the right comparison.","learn","Kaggle Learn","https://www.kaggle.com/learn/data-visualization",4],
  ["Power BI","Pick Power BI or Tableau and stay with one. Power BI documentation and training.","learn","Microsoft Learn","https://learn.microsoft.com/power-bi/",8],
+ ["DAX: measures, CALCULATE and time intelligence","The formulas behind every Power BI report: filter context, CALCULATE, year-over-year, ranking.","learn","HelloKhedma","",5],
  ["Tableau free training","The alternative if your target employers use Tableau.","learn","Tableau","https://www.tableau.com/learn/training",8],
  ["Storytelling with Data","Declutter charts, focus attention, lead with the insight.","learn","storytellingwithdata.com","https://www.storytellingwithdata.com",3]]'::jsonb);
 select pg_temp.track('da','da-advanced','Portfolio and certification','advanced',
@@ -341,6 +343,51 @@ select pg_temp.track('mk','mk-analytics','Measurement, experiments and reporting
  ["A/B test sample size calculator","How many visitors a test needs before its result means anything.","practice","Evan Miller","https://www.evanmiller.org/ab-testing/sample-size.html",1],
  ["Looker Studio Help","Connect GA4 and Sheets, build charts and filters, share a report.","learn","Google","https://support.google.com/looker-studio",3],
  ["Project: a campaign performance dashboard","A Looker Studio report with the funnel, cost per lead and conversion by channel, and three written recommendations.","project","Your report","",10]]'::jsonb);
+
+-- =====================================================================================
+-- HelloKhedma courses on the roadmaps (needs migration 20261109000600_step_course.sql). A step with a course opens our
+-- course first (its outside resource stays as an extra). Matched on (track id, English step title), like the step ids.
+-- =====================================================================================
+update public.training_steps s set course_id = v.c from (values
+  ('de-foundations','SQL basics','sql'), ('de-foundations','Advanced SQL: CTEs and window functions','sql'),
+  ('de-foundations','Python tutorial','python'), ('de-foundations','pandas getting started','pandas'),
+  ('de-foundations','Git fundamentals','git'),
+  ('de-pipelines','Docker: get started','docker'), ('de-pipelines','Airflow tutorial','airflow'),
+  ('de-pipelines','dbt Fundamentals','dbt'), ('de-pipelines','BigQuery sandbox','cloud-warehouses'),
+  ('de-advanced','Spark quick start','spark'), ('de-advanced','Kafka quickstart','kafka'),
+  ('ba-foundations','User stories','requirements'), ('ba-foundations','The Scrum Guide','agile-scrum'),
+  ('ba-foundations','Jira and agile tutorials','agile-scrum'), ('ba-foundations','SQL practice','sql'),
+  ('ba-process','BPMN overview','bpmn'), ('ba-process','Power BI documentation and training','power-bi'),
+  ('as-foundations','Linux Journey','linux-bash'), ('as-foundations','OverTheWire: Bandit','linux-bash'),
+  ('as-foundations','SQL basics','sql'), ('as-foundations','Incident management guide','itil-incidents'),
+  ('as-monitoring','Prometheus: first steps','logs-monitoring'), ('as-monitoring','Grafana tutorials','logs-monitoring'),
+  ('as-monitoring','Python tutorial','python'),
+  ('as-advanced','SRE book: effective troubleshooting','itil-incidents'), ('as-advanced','SRE book: postmortem culture','itil-incidents'),
+  ('da-foundations','Excel for analysts','excel'), ('da-foundations','Intro to SQL','sql'), ('da-foundations','Advanced SQL','sql'),
+  ('da-foundations','Statistics and probability','statistics'), ('da-foundations','Data cleaning','pandas'),
+  ('da-viz','pandas','pandas'), ('da-viz','Data visualization','bi-tools'), ('da-viz','Power BI','power-bi'),
+  ('da-viz','DAX: measures, CALCULATE and time intelligence','dax'), ('da-viz','Tableau free training','bi-tools'),
+  ('da-viz','Storytelling with Data','bi-tools'),
+  ('do-foundations','Linux Journey','linux-bash'), ('do-foundations','Pro Git book','git'), ('do-foundations','Learn Git Branching','git'),
+  ('do-delivery','Docker: get started','docker'), ('do-delivery','GitHub Actions documentation','ci-cd'),
+  ('do-delivery','Kubernetes basics','kubernetes'),
+  ('do-cloud','Terraform tutorials','terraform'), ('do-cloud','AWS Skill Builder','cloud-aws'),
+  ('do-cloud','Prometheus: first steps','logs-monitoring'), ('do-cloud','SRE book: service level objectives','logs-monitoring'),
+  ('ai-foundations','Anthropic courses: API fundamentals','ai-claude-api'), ('ai-foundations','Prompt engineering interactive tutorial','ai-prompting'),
+  ('ai-foundations','Anthropic Python SDK','ai-claude-api'), ('ai-foundations','Structured outputs','ai-claude-api'),
+  ('ai-build','Tool use overview','ai-tools-agents'), ('ai-build','MCP Python SDK','ai-tools-agents'),
+  ('ai-build','Embeddings','ai-rag'), ('ai-build','pgvector','ai-rag'), ('ai-build','Citations','ai-rag'),
+  ('ai-production','Prompt caching','ai-production'), ('ai-production','Rate limits','ai-production'),
+  ('ai-production','Practice: an eval set for your project','ai-evals'),
+  ('mk-foundations','HubSpot Academy courses','marketing-foundations'), ('mk-foundations','Set up Google Analytics 4','ga4'),
+  ('mk-foundations','Google Analytics demo account','ga4'), ('mk-foundations','Google Analytics certification','ga4'),
+  ('mk-acquisition','SEO Starter Guide','seo'), ('mk-acquisition','Beginner’s Guide to SEO','seo'),
+  ('mk-acquisition','Search Console Help','seo'), ('mk-acquisition','Google Ads Help','paid-ads'),
+  ('mk-acquisition','Meta Blueprint','paid-ads'),
+  ('mk-analytics','Intro to SQL','sql'), ('mk-analytics','A/B test sample size calculator','statistics'),
+  ('mk-analytics','Looker Studio Help','marketing-analytics')
+) as v(tid, title, c)
+where s.id = md5(v.tid || ':' || v.title)::uuid;
 
 -- =====================================================================================
 -- French texts (shown when the interface is French). Needs migration 20261029000200_content_fr.sql.
@@ -497,6 +544,7 @@ select pg_temp.track_fr('as-advanced','Fiabilité et certification',
 select pg_temp.track_fr('da-foundations','SQL, statistiques et données propres',
  'Répondre correctement aux questions métier avant de les rendre jolies.',
  'Interroger des données en SQL, les nettoyer et utiliser des statistiques simples pour étayer une conclusion.','[
+ ["Excel for analysts","Excel pour l’analyste","Recherches, tableaux croisés dynamiques, sommes conditionnelles et données propres : encore l’outil quotidien de la plupart des analystes."],
  ["Intro to SQL","Introduction au SQL","Sélectionner, filtrer, joindre et agréger."],
  ["Advanced SQL","SQL avancé","CTE et fonctions de fenêtrage pour l’analyse."],
  ["Statistics and probability","Statistiques et probabilités","Distributions, échantillonnage, intervalles de confiance et tests."],
@@ -508,6 +556,7 @@ select pg_temp.track_fr('da-viz','Python, BI et storytelling visuel',
  ["pandas","pandas","Manipuler et résumer des données en Python."],
  ["Data visualization","Visualisation de données","Des graphiques qui montrent la bonne comparaison."],
  ["Power BI","Power BI","Choisissez Power BI ou Tableau et tenez-vous-en à un seul. Documentation et formation Power BI."],
+ ["DAX: measures, CALCULATE and time intelligence","DAX : mesures, CALCULATE et intelligence temporelle","Les formules derrière chaque rapport Power BI : contexte de filtre, CALCULATE, comparaison à l’année précédente, classement."],
  ["Tableau free training","Formation gratuite Tableau","L’alternative si vos employeurs cibles utilisent Tableau."],
  ["Storytelling with Data","Storytelling with Data","Épurer les graphiques, guider l’attention, commencer par l’enseignement."]]'::jsonb);
 select pg_temp.track_fr('da-advanced','Portfolio et certification',

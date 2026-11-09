@@ -4,6 +4,9 @@
 // Tracks are drawn as a roadmap (done / current / upcoming nodes); "My learning" shows the streak, XP and the course to
 // resume (activity.js), then "Learn smarter": the flashcards due for review (#/review) and the skill check
 // (#/skillcheck), srs.js. The study plan leaves out the courses whose skill check was passed. Ticking a step adds XP.
+// A step with a course_id (migration 20261109000600, seed "HelloKhedma courses on the roadmaps") opens our course and shows
+// its progress; its outside resource becomes an optional extra. It counts as done when ticked or when the course is
+// finished (stepDone), and the study plan lists each course once, with the time left in it.
 import { $, h, safeUrl, ls } from "./lib.js";
 import { activityStrip, lastCourse, logActivity, streak } from "./activity.js";
 import { t, tn, LOCALE, localize } from "./i18n.js";
@@ -19,6 +22,10 @@ export const PROG_KEY = "hk.progress.v2";
 const LEVEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
 const KIND = { learn: "Learn", practice: "Practice", project: "Project", certification: "Certification" };
 export const stepsOf = (tr) => tr.training_steps || [];
+let waitedCourses = false;
+// Our course for a step (null without one, or when the course list is not loaded yet).
+export const stepCourse = (s) => (s.course_id ? courseMeta(s.course_id) : null);
+export const stepDone = (s) => state.done.has(s.id) || (stepCourse(s)?.done ?? 0) >= 1;
 
 export async function loadTracks() {
   const { data, error } = await sb.from("training_tracks")
@@ -52,22 +59,28 @@ async function toggleStep(id, done) {
 }
 
 function stepRow(s) {
-  const url = safeUrl(s.url), on = state.done.has(s.id);
+  const url = safeUrl(s.url), on = stepDone(s), course = stepCourse(s);
   const box = h("button", { type: "button", class: `check ${on ? "on" : ""}`, "aria-pressed": String(on),
     "aria-label": t("Mark \"{title}\" as done", { title: s.title }), onClick: () => toggleStep(s.id, !on) }, on ? "✓" : "");
   const badge = (txt) => h("span", { class: "chip !py-0 text-xs" }, txt);
+  const hours = course ? Math.max(0.5, Math.round((course.minutes / 60) * 2) / 2) : Number(s.est_hours);
+  const extra = course && url && s.provider !== "HelloKhedma"; // the outside resource, now optional
   return h("li", { class: "flex gap-3 rounded-xl p-2 -mx-2 hover:bg-[var(--soft)]" }, box, h("div", { class: "min-w-0" },
-    url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: `font-medium underline underline-offset-2 ${on ? "mute line-through" : ""}` }, `${s.title} ↗`)
+    course ? h("a", { href: `#/course/${course.id}`, class: `font-medium underline underline-offset-2 ${on ? "mute line-through" : ""}` }, `📘 ${s.title}`)
+      : url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: `font-medium underline underline-offset-2 ${on ? "mute line-through" : ""}` }, `${s.title} ↗`)
       : h("b", { class: on ? "mute line-through" : "" }, s.title),
     h("p", { class: "mute text-sm" }, s.description),
+    course ? h("p", { class: "text-sm mt-1" }, h("span", { style: "color:var(--accent-ink)", class: "font-medium" },
+      course.done >= 1 ? t("✓ HelloKhedma course finished") : course.done > 0 ? t("HelloKhedma course · {n}% done", { n: Math.round(course.done * 100) }) : t("HelloKhedma course: lessons, exercises and quiz here")),
+      extra ? h("span", { class: "mute" }, " · ", h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "underline" }, t("also: {provider} ↗", { provider: s.provider }))) : null) : null,
     h("div", { class: "flex flex-wrap gap-1.5 mt-1" },
-      badge(KIND[s.kind] ? t(KIND[s.kind]) : s.kind), s.provider ? badge(t(s.provider)) : null, // "Your repo", "Your notes"… are translated; real providers stay
-      badge(`${Number(s.est_hours)} h`), badge(s.is_free ? t("Free") : t("Paid")))));
+      badge(KIND[s.kind] ? t(KIND[s.kind]) : s.kind), s.provider && !course ? badge(t(s.provider)) : null, // "Your repo", "Your notes"… are translated; real providers stay
+      badge(`${hours} h`), badge(course || s.is_free ? t("Free") : t("Paid")))));
 }
 
 // One roadmap node: status dot on the line, the track as a collapsible card.
 function trackCard(tr, status, i) {
-  const steps = stepsOf(tr), n = steps.filter((s) => state.done.has(s.id)).length;
+  const steps = stepsOf(tr), n = steps.filter(stepDone).length;
   const pct = steps.length ? Math.round((n / steps.length) * 100) : 0;
   const hours = steps.reduce((a, s) => a + Number(s.est_hours), 0);
   const dot = status === "done" ? ["✓", "background:var(--ok-fill);color:#fff"]
@@ -92,30 +105,36 @@ function trackCard(tr, status, i) {
 }
 
 function renderTracks() {
+  // Steps with a course need the course list (progress, time): drawn again once it is loaded.
+  if (!waitedCourses && state.tracks.some((tr) => stepsOf(tr).some((x) => x.course_id && !stepCourse(x)))) {
+    waitedCourses = true;
+    import("./router.js").then((m) => m.coursesReady).then(() => { renderTracks(); renderStudyPlan(); renderHome(); });
+  }
   const all = state.tracks.flatMap(stepsOf);
   if (!state.openInit && state.tracks.length) {
-    const first = state.tracks.find((tr) => stepsOf(tr).some((s) => !state.done.has(s.id))) || state.tracks[0];
+    const first = state.tracks.find((tr) => stepsOf(tr).some((s) => !stepDone(s))) || state.tracks[0];
     state.open = new Set([first.id]);
     state.openInit = true;
   }
-  const left = all.filter((s) => !state.done.has(s.id));
+  const left = all.filter((s) => !stepDone(s));
   const hoursLeft = left.reduce((a, s) => a + Number(s.est_hours), 0);
   const perWeek = Math.max(1, Number($("#hoursPerWeek").value) || 5);
   $("#progress").textContent = all.length
     ? t("{done}/{all} steps done · about {left} h left · roughly {weeks} weeks at {perWeek} h/week", {
         done: all.length - left.length, all: all.length, left: Math.round(hoursLeft), weeks: Math.ceil(hoursLeft / perWeek), perWeek })
     : t("No tracks for this path yet.");
-  const next = left[0], url = next && safeUrl(next.url);
+  const next = left[0], nextCourse = next && stepCourse(next), url = next && !nextCourse && safeUrl(next.url);
   $("#nextUp").replaceChildren(...(next
     ? [h("div", { class: "flex flex-wrap items-center gap-3 rounded-xl p-3", style: "background:color-mix(in srgb,var(--accent) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)" },
         h("span", { class: "text-sm" }, h("span", { class: "mute" }, t("Next up: ")), h("b", {}, next.title), h("span", { class: "mute" }, ` · ${Number(next.est_hours)} h`)),
         h("span", { class: "flex gap-2 ml-auto" },
-          url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn !py-1.5" }, t("Open ↗")) : null,
+          nextCourse ? h("a", { href: `#/course/${nextCourse.id}`, class: "btn !py-1.5" }, nextCourse.done > 0 ? t("Continue the course") : t("Start the course"))
+            : url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn !py-1.5" }, t("Open ↗")) : null,
           h("button", { type: "button", class: "btn-ghost !py-1.5", onClick: () => toggleStep(next.id, true) }, t("✓ Done"))))]
     : all.length ? [h("p", { class: "text-sm" }, t("Every step is done. Time to apply!"))] : []));
-  const current = state.tracks.find((tr) => stepsOf(tr).some((s) => !state.done.has(s.id)));
+  const current = state.tracks.find((tr) => stepsOf(tr).some((s) => !stepDone(s)));
   $("#tracks").replaceChildren(h("ol", { class: "roadmap grid gap-3" }, state.tracks.map((tr, i) => trackCard(tr,
-    stepsOf(tr).length && stepsOf(tr).every((s) => state.done.has(s.id)) ? "done" : tr === current ? "current" : "todo", i))));
+    stepsOf(tr).length && stepsOf(tr).every(stepDone) ? "done" : tr === current ? "current" : "todo", i))));
   renderHub();
   renderStudyPlan();
 }
@@ -155,9 +174,9 @@ export function renderStudyPlan() {
   const perWeek = Math.max(1, Number($("#hoursPerWeek").value) || 5);
   const items = [];
   const skipped = passedCourses(); // skill check passed: nothing to learn there
+  const seen = new Set(); // each course once, whether a missing skill or a roadmap step brings it
   if (state.cv.skills.length) {
     const required = extractSkills(byKind("keyword").map((k) => k.title).join(" ; ")).map((s) => s.name);
-    const seen = new Set();
     for (const skill of required.filter((s) => !state.cv.names.has(s))) {
       const id = courseForSkill(skill), c = id && courseMeta(id);
       if (!c || seen.has(id) || c.done >= 1 || skipped.has(id)) continue;
@@ -166,7 +185,13 @@ export function renderStudyPlan() {
     }
   }
   for (const tr of state.tracks) for (const s of stepsOf(tr)) {
-    if (!state.done.has(s.id)) items.push({ title: s.title, hours: Number(s.est_hours) || 1, href: safeUrl(s.url), why: tr.title });
+    if (stepDone(s)) continue;
+    const c = stepCourse(s);
+    if (c) {
+      if (seen.has(c.id) || skipped.has(c.id)) continue;
+      seen.add(c.id);
+      items.push({ title: c.name, hours: Math.max(0.5, Math.round((c.minutes / 60) * (1 - c.done) * 2) / 2), href: `#/course/${c.id}`, why: tr.title });
+    } else items.push({ title: s.title, hours: Number(s.est_hours) || 1, href: safeUrl(s.url), why: tr.title });
   }
   const weeks = [];
   let week = [], room = perWeek;

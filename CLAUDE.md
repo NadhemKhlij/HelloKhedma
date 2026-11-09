@@ -137,6 +137,10 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   in sync (minutes = courseTime() from js/coursetime.js; a smoke test fails when they drift) and use skill names that
   exist in js/ats.js so missing skills link to the course. Lessons have no hand-written duration. To extend a course,
   append lessons (progress is stored by lesson index).
+- Roadmap steps point to our own courses first: training_steps.course_id (migration 20261109000600), set in the seed block
+  "HelloKhedma courses on the roadmaps" (matched on track id + English step title). The step opens #/course/<id> with its
+  progress, the outside resource becomes "also: …", a finished course ticks the step (training.js stepDone), and the study
+  plan lists each course once. A new course that covers a step: add its row there.
 - Portfolio projects are static JSON in content/projects/<path id>.json (+ fr/): 3 per path, real URLs checked with curl.
 - AI engineer track (first "Tunisian AI Teacher", js/aitrack.js), also the courses of the AI Engineer path (id "ai"):
   content/ai/index.json (name and summary in en, fr, ar, lat) + content/ai/en/, content/ai/fr/, content/ai/ar/ (Derja in

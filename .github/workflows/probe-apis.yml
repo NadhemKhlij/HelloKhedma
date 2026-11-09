@@ -6,20 +6,16 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe CORS and shape
+      - name: Probe shapes
         run: |
-          for u in \
-            "https://himalayas.app/jobs/api?limit=2" \
-            "https://himalayas.app/jobs/api/search?q=data%20engineer" \
-            "https://remoteok.com/api?tag=devops" \
-            "https://www.arbeitnow.com/api/job-board-api" \
-            "https://www.arbeitnow.com/api/job-board-api?page=2" \
-            "https://mollie.recruitee.com/api/offers/" \
-            "https://personio.jobs.personio.de/xml" \
-            "https://personio.jobs.personio.de/xml?language=en" ; do
-            echo "=================== $u"
-            curl -s -m 20 -A "Mozilla/5.0 HelloKhedma-probe" -H "Origin: https://hellokhedma.io" -D - -o /tmp/body "$u" | grep -iE "^HTTP|access-control|content-type|retry|ratelimit|x-ratelimit"
-            echo "--- body $(wc -c < /tmp/body) bytes:"; head -c 700 /tmp/body; echo
-          done
-          echo "=================== preflight himalayas"
-          curl -s -m 20 -X OPTIONS -H "Origin: https://hellokhedma.io" -H "Access-Control-Request-Method: GET" -D - -o /dev/null "https://himalayas.app/jobs/api" | grep -iE "^HTTP|access-control"
+          echo "=== REMOTEOK legal"; curl -s -m 20 -A "Mozilla/5.0" "https://remoteok.com/api?tag=devops" > r.json; jq -r '.[0].legal' r.json; echo "=== REMOTEOK item keys"; jq -c '.[1] | del(.description) ' r.json | head -c 900; echo; echo "count: $(jq length r.json)"
+          echo "=== HIMALAYAS search item"; curl -s -m 20 "https://himalayas.app/jobs/api/search?q=data%20engineer" > h.json; jq -c '{totalCount: .totalCount, n: (.jobs|length), keys: (.jobs[0]|keys), sample: (.jobs[0]|del(.description,.excerpt))}' h.json | head -c 1500; echo
+          echo "=== HIMALAYAS legal comments"; jq -r '.comments' h.json | head -c 600; echo
+          echo "=== ARBEITNOW"; curl -s -m 30 "https://www.arbeitnow.com/api/job-board-api" > a.json; jq -c '{links: .links, meta: .meta, keys: (.data[0]|keys), sample: (.data[0]|del(.description)), n: (.data|length)}' a.json | head -c 1200; echo
+          echo "=== ARBEITNOW visa"; curl -s -m 30 "https://www.arbeitnow.com/api/job-board-api?visa_sponsorship=true" | jq -c '{n: (.data|length), titles: [.data[0:8][]|.title]}' | head -c 800; echo
+          for s in tellent recruitee bitvavo picnic mews sendcloud framer payhawk mollie bunq; do printf "recruitee %-10s " $s; curl -s -m 15 -o rc.json -w "%{http_code} " "https://$s.recruitee.com/api/offers/"; jq -c '{n: (.offers|length)}' rc.json 2>/dev/null || echo; done
+          for s in celonis tado n26 taxfix scalable-capital ecosia raisin forto grover wefox sennder flix trade-republic personio-se; do for d in de com; do printf "personio %-16s %s " $s $d; curl -s -m 15 -o pc.xml -w "%{http_code} " "https://$s.jobs.personio.$d/xml?language=en"; grep -c "<position>" pc.xml || true; done; done
+      - name: Sample shapes of a working Recruitee and Personio feed
+        run: |
+          for s in tellent recruitee bitvavo picnic mews sendcloud framer payhawk mollie bunq; do curl -s -m 15 "https://$s.recruitee.com/api/offers/" -o rc.json; if [ "$(jq '.offers|length' rc.json 2>/dev/null)" -gt 0 ] 2>/dev/null; then echo "=== recruitee $s"; jq -c '.offers[0] | {keys: keys, sample: del(.description,.requirements,.translations)}' rc.json | head -c 1500; echo; break; fi; done
+          for s in celonis tado n26 taxfix scalable-capital ecosia raisin forto grover wefox sennder flix trade-republic; do for d in de com; do curl -s -m 15 "https://$s.jobs.personio.$d/xml?language=en" -o pc.xml; if grep -q "<position>" pc.xml; then echo "=== personio $s.$d"; awk '/<position>/{p=1} p{print} /<\/position>/{exit}' pc.xml | sed 's/<!\[CDATA\[.\{200\}.*\]\]>/[CDATA…]/' | head -c 2000; echo; break 2; fi; done; done

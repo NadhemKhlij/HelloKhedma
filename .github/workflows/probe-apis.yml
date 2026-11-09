@@ -9,7 +9,9 @@ jobs:
       - name: Read the LBA spec
         run: |
           curl -s -m 30 https://api.apprentissage.beta.gouv.fr/api/documentation/json -o o.json
-          echo "=== security"; jq -c '.components.securitySchemes' o.json
-          echo "=== params"; jq -c '.paths["/api/job/v1/search"].get.parameters[] | {name, required, d: (.description // "" | .[0:140]), s: .schema}' o.json | cut -c1-400
-          echo "=== response"; jq -c '.paths["/api/job/v1/search"].get.responses["200"].content["application/json"].schema' o.json | head -c 1500; echo
-          echo "=== job schema"; jq -c '.components.schemas | to_entries[] | select(.key|test("Job|job")) | {k: .key, props: (.value.properties // {} | keys)}' o.json | head -c 2500; echo
+          echo "=== servers"; jq -c '.servers' o.json
+          echo "=== paths"; jq -r '.paths | keys[]' o.json | grep -i job
+          P=$(jq -r '.paths | keys[]' o.json | grep -i "job/v1/search" | head -1); echo "== $P"
+          echo "=== params"; jq -c --arg p "$P" '.paths[$p].get.parameters[] | {name, required, d: (.description // "" | .[0:160]), s: .schema}' o.json | cut -c1-420
+          echo "=== response"; jq -c --arg p "$P" '.paths[$p].get.responses["200"].content["application/json"].schema' o.json | head -c 1200; echo
+          echo "=== JobOfferRead"; jq -c '.components.schemas.JobOfferRead.properties | map_values(.properties // .type // .anyOf | if type=="object" then keys else . end)' o.json | head -c 2500; echo

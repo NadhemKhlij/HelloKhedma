@@ -1,0 +1,16 @@
+name: probe-apis (temporary)
+on:
+  push:
+    branches: [probe-apis2]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe LBA and Careerjet
+        run: |
+          B=https://api.apprentissage.beta.gouv.fr
+          echo "=== docs page refs"; curl -s -m 20 "$B/fr/documentation-technique" | grep -oE '"[^"]*(openapi|swagger)[^"]*"|/api/[a-zA-Z0-9/_.-]+' | sort -u | head -20
+          for u in /api/doc/openapi.json /api/openapi.json /api/docs/json /api/documentation/json /api/doc.json /api/openapi; do printf "%s " "$u"; curl -s -m 15 -o o.json -w "%{http_code} %{content_type}\n" "$B$u"; done
+          for u in /api/doc/openapi.json /api/openapi.json /api/docs/json; do if jq -e .paths o.json >/dev/null 2>&1; then :; fi; curl -s -m 15 "$B$u" -o o.json; if jq -e .paths o.json >/dev/null 2>&1; then echo "SPEC at $u"; jq -r '.paths | keys[]' o.json | grep -iE "job|offre|search" | head -20; P=$(jq -r '.paths | keys[]' o.json | grep -iE "job.*search|search" | head -1); echo "== $P"; jq -c --arg p "$P" '.paths[$p] | to_entries[] | {m: .key, params: [.value.parameters[]? | {name, in, required, type: (.schema.type // .schema.anyOf)}], sec: .value.security}' o.json | head -c 3000; echo; jq -c '.components.securitySchemes' o.json; break; fi; done
+          echo "=== search route without token"; for p in /api/job/v1/search "/api/job/v1/search?latitude=48.85&longitude=2.35&radius=30"; do printf "%s " "$p"; curl -s -m 15 "$B$p" | head -c 300; echo; done
+          echo "=== careerjet without key"; curl -s -m 15 -D - -o cj.txt "https://search.api.careerjet.net/v4/query?keywords=data&locale_code=fr_FR&user_ip=1.2.3.4&user_agent=test" | grep -iE "^HTTP|www-auth"; head -c 300 cj.txt; echo

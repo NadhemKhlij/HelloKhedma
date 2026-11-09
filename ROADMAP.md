@@ -223,6 +223,18 @@ branch removed from PREVIEW_BRANCHES). Done (2026-11-05): 3 AI portfolio project
 assistant with RAG and citations, document-to-JSON extraction, support agent with tools in production), opened in the
 normal project page. Next: owner review of the Derja of the courses and projects (CHECKLIST O18).
 
+## Digital Marketing path ("mk", started 2026-11-09)
+Target jobs: Digital Marketing Specialist, Marketing Analyst, Growth Marketer, SEO Specialist, Performance Marketing
+Manager (French titles: Chargé de Marketing Digital, Chargé d’Études Marketing, Growth Marketer, Chargé de Référencement,
+Traffic Manager). A data-minded marketing path: it fits the app (CV keywords, offers, tracker) and reuses the analytics courses.
+
+| Step | What | Status |
+|---|---|---|
+| A | Path in seed.sql (EN + FR: titles, tools, tips, keywords, 3 learning tracks on official free material), 14 marketing skills in js/ats.js (category "Marketing"), 8 role interview questions (EN + FR), 3 portfolio projects on real public data (SEO audit, UCI bank marketing campaigns, GA4 e-commerce sample in BigQuery), path card illustration; existing SQL, Excel, statistics and BI tools courses linked | **Done 2026-11-09** (owner: re-run seed.sql, O44) |
+| B | Marketing courses (EN + FR, course format, 7-10 lessons, cheat sheet, exercises incl. auto-graded ones, interview questions): 1 Digital marketing foundations (funnel, channels, KPIs), 2 SEO, 3 Paid search and paid social (Google Ads, Meta), 4 Web analytics with GA4 and Tag Manager, 5 E-mail marketing, CRM and automation, 6 Marketing analytics and experiments (attribution, A/B tests, SQL on campaign data) | Next, one course per branch |
+| C | Practice on marketing data: a fictional campaigns dataset for runnable SQL exercises (content/sql/), log-like GA4 event files for "logs"/"json" drills, take-home case "Marketing Analyst" | Later |
+| D | Expert review by a marketer (part of O11) | Owner |
+
 ## Phase 6: grow
 | # | Item | Why | Effort |
 |---|---|---|---|

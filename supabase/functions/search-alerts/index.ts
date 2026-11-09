@@ -162,12 +162,12 @@ Deno.serve(async (req) => {
     const { data: alerts } = await admin.from("search_alerts").select("id, user_id, label, params, lang, seen").eq("user_id", user.id);
     if (!alerts?.length) return json({ error: "Turn on an alert first." }, 400);
     const lang: Lang = alerts[0].lang === "fr" ? "fr" : "en";
-    await admin.from("profiles").upsert({ user_id: user.id, alerts_test_on: today });
     await count("alert_search", alerts.length);
     const sections = await runUser(alerts as Alert[], today, true, new Map());
     if (!sections.length) return json({ sent: false, reason: TEXT[lang].nothing });
     try { await send(user.email, render(sections, lang, true)); }
     catch (e) { console.error("test e-mail failed:", (e as Error).message); return json({ error: `The e-mail could not be sent (${(e as Error).message}).` }, 502); }
+    await admin.from("profiles").upsert({ user_id: user.id, alerts_test_on: today }); // counted only once an e-mail went out
     await count("alert_email");
     return json({ sent: true });
   }

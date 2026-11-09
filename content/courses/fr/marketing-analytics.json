@@ -1,0 +1,379 @@
+{
+  "why": "Les équipes marketing dépensent de l’argent réel et doivent montrer ce qu’il rapporte. Les analystes marketing et les growth marketers sont recrutés pour répondre à « qu’est-ce qui marche, combien, et ensuite ? » avec des données, et pour mener les expériences qui le prouvent.",
+  "outcome": "décomposer un objectif business en arbre d’indicateurs, construire un tableau de bord utile, lire des cohortes et estimer la LTV, comparer l’attribution aux modèles de mix média et aux tests d’incrémentalité, concevoir et lire un test A/B, mener une démarche CRO et calculer les indicateurs marketing en SQL.",
+  "lessons": [
+    {
+      "title": "De l’objectif business à l’arbre d’indicateurs",
+      "text": [
+        "Un arbre d’indicateurs décompose le résultat principal (chiffre d’affaires, inscriptions) en facteurs qui le produisent : trafic, conversion, panier moyen, fidélisation. Chaque branche est un levier sur lequel une équipe peut agir, et chaque chiffre a une définition et un responsable.",
+        "Quand le chiffre principal bouge, l’arbre montre où : moins de visites d’un canal, un taux de conversion plus bas sur mobile, des paniers plus petits. « Les ventes baissent » devient une question à laquelle quelqu’un peut répondre."
+      ],
+      "points": [
+        "Un indicateur « étoile du nord » pour l’équipe, quelques indicateurs d’entrée en dessous.",
+        "Les indicateurs avancés (trafic, ajout au panier) bougent avant les indicateurs retardés (chiffre d’affaires, fidélisation).",
+        "Définissez chaque indicateur : formule, source, période, filtres.",
+        "Séparez nouveaux clients et clients fidèles : ils ne se comportent pas pareil."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Revenue per month\n├─ New customers  = visits × conversion rate\n│   ├─ Visits by channel (organic, paid search, paid social, e-mail, referral)\n│   └─ Conversion rate by landing page and device\n├─ Orders from returning customers = active customers × repeat purchase rate\n└─ Average order value = items per order × price per item",
+        "note": "Chaque feuille est un chiffre dont quelqu’un est responsable et qu’il peut faire bouger."
+      }
+    },
+    {
+      "title": "Des tableaux de bord qui font décider",
+      "text": [
+        "Un bon tableau de bord marketing répond à quelques questions pour un public : la vue hebdomadaire de l’équipe (dépense, CPA, conversions par canal, face à l’objectif), la vue direction (chiffre d’affaires, CAC, LTV, tendance), la vue campagne (résultats d’un lancement). Outils : Looker Studio, Power BI, Tableau, ou l’outil BI de l’entreprise.",
+        "Mettez la comparaison à côté de chaque chiffre (objectif, période précédente, année précédente), gardez les définitions sur la page, et ajoutez un court commentaire écrit : ce qui a changé, pourquoi, ce que l’on fait ensuite. Des chiffres sans décision ne sont que du bruit."
+      ],
+      "points": [
+        "Partez des décisions, puis choisissez les indicateurs, puis les graphiques.",
+        "Croisez les sources avec prudence : plateformes publicitaires, GA4 et CRM ne comptent pas pareil.",
+        "Automatisez l’actualisation des données ; vérifiez-la avant la réunion.",
+        "Cinq graphiques lus valent mieux que vingt ignorés."
+      ]
+    },
+    {
+      "title": "Cohortes, fidélisation et valeur vie client",
+      "text": [
+        "Une cohorte regroupe des clients selon leur début (mois de la première commande, semaine d’inscription) et les suit dans le temps. Les tableaux de cohortes montrent si la fidélisation s’améliore ou se dégrade, ce que les moyennes cachent quand beaucoup de nouveaux clients arrivent.",
+        "La valeur vie client (LTV) estime la marge brute qu’un client rapporte sur la relation : panier moyen × commandes par an × années comme client × marge, ou mieux, la marge cumulée réelle des cohortes passées. La LTV comparée au CAC, et le délai de récupération (mois pour regagner le CAC), disent quelle croissance vous pouvez vous permettre."
+      ],
+      "points": [
+        "Comparez les cohortes au même âge (mois 1 contre mois 1).",
+        "Une cohorte moins bonne vient souvent d’un canal ou d’une offre : vérifiez où elle a été acquise.",
+        "Les cohortes acquises par des remises fidélisent souvent moins.",
+        "Utilisez la marge, pas le chiffre d’affaires, pour la LTV quand vous la comparez au CAC."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "First order month  Customers  Month 1  Month 2  Month 3\nJanuary            1,000      32 %     24 %     21 %\nFebruary           1,200      30 %     22 %     19 %\nMarch              1,500      22 %     15 %       -\n(share of each cohort that ordered again in the months after their first order)",
+        "note": "La cohorte de mars se fidélise beaucoup moins : regardez ce qui a changé en mars (une promotion, un nouveau canal)."
+      }
+    },
+    {
+      "title": "Attribution, modèles de mix média et incrémentalité",
+      "text": [
+        "Les modèles d’attribution partagent le mérite d’une conversion entre les points de contact vus par un utilisateur suivi : dernier clic, premier clic, linéaire, basé sur la position ou sur les données. Ils sont rapides et détaillés mais ne voient que les clics suivis, perdent les utilisateurs qui refusent les cookies, et ne savent pas si la vente aurait eu lieu de toute façon.",
+        "Le media mix modelling (MMM) estime l’effet de chaque canal à partir de totaux hebdomadaires (dépenses, ventes, saisonnalité, prix) par régression, sans suivi des utilisateurs ; parmi les outils open source, Meridian de Google et Robyn de Meta. Les tests d’incrémentalité (tests géographiques, groupes témoins, études de lift des plateformes) mesurent le vrai effet supplémentaire en comparant groupes exposés et non exposés. Les équipes matures utilisent les trois et calibrent les modèles avec les tests."
+      ],
+      "points": [
+        "L’attribution pour l’optimisation quotidienne, le MMM pour la planification du budget, les tests pour la preuve.",
+        "Incrémental = ce qui ne serait pas arrivé sans la campagne.",
+        "La recherche sur la marque et le reciblage paraissent en général meilleurs en attribution qu’en test.",
+        "Prévoyez un test avec un vrai groupe témoin avant le début de la campagne."
+      ]
+    },
+    {
+      "title": "Des tests A/B bien faits",
+      "text": [
+        "Un test A/B répartit les visiteurs au hasard entre la version actuelle (A) et une nouvelle (B) et compare un indicateur principal. Décidez avant de commencer : l’hypothèse, l’indicateur principal, les indicateurs garde-fous qui ne doivent pas baisser, l’effet minimum qui vaut d’être détecté et la taille d’échantillon nécessaire.",
+        "Les petits effets demandent de grands échantillons : détecter une hausse de 5 % à 5,5 % de conversion (10 % relatif) demande environ 30 000 visiteurs par variante avec la confiance habituelle de 95 % et une puissance de 80 %. Faites tourner des semaines complètes, n’arrêtez pas dès que le résultat paraît significatif (regarder trop tôt gonfle les faux positifs), et vérifiez la répartition : un test 50/50 qui finit à 52/48 a un bug."
+      ],
+      "points": [
+        "Un indicateur principal décidé à l’avance ; les autres servent à apprendre.",
+        "La significativité statistique n’est pas l’importance business : regardez la taille de l’effet et l’intervalle de confiance.",
+        "Beaucoup de tests échouent : un résultat neutre est quand même un apprentissage.",
+        "Voir le cours de statistiques pour les p-values, la puissance et les intervalles de confiance."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Test: new product page (B) vs current page (A), 14 days, 50/50 split\n          Visitors   Orders   Conversion rate\nA          30,000      1,200   4.0 %\nB          30,000      1,380   4.6 %\nRelative lift: +15 %   p-value: < 0.001   Sample ratio: 50.0 / 50.0 (as planned)",
+        "note": "Durée prévue, répartition équilibrée, hausse claire : B peut être déployée, et le résultat noté."
+      }
+    },
+    {
+      "title": "L’optimisation du taux de conversion (CRO)",
+      "text": [
+        "Le CRO augmente la part des visiteurs qui font l’action voulue, avec de la recherche plutôt que des opinions. D’abord la recherche : l’analytics (où les gens décrochent), les cartes de chaleur et enregistrements de sessions (Microsoft Clarity, Hotjar), les sondages sur le site et les tests utilisateurs (pourquoi ils hésitent), et les avis clients (les mots qu’ils emploient).",
+        "Ensuite, écrivez des hypothèses avec une raison, un changement et une mesure, priorisez-les (par exemple ICE : impact, confiance, facilité), testez les meilleures et notez chaque résultat. Leviers typiques : proposition de valeur claire, confiance et preuves, moins de champs de formulaire, prix et frais de livraison visibles, vitesse de la page, et un tunnel de paiement plus simple."
+      ],
+      "points": [
+        "Corrigez directement les bugs évidents et les problèmes de vitesse : pas besoin de test.",
+        "Testez des changements forts sur des pages avec assez de trafic ; les petites retouches se voient rarement.",
+        "Mobile et ordinateur se comportent différemment : analysez-les séparément.",
+        "Tenez un journal des tests : hypothèse, résultat, décision, captures d’écran."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Because   heatmaps show 70 % of mobile visitors never reach the delivery costs,\nwe believe showing \"Free delivery from 50 EUR\" under the price\nwill raise the add-to-cart rate on mobile product pages.\nWe will know when the add-to-cart rate rises by at least 8 % (relative)\nin a 50/50 test of 3 weeks, with checkout conversion not falling.",
+        "note": "Parce que (preuve) → nous pensons (changement) → nous le saurons (indicateur, seuil, garde-fou)."
+      }
+    },
+    {
+      "title": "L’analyse marketing en SQL",
+      "text": [
+        "La plupart des données marketing finissent dans un entrepôt (BigQuery, Snowflake) : coûts publicitaires par jour et par canal, événements GA4, contacts CRM, commandes. Le SQL les croise pour répondre à ce que les plateformes ne peuvent pas : CAC par canal à partir des vrais nouveaux clients, LTV par canal d’acquisition, passage de lead à client par campagne.",
+        "Attention aux jointures : le grain (une ligne par jour et canal, ou par commande), la date utilisée (date du clic ou de la commande), les doublons, et les noms de canaux qui diffèrent selon les sources. Vérifiez les totaux face aux outils sources avant de partager."
+      ],
+      "points": [
+        "Gardez une seule table de correspondance de source/support vers canal.",
+        "NULLIF évite une division par zéro quand un canal n’a eu aucun client.",
+        "Stockez les définitions dans des vues SQL pour que chaque tableau de bord utilise les mêmes.",
+        "Le cours SQL couvre les jointures, les regroupements et les fonctions de fenêtre."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Customer acquisition cost by channel, Q3 2026\nSELECT c.channel,\n       SUM(c.spend)                         AS spend,\n       COUNT(DISTINCT n.customer_id)        AS new_customers,\n       ROUND(SUM(c.spend) * 1.0 / NULLIF(COUNT(DISTINCT n.customer_id), 0), 2) AS cac\nFROM marketing_costs c\nLEFT JOIN new_customers n\n  ON n.channel = c.channel AND n.first_order_date = c.day\nWHERE c.day BETWEEN '2026-07-01' AND '2026-09-30'\nGROUP BY c.channel\nORDER BY cac;",
+        "note": "Coûts et nouveaux clients joints sur le canal et le jour ; chaque client ne doit être compté qu’une fois."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Indicateurs",
+      "items": [
+        [
+          "North star metric",
+          "Le résultat unique que l’équipe fait grandir"
+        ],
+        [
+          "Leading indicator",
+          "Indicateur avancé : bouge d’abord (trafic, ajout au panier)"
+        ],
+        [
+          "Lagging indicator",
+          "Indicateur retardé : bouge plus tard (chiffre d’affaires, fidélisation)"
+        ],
+        [
+          "LTV",
+          "Marge qu’un client rapporte sur la relation"
+        ],
+        [
+          "Payback period",
+          "Mois pour regagner le CAC"
+        ],
+        [
+          "Cohort",
+          "Clients regroupés par date de début"
+        ]
+      ]
+    },
+    {
+      "group": "Mesure",
+      "items": [
+        [
+          "Attribution model",
+          "Partage le mérite entre les points de contact suivis"
+        ],
+        [
+          "MMM",
+          "Modèle de mix média : effets des canaux à partir des totaux hebdomadaires"
+        ],
+        [
+          "Incrementality test",
+          "Groupe exposé contre non exposé : le vrai effet supplémentaire"
+        ],
+        [
+          "Geo test",
+          "Certaines régions voient la campagne, d’autres non"
+        ]
+      ]
+    },
+    {
+      "group": "Tests A/B",
+      "items": [
+        [
+          "Hypothesis",
+          "Parce que… nous pensons… nous le saurons quand…"
+        ],
+        [
+          "Guardrail metric",
+          "Indicateur garde-fou : ne doit pas se dégrader pendant le test"
+        ],
+        [
+          "Sample size",
+          "Visiteurs nécessaires pour détecter l’effet minimum"
+        ],
+        [
+          "Peeking",
+          "Arrêter tôt quand ça paraît significatif : fausses victoires"
+        ],
+        [
+          "Sample ratio mismatch",
+          "Répartition différente du plan : le test est cassé"
+        ]
+      ]
+    },
+    {
+      "group": "CRO",
+      "items": [
+        [
+          "Heatmap",
+          "Où les visiteurs cliquent, bougent et défilent"
+        ],
+        [
+          "Session recording",
+          "Rediffusions de vraies visites"
+        ],
+        [
+          "On-site survey",
+          "Demande aux visiteurs pourquoi ils hésitent"
+        ],
+        [
+          "ICE score",
+          "Impact, confiance, facilité : pour prioriser les idées"
+        ]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Présenter des chiffres sans objectif ni comparaison, et sans décision.",
+    "Comparer une LTV en chiffre d’affaires au CAC, ce qui surestime ce que vous pouvez dépenser.",
+    "Se fier à l’attribution au dernier clic pour couper les canaux du haut du tunnel.",
+    "Arrêter un test A/B le premier jour où il paraît significatif.",
+    "Tester de petits changements sur des pages qui ont trop peu de trafic pour montrer un résultat."
+  ],
+  "exercises": [
+    {
+      "q": "La version A convertit à 4,0 % et la version B à 4,6 %. Quelle est la hausse relative de B, en pourcentage ?",
+      "type": "fill",
+      "blanks": [
+        [
+          "15",
+          "15%",
+          "15 %",
+          "+15",
+          "+15%",
+          "+15 %"
+        ]
+      ],
+      "answer": "(4,6 − 4,0) / 4,0 = 0,15, soit une hausse relative de 15 %. L’écart absolu est de 0,6 point ; dites toujours lequel vous présentez."
+    },
+    {
+      "q": "Un test A/B était prévu pour 14 jours. Au jour 3, il montre p = 0,03 en faveur de B. Que faites-vous ?",
+      "type": "choice",
+      "options": [
+        "Arrêter et déployer B : c’est significatif",
+        "Continuer jusqu’à l’échantillon et la durée prévus",
+        "Relancer le test avec une nouvelle répartition",
+        "Ajouter une troisième variante"
+      ],
+      "correct": 1,
+      "answer": "Regarder chaque jour et s’arrêter au premier résultat significatif gonfle les faux positifs, et les premiers jours sont rarement représentatifs. Allez au bout de l’échantillon prévu et de semaines complètes."
+    },
+    {
+      "q": "Remettez dans l’ordre la démarche CRO.",
+      "type": "order",
+      "steps": [
+        "Chercher où et pourquoi les visiteurs décrochent",
+        "Écrire des hypothèses appuyées sur des preuves",
+        "Les prioriser (ICE)",
+        "Lancer le test A/B",
+        "Analyser et noter le résultat"
+      ],
+      "answer": "Recherche → hypothèse → priorité → test → apprentissage. Chaque résultat nourrit la recherche suivante."
+    },
+    {
+      "q": "Associez chaque méthode à la question à laquelle elle répond le mieux.",
+      "type": "match",
+      "pairs": [
+        [
+          "Modèle d’attribution",
+          "Quels points de contact suivis ont mené à cette conversion ?"
+        ],
+        [
+          "Modèle de mix média",
+          "Comment répartir le budget de l’an prochain entre les canaux ?"
+        ],
+        [
+          "Test d’incrémentalité",
+          "Ces ventes auraient-elles eu lieu sans la campagne ?"
+        ],
+        [
+          "Analyse de cohortes",
+          "Les clients acquis en mars restent-ils aussi longtemps que ceux de janvier ?"
+        ]
+      ],
+      "answer": "Chaque méthode a sa force ; les équipes matures les combinent et calibrent les modèles avec des tests."
+    },
+    {
+      "q": "Classez ces indicateurs d’une boutique en ligne entre indicateurs avancés et retardés.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Avancés",
+          "items": [
+            "Visites des fiches produits",
+            "Taux d’ajout au panier",
+            "Inscriptions à la newsletter"
+          ]
+        },
+        {
+          "name": "Retardés",
+          "items": [
+            "Chiffre d’affaires mensuel",
+            "Fidélisation à 12 mois",
+            "Valeur vie client"
+          ]
+        }
+      ],
+      "answer": "Les indicateurs avancés bougent d’abord et permettent d’agir cette semaine ; les retardés confirment le résultat plus tard."
+    },
+    {
+      "q": "Un test 50/50 se termine avec 31 200 visiteurs dans A et 28 800 dans B, et B gagne. Que faites-vous ?",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Que remarquez-vous d’abord ?",
+          "choices": [
+            {
+              "label": "La répartition est de 52/48 au lieu de 50/50 : un déséquilibre d’échantillon",
+              "best": true,
+              "feedback": "Avec 60 000 visiteurs, un tel écart est très improbable par hasard : quelque chose retire des visiteurs d’un côté."
+            },
+            {
+              "label": "Rien : B a gagné, on déploie",
+              "feedback": "Une répartition cassée peut créer un faux gagnant, par exemple si B perd les visiteurs lents ou les robots."
+            }
+          ]
+        },
+        {
+          "text": "Étape suivante ?",
+          "choices": [
+            {
+              "label": "Trouver la cause (redirections, erreurs de page, filtrage des robots, suivi sur B) et relancer le test",
+              "best": true,
+              "feedback": "Les résultats d’un test avec un déséquilibre d’échantillon ne sont pas fiables."
+            },
+            {
+              "label": "Retirer 2 400 visiteurs de A pour équilibrer les groupes",
+              "feedback": "Couper des données à la main ne corrige pas le biais ; cela en ajoute un."
+            }
+          ]
+        }
+      ],
+      "answer": "Vérifiez la répartition avant de lire un résultat. Un déséquilibre signifie que l’affectation ou le suivi est cassé : trouvez la cause et relancez le test."
+    },
+    {
+      "q": "Le chiffre d’affaires mensuel a baissé de 12 %. Avec un arbre d’indicateurs, listez dans l’ordre les questions que vous vérifieriez.",
+      "answer": "1) La baisse est-elle réelle : changement de suivi, source de données manquante, effet calendrier (moins de jours, un jour férié l’an dernier) ? 2) Nouveaux clients ou clients fidèles ? 3) Pour les nouveaux : visites par canal (quel canal a baissé ?) ou taux de conversion (quel appareil, quelle page d’atterrissage ?). 4) Panier moyen : moins d’articles ou des prix plus bas, fin d’une promotion ? 5) Pour les fidèles : taux de réachat par cohorte. Ensuite, présentez la branche qui explique l’essentiel de la baisse, sa cause et l’action."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Comment mesureriez-vous si une campagne a vraiment marché ?",
+      "a": "En fixant l’objectif et l’indicateur avant le lancement, en le suivant avec des liens UTM et des conversions, en comparant à une base ou à un groupe témoin, et pour les gros budgets en lançant un test d’incrémentalité, comme un test géographique, parce que l’attribution seule ne dit pas ce qui serait arrivé de toute façon."
+    },
+    {
+      "q": "Quelle différence entre l’attribution et le media mix modelling ?",
+      "a": "L’attribution suit des utilisateurs et partage le mérite entre leurs points de contact, utile pour l’optimisation quotidienne ; le MMM utilise des données hebdomadaires agrégées et une régression pour estimer l’effet de chaque canal, y compris hors ligne et non suivi, utile pour planifier le budget. Les tests calibrent les deux."
+    },
+    {
+      "q": "Comment fixez-vous la taille d’échantillon d’un test A/B ?",
+      "a": "À partir du taux de conversion de base, de l’effet minimum qui vaut d’être détecté, du niveau de confiance et de la puissance, en général 95 % et 80 %. Les petits effets demandent beaucoup plus de visiteurs ; si la page ne peut pas atteindre l’échantillon en quelques semaines, je teste un changement plus fort ou une page plus visitée."
+    },
+    {
+      "q": "Que faites-vous si un test A/B est neutre ?",
+      "a": "Je vérifie qu’il s’est déroulé comme prévu (répartition, suivi), je ne regarde les segments que comme idées pour le prochain test, je note l’apprentissage, et je garde la version la plus simple ou la moins chère. Beaucoup de tests sont neutres ; l’apprentissage en vaut quand même la peine."
+    },
+    {
+      "q": "Comment priorisez-vous les idées de CRO ?",
+      "a": "D’abord par les preuves de la recherche, puis avec une notation comme ICE : impact sur l’indicateur principal, confiance d’après les preuves, facilité de réalisation. Les bugs et les problèmes de vitesse se corrigent directement, sans test."
+    },
+    {
+      "q": "Comment calculez-vous la LTV et pourquoi la comparer au CAC ?",
+      "a": "À partir de la marge cumulée réelle des cohortes passées, ou panier moyen × fréquence d’achat × durée de vie × marge. La comparer au CAC, avec le délai de récupération, montre si l’acquisition de clients crée de la valeur et combien nous pouvons dépenser par client."
+    }
+  ]
+}

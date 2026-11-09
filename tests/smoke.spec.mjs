@@ -3,6 +3,7 @@
 // project for public content (paths, tracks) like a real visitor, but never sign in and never run a job search:
 // offers are injected into the page state instead. Each test starts with an empty browser (guest, no localStorage).
 import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 // Uncaught errors fail the test. Console errors too, except failed network loads (a third-party hiccup is not a bug).
 let errors = [];
@@ -35,6 +36,35 @@ test("logo in the top bar, icons served, browser bar colour follows the theme", 
   await page.locator("#themeToggle").click();
   expect(await bar()).not.toBe(before);
   expect(["#faf9f5", "#1f1e1d"]).toContain(await bar());
+});
+
+// Accessibility (2026-11-09): no serious or critical WCAG 2.1 A/AA problem (axe-core) on the main pages, in both themes
+// and with a path colour that is hard to read on white (Application Support, orange); and the keyboard basics.
+for (const theme of ["light", "dark"]) {
+  test(`accessibility: main pages pass axe in the ${theme} theme`, async ({ page }) => {
+    await page.addInitScript((th) => { localStorage.setItem("hk.theme", th); localStorage.setItem("hk.path", "as"); }, theme);
+    const problems = [];
+    for (const route of ["#/", "#/offers", "#/training", "#/course/sql", "#/cv", "#/cv/maker", "#/interview", "#/applications", "#/account", "#/ai", "#/privacy"]) {
+      await open(page, route);
+      await page.waitForTimeout(400);
+      const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      for (const v of r.violations.filter((x) => ["serious", "critical"].includes(x.impact))) {
+        problems.push(`${route} ${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+}
+test("accessibility: skip link and arrow keys in tab bars", async ({ page }) => {
+  await open(page, "#/cv");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#skipLink")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#h-cv")).toBeFocused();
+  await page.locator("#cvTabCheck").focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator("#cvTabMaker")).toBeFocused();
+  await expect(page).toHaveURL(/#\/cv\/maker$/);
 });
 
 test("home shows the career paths and a path can be selected", async ({ page }) => {

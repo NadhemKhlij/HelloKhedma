@@ -233,7 +233,7 @@ function aiPanel() {
   const todo = cvText().includes("[number?]");
   return h("div", { class: "rounded-xl p-4 grid gap-2 text-sm", style: "border:1px solid var(--accent);background:var(--soft)" },
     h("p", { class: "font-semibold" }, t("✨ Written by AI for: {offer}", { offer: cv.aiFor || t("this offer") })),
-    h("p", { class: "text-xs", style: "color:#f08a24" }, t("Check every line before using it: the AI can make mistakes, and only you know what is true.")),
+    h("p", { class: "text-xs", style: "color:var(--warn)" }, t("Check every line before using it: the AI can make mistakes, and only you know what is true.")),
     todo ? h("p", { class: "text-xs font-medium" }, t("Replace each [number?] with a real number, or delete it, before printing.")) : null,
     list(t("What was corrected and tailored"), cv.aiChanges),
     list(t("Gaps and questions"), cv.aiNotes),

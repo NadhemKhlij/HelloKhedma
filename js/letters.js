@@ -187,7 +187,7 @@ export function openCoverLetter(offer, l = textLang(`${offer.title} ${offer.text
   const heading = title(t("Cover letter"), [offer.title, offer.company].filter(Boolean).join(" · "));
   if (!state.cv.text.trim()) {
     show(heading, h("p", { class: "text-sm" }, t("Add your CV first on the "),
-      h("a", { href: "#/cv", class: "underline", style: "color:var(--accent)", onClick: () => $("#letterDialog").close() }, t("CV check")), t(" page.")));
+      h("a", { href: "#/cv", class: "underline", style: "color:var(--accent-ink)", onClick: () => $("#letterDialog").close() }, t("CV check")), t(" page.")));
     return;
   }
   const r = matchSkills(extractSkills(`${offer.title} ${offer.text}`).map((s) => s.name), state.cv.names);

@@ -99,7 +99,7 @@ export function askBox(course, lesson, index) {
       if (!entry.truncated) save(keyOf(q), entry);
       show(entry, false);
     } catch (err) {
-      out.replaceChildren(h("p", { class: "text-sm", style: "color:#e0508b" },
+      out.replaceChildren(h("p", { class: "text-sm", style: "color:var(--bad)" },
         ERRORS[err.code] ? t(ERRORS[err.code], { n: LIMIT }) : t("The answer failed: {msg}", { msg: err.message })));
     } finally { askBtn.disabled = false; }
   }

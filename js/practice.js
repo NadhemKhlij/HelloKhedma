@@ -74,8 +74,8 @@ export function quiz(root, c, { onReview } = {}) {
       if (!ok) btn.classList.add("opt-bad");
       if (ok) { score++; logActivity(2); }
       feedback.replaceChildren(ok
-        ? h("span", { style: "color:#18a999" }, t("✓ Correct! +2 XP"))
-        : h("span", {}, h("span", { style: "color:#e0508b" }, t("✗ Not quite. ")), h("span", { class: "mute" }, t("The answer: ")),
+        ? h("span", { style: "color:var(--ok)" }, t("✓ Correct! +2 XP"))
+        : h("span", {}, h("span", { style: "color:var(--bad)" }, t("✗ Not quite. ")), h("span", { class: "mute" }, t("The answer: ")),
           toMeaning ? it.back : code(it.front)));
       next.hidden = false; next.focus();
     }
@@ -129,7 +129,7 @@ export function flashcards(root, c) {
   // Cards of this course due for review (spaced repetition, #/review).
   const dueLink = () => {
     const n = dueCards(c.id).filter((d) => all.some((x) => x.key === d.key)).length;
-    return n ? h("a", { href: `#/review/${c.id}`, class: "text-sm underline justify-self-start", style: "color:var(--accent)" },
+    return n ? h("a", { href: `#/review/${c.id}`, class: "text-sm underline justify-self-start", style: "color:var(--accent-ink)" },
       tn(n, "🔁 {n} card of this course to review today →", "🔁 {n} cards of this course to review today →")) : null;
   };
   const draw = () => {
@@ -209,11 +209,11 @@ function pyRunner(e, onSolved, onWrong = () => {}) {
     "aria-label": t("Your Python code"), placeholder: t("Write your Python code, then ▶ Run (Ctrl + Enter)…") });
   const out = h("div", { class: "grid gap-2", "aria-live": "polite" });
   const say = (text, color) => h("p", { class: "text-sm font-medium whitespace-pre-wrap", style: color ? `color:${color}` : "" }, text);
-  const printed = (s) => (s?.trim() ? h("pre", { class: "codeblock !text-xs max-h-60 overflow-auto", dir: "ltr" }, h("code", {}, s.trimEnd())) : null);
+  const printed = (s) => (s?.trim() ? h("pre", { tabindex: "0", class: "codeblock !text-xs max-h-60 overflow-auto", dir: "ltr" }, h("code", {}, s.trimEnd())) : null);
   const busy = (on) => { run.disabled = check.disabled = on; };
   const show = (...els) => out.replaceChildren(...els.filter(Boolean));
   const fail = (err) => say(err.message === "timeout" ? t("Your code ran too long and was stopped (an endless loop?).")
-    : t("Python could not be loaded. Check your connection and try again."), "#e0508b");
+    : t("Python could not be loaded. Check your connection and try again."), "var(--bad)");
   async function go(withTests) {
     if (!box.value.trim()) { box.focus(); return; }
     busy(true);
@@ -224,16 +224,16 @@ function pyRunner(e, onSolved, onWrong = () => {}) {
     try {
       const r = await runPython(box.value, withTests ? e.run.python : "");
       if (r.error) {
-        show(say(t("Python error:"), "#e0508b"), printed(r.error), printed(r.stdout));
+        show(say(t("Python error:"), "var(--bad)"), printed(r.error), printed(r.stdout));
         if (withTests) onWrong(box.value, `The code raises an error: ${r.error}`);
       } else if (!withTests) {
         show(r.stdout.trim() ? printed(r.stdout) : h("p", { class: "mute text-sm" }, t("The code ran and printed nothing. Call your function with print(…) to see a result.")));
       } else if (r.failed) {
-        show(say(t("Not yet: a test fails: {msg}", { msg: r.failed }), "#f08a24"), printed(r.stdout));
+        show(say(t("Not yet: a test fails: {msg}", { msg: r.failed }), "var(--warn)"), printed(r.stdout));
         onWrong(box.value, `A hidden test fails: ${r.failed}`);
       } else {
         onSolved();
-        show(say(t("✓ Correct! Your code passes every test."), "#18a999"), printed(r.stdout));
+        show(say(t("✓ Correct! Your code passes every test."), "var(--ok)"), printed(r.stdout));
       }
     } catch (err) { show(fail(err)); }
     finally { busy(false); }
@@ -305,7 +305,7 @@ function sqlRunner(e, onSolved, onWrong = () => {}) {
     if (!box.value.trim()) { box.focus(); return; }
     busy(true); out.replaceChildren(h("p", { class: "mute text-sm" }, t("Running…")));
     try { const [{ runSql }] = await engine(); out.replaceChildren(resultTable(await runSql(e.run.db, box.value))); }
-    catch (err) { out.replaceChildren(say(errorText(err), "#e0508b")); }
+    catch (err) { out.replaceChildren(say(errorText(err), "var(--bad)")); }
     finally { busy(false); }
   }
   async function onCheck() {
@@ -315,14 +315,14 @@ function sqlRunner(e, onSolved, onWrong = () => {}) {
       const [{ runSql }, { gradeResult }] = await engine();
       expected ||= await runSql(e.run.db, e.answer);
       let mine;
-      try { mine = await runSql(e.run.db, box.value); } catch (err) { out.replaceChildren(say(errorText(err), "#e0508b")); onWrong(box.value, `The query fails in SQLite: ${err.message}`); return; }
+      try { mine = await runSql(e.run.db, box.value); } catch (err) { out.replaceChildren(say(errorText(err), "var(--bad)")); onWrong(box.value, `The query fails in SQLite: ${err.message}`); return; }
       const g = gradeResult(expected, mine, e.run);
-      if (g.ok) { onSolved(); out.replaceChildren(say(t("✓ Correct! Same result as the expected answer."), "#18a999"), resultTable(mine)); }
+      if (g.ok) { onSolved(); out.replaceChildren(say(t("✓ Correct! Same result as the expected answer."), "var(--ok)"), resultTable(mine)); }
       else {
-        out.replaceChildren(say(t(VERDICT[g.reason] || VERDICT.values, { got: g.got, want: g.want }), "#f08a24"), resultTable(mine));
+        out.replaceChildren(say(t(VERDICT[g.reason] || VERDICT.values, { got: g.got, want: g.want }), "var(--warn)"), resultTable(mine));
         onWrong(box.value, `${VERDICT[g.reason] || VERDICT.values} (got ${g.got ?? "?"}, want ${g.want ?? "?"}). Learner's first rows: ${JSON.stringify(mine.values.slice(0, 5))}; columns: ${mine.columns.join(", ")}`);
       }
-    } catch (err) { out.replaceChildren(say(errorText(err), "#e0508b")); }
+    } catch (err) { out.replaceChildren(say(errorText(err), "var(--bad)")); }
     finally { busy(false); }
   }
   if (e.start) box.value = e.start;

@@ -146,13 +146,13 @@ function aiSection({ offer, r }) {
       const result = h("div", { class: "rounded-lg p-3 text-sm whitespace-pre-wrap", style: "background:var(--bg);border:1px solid var(--line)" }, data.text);
       // replaceChildren() would print a null argument as the text "null": drop the optional parts first.
       out.replaceChildren(...[
-        h("p", { class: "text-xs", style: "color:#f08a24" }, t("Check every line before using it: the AI can make mistakes, and only you know what is true.")),
+        h("p", { class: "text-xs", style: "color:var(--warn)" }, t("Check every line before using it: the AI can make mistakes, and only you know what is true.")),
         data.truncated ? h("p", { class: "mute text-xs" }, t("The answer was cut short: try again with a shorter offer.")) : null,
         result,
         h("button", { type: "button", class: "btn-ghost justify-self-start", onClick: () => copy(data.text, null, t("Rewrite copied.")) }, t("📋 Copy the rewrite")),
       ].filter(Boolean));
     } catch (e) {
-      out.replaceChildren(h("p", { class: "text-sm", style: "color:#e0508b" },
+      out.replaceChildren(h("p", { class: "text-sm", style: "color:var(--bad)" },
         AI_ERRORS[e.code] ? t(AI_ERRORS[e.code]) : t("AI rewriting failed: {msg}", { msg: e.message })));
     } finally { start.disabled = makeCv.disabled = false; }
   }
@@ -171,7 +171,7 @@ export function openTailor(offer) {
 
   if (!state.cv.text.trim()) {
     body.replaceChildren(heading, h("p", { class: "text-sm" }, t("Add your CV first on the "),
-      h("a", { href: "#/cv", class: "underline", style: "color:var(--accent)", onClick: () => dlg.close() }, t("CV check")), t(" page.")), close);
+      h("a", { href: "#/cv", class: "underline", style: "color:var(--accent-ink)", onClick: () => dlg.close() }, t("CV check")), t(" page.")), close);
     dlg.showModal();
     return;
   }

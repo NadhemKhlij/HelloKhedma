@@ -26,6 +26,22 @@ export const safeUrl = (u) => {
 
 export const safeColor = (c) => (/^#[0-9a-f]{6}$/i.test(c || "") ? c : "#7c5cff");
 
+// Accessibility (WCAG AA, 4.5:1 for normal text): the path colour mixed with black (light theme) or white (dark theme),
+// as little as needed, so text in that colour stays readable on every surface of the theme. inkFor(hex, "light" | "dark"
+// | "fill"): "fill" is a background that white text can sit on. Used for --accent-ink / --accent-fill (app.js).
+const rgb = (hx) => [1, 3, 5].map((i) => parseInt(hx.slice(i, i + 2), 16));
+const lum = (c) => { const l = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]; };
+const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+const SURFACES = { light: ["#ffffff", "#faf9f5", "#f0eee6"], dark: ["#262624", "#1f1e1d", "#33322f"], fill: ["#ffffff"] };
+export function inkFor(hex, mode) {
+  const c = rgb(safeColor(hex)), toward = mode === "dark" ? [255, 255, 255] : [0, 0, 0];
+  for (let p = 100; p >= 10; p--) {
+    const m = c.map((v, i) => v * (p / 100) + toward[i] * (1 - p / 100));
+    if (SURFACES[mode].every((bg) => ratio(m, rgb(bg)) >= 4.6)) return `#${m.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+  }
+  return mode === "dark" ? "#ffffff" : "#000000";
+}
+
 // Preview builds are served under preview/<branch>/ next to the live site (same origin, see deploy.yml). They keep
 // their own browser data, stored as "preview:hk.…", so testing never touches the live site's data. Theme and language
 // stay shared (index.html reads them before the app loads).

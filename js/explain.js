@@ -130,7 +130,7 @@ export function explainBox(course, e) {
       if (!entry.truncated) save(k, entry);
       show(entry, data.saved ? t("Saved from an earlier identical answer: not counted in your daily limit.") : null);
     } catch (err) {
-      out.replaceChildren(h("p", { class: "text-sm", style: "color:#e0508b" },
+      out.replaceChildren(h("p", { class: "text-sm", style: "color:var(--bad)" },
         ERRORS[err.code] ? t(ERRORS[err.code], { n: LIMIT }) : t("The explanation failed: {msg}", { msg: err.message })));
     } finally { btn.disabled = false; }
   }

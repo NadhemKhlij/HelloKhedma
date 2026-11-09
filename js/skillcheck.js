@@ -19,7 +19,7 @@ const head = (sub) => h("div", { class: "grid gap-1" },
   h("a", { href: "#/training", class: "mute text-sm underline justify-self-start" }, t("← Training")),
   h("h1", { id: "h-skillcheck", tabindex: "-1", class: "page-title !mb-0" }, t("Skill check")),
   h("p", { class: "mute text-sm max-w-2xl" }, sub));
-const badge = (r) => (r ? h("span", { class: "chip !py-0 text-xs", style: passed(r) ? "color:#18a999" : "" },
+const badge = (r) => (r ? h("span", { class: "chip !py-0 text-xs", style: passed(r) ? "color:var(--ok)" : "" },
   passed(r) ? t("✓ Passed {got}/{of}", r) : t("Last try {got}/{of}", r)) : null);
 
 export async function renderSkillCheck() {
@@ -79,7 +79,7 @@ export async function renderSkillCheck() {
         opts.forEach((b, k) => { b.disabled = true; if (options[k].key === it.key) b.classList.add("opt-ok"); });
         if (!ok) btn.classList.add("opt-bad");
         if (ok) got.set(c.id, got.get(c.id) + 1);
-        feedback.replaceChildren(ok ? h("span", { style: "color:#18a999" }, t("✓ Correct!")) : h("span", { style: "color:#e0508b" }, t("✗ Not quite.")));
+        feedback.replaceChildren(ok ? h("span", { style: "color:var(--ok)" }, t("✓ Correct!")) : h("span", { style: "color:var(--bad)" }, t("✗ Not quite.")));
         next.hidden = false; next.focus();
       }
       root.replaceChildren(head(sub), h("div", { class: "panel grid gap-4 max-w-2xl" },
@@ -110,11 +110,11 @@ export async function renderSkillCheck() {
       h("ul", { class: "grid gap-2" }, courses.map((c) => {
         const r = checkResult(c.id), ok = passed(r);
         return h("li", { class: "flex flex-wrap items-center gap-3 rounded-xl p-3", style: "background:var(--bg);border:1px solid var(--line)" },
-          h("span", { style: `color:${ok ? "#18a999" : "#e0508b"}`, "aria-hidden": "true" }, ok ? "✓" : "✗"),
+          h("span", { style: `color:${ok ? "var(--ok)" : "var(--bad)"}`, "aria-hidden": "true" }, ok ? "✓" : "✗"),
           h("b", { class: "text-sm flex-1 min-w-[10rem]" }, c.name),
           h("span", { class: "mute text-sm" }, t("{got} of {of} right", r)),
-          ok ? h("span", { class: "text-sm", style: "color:#18a999" }, t("Known: skipped"))
-            : h("a", { href: `#/course/${c.id}`, class: "text-sm underline", style: "color:var(--accent)" }, t("Open the course →")));
+          ok ? h("span", { class: "text-sm", style: "color:var(--ok)" }, t("Known: skipped"))
+            : h("a", { href: `#/course/${c.id}`, class: "text-sm underline", style: "color:var(--accent-ink)" }, t("Open the course →")));
       })),
       h("div", { class: "flex flex-wrap gap-2" },
         h("a", { href: "#/training", class: "btn" }, t("See my study plan")),

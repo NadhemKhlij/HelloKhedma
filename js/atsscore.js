@@ -111,7 +111,7 @@ export function atsView(r, { compact = false } = {}) {
   const ring = h("div", { class: "relative grid place-items-center shrink-0" }, progressRing(r.score / 100, compact ? 64 : 84),
     h("b", { class: "absolute text-lg", style: `color:${color}` }, String(r.score)));
   const verdict = r.score >= 80 ? t("Strong: ready to send") : r.score >= 60 ? t("Good, a few fixes will help") : r.score >= 40 ? t("Needs work before you send it") : t("Weak: fix the points below first");
-  const item = (c) => h("li", { class: "flex gap-2 text-sm" }, h("span", { style: `color:${c.ok ? "#18a999" : "#e0508b"}`, "aria-hidden": "true" }, c.ok ? "✓" : "✗"),
+  const item = (c) => h("li", { class: "flex gap-2 text-sm" }, h("span", { style: `color:${c.ok ? "var(--ok)" : "var(--bad)"}`, "aria-hidden": "true" }, c.ok ? "✓" : "✗"),
     h("span", { class: "flex-1" }, h("span", { class: c.ok ? "mute" : "font-medium" }, c.text), c.ok ? null : h("span", { class: "mute block" }, c.fix)),
     !c.ok && c.gain > 0 ? h("span", { class: "badge shrink-0 self-start", title: t("Points this fix can add to the score") }, t("+{n} pts", { n: c.gain })) : null);
   return h("div", { class: "grid gap-3" },
@@ -123,7 +123,7 @@ export function atsView(r, { compact = false } = {}) {
       h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
         h("div", { class: "h-1.5 rounded-full", style: `width:${Math.round((100 * p.got) / p.max)}%;background:${fitColor((100 * p.got) / p.max)}` }))))),
     todo.length ? h("ul", { class: "grid gap-2" }, (compact ? todo.slice(0, 3) : todo).map(item))
-      : h("p", { class: "text-sm", style: "color:#18a999" }, t("✓ Nothing to fix.")),
+      : h("p", { class: "text-sm", style: "color:var(--ok)" }, t("✓ Nothing to fix.")),
     compact || !done.length ? null : h("details", {}, h("summary", { class: "cursor-pointer mute text-sm" }, t("Passed checks ({n})", { n: done.length })),
       h("ul", { class: "grid gap-1 mt-2" }, done.map(item))));
 }

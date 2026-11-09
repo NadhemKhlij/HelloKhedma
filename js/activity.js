@@ -54,6 +54,6 @@ export function activityStrip() {
       return h("div", { class: "grid justify-items-center gap-1" },
         h("span", { class: "text-[11px] mute" }, d.toLocaleDateString(LOCALE, { weekday: "narrow" })),
         h("span", { class: "w-7 h-7 rounded-full grid place-items-center text-xs", title: d.toLocaleDateString(LOCALE, { weekday: "long", day: "numeric", month: "short" }),
-          style: on ? "background:var(--accent);color:#fff" : `background:var(--soft);${today ? "box-shadow:inset 0 0 0 2px var(--accent)" : ""}` }, on ? "✓" : ""));
+          style: on ? "background:var(--accent-fill);color:#fff" : `background:var(--soft);${today ? "box-shadow:inset 0 0 0 2px var(--accent)" : ""}` }, on ? "✓" : ""));
     })));
 }

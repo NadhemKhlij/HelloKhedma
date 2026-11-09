@@ -12,7 +12,7 @@ export function openPasswordDialog(recovery = false) {
   const dlg = $("#pwDialog");
   $("#pwForm").reset();
   $("#pwMsg").textContent = recovery ? t("Your reset link worked. Choose a new password to finish.") : "";
-  $("#pwMsg").style.color = recovery ? "#18a999" : "#f08a24";
+  $("#pwMsg").style.color = recovery ? "var(--ok)" : "var(--warn)";
   if (!dlg.open) dlg.showModal();
   $("#newPassword").focus();
 }
@@ -23,7 +23,7 @@ function initPasswordDialog() {
   $("#pwForm").onsubmit = async (ev) => {
     ev.preventDefault();
     const p1 = $("#newPassword").value, p2 = $("#newPassword2").value;
-    msg.style.color = "#f08a24";
+    msg.style.color = "var(--warn)";
     if (p1.length < 8) { msg.textContent = t("The password needs at least 8 characters."); return; }
     if (p1 !== p2) { msg.textContent = t("The two passwords are different."); return; }
     $("#pwSave").disabled = true;
@@ -47,8 +47,8 @@ export function initAuth({ onUser }) {
     try {
       const { error } = await fn();
       if (error) throw error;
-      if (okMsg) { msg.style.color = "#18a999"; msg.textContent = okMsg; } else dlg.close();
-    } catch (e) { msg.style.color = "#f08a24"; msg.textContent = e.message; }
+      if (okMsg) { msg.style.color = "var(--ok)"; msg.textContent = okMsg; } else dlg.close();
+    } catch (e) { msg.style.color = "var(--warn)"; msg.textContent = e.message; }
   }
 
   $("#authOpen").onclick = () => { msg.textContent = ""; dlg.showModal(); };
@@ -62,7 +62,7 @@ export function initAuth({ onUser }) {
   // The same message whether or not an account exists for this address (nobody can test which e-mails are registered).
   $("#doForgot").onclick = () => {
     const email = creds().email;
-    if (!email || !$("#email").checkValidity()) { msg.style.color = "#f08a24"; msg.textContent = t("Enter your email address above first."); $("#email").focus(); return; }
+    if (!email || !$("#email").checkValidity()) { msg.style.color = "var(--warn)"; msg.textContent = t("Enter your email address above first."); $("#email").focus(); return; }
     run(() => sb.auth.resetPasswordForEmail(email, { redirectTo: redirect }),
       t("If an account exists for this address, we sent a link to choose a new password. Open it on this device."));
   };

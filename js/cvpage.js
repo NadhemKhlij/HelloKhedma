@@ -131,7 +131,7 @@ function renderCvScore() {
   }
   const change = scoreChange(r.score), m = r.match;
   $("#cvScore").replaceChildren(...[
-    change ? h("p", { class: "text-sm font-medium mb-2", style: `color:${change > 0 ? "#18a999" : "#e0508b"}` },
+    change ? h("p", { class: "text-sm font-medium mb-2", style: `color:${change > 0 ? "var(--ok)" : "var(--bad)"}` },
       change > 0 ? t("↑ +{n} points since your last save", { n: change }) : t("↓ {n} points since your last save", { n: change })) : null,
     atsView(r),
     m.total ? h("div", { class: "mt-4 grid gap-2" },
@@ -139,7 +139,7 @@ function renderCvScore() {
       h("div", { class: "flex flex-wrap gap-2" }, m.matched.map((n) => skillChip(n, true)), m.missing.map((n) => skillChip(n, false))),
       m.missing.length ? h("p", { class: "mute text-xs" }, t("Without ✓ = missing: add the ones you genuinely have · 📘 = open the HelloKhedma course")) : null,
       // Folded here (the fixes come first); the offer match below shows its own gaps open.
-      m.missing.length ? h("details", { class: "mt-1" }, h("summary", { class: "cursor-pointer text-sm font-medium", style: "color:var(--accent)" },
+      m.missing.length ? h("details", { class: "mt-1" }, h("summary", { class: "cursor-pointer text-sm font-medium", style: "color:var(--accent-ink)" },
         tn(m.missing.length, "📘 How to learn the missing keyword", "📘 How to learn the {n} missing keywords")), gapTrainings(m.missing)) : null) : null,
   ].filter(Boolean));
 }
@@ -225,7 +225,7 @@ function onAts({ quiet = false } = {}) {
     if (!quiet) $("#jd").focus();
     return;
   }
-  if (!state.cv.text.trim()) { out.replaceChildren(h("p", { class: "text-sm", style: "color:#f08a24" }, t("Add your CV first (upload or paste it above)."))); return; }
+  if (!state.cv.text.trim()) { out.replaceChildren(h("p", { class: "text-sm", style: "color:var(--warn)" }, t("Add your CV first (upload or paste it above)."))); return; }
   const required = extractSkills(jd).map((s) => s.name);
   const r = matchSkills(required, state.cv.names);
   // Job titles to look for: the path titles named in the offer, else its first short line (usually the title).
@@ -328,7 +328,7 @@ function onOfferPick(e) {
 function showMarket() {
   const out = $("#atsOut"), m = marketSkills(state.pathId);
   if (!m) { picked = null; out.replaceChildren(); renderOfferPick(); return; }
-  if (!state.cv.text.trim()) { out.replaceChildren(h("p", { class: "text-sm", style: "color:#f08a24" }, t("Add your CV first (upload or paste it above)."))); return; }
+  if (!state.cv.text.trim()) { out.replaceChildren(h("p", { class: "text-sm", style: "color:var(--warn)" }, t("Add your CV first (upload or paste it above)."))); return; }
   const have = m.skills.filter((s) => state.cv.names.has(s.name)), missing = m.skills.filter((s) => !state.cv.names.has(s.name));
   const score = Math.round((100 * have.length) / m.skills.length);
   out.replaceChildren(...[

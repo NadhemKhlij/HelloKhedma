@@ -33,7 +33,7 @@ export function followUpState(c) {
   if (due < today + 4 * DAY) return "soon";
   return null;
 }
-const FOLLOW = { overdue: [t("Follow-up overdue"), "#e0508b"], today: [t("Follow up today"), "#f08a24"], soon: [t("Follow up soon"), "var(--accent)"] };
+const FOLLOW = { overdue: [t("Follow-up overdue"), "var(--bad)"], today: [t("Follow up today"), "var(--warn)"], soon: [t("Follow up soon"), "var(--accent-ink)"] };
 
 // Things to do: offers received in the last 14 days (to negotiate), follow-ups due soon and interviews in the next
 // 7 days, soonest first.
@@ -83,17 +83,17 @@ function card(c, stageIndex, { onMove, onOpen, colorOf }) {
   const el = h("div", {
     class: "rounded-lg p-2 mb-2 text-sm cursor-grab",
     draggable: "true",
-    style: `background:var(--panel);border:1px solid ${f === "overdue" ? "#e0508b" : "var(--line)"};border-left:3px solid ${safeColor(colorOf(c.path_id))}`,
+    style: `background:var(--panel);border:1px solid ${f === "overdue" ? "var(--bad)" : "var(--line)"};border-left:3px solid ${safeColor(colorOf(c.path_id))}`,
   },
     h("button", { type: "button", class: "block text-left font-bold hover:underline", onClick: () => onOpen(c) }, c.title),
     h("span", { class: "mute" }, c.company || t("No company")),
     h("div", { class: "flex flex-wrap gap-1 mt-1" },
       c.salary ? badge(c.salary) : null,
       c.cv_version ? h("span", { class: "chip !py-0 !px-2 text-xs mute", title: t("CV sent") }, `📄 ${c.cv_version}`) : null,
-      c.interview_at && new Date(c.interview_at).getTime() > Date.now() - 2 * 3600_000 ? badge(`📅 ${fmtDateTime(c.interview_at)}`, "var(--accent)") : null,
+      c.interview_at && new Date(c.interview_at).getTime() > Date.now() - 2 * 3600_000 ? badge(`📅 ${fmtDateTime(c.interview_at)}`, "var(--accent-ink)") : null,
       f ? badge(`⏰ ${FOLLOW[f][0]}`, FOLLOW[f][1]) : null),
     c.next_action ? h("p", { class: "mute text-xs mt-1" }, t("Next: {action}", { action: c.next_action })) : null,
-    url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "block underline text-xs mt-1", style: "color:var(--accent)" }, t("Open offer")) : null,
+    url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "block underline text-xs mt-1", style: "color:var(--accent-ink)" }, t("Open offer")) : null,
     h("div", { class: "flex flex-wrap gap-1 mt-2" },
       btn("←", t("Move back"), stageIndex === 0, () => move(-1)),
       btn("→", t("Move forward"), stageIndex === STAGES.length - 1, () => move(1)),
@@ -145,7 +145,7 @@ export function renderStats(root, cards, goal, onGoal) {
       h("div", { class: "flex flex-wrap items-center gap-2 mb-1" },
         h("span", {}, t("Weekly goal: {n} / ", { n: thisWeek })), goalInput, h("span", { class: "mute" }, t("applications sent in the last 7 days"))),
       h("div", { class: "h-2 rounded-full", style: "background:var(--line)" },
-        h("div", { class: "h-2 rounded-full", style: `width:${pct}%;background:${pct >= 100 ? "#18a999" : "var(--accent)"}` }))),
+        h("div", { class: "h-2 rounded-full", style: `width:${pct}%;background:${pct >= 100 ? "var(--ok)" : "var(--accent)"}` }))),
   );
 }
 

@@ -88,6 +88,11 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Keep the UI responsive and clean, in both the dark and light themes: warm ivory / charcoal surfaces, serif page
   titles (Source Serif 4, `.serif` / `.page-title`), Inter text, soft `.panel` cards, ink `.btn`, filled `.chip` pills;
   the path color (--accent) is for highlights. Use the tokens in css/input.css rather than new colors.
+- Accessibility (WCAG 2.1 AA, smoke tests run axe-core on the main pages in both themes): text in the path colour uses
+  `var(--accent-ink)`, white text sits on `var(--accent-fill)`, --accent only for fills / bars / borders; status texts use
+  `var(--ok)` / `var(--warn)` / `var(--bad)` (never the raw hex), `--ok-fill` / `--bad-fill` behind white text. Buttons
+  for actions (never clickable divs), labels on inputs, role="tablist" tab bars get ←/→ from app.js, scrollable code
+  blocks get tabindex="0"; a new page or dialog goes into the axe smoke test.
 - Keep persistence intact: guests use localStorage, signed-in users use Supabase, and guest data is imported into
   Supabase on first sign-in (js/store.js).
 - No permanent mock data. Path content lives in the database (career_paths, path_resources, training_tracks,

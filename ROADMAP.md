@@ -15,7 +15,9 @@ Effort: **S** ≈ under a day · **M** ≈ 1–3 days · **L** ≈ a week or mor
 Done in code: 1.2 legal notice + privacy policy (contact email via the `CONTACT_EMAIL` variable), 1.3 Account & data page
 (export JSON, delete account / device data), 1.4 source credits, 1.5 friendly error messages + optional Sentry (`SENTRY_DSN`),
 1.6 SEO tags and favicon. IP addresses for rate limiting are now hashed and purged after 24 h.
-Still to do by you: 1.1 SMTP, own domain, cookie-free analytics (optional). Next in code: 1.9 accessibility pass.
+Still to do by you: 1.1 SMTP, own domain, cookie-free analytics (optional). 1.9 accessibility pass done 2026-11-09 (axe-core: every page, both themes, all path colours, EN/FR,
+phone width: no WCAG 2.1 A/AA problem left; contrast tokens, skip link, arrow keys in tab bars, focusable code blocks;
+smoke tests keep it).
 Done (2026-10-29): 1.8 installable app (manifest, icons, service worker; works offline for training, courses, interview
 prep and the guest tracker; "Install the app" link in the footer).
 Done (2026-10-29): 1.7 French / English interface (FR/EN button, browser language by default, French legal notice and

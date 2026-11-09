@@ -87,7 +87,7 @@ export async function renderAiTrack() {
       h("p", { class: "mute text-sm flex-1" }, aiText(c.summary, s)),
       ready && c.lessonCount ? h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
         h("div", { class: "h-1.5 rounded-full", style: `width:${Math.round((d / c.lessonCount) * 100)}%;background:var(--accent)` })) : null,
-      ready ? h("span", { class: "text-xs font-medium", style: "color:var(--accent)" }, d ? `${d}/${c.lessonCount}` : tx.start) : null,
+      ready ? h("span", { class: "text-xs font-medium", style: "color:var(--accent-ink)" }, d ? `${d}/${c.lessonCount}` : tx.start) : null,
     ];
     return ready ? h("a", { href: `#/course/${c.id}`, class: "panel flex flex-col gap-2 !p-4" }, ...inner)
       : h("div", { class: "panel flex flex-col gap-2 !p-4", style: "opacity:.6" }, ...inner);

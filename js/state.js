@@ -20,7 +20,7 @@ export const pathName = (id) => state.paths.find((p) => p.id === id)?.name || id
 export const byKind = (k) => state.resources.filter((r) => r.kind === k);
 export const fail = (e) => toast(e?.message || t("Something went wrong."));
 
-export const fitColor = (score) => (score >= 70 ? "#18a999" : score >= 40 ? "#f08a24" : "#e0508b");
+export const fitColor = (score) => (score >= 70 ? "var(--ok)" : score >= 40 ? "var(--warn)" : "var(--bad)");
 // A skill you have shows ✓; a missing skill with a HelloKhedma course links to it (📘).
 export const skillChip = (name, inCv) => {
   const course = inCv ? null : courseForSkill(name);

@@ -216,7 +216,7 @@ export function renderPulse(root = $("#homePulse")) {
     h("div", { class: "flex flex-wrap items-baseline justify-between gap-2 mt-4 mb-2" },
       h("p", { class: "text-sm font-medium" }, t("Most requested skills")),
       state.cv.skills.length ? h("span", { class: "mute text-xs" }, t("Your CV covers {k} of these {n}", { k: covered, n: m.skills.length }))
-        : h("a", { href: "#/cv", class: "text-xs underline", style: "color:var(--accent)" }, t("Add your CV to see your gaps"))),
+        : h("a", { href: "#/cv", class: "text-xs underline", style: "color:var(--accent-ink)" }, t("Add your CV to see your gaps"))),
     m.skills.length ? h("div", { class: "grid gap-x-6 gap-y-1.5 md:grid-cols-2" },
       h("ul", { class: "grid gap-1.5" }, m.skills.slice(0, half).map((s) => skillRow(s, m.n))),
       h("ul", { class: "grid gap-1.5" }, m.skills.slice(half).map((s) => skillRow(s, m.n))))

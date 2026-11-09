@@ -5,12 +5,12 @@
 // - Data: path content from Supabase (career_paths, path_resources here; tracks in training.js); applications through
 //   state.store (LocalStore for guests, CloudStore when signed in, see store.js); onUser() imports guest data on sign-in.
 // - selectPath() reloads the path content and redraws every page; the CV version linked to the path becomes active.
-// - Also here: theme toggle ("hk.theme", shows the current theme; the browser bar colour follows the page), EN / FR button (both shown, the current one highlighted), error toasts + optional Sentry (CONFIG.SENTRY_DSN), optional Cloudflare Web Analytics (CONFIG.CF_ANALYTICS_TOKEN),
+// - Also here: keyboard helpers (skip link, arrow keys in tab bars: initKeyboard), theme toggle ("hk.theme", shows the current theme; the browser bar colour follows the page), EN / FR button (both shown, the current one highlighted), error toasts + optional Sentry (CONFIG.SENTRY_DSN), optional Cloudflare Web Analytics (CONFIG.CF_ANALYTICS_TOKEN),
 //   PWA registration (sw.js) and the "Install the app" link.
 // - Every user-facing text goes through t() / tn(). i18n.js is imported first so the static page is translated
 //   before anything renders; the FR / EN button reloads the page in the other language.
 import { t, tn, lang, setLang, localize } from "./i18n.js";
-import { $, h, safeColor, ls, toast, PREVIEW } from "./lib.js";
+import { $, h, safeColor, inkFor, ls, toast, PREVIEW } from "./lib.js";
 import { sb, configured, CONFIG } from "./supabase.js";
 import { LocalStore, CloudStore, importLocalToCloud } from "./store.js";
 import { cvSyncUser } from "./cvsync.js";
@@ -88,7 +88,11 @@ function renderPaths() {
 }
 
 function renderAll() {
-  document.documentElement.style.setProperty("--accent", safeColor(path()?.color));
+  const c = safeColor(path()?.color), root = document.documentElement.style;
+  root.setProperty("--accent", c); // fills, bars, borders
+  // Text in the path colour and white text on it, readable in both themes (WCAG AA: lib.js inkFor, css/input.css).
+  root.setProperty("--accent-ink-light", inkFor(c, "light")); root.setProperty("--accent-ink-dark", inkFor(c, "dark"));
+  root.setProperty("--accent-fill", inkFor(c, "fill"));
   renderPaths(); renderSearchControls(); renderLearn(); renderStatus(); renderCvVersions();
 }
 
@@ -173,7 +177,7 @@ function initPwa() {
   // A preview build (lib.js PREVIEW) shows a banner and registers no service worker: its cache would compete with the
   // live site's on the same origin, and a test version does not need to work offline.
   if (PREVIEW) {
-    document.body.prepend(h("div", { role: "note", class: "text-sm text-center px-4 py-2", style: "background:var(--accent);color:#fff" },
+    document.body.prepend(h("div", { role: "note", class: "text-sm text-center px-4 py-2", style: "background:var(--accent-fill);color:#fff" },
       t("Test version (branch {b}): its data is kept apart from the live site. ", { b: PREVIEW }),
       h("a", { href: "../../", class: "underline font-medium" }, t("Open the live site"))));
     return;
@@ -194,7 +198,28 @@ function initPwa() {
 }
 
 /* ---------- init ---------- */
+// Keyboard (accessibility pass, 2026-11-09): the skip link moves focus to the visible page's title; in any tab bar
+// (role="tablist"), ←/→ (and Home/End) move to the next tab and open it, as screen-reader users expect.
+function initKeyboard() {
+  $("#skipLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    const title = [...document.querySelectorAll("section[data-page]")].find((s) => !s.hidden)?.querySelector("h1");
+    if (title) { if (!title.hasAttribute("tabindex")) title.setAttribute("tabindex", "-1"); title.focus(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    const tab = e.target.closest?.('[role="tab"]'), list = tab?.closest('[role="tablist"]');
+    if (!list || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    const tabs = [...list.querySelectorAll('[role="tab"]')].filter((x) => !x.disabled && !x.hidden);
+    const i = tabs.indexOf(tab), rtl = getComputedStyle(list).direction === "rtl";
+    const step = (e.key === "ArrowRight") !== rtl ? 1 : -1;
+    const next = e.key === "Home" ? tabs[0] : e.key === "End" ? tabs.at(-1) : tabs[(i + step + tabs.length) % tabs.length];
+    if (!next || next === tab) return;
+    e.preventDefault(); next.focus(); next.click();
+  });
+}
+
 async function init() {
+  initKeyboard();
   initMonitoring();
   initPwa();
   renderThemeToggle();

@@ -20,10 +20,14 @@
 /* Warm, quiet look: ivory / charcoal surfaces, serif titles, soft cards, ink buttons (accent for highlights).
    Dark is the default. [data-theme="light"] on <html> switches; it is set before first paint by the inline script in
    index.html (saved choice, otherwise the system preference). --accent follows the path color.
-   --soft is the filled background of chips, hovers and the active nav pill. */
-:root { --accent:#7c5cff; --bg:#1f1e1d; --panel:#262624; --line:#3a3936; --soft:#33322f; --mute:#a6a39a; --text:#f5f4ef;
+   --soft is the filled background of chips, hovers and the active nav pill.
+   Accessibility (WCAG AA contrast, 2026-11-09): text in the path colour uses --accent-ink and white text sits on
+   --accent-fill (both computed per path and theme in js/app.js with lib.js inkFor); --accent stays for fills, bars and
+   borders. Status colours: --ok / --warn / --bad for text (darker in light theme), --ok-fill / --bad-fill behind white text. */
+:root { --accent:#7c5cff; --accent-ink:var(--accent-ink-dark, #a18aff); --accent-fill:#7758f5;
+  --ok:#24ad9e; --warn:#f08a24; --bad:#e777a5; --ok-fill:#128276; --bad-fill:#c5467a; --bg:#1f1e1d; --panel:#262624; --line:#3a3936; --soft:#33322f; --mute:#a6a39a; --text:#f5f4ef;
   --code:#191918; --shadow:0 1px 2px rgba(0,0,0,.25); --shadow-hover:0 6px 20px rgba(0,0,0,.35); color-scheme: dark; }
-:root[data-theme="light"] { --bg:#faf9f5; --panel:#ffffff; --line:#e6e3d9; --soft:#f0eee6; --mute:#6b6a63; --text:#1f1e1d;
+:root[data-theme="light"] { --accent-ink:var(--accent-ink-light, #6d51e0); --ok:#11786d; --warn:#9c5a17; --bad:#b3406f; --bg:#faf9f5; --panel:#ffffff; --line:#e6e3d9; --soft:#f0eee6; --mute:#6b6a63; --text:#1f1e1d;
   --code:#f3f1ea; --shadow:0 1px 2px rgba(31,30,29,.04); --shadow-hover:0 8px 24px rgba(31,30,29,.08); color-scheme: light; }
 /* Language blocks (legal pages): only the interface language shows, even before js/i18n.js runs. */
 html:not([lang="fr"]) [data-lang="fr"], html[lang="fr"] [data-lang="en"] { display:none; }
@@ -54,7 +58,7 @@ html:not([lang="fr"]) [data-lang="fr"], html[lang="fr"] [data-lang="en"] { displ
   .mute { color:var(--mute); }
   .chip { @apply inline-flex items-center rounded-lg px-2.5 py-0.5 text-sm; background:var(--soft); border:1px solid transparent; }
   .chip-ok { background:color-mix(in srgb, var(--accent) 14%, var(--panel)); border-color:color-mix(in srgb, var(--accent) 35%, transparent); }
-  .badge { @apply inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-medium; background:color-mix(in srgb, var(--accent) 16%, var(--panel)); color:color-mix(in srgb, var(--accent) 70%, var(--text)); }
+  .badge { @apply inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-medium; background:color-mix(in srgb, var(--accent) 16%, var(--panel)); color:color-mix(in srgb, var(--accent-ink) 75%, var(--text)); }
   .page-title { @apply text-3xl sm:text-[2.1rem] leading-tight mb-3; font-family:"Source Serif 4",Georgia,serif; font-weight:500; letter-spacing:-.01em; }
   .eyebrow { @apply text-sm flex items-center gap-1.5; color:var(--mute); }
 
@@ -85,6 +89,10 @@ html:not([lang="fr"]) [data-lang="fr"], html[lang="fr"] [data-lang="en"] { displ
 @keyframes hk-pop { from { opacity:0; transform:translateY(8px) scale(.98); } to { opacity:1; transform:none; } }
 [data-page]:not([hidden]) { animation:hk-in .28s ease-out; }
 dialog[open] { animation:hk-pop .2s ease-out; }
+/* Skip link: off screen until focused with the keyboard. */
+.skip-link { position:absolute; left:.75rem; top:-4rem; z-index:50; padding:.5rem .9rem; border-radius:.6rem;
+  background:var(--text); color:var(--bg); font-weight:600; }
+.skip-link:focus { top:.75rem; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; }
 }
@@ -92,7 +100,7 @@ dialog[open] { animation:hk-pop .2s ease-out; }
 .legal h2 { margin-top:1.25rem; font-size:1.1rem; }
 .legal p, .legal li { font-size:.9rem; line-height:1.6; margin-bottom:.5rem; }
 .legal ul { list-style:disc; padding-left:1.25rem; }
-.legal a { color:var(--accent); text-decoration:underline; }
+.legal a { color:var(--accent-ink); text-decoration:underline; }
 
 /* Courses */
 /* width:0 + min-width:100%: long lines scroll inside the block instead of widening grid parents on phones. */
@@ -175,7 +183,7 @@ details > summary.list-none::-webkit-details-marker { display:none; }
 .opt:disabled { cursor:default; opacity:.7; }
 .opt.opt-ok { opacity:1; border-color:#18a999; background:color-mix(in srgb, #18a999 14%, var(--panel)); }
 .opt.opt-bad { opacity:1; border-color:#e0508b; background:color-mix(in srgb, #e0508b 12%, var(--panel)); animation:hk-shake .3s; }
-.lang-opt { padding:.05rem .3rem; border-radius:.35rem; opacity:.55; }
+.lang-opt { padding:.05rem .3rem; border-radius:.35rem; color:var(--mute); }
 .lang-opt.on { opacity:1; background:var(--text); color:var(--bg); }
 @keyframes hk-shake { 25% { transform:translateX(-4px); } 75% { transform:translateX(4px); } }
 .flip { perspective:1200px; display:block; }

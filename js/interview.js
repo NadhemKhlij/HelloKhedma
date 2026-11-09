@@ -105,7 +105,7 @@ function renderPractice(root, content, ctx) {
     q.tips?.length ? h("div", {}, h("p", { class: "font-medium" }, t("How to answer")),
       h("ul", { class: "list-disc pl-5 mute grid gap-0.5" }, q.tips.map((t) => h("li", {}, t)))) : null,
     h("div", {}, h("p", { class: "font-medium" }, t("Example answer")), h("p", { class: "mute" }, q.model || q.a)),
-    q.course ? h("a", { href: `#/course/${q.course.id}`, class: "underline text-xs", style: "color:var(--accent)" }, `📘 ${t("Revise with the {name} course", { name: q.course.name })}`) : null);
+    q.course ? h("a", { href: `#/course/${q.course.id}`, class: "underline text-xs", style: "color:var(--accent-ink)" }, `📘 ${t("Revise with the {name} course", { name: q.course.name })}`) : null);
 
   const stories = q.theme ? load(STORIES_KEY, []).filter((s) => (s.themes || []).includes(q.theme)) : [];
   const storyBox = q.theme ? h("div", { class: "rounded-lg p-3 text-sm", style: "background:var(--bg);border:1px solid var(--line)" },
@@ -116,7 +116,7 @@ function renderPractice(root, content, ctx) {
           h("p", { class: "mute mt-1" }, h("b", {}, "S: "), s.situation), h("p", { class: "mute" }, h("b", {}, "T: "), s.task),
           h("p", { class: "mute" }, h("b", {}, "A: "), s.action), h("p", { class: "mute" }, h("b", {}, "R: "), s.result)))))
       : h("p", { class: "mute mt-1" }, t("None yet. "),
-          h("button", { type: "button", class: "underline", style: "color:var(--accent)", onClick: () => { ui.tab = "stories"; ui.editing = { themes: [q.theme] }; renderInterview(ctx); } }, t("Write one now")),
+          h("button", { type: "button", class: "underline", style: "color:var(--accent-ink)", onClick: () => { ui.tab = "stories"; ui.editing = { themes: [q.theme] }; renderInterview(ctx); } }, t("Write one now")),
           t(" so you are ready for this question."))) : null;
 
   const timerOut = h("span", { class: "mute text-sm tabular-nums" });
@@ -132,7 +132,7 @@ function renderPractice(root, content, ctx) {
       q.theme ? h("span", { class: "chip !py-0 text-xs" }, content.common.themes[q.theme]) : null,
       q.course ? h("span", { class: "chip !py-0 text-xs" }, q.course.name) : null,
       h("span", { class: "mute text-xs ml-auto" }, `${ui.index + 1} / ${list.length}`),
-      ratings[q.id] ? h("span", { class: "text-xs", style: `color:${ratings[q.id] === "good" ? "#18a999" : "#f08a24"}` }, ratings[q.id] === "good" ? t("✓ Got it") : t("↻ To review")) : null),
+      ratings[q.id] ? h("span", { class: "text-xs", style: `color:${ratings[q.id] === "good" ? "var(--ok)" : "var(--warn)"}` }, ratings[q.id] === "good" ? t("✓ Got it") : t("↻ To review")) : null),
     h("p", { class: "text-xl font-bold" }, q.q),
     q.why ? h("p", { class: "mute text-sm" }, t("Why they ask: {why}", { why: q.why })) : null,
     h("p", { class: "mute text-sm" }, t("Answer out loud first (record yourself if you can), then compare with the example.")),
@@ -140,8 +140,8 @@ function renderPractice(root, content, ctx) {
     answer, storyBox,
     h("div", { class: "flex flex-wrap gap-2 pt-1", style: "border-top:1px solid var(--line)" },
       h("button", { type: "button", class: "btn-ghost !py-1", onClick: prev }, t("← Previous")),
-      h("button", { type: "button", class: "btn-ghost !py-1", style: "color:#f08a24", onClick: () => rate("again") }, t("↻ Needs more practice")),
-      h("button", { type: "button", class: "btn !py-1", style: "background:#18a999", onClick: () => rate("good") }, t("✓ Got it")),
+      h("button", { type: "button", class: "btn-ghost !py-1", style: "color:var(--warn)", onClick: () => rate("again") }, t("↻ Needs more practice")),
+      h("button", { type: "button", class: "btn !py-1", style: "background:var(--ok-fill);color:#fff", onClick: () => rate("good") }, t("✓ Got it")),
       h("button", { type: "button", class: "btn-ghost !py-1 ml-auto", onClick: next }, t("Skip →")))));
 }
 
@@ -153,7 +153,7 @@ function startTimer(out, btn) {
   const tick = () => {
     const left = Math.max(0, Math.round((end - Date.now()) / 1000));
     out.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
-    out.style.color = left <= 15 ? "#e0508b" : "";
+    out.style.color = left <= 15 ? "var(--bad)" : "";
     if (!left) { stopTimer(); out.textContent = t("Time! Wrap up in one sentence."); }
   };
   tick();
@@ -186,8 +186,8 @@ function renderStories(root, content, ctx) {
         h("b", {}, "S"), t("ituation (context), "), h("b", {}, "T"), t("ask (your goal), "), h("b", {}, "A"), t("ction (what you did, say \"I\"), "),
         h("b", {}, "R"), t("esult (with a number). Tag the themes it answers; it will show next to matching questions.")),
       h("p", { class: "text-sm" }, missing.length
-        ? h("span", {}, t("Themes without a story yet: "), ...missing.flatMap((t, i) => [i ? ", " : "", h("span", { style: "color:#f08a24" }, themes[t])]))
-        : h("span", { style: "color:#18a999" }, t("✓ Every theme has at least one story.")))),
+        ? h("span", {}, t("Themes without a story yet: "), ...missing.flatMap((t, i) => [i ? ", " : "", h("span", { style: "color:var(--warn)" }, themes[t])]))
+        : h("span", { style: "color:var(--ok)" }, t("✓ Every theme has at least one story.")))),
     form,
     ...stories.map((s) => h("div", { class: "panel !p-4 text-sm grid gap-1" },
       h("div", { class: "flex flex-wrap items-center gap-2" },
@@ -195,7 +195,7 @@ function renderStories(root, content, ctx) {
         ...(s.themes || []).map((t) => h("span", { class: "chip !py-0 text-xs" }, themes[t] || t)),
         h("span", { class: "ml-auto flex gap-2" },
           h("button", { type: "button", class: "btn-ghost !py-0 !px-2", onClick: () => { ui.editing = { ...s }; renderStories(root, content, ctx); } }, t("Edit")),
-          h("button", { type: "button", class: "btn-ghost !py-0 !px-2", style: "color:#e0508b", onClick: () => {
+          h("button", { type: "button", class: "btn-ghost !py-0 !px-2", style: "color:var(--bad)", onClick: () => {
             if (!confirm(t("Delete \"{title}\"?", { title: s.title }))) return;
             save(STORIES_KEY, load(STORIES_KEY, []).filter((x) => x.id !== s.id)); renderStories(root, content, ctx);
           } }, t("Delete")))),

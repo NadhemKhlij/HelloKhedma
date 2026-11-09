@@ -70,8 +70,8 @@ function trackCard(tr, status, i) {
   const steps = stepsOf(tr), n = steps.filter((s) => state.done.has(s.id)).length;
   const pct = steps.length ? Math.round((n / steps.length) * 100) : 0;
   const hours = steps.reduce((a, s) => a + Number(s.est_hours), 0);
-  const dot = status === "done" ? ["✓", "background:#18a999;color:#fff"]
-    : status === "current" ? [String(i + 1), "background:var(--accent);color:#fff;box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 22%,transparent)"]
+  const dot = status === "done" ? ["✓", "background:var(--ok-fill);color:#fff"]
+    : status === "current" ? [String(i + 1), "background:var(--accent-fill);color:#fff;box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 22%,transparent)"]
     : [String(i + 1), "background:var(--panel);border:1px solid var(--line);color:var(--mute)"];
   return h("li", { class: "roadmap-item relative pl-12" },
     h("span", { class: "absolute left-0 top-3 w-9 h-9 rounded-full grid place-items-center text-sm font-semibold z-[1]", style: dot[1], "aria-hidden": "true" }, dot[0]),
@@ -84,7 +84,7 @@ function trackCard(tr, status, i) {
           status === "current" ? h("span", { class: "badge" }, t("You are here")) : null,
           h("span", { class: "mute text-sm ml-auto" }, t("{done}/{all} steps · {hours} h", { done: n, all: steps.length, hours: Math.round(hours) }))),
         h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
-          h("div", { class: "h-1.5 rounded-full", style: `width:${pct}%;background:${pct === 100 ? "#18a999" : "var(--accent)"};transition:width .4s ease` }))),
+          h("div", { class: "h-1.5 rounded-full", style: `width:${pct}%;background:${pct === 100 ? "var(--ok)" : "var(--accent)"};transition:width .4s ease` }))),
       h("div", { class: "px-4 pb-4 grid gap-3" },
         tr.summary ? h("p", { class: "text-sm mute" }, tr.summary) : null,
         tr.outcome ? h("p", { class: "text-sm rounded-xl p-3", style: "background:var(--soft)" }, h("b", {}, t("You will be able to: ")), tr.outcome) : null,
@@ -130,7 +130,7 @@ function renderHub() {
       h("span", { class: "min-w-0" }, h("span", { class: "eyebrow" }, t("Resume")),
         h("b", { class: "block truncate" }, c.name),
         h("span", { class: "mute text-xs" }, t("Lesson {n} · {p}% done", { n: (last.lesson || 0) + 1, p: Math.round(c.done * 100) }))),
-      h("span", { class: "ml-auto", style: "color:var(--accent)" }, "→"))
+      h("span", { class: "ml-auto", style: "color:var(--accent-ink)" }, "→"))
       : h("p", { class: "mute text-sm max-w-xs" }, streak() ? t("Keep the streak going: one lesson or ten flashcards is enough today.")
         : t("Study a little every day: lessons, quizzes and flashcards all count toward your streak."))),
   learnSmarter());
@@ -141,7 +141,7 @@ function learnSmarter() {
   const tile = (href, icon, title, text, attrs = {}) => h("a", { href, class: "panel !shadow-none flex items-center gap-3 !py-3 !px-4", ...attrs },
     h("span", { class: "text-2xl", "aria-hidden": "true" }, icon),
     h("span", { class: "min-w-0 flex-1" }, h("b", { class: "block" }, title), h("span", { class: "mute text-xs" }, text)),
-    h("span", { style: "color:var(--accent)" }, "→"));
+    h("span", { style: "color:var(--accent-ink)" }, "→"));
   return h("div", { class: "grid gap-3 sm:grid-cols-2 mt-4" },
     tile("#/review", "🔁", due ? tn(due, "Review {n} card today", "Review {n} cards today") : t("Reviews"),
       due ? t("Cards come back just before you would forget them.") : t("Nothing due today. Answer flashcards in a course to fill your reviews."), { "data-review-tile": "" }),
@@ -194,7 +194,7 @@ export function renderStudyPlan() {
       h("ul", { class: "grid gap-1 text-sm" }, w.map((x) => h("li", { class: "flex gap-2" },
         h("span", { class: "mute shrink-0 w-10 text-right" }, `${Math.round(x.hours * 10) / 10} h`),
         h("span", { class: "min-w-0" },
-          x.href ? h("a", { href: x.href, class: "underline", style: x.gap ? "color:var(--accent)" : "", ...(x.href.startsWith("#") ? {} : { target: "_blank", rel: "noopener noreferrer" }) },
+          x.href ? h("a", { href: x.href, class: "underline", style: x.gap ? "color:var(--accent-ink)" : "", ...(x.href.startsWith("#") ? {} : { target: "_blank", rel: "noopener noreferrer" }) },
             `${x.gap ? "📘 " : ""}${x.title}`) : h("span", {}, x.title),
           x.part ? h("span", { class: "mute" }, t(" (part {n})", { n: x.part })) : null,
           h("span", { class: "mute text-xs block" }, x.why)))))))),

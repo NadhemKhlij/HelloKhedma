@@ -56,19 +56,19 @@ export function renderHome() {
   // Follow-ups due and interviews this week; an empty state otherwise, so the page keeps its shape.
   const actions = nextActions(state.cards).slice(0, 6), due = dueCards().length;
   const reviewItem = due ? h("li", { class: "flex flex-wrap items-baseline gap-2 rounded-xl px-3 py-2 -mx-3 hover:bg-[var(--soft)]", "data-review-due": "" },
-    h("span", { style: "color:var(--accent)" }, `🔁 ${tn(due, "{n} flashcard to review today", "{n} flashcards to review today")}`),
+    h("span", { style: "color:var(--accent-ink)" }, `🔁 ${tn(due, "{n} flashcard to review today", "{n} flashcards to review today")}`),
     h("span", { class: "mute" }, t("≈ {m} min", { m: Math.max(1, Math.round(Math.min(due, 20) / 3)) })),
-    h("a", { href: "#/review", class: "underline text-xs", style: "color:var(--accent)" }, t("Review now →"))) : null;
-  const ICON = { overdue: ["⏰", "#e0508b"], today: ["⏰", "#f08a24"], soon: ["⏰", "var(--accent)"], interview: ["📅", "var(--accent)"], offer: ["💼", "#18a999"] };
+    h("a", { href: "#/review", class: "underline text-xs", style: "color:var(--accent-ink)" }, t("Review now →"))) : null;
+  const ICON = { overdue: ["⏰", "var(--bad)"], today: ["⏰", "var(--warn)"], soon: ["⏰", "var(--accent-ink)"], interview: ["📅", "var(--accent-ink)"], offer: ["💼", "var(--ok)"] };
   $("#homeActions").replaceChildren(h("div", { class: "panel" },
     h("span", { class: "eyebrow mb-3" }, t("Next actions")),
     actions.length || reviewItem
       ? h("ul", { class: "grid gap-1 text-sm" }, reviewItem, ...actions.map(({ c, kind, text }) => h("li", { class: "flex flex-wrap items-baseline gap-2 rounded-xl px-3 py-2 -mx-3 hover:bg-[var(--soft)]" },
         h("span", { style: `color:${ICON[kind][1]}` }, `${ICON[kind][0]} ${kind === "overdue" ? t("Overdue · ") : kind === "today" ? t("Today · ") : ""}${text}`),
         h("a", { href: "#/applications", class: "mute underline" }, [c.title, c.company].filter(Boolean).join(" · ")),
-        kind === "offer" ? h("button", { type: "button", class: "underline text-xs", style: "color:var(--accent)", onClick: () => openOfferCoach(c) }, t("Negotiate →"))
-          : kind === "interview" ? h("a", { href: "#/interview", class: "underline text-xs", style: "color:var(--accent)" }, t("Prepare →"))
-          : c.stage !== "saved" ? h("button", { type: "button", class: "underline text-xs", style: "color:var(--accent)", onClick: () => openCardLetter(c, "followup") }, t("Write the email →")) : null)))
+        kind === "offer" ? h("button", { type: "button", class: "underline text-xs", style: "color:var(--accent-ink)", onClick: () => openOfferCoach(c) }, t("Negotiate →"))
+          : kind === "interview" ? h("a", { href: "#/interview", class: "underline text-xs", style: "color:var(--accent-ink)" }, t("Prepare →"))
+          : c.stage !== "saved" ? h("button", { type: "button", class: "underline text-xs", style: "color:var(--accent-ink)", onClick: () => openCardLetter(c, "followup") }, t("Write the email →")) : null)))
       : h("div", { class: "flex flex-wrap items-end justify-between gap-3" },
         h("div", {},
           h("b", { class: "block text-2xl font-semibold leading-none mb-2", "aria-hidden": "true" }, "—"),

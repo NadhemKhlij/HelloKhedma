@@ -36,7 +36,7 @@ const dirOf = (p) => (pathOf(p.id) === "ai" ? aiDir() : {});
 
 const stepsDone = (p, s = marks()) => p.steps.filter((_, i) => s.has(`${p.id}:s${i}`)).length;
 const bar = (done, all) => h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
-  h("div", { class: "h-1.5 rounded-full", style: `width:${all ? Math.round((done / all) * 100) : 0}%;background:${done && done === all ? "#18a999" : "var(--accent)"}` }));
+  h("div", { class: "h-1.5 rounded-full", style: `width:${all ? Math.round((done / all) * 100) : 0}%;background:${done && done === all ? "var(--ok)" : "var(--accent)"}` }));
 
 export async function renderProjectList(root, pathId) {
   if (!root) return;
@@ -52,7 +52,7 @@ export async function renderProjectList(root, pathId) {
       h("p", { class: "mute text-sm flex-1", ...dirOf(p) }, p.summary),
       h("div", { class: "flex flex-wrap gap-1" }, p.skills.slice(0, 5).map((x) => h("span", { class: `chip !py-0 text-xs ${state.cv.names.has(x) ? "chip-ok" : "mute"}` }, x))),
       bar(d, n),
-      h("span", { class: "text-xs font-medium", style: d === n ? "color:#18a999" : d ? "color:var(--accent)" : "" },
+      h("span", { class: "text-xs font-medium", style: d === n ? "color:var(--ok)" : d ? "color:var(--accent-ink)" : "" },
         d === n ? t("✓ All steps done") : d ? t("{d}/{n} steps", { d, n }) : t("Start →")));
   })));
 }
@@ -99,7 +99,7 @@ export async function renderProject(id) {
     p.data?.length ? section(t("Data and tools"),
       h("ul", { class: "grid gap-2 text-sm" }, p.data.map((d) => {
         const url = safeUrl(d.url);
-        return h("li", {}, url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "underline font-medium", style: "color:var(--accent)" }, `${d.name} ↗`)
+        return h("li", {}, url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "underline font-medium", style: "color:var(--accent-ink)" }, `${d.name} ↗`)
           : h("b", {}, d.name), d.note ? h("span", { class: "mute", ...D }, ` · ${d.note}`) : null);
       }))) : null,
     section(t("Steps"), h("ol", { class: "grid gap-3" }, p.steps.map((s, i) =>

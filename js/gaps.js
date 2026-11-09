@@ -58,7 +58,7 @@ export function gapTrainings(missing, { onOpen = () => {} } = {}) {
     ...(external ? { target: "_blank", rel: "noopener noreferrer" } : {}) }, ...kids);
   const status = (c) => {
     const d = Math.round(c.done * c.lessonCount);
-    return h("span", { class: "ml-auto text-xs font-medium", style: "color:var(--accent)" },
+    return h("span", { class: "ml-auto text-xs font-medium", style: "color:var(--accent-ink)" },
       d ? t("Continue · {d}/{n} lessons", { d, n: c.lessonCount }) : t("Start →"));
   };
 
@@ -79,12 +79,12 @@ export function gapTrainings(missing, { onOpen = () => {} } = {}) {
         return row(url || "#/training", Boolean(url),
           h("b", {}, s.title), chips(hits),
           h("span", { class: "mute text-xs" }, [s.provider, `${Number(s.est_hours) || 1} h`, s.is_free ? t("Free") : t("Paid")].filter(Boolean).join(" · ")),
-          h("span", { class: "ml-auto text-xs font-medium", style: "color:var(--accent)" }, url ? "↗" : "→"));
+          h("span", { class: "ml-auto text-xs font-medium", style: "color:var(--accent-ink)" }, url ? "↗" : "→"));
       })) : null,
     projectsBox,
-    knownSkills.length ? h("p", { class: "text-xs", style: "color:#18a999" }, t("✓ Skill check passed for {list}: you know them, so write them on your CV.", { list: knownSkills.join(", ") })) : null,
+    knownSkills.length ? h("p", { class: "text-xs", style: "color:var(--ok)" }, t("✓ Skill check passed for {list}: you know them, so write them on your CV.", { list: knownSkills.join(", ") })) : null,
     uncovered.length ? h("p", { class: "mute text-xs" }, t("No HelloKhedma training yet for: {list}. Learn them from the job's documentation or a course you trust.", { list: uncovered.join(", ") })) : null,
-    h("a", { href: "#/training", class: "text-sm underline justify-self-start", style: "color:var(--accent)", onClick: onOpen }, t("See your study plan on Training →")));
+    h("a", { href: "#/training", class: "text-sm underline justify-self-start", style: "color:var(--accent-ink)", onClick: onOpen }, t("See your study plan on Training →")));
 
   // 3. Portfolio projects of the path that use a missing skill (loaded on demand).
   loadProjects(state.pathId).then((projects) => {
@@ -93,7 +93,7 @@ export function gapTrainings(missing, { onOpen = () => {} } = {}) {
     if (!fit.length) return;
     projectsBox.replaceChildren(h("p", { class: "mute text-xs" }, t("Prove it with a portfolio project")),
       ...fit.map(({ p, hits }) => row(`#/project/${p.id}`, false, h("b", {}, p.title), chips(hits),
-        h("span", { class: "mute text-xs" }, `${t(p.level)} · ≈ ${p.hours} h`), h("span", { class: "ml-auto text-xs font-medium", style: "color:var(--accent)" }, "→"))));
+        h("span", { class: "mute text-xs" }, `${t(p.level)} · ≈ ${p.hours} h`), h("span", { class: "ml-auto text-xs font-medium", style: "color:var(--accent-ink)" }, "→"))));
   }).catch(() => {});
   return box;
 }

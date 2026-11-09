@@ -1,6 +1,7 @@
 // French texts: page shell, navigation, Home, account, sign-in and password reset, admin page.
 // Merged into one dictionary by js/i18n-fr.js (see its header for the rules).
 export default {
+  "Skip to content": "Aller au contenu",
   /* ---------- page shell, navigation, account ---------- */
   "Main": "Principal",
   "Home": "Accueil",

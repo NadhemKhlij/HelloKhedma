@@ -20,10 +20,10 @@ const money = (min, max = min, currency = "EUR") => formatSalary({ min: Math.rou
 // Where the offer sits: { key, text, color } (key: below | lower | upper | above).
 function verdict(mid, m) {
   const diff = Math.round(((mid - m.median) / m.median) * 100);
-  if (mid < m.low) return { key: "below", color: "#e0508b", text: t("Below the market: about {n}% under the median. Negotiate with the figures below.", { n: Math.abs(diff) }) };
-  if (mid <= m.median) return { key: "lower", color: "#f08a24", text: t("In the market, lower half ({n}% vs the median): there is room to ask for more.", { n: diff }) };
-  if (mid <= m.high) return { key: "upper", color: "#18a999", text: t("In the market, upper half (+{n}% vs the median): a good offer.", { n: diff }) };
-  return { key: "above", color: "#18a999", text: t("Above the market (+{n}% vs the median): negotiate the rest of the package rather than the base.", { n: diff }) };
+  if (mid < m.low) return { key: "below", color: "var(--bad)", text: t("Below the market: about {n}% under the median. Negotiate with the figures below.", { n: Math.abs(diff) }) };
+  if (mid <= m.median) return { key: "lower", color: "var(--warn)", text: t("In the market, lower half ({n}% vs the median): there is room to ask for more.", { n: diff }) };
+  if (mid <= m.high) return { key: "upper", color: "var(--ok)", text: t("In the market, upper half (+{n}% vs the median): a good offer.", { n: diff }) };
+  return { key: "above", color: "var(--ok)", text: t("Above the market (+{n}% vs the median): negotiate the rest of the package rather than the base.", { n: diff }) };
 }
 
 // Range bar: the middle half of the market shaded, the median and the offer marked.
@@ -92,7 +92,7 @@ export async function openOfferCoach(c) {
     save.hidden = input.value.trim() === (c.salary || "");
     read.replaceChildren(!input.value.trim() ? h("span", { class: "mute" }, t("Write the salary offered to compare it with the market."))
       : y ? h("span", {}, t("Read as {pay}", { pay: formatSalary(y) }), offer.period !== "year" ? h("span", { class: "mute" }, t(" (from {pay})", { pay: formatSalary(offer) })) : null)
-      : h("span", { style: "color:#f08a24" }, t("Could not read a salary: write it like 48k €, 48 000 € brut annuel or 3 500 € brut mensuel.")));
+      : h("span", { style: "color:var(--warn)" }, t("Could not read a salary: write it like 48k €, 48 000 € brut annuel or 3 500 € brut mensuel.")));
     const same = m && y && y.currency === m.currency;
     market.replaceChildren(...(m ? [
       h("p", { class: "text-sm" }, h("b", {}, t("Market for {title}: ", { title: m.title })), money(m.low, m.high, m.currency),

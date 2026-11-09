@@ -30,13 +30,13 @@ import { t, tn, lang } from "./i18n.js";
 import { accepts, parseCron, sameCron, nextRuns, jq, sameList } from "./drillcheck.js";
 
 export const DRILL_TYPES = ["choice", "fill", "order", "match", "groups", "bug", "scenario", "logs", "regex", "cron", "json", "fixfile", "sheet"];
-const OK = "#18a999", BAD = "#e0508b", WARN = "#f08a24";
+const OK = "var(--ok)", BAD = "var(--bad)", WARN = "var(--warn)";
 const say = (text, color) => h("p", { class: "text-sm font-medium", style: color ? `color:${color}` : "" }, text);
 const out = () => h("div", { class: "grid gap-2", "aria-live": "polite" });
 const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 // A shuffle that is never the answer itself (when there is more than one item).
 const mixed = (n) => { let p = shuffle([...Array(n).keys()]); if (n > 1 && p.every((x, i) => x === i)) p = [...p.slice(1), p[0]]; return p; };
-const pre = (code, lang) => h("pre", { class: "codeblock", "data-lang": lang || "", dir: "ltr" }, h("code", {}, code));
+const pre = (code, lang) => h("pre", { tabindex: "0", class: "codeblock", "data-lang": lang || "", dir: "ltr" }, h("code", {}, code));
 const btn = (label, onClick, cls = "btn") => h("button", { type: "button", class: cls, onClick }, label);
 const mark = (el, ok) => { el.style.borderColor = ok == null ? "" : ok ? OK : BAD; };
 const plain = (list) => (list || []).find((a) => !/^\/.+\/[a-z]*$/s.test(a)) ?? list?.[0] ?? "";
@@ -81,7 +81,7 @@ function fill(e, done, miss) {
   let body;
   if (e.snippet) {
     const parts = e.snippet.split("___");
-    body = h("pre", { class: "codeblock", "data-lang": e.lang || "", dir: "ltr" }, h("code", {}, parts.flatMap((p, k) => (k < inputs.length ? [p, inputs[k]] : [p]))));
+    body = h("pre", { tabindex: "0", class: "codeblock", "data-lang": e.lang || "", dir: "ltr" }, h("code", {}, parts.flatMap((p, k) => (k < inputs.length ? [p, inputs[k]] : [p]))));
   } else body = h("div", { class: "grid" }, inputs[0]);
   return [body, h("div", {}, btn(t("✓ Check my answer"), check)), fb];
 }
@@ -319,7 +319,7 @@ function json(e, done, miss) {
   const fb = out(), v = fileView(e.file, { filter: false });
   const inp = h("input", { class: "input font-mono flex-1 min-w-[12rem]", "aria-label": t("Your jq filter"), placeholder: ".items[] | .name",
     autocapitalize: "off", autocorrect: "off", spellcheck: "false", onKeydown: (ev) => { if (ev.key === "Enter") { ev.preventDefault(); check(); } } });
-  const show = (vals) => h("pre", { class: "codeblock !text-[.75rem] max-h-56 overflow-auto", dir: "ltr" }, h("code", {}, vals.map((x) => JSON.stringify(x, null, 2)).join("\n") || " "));
+  const show = (vals) => h("pre", { tabindex: "0", class: "codeblock !text-[.75rem] max-h-56 overflow-auto", dir: "ltr" }, h("code", {}, vals.map((x) => JSON.stringify(x, null, 2)).join("\n") || " "));
   async function check() {
     if (!inp.value.trim()) { inp.focus(); return; }
     const text = await v.ready;

@@ -87,11 +87,11 @@ function courseCard(c, done, known = new Set()) {
     h("b", { class: "block" }, c.name),
     h("p", { class: "mute text-sm flex-1" }, c.summary),
     n ? h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
-      h("div", { class: "h-1.5 rounded-full", style: `width:${Math.round((d / n) * 100)}%;background:${complete ? "#18a999" : "var(--accent)"}` })) : null,
+      h("div", { class: "h-1.5 rounded-full", style: `width:${Math.round((d / n) * 100)}%;background:${complete ? "var(--ok)" : "var(--accent)"}` })) : null,
     h("div", { class: "flex items-center gap-2 text-xs" },
-      h("span", { class: "font-medium", style: complete ? "color:#18a999" : d ? "color:var(--accent)" : "" },
+      h("span", { class: "font-medium", style: complete ? "color:var(--ok)" : d ? "color:var(--accent-ink)" : "" },
         complete ? t("✓ Completed") : d ? t("Continue · {d}/{n} lessons", { d, n }) : t("Start →")),
-      known.has(c.id) ? h("span", { class: "ml-auto", style: "color:#18a999", title: t("Skill check passed: the study plan skips this course") }, t("🎯 Known")) : null,
+      known.has(c.id) ? h("span", { class: "ml-auto", style: "color:var(--ok)", title: t("Skill check passed: the study plan skips this course") }, t("🎯 Known")) : null,
       best != null ? h("span", { class: `mute ${known.has(c.id) ? "" : "ml-auto"}` }, t("Quiz best {s}", { s: best })) : null));
 }
 
@@ -144,7 +144,7 @@ function codeBlock(lang, code, play) {
       try { await navigator.clipboard.writeText(code); btn.textContent = t("Copied ✓"); } catch { btn.textContent = t("Copy failed"); }
       setTimeout(() => { btn.textContent = t("Copy"); }, 1500);
     } }, t("Copy"));
-  return h("div", { class: "relative", dir: "ltr" }, h("pre", { class: `codeblock ${play ? "!pr-36" : "!pr-16"}`, "data-lang": lang || "" }, h("code", {}, code)), // ltr inside Arabic text too
+  return h("div", { class: "relative", dir: "ltr" }, h("pre", { tabindex: "0", class: `codeblock ${play ? "!pr-36" : "!pr-16"}`, "data-lang": lang || "" }, h("code", {}, code)), // ltr inside Arabic text too
     h("div", { class: "absolute top-2 right-2 flex gap-1" }, play ? playLink(play, () => code) : null, btn));
 }
 
@@ -186,9 +186,9 @@ export async function renderCourse(id) {
         h("span", { id: "courseProgress", class: "font-medium" }, t("{d}/{n} lessons done", { d, n })),
         h("span", { class: "mute" }, best != null ? t("Quiz best {s}", { s: best }) : t("Quiz not taken yet")),
         c.exercises?.length ? h("span", { class: "mute" }, t("{d}/{n} exercises solved", { d: ex, n: c.exercises.length })) : null,
-        d === n ? h("span", { class: "badge ml-auto", style: "background:color-mix(in srgb,#18a999 18%,var(--panel));color:#18a999" }, t("🏅 Course complete")) : null),
+        d === n ? h("span", { class: "badge ml-auto", style: "background:color-mix(in srgb,var(--ok) 18%,var(--panel));color:var(--ok)" }, t("🏅 Course complete")) : null),
       h("div", { class: "h-2 rounded-full", style: "background:var(--line)" },
-        h("div", { class: "h-2 rounded-full", style: `width:${Math.round((d / n) * 100)}%;background:${d === n ? "#18a999" : "var(--accent)"};transition:width .4s ease` })));
+        h("div", { class: "h-2 rounded-full", style: `width:${Math.round((d / n) * 100)}%;background:${d === n ? "var(--ok)" : "var(--accent)"};transition:width .4s ease` })));
   };
 
   const tabBar = h("div", { role: "tablist", "aria-label": t("Course sections"), "data-print-hide": "" });
@@ -215,7 +215,7 @@ export async function renderCourse(id) {
       h("button", { type: "button", class: "w-full text-left flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-[var(--soft)]",
         style: i === cur ? "background:var(--soft)" : "", "aria-current": i === cur ? "step" : null, onClick: () => go(i) },
         h("span", { class: "w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold",
-          style: isDone(i) ? "background:#18a999;color:#fff" : i === cur ? "background:var(--accent);color:#fff" : "background:var(--panel);border:1px solid var(--line)" },
+          style: isDone(i) ? "background:var(--ok-fill);color:#fff" : i === cur ? "background:var(--accent-fill);color:#fff" : "background:var(--panel);border:1px solid var(--line)" },
           isDone(i) ? "✓" : String(i + 1)),
         h("span", { class: "min-w-0" }, h("span", { class: "block text-sm font-medium leading-snug" }, x.title),
           h("span", { class: "mute text-xs", dir: "ltr" }, `≈ ${formatMinutes(lessonTime(x).total)}`))))));
@@ -232,12 +232,12 @@ export async function renderCourse(id) {
       h("nav", { class: "panel !p-2 order-last lg:order-none lg:sticky lg:top-20", "aria-label": t("Lessons") }, list),
       h("article", { class: "panel grid grid-cols-[minmax(0,1fr)] gap-3 min-w-0" },
         h("p", { class: "eyebrow" }, t("Lesson {n} of {all} · {time}", { n: cur + 1, all: n, time: `≈ ${formatMinutes(lessonTime(l).total)}` }),
-          done ? h("span", { class: "badge", style: "background:color-mix(in srgb,#18a999 18%,var(--panel));color:#18a999" }, t("Done")) : null),
+          done ? h("span", { class: "badge", style: "background:color-mix(in srgb,var(--ok) 18%,var(--panel));color:var(--ok)" }, t("Done")) : null),
         h("h2", { class: "serif !text-2xl !font-medium !mb-0" }, l.title),
         ...(l.text || []).map((p) => h("p", { class: "leading-relaxed" }, p)),
         l.points?.length ? h("div", { class: "rounded-xl p-4", style: "background:var(--soft)" },
           h("p", { class: "eyebrow mb-2" }, t("Key points")),
-          h("ul", { class: "grid gap-1.5 text-sm" }, l.points.map((p) => h("li", { class: "flex gap-2" }, h("span", { style: "color:var(--accent)" }, "●"), h("span", {}, p))))) : null,
+          h("ul", { class: "grid gap-1.5 text-sm" }, l.points.map((p) => h("li", { class: "flex gap-2" }, h("span", { style: "color:var(--accent-ink)" }, "●"), h("span", {}, p))))) : null,
         l.example ? h("div", { class: "grid gap-1" },
           h("p", { class: "eyebrow" }, t("Example")),
           codeBlock(l.example.lang, l.example.code, l.example.try && c.playground),
@@ -255,13 +255,13 @@ export async function renderCourse(id) {
         h("h2", { class: "!mb-0" }, t("{name} cheat sheet", { name: c.name })),
         h("button", { type: "button", class: "btn-ghost !py-1 ml-auto", "data-print-hide": "", onClick: printCheatsheet }, t("Print / save as PDF"))),
       h("div", { class: "grid gap-4 md:grid-cols-2" }, c.cheatsheet.map((g) => h("div", {},
-        h("h3", { class: "font-semibold text-sm mb-1", style: "color:var(--accent)" }, g.group),
+        h("h3", { class: "font-semibold text-sm mb-1", style: "color:var(--accent-ink)" }, g.group),
         h("table", { class: "w-full text-sm" }, h("tbody", {}, g.items.map(([syntax, meaning]) => h("tr", { style: "border-top:1px solid var(--line)" },
           h("td", { class: "py-1.5 pr-3 align-top" }, h("code", { class: "inline-code" }, syntax)),
           h("td", { class: "py-1.5 align-top mute" }, meaning)))))))),
       c.pitfalls?.length ? h("div", { class: "mt-5", "data-print-hide": "" },
         h("h3", { class: "font-semibold text-sm mb-2" }, t("Common mistakes")),
-        h("ul", { class: "grid gap-1.5 text-sm" }, c.pitfalls.map((p) => h("li", { class: "flex gap-2" }, h("span", { style: "color:#e0508b" }, "⚠"), h("span", {}, p))))) : null));
+        h("ul", { class: "grid gap-1.5 text-sm" }, c.pitfalls.map((p) => h("li", { class: "flex gap-2" }, h("span", { style: "color:var(--bad)" }, "⚠"), h("span", {}, p))))) : null));
   }
 
   const panel = (title, sub, fill) => { const box = h("div"); body.replaceChildren(h("section", { class: "panel grid gap-4" },
@@ -287,7 +287,7 @@ export async function renderCourse(id) {
       h("h1", { id: "h-course", tabindex: "-1", class: "page-title !mb-1", ...(ai ? aiDir() : {}) }, c.name),
       h("p", { class: "mute", ...(ai ? aiDir() : {}) }, c.summary),
       c.why || c.outcome ? h("details", { class: "mt-3 text-sm" },
-        h("summary", { class: "cursor-pointer", style: "color:var(--accent)" }, t("Why this course?")),
+        h("summary", { class: "cursor-pointer", style: "color:var(--accent-ink)" }, t("Why this course?")),
         c.why ? h("p", { class: "mt-2" }, h("b", {}, t("Why recruiters care: ")), ai ? h("span", { ...aiDir(), class: "block" }, c.why) : c.why) : null,
         c.outcome ? h("p", { class: "mt-1" }, h("b", {}, t("After this course you can: ")), ai ? h("span", { ...aiDir(), class: "block" }, c.outcome) : c.outcome) : null) : null,
       progress),

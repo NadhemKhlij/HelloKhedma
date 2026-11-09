@@ -141,7 +141,7 @@ async function track(job, btn) {
 // "⚠ Check this offer" (serious signals) or "🕒 Worth checking" (stale / no company): a folded list of the reasons.
 function trustPanel(flags) {
   if (!flags.length) return null;
-  const serious = flags.some((f) => f.serious), color = serious ? "#e0508b" : "#f08a24";
+  const serious = flags.some((f) => f.serious), color = serious ? "var(--bad)" : "var(--warn)";
   return h("details", { class: "mt-2 text-xs" },
     h("summary", { class: "chip !py-0 text-xs font-medium cursor-pointer w-fit", style: `border-color:${color};color:${color}` },
       serious ? t("⚠ Check this offer") : t("🕒 Worth checking")),
@@ -174,13 +174,13 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
         h("span", { class: "mute text-sm block" }, [j.company, j.location].filter(Boolean).join(" · "))),
       badge),
     salary || tags.contract || tags.remote || seen || hidden || j.isNew || days != null || level || /\bvisa sponsorship\b/i.test(j.text || "") ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
-      days != null ? h("span", { class: "chip !py-0 text-xs", style: days > STALE_DAYS ? "border-color:#f08a24;color:#f08a24" : "",
+      days != null ? h("span", { class: "chip !py-0 text-xs", style: days > STALE_DAYS ? "border-color:var(--warn);color:var(--warn)" : "",
         title: new Date(j.posted).toLocaleDateString(LOCALE) }, ageLabel(days)) : null,
       level ? tag(t(`level|${level}`)) : null,
       salary ? h("span", { class: "chip chip-ok !py-0 text-xs font-medium",
         title: salary.estimated ? t("Estimated by the job site, not given by the employer") : t("Salary given in the offer") },
         `💶 ${formatSalary(salary)}`) : null,
-      j.isNew ? h("span", { class: "chip chip-ok !py-0 text-xs font-bold", style: "color:var(--accent)" }, t("New")) : null,
+      j.isNew ? h("span", { class: "chip chip-ok !py-0 text-xs font-bold", style: "color:var(--accent-ink)" }, t("New")) : null,
       tags.contract ? tag(t(tags.contract)) : null,
       tags.remote ? tag(tags.remote === "Remote" ? t("Full remote") : t("Hybrid / remote")) : null,
       /\bvisa sponsorship\b/i.test(j.text || "") ? h("span", { class: "chip chip-ok !py-0 text-xs", title: t("The employer offers to sponsor a work visa") }, t("🛂 Visa sponsorship")) : null,
@@ -232,7 +232,7 @@ export function renderOffers() {
   $("#offerSkills").replaceChildren(...[...freq].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, n]) => {
     const on = state.skillFilter === name, inCv = state.cv.names.has(name);
     return h("button", { type: "button", class: `chip text-xs ${inCv ? "chip-ok" : ""}`, "aria-pressed": String(on),
-      style: on ? "background:var(--accent);color:#fff" : "",
+      style: on ? "background:var(--accent-fill);color:#fff" : "",
       onClick: () => { state.skillFilter = on ? null : name; renderOffers(); } }, `${inCv ? "✓ " : ""}${name} · ${n}`);
   }));
 
@@ -242,7 +242,7 @@ export function renderOffers() {
     ? h("span", {}, t("Average CV fit: "), h("b", { style: avg == null ? "" : `color:${fitColor(avg)}` }, avg == null ? t("n/a") : t("{n}%", { n: avg })),
         cvSwitcher(), h("span", { class: "mute" }, t(" · ✓ = skill found in your CV")))
     : h("span", { class: "mute" }, t("Add your CV on the "),
-        h("a", { href: "#/cv", class: "underline", style: "color:var(--accent)" }, t("CV check")), t(" page to see how well you fit each offer."),
+        h("a", { href: "#/cv", class: "underline", style: "color:var(--accent-ink)" }, t("CV check")), t(" page to see how well you fit each offer."),
         cvSwitcher()));
 
   $("#fFit").disabled = !hasCv;
@@ -275,7 +275,7 @@ export function renderOffers() {
     + (hiddenCount ? t(" ({n} hidden)", { n: hiddenCount }) : "")),
     h("span", { class: "mute", title: t("An EU directive will require a pay range in every job ad; France plans to apply it in 2027.") },
       t(" · {n} with a salary", { n: withSalary })),
-    flaggedCount ? h("span", { style: "color:#e0508b" }, t(" · ⚠ {n} to check", { n: flaggedCount })) : "");
+    flaggedCount ? h("span", { style: "color:var(--bad)" }, t(" · ⚠ {n} to check", { n: flaggedCount })) : "");
   $("#offerTools").hidden = false;
   $("#results").replaceChildren(...(list.length ? list.map(renderJob)
     : [h("li", { class: "mute text-sm" }, t("No offer matches these filters. Loosen a filter to see more."))]));

@@ -4,7 +4,8 @@
 // not counted here: they are in Cloudflare Web Analytics (link at the top) when CONFIG.CF_ANALYTICS_TOKEN is set.
 //   renderAdmin()  draws the page (stat tiles, Claude API cost estimate + credit left (admin_ai_usage(), migration
 //                  20261106000300), sign-ups per week, daily searches / AI calls, applications by stage,
-//                  chosen paths, anonymous statistics, open problem reports with Done / Ignore)
+//                  chosen paths, anonymous statistics, open problem reports with Done / Ignore, share of job source
+//                  answers reused from the database: source_saved / source_call, migration 20261109000400)
 //   checkAdmin()   true when the signed-in user is an admin (is_admin()); account.js shows the Admin link with it
 // Charts: one series each, in the path color (--accent), a tooltip (title) on every bar; the numbers are also written
 // out, so nothing relies on the bars alone.
@@ -208,7 +209,11 @@ export async function renderAdmin() {
       tile(t("AI CV calls"), num(daily(s.usage_daily || [], "cv_tailor").reduce((x, p) => x + p.n, 0)), t("last 30 days")),
       tile(t("AI explanations"), num(daily(s.usage_daily || [], "explain").reduce((x, p) => x + p.n, 0)), t("last 30 days")),
       tile(t("Saved explanations reused"), num(daily(s.usage_daily || [], "explain_saved").reduce((x, p) => x + p.n, 0)), t("last 30 days")),
-      tile(t("Lesson questions"), num(daily(s.usage_daily || [], "ask_lesson").reduce((x, p) => x + p.n, 0)), t("last 30 days"))),
+      tile(t("Lesson questions"), num(daily(s.usage_daily || [], "ask_lesson").reduce((x, p) => x + p.n, 0)), t("last 30 days")),
+      (() => { // job-search: source answers reused from the database vs calls to a source (migration 20261109000400)
+        const sum = (k) => daily(s.usage_daily || [], k).reduce((x, p) => x + p.n, 0), hits = sum("source_saved"), all = hits + sum("source_call");
+        return tile(t("Job source calls saved"), all ? `${Math.round((100 * hits) / all)}%` : "–", t("{hits} of {all} answers reused, 30 days", { hits: num(hits), all: num(all) }));
+      })()),
     claude,
     h("div", { class: "grid gap-4 md:grid-cols-2" },
       section(t("Sign-ups per week"), columns(weekly(s.signups_weekly || []), t("Sign-ups per week"))),

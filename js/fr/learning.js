@@ -269,4 +269,6 @@ export default {
   "AI answers are not set up yet.": "Les réponses par l’IA ne sont pas encore activées.",
   "This question is too long.": "Cette question est trop longue.",
   "Lesson questions": "Questions sur les leçons",
+  "Job source calls saved": "Appels aux sources d’offres évités",
+  "{hits} of {all} answers reused, 30 days": "{hits} réponses réutilisées sur {all}, 30 jours",
 };

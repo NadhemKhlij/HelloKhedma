@@ -36,7 +36,8 @@
 //                                   403 to a jooble.org key, tested 2026-11-08)
 //   DEFAULT_PROVIDER                optional: all | francetravail | adzuna | jsearch | jooble | himalayas | arbeitnow (default all)
 //                                   "all" uses every source whose secrets are set.
-//   CACHE_TTL_HOURS                 optional: how long identical searches are served from cache (default 6)
+//   CACHE_TTL_HOURS                 optional: how long a source's answer is reused for the free sources (default 6;
+//                                   JSearch and Jooble 24 h, Adzuna and La bonne alternance 12 h: SOURCE_TTL_H)
 //   RATE_LIMIT_GUEST                optional: searches per hour per IP for guests (default 20)
 //   RATE_LIMIT_USER                 optional: searches per hour per signed-in user (default 60)
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
@@ -53,7 +54,10 @@
 //   regionTotal, week } from Adzuna (all its offers for that title), cached 24 h.
 // Each Job carries the provider's salary as text (`salary`, Adzuna estimates flagged), read by js/salary.js.
 //
-// Cache (job_search_cache, 6 h) and rate limit (job_search_hits) come from migration 20261028000200; each allowed search
+// Cache (job_search_cache) and rate limit (job_search_hits) come from migration 20261028000200. Since 2026-11-09 each
+// source's answer is saved on its own ("s1|<source>|…", see SOURCE_TTL_H), with the place and title normalised, so a search
+// only calls the sources with nothing fresh saved; source calls and saved answers are counted per day ('source_call',
+// 'source_saved', count_usage_n(), migration 20261109000400, admin page). Each allowed search
 // also bumps the anonymous daily counter usage_daily (count_usage(), migration 20261106000200, admin page). Guests are
 // limited per IP stored only as a SHA-256 hash, purged after 24 h, as stated in the privacy policy.
 // Deploying from the dashboard: paste from a commit-pinned raw GitHub link (the plain raw link is cached ~5 min).
@@ -115,7 +119,18 @@ const dedupeCompany = (s: string) => fold(s).replace(/\b(sas|sasu|sa|sarl|ltd|li
   .replace(/[^a-z0-9]+/g, " ").trim();
 
 const envNum = (name: string, fallback: number) => Number(Deno.env.get(name)) || fallback;
-const CACHE_TTL_MS = envNum("CACHE_TTL_HOURS", 6) * 3600_000;
+// How long one source's answer to one search is reused (hours): longer for the scarce quotas (JSearch 200 a month,
+// Jooble 500 for the key's life, Adzuna 250 a day); CACHE_TTL_HOURS for the others (default 6). Arbeitnow is not saved per
+// search: it is searched in its pages, read at most once an hour (arbeitnowPages).
+const CACHE_TTL_H = envNum("CACHE_TTL_HOURS", 6);
+const SOURCE_TTL_H: Partial<Record<string, number>> = {
+  jsearch: 24, jooble: 24, adzuna: 12, lba: 12, francetravail: CACHE_TTL_H, himalayas: CACHE_TTL_H, careerjet: CACHE_TTL_H,
+};
+// Rows older than this are deleted (salary statistics are kept 24 h too).
+const MAX_TTL_MS = Math.max(24, CACHE_TTL_H) * 3600_000;
+// Search texts in cache keys: same key for "Paris", "paris " and "Paris, France"; "Île" and "Ile".
+const normText = (s: string) => fold(s).replace(/[^a-z0-9+#]+/g, " ").trim();
+const normPlace = (s: string) => normText(s).replace(/\s*\b(france|fr)$/, "").trim();
 const LIMIT_GUEST = envNum("RATE_LIMIT_GUEST", 20);
 const LIMIT_USER = envNum("RATE_LIMIT_USER", 60);
 
@@ -628,9 +643,11 @@ Deno.serve(async (req) => {
     path: /^(de|da|ba|as|do|ai)$/.test(String(body.path)) ? String(body.path) : "",
   };
   // Guard and cache need the migration 20261028000200_job_search_guard.sql; if it is missing we log and carry on.
-  // "v5": La bonne alternance (needs the path) and Careerjet (2026-11-09); a new key skips entries cached before.
-  const cacheKey = ["v5", providers.join("+"), country, query.toLowerCase(), alt.toLowerCase(), ctx.path, where.toLowerCase(), page,
-    filters.contract, filters.remote, filters.days].join("|");
+  // Each source's answer is saved on its own (sourceKey, SOURCE_TTL_H), so "All sources" only calls the sources with no
+  // fresh answer saved, a failing source does not stop the others from being saved, and one-source searches reuse them.
+  const sourceKey = (p: Source) => ["s1", p, country, normText(query), normText(alt), p === "lba" ? ctx.path : "",
+    normPlace(where), page, filters.contract, filters.remote, filters.days].join("|");
+  const saved = new Map<Source, Job[]>();
   if (admin) {
     const { bucket, limit } = await rateBucket(req);
     const { data: allowed, error } = await admin.rpc("job_search_hit", {
@@ -646,20 +663,43 @@ Deno.serve(async (req) => {
     const { error: countErr } = await admin.rpc("count_usage", { p_kind: "job_search" });
     if (countErr) console.error("usage count failed:", countErr.message);
 
-    const { data: hit, error: cacheErr } = await admin.from("job_search_cache").select("results")
-      .eq("key", cacheKey).gte("created_at", new Date(Date.now() - CACHE_TTL_MS).toISOString()).maybeSingle();
+    const keys = [...providers, "jooble" as Source].filter((p) => SOURCE_TTL_H[p]).map(sourceKey);
+    const { data: rows, error: cacheErr } = await admin.from("job_search_cache").select("key, results, created_at").in("key", keys)
+      .gte("created_at", new Date(Date.now() - MAX_TTL_MS).toISOString());
     if (cacheErr) console.error("cache read failed:", cacheErr.message);
-    else if (hit) return json({ ...hit.results, cached: true });
+    for (const r of rows ?? []) {
+      const p = String(r.key).split("|")[1] as Source;
+      if (Date.now() - new Date(r.created_at).getTime() < SOURCE_TTL_H[p] * 3600_000 && Array.isArray(r.results?.jobs)) saved.set(p, r.results.jobs);
+    }
   }
 
   const fetchers = { francetravail: franceTravail, adzuna, jsearch, jooble, himalayas, arbeitnow, lba, careerjet };
-  const results = await Promise.allSettled(providers.map((p) => fetchers[p](query, where, country, page, filters, alt, ctx)));
+  const call = (p: Source) => saved.has(p) ? Promise.resolve(saved.get(p)!) : fetchers[p](query, where, country, page, filters, alt, ctx);
+  const results = await Promise.allSettled(providers.map(call));
+  const used: Source[] = [...providers];
   // Jooble as a backup (lifetime quota): only when the other sources found fewer than 10 offers on the first page.
   const found = results.reduce((n, r) => n + (r.status === "fulfilled" ? r.value.length : 0), 0);
   if (all && page === 1 && found < 10 && configured.jooble()) {
-    const [backup] = await Promise.allSettled([jooble(query, where, country, page, filters)]);
-    if (backup.status === "fulfilled") results.push(backup); // a failed or empty backup is not a warning
+    const [backup] = await Promise.allSettled([call("jooble")]);
+    if (backup.status === "fulfilled") { results.push(backup); used.push("jooble"); } // a failed or empty backup is not a warning
   }
+  // Save the answers that came from a source (an empty answer too: it is an answer), and count calls / savings.
+  if (admin) {
+    const fresh = used.map((p, i) => [p, results[i]] as const)
+      .filter(([p, r]) => SOURCE_TTL_H[p] && !saved.has(p) && r.status === "fulfilled");
+    const now = new Date().toISOString();
+    if (fresh.length) {
+      const { error } = await admin.from("job_search_cache").upsert(fresh.map(([p, r]) =>
+        ({ key: sourceKey(p), results: { jobs: (r as PromiseFulfilledResult<Job[]>).value }, created_at: now })));
+      if (error) console.error("cache write failed:", error.message);
+    }
+    await admin.from("job_search_cache").delete().lt("created_at", new Date(Date.now() - MAX_TTL_MS).toISOString());
+    const calls = used.filter((p) => SOURCE_TTL_H[p] && !saved.has(p)).length, hits = used.filter((p) => saved.has(p)).length;
+    for (const [kind, n] of [["source_call", calls], ["source_saved", hits]] as const) {
+      if (n) { const { error } = await admin.rpc("count_usage_n", { p_kind: kind, p_n: n }); if (error) console.error("usage count failed:", error.message); }
+    }
+  }
+  const fromCache = saved.size > 0 && used.every((p) => saved.has(p) || !SOURCE_TTL_H[p]);
 
   const warnings: string[] = [];
   const seen = new Set<string>();
@@ -682,12 +722,5 @@ Deno.serve(async (req) => {
   }
   jobs.sort((a, b) => (b.posted ?? "").localeCompare(a.posted ?? ""));
 
-  // Only cache complete answers, so a provider outage is not served for hours.
-  if (admin && jobs.length && !warnings.length) {
-    const { error } = await admin.from("job_search_cache")
-      .upsert({ key: cacheKey, results: { jobs, warnings }, created_at: new Date().toISOString() });
-    if (error) console.error("cache write failed:", error.message);
-    await admin.from("job_search_cache").delete().lt("created_at", new Date(Date.now() - CACHE_TTL_MS).toISOString());
-  }
-  return json({ jobs, warnings });
+  return json({ jobs, warnings, ...(fromCache ? { cached: true } : {}) });
 });

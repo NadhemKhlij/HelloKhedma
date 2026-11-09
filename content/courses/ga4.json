@@ -1,0 +1,359 @@
+{
+  "why": "Every marketing decision needs data you can trust: which channel brings customers, where visitors leave, what a campaign really earned. Google Analytics 4 and Google Tag Manager are on most marketing job offers, from specialist to analyst.",
+  "outcome": "explain GA4’s event model, mark key events, read acquisition and engagement reports, build a funnel exploration, choose an attribution model, set up GTM tags, triggers and data layer events, respect consent and query the BigQuery export.",
+  "lessons": [
+    {
+      "title": "How GA4 measures: events and parameters",
+      "text": [
+        "Google Analytics 4 records everything as events: a page view, a scroll, a click, a purchase. Each event has a name and parameters that describe it (page_location, value, currency, form_name…). Users and sessions are built from these events.",
+        "Some events are collected automatically (first_visit, session_start, user_engagement); enhanced measurement adds page views, scrolls, outbound clicks, site search, video views, file downloads and form interactions with a switch. Recommended events (sign_up, generate_lead, add_to_cart, purchase…) have names and parameters defined by Google: use them so reports fill in on their own."
+      ],
+      "points": [
+        "A property holds data streams: one for the website, one per app.",
+        "Use Google’s recommended event names before inventing your own.",
+        "Custom parameters must be registered as custom dimensions to appear in reports.",
+        "Standard properties keep detailed event data for 2 months by default: set it to 14 months in Admin."
+      ]
+    },
+    {
+      "title": "Key events and what to measure",
+      "text": [
+        "A key event is an event that matters for the business: a purchase, a lead form, a sign-up, a demo request. You mark it as key in Admin → Events (it was called a conversion until 2024). Google Ads uses its own conversions, which can be imported from GA4 key events.",
+        "Build a measurement plan before tagging: business goals, the key events that show them, the micro-steps that lead there (add to cart, start a form), the parameters needed to analyse them, and who owns each one."
+      ],
+      "points": [
+        "Few key events, all tied to value: not every click is a key event.",
+        "Give key events a value when you can, so channels can be compared in money.",
+        "Name events in lowercase with underscores, consistently.",
+        "Write the plan down: the next person must know what each event means."
+      ]
+    },
+    {
+      "title": "Reports: acquisition, engagement and monetization",
+      "text": [
+        "The standard reports answer the usual questions. Acquisition: where users and sessions come from (default channel groups like Organic Search, Paid Search, Email, Organic Social, Referral, Direct, built from source and medium, so UTM tags matter). Engagement: pages, events and engaged sessions. Monetization: purchases, revenue and products.",
+        "An engaged session lasts more than 10 seconds, has a key event or has two or more page views; engagement rate is the share of engaged sessions (bounce rate is its opposite). Compare periods, add a secondary dimension and apply comparisons such as mobile vs desktop."
+      ],
+      "points": [
+        "User acquisition = first source of new users; traffic acquisition = source of each session.",
+        "(not set) and Unassigned usually mean missing or inconsistent UTM tags.",
+        "Direct traffic grows when links are not tagged.",
+        "Check that internal traffic (your team) is filtered out."
+      ]
+    },
+    {
+      "title": "Explorations, funnels and attribution",
+      "text": [
+        "Explorations are GA4’s analysis space: free form tables, funnel explorations (how many users pass each step, where they drop), path explorations (what users do before or after an event) and segment overlap. They use the detailed event data, so they are limited by the retention period.",
+        "Attribution decides which channel gets credit for a key event. GA4 uses data-driven attribution by default (credit shared across touchpoints from your data); last click gives all credit to the last channel. Reports in Advertising compare models and show conversion paths."
+      ],
+      "points": [
+        "Fix the biggest drop in the funnel first.",
+        "Open funnels let users enter at any step; closed funnels need step 1.",
+        "Brand search and direct look stronger under last click.",
+        "Thresholds may hide small numbers in reports when Google signals are on."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Step                 Users   Kept from previous step\n1 view_item          12,000\n2 add_to_cart         1,800   15 %\n3 begin_checkout        900   50 %\n4 add_payment_info      720   80 %\n5 purchase              540   75 %",
+        "note": "The add-to-cart step loses 85 % of product viewers: start with the product page."
+      }
+    },
+    {
+      "title": "Google Tag Manager: tags, triggers and variables",
+      "text": [
+        "Google Tag Manager (GTM) lets marketers add and change tracking without editing the site code each time. One container snippet goes on every page; inside the container, a tag is what fires (GA4 event, Google Ads conversion, Meta Pixel), a trigger is when it fires (page view, click, form submission, custom event) and a variable holds a value (page URL, click text, a data layer value).",
+        "Test before publishing with Preview mode (Tag Assistant): it shows which tags fired on each action and why. Publishing creates a version you can roll back. Keep a clear naming scheme and few people with publish rights."
+      ],
+      "points": [
+        "The Google tag (gtag.js) can also be installed without GTM; GTM is easier to manage with many tags.",
+        "Use GA4’s DebugView with Preview mode to see events arrive.",
+        "Click and form triggers break when the site changes: prefer data layer events.",
+        "Every version gets a name and a note: what changed and why."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Tag      : GA4 Event - generate_lead\n           Measurement ID: G-XXXXXXX   Event name: generate_lead\n           Parameters: form_name = {{DLV - form_name}}\nTrigger  : Custom Event  event equals \"form_submit_success\"\nVariable : DLV - form_name  (Data Layer Variable \"form_name\")",
+        "note": "Naming: type, then destination, then event. The variable reads a value the site pushed to the data layer."
+      }
+    },
+    {
+      "title": "The data layer and e-commerce tracking",
+      "text": [
+        "The data layer is a JavaScript array where the site pushes facts for GTM: an event name and its details. It is more reliable than reading the page: when the order is confirmed, the developers push a purchase event with the transaction id, value, currency and items, and GTM sends it to GA4, Google Ads and others.",
+        "For e-commerce, follow the recommended events and their item parameters: view_item, add_to_cart, begin_checkout, add_payment_info, purchase. Always send transaction_id (GA4 removes duplicate purchases with the same id) and clear the previous ecommerce object before a new push."
+      ],
+      "points": [
+        "Write a data layer specification for developers: event, when, parameters, example.",
+        "value must be a number and currency an ISO code like EUR.",
+        "Never push personal data (e-mail, name, phone) to GA4: Google’s policies forbid it.",
+        "Check purchases in GA4 against the shop’s orders: a gap of more than a few percent means a tracking problem."
+      ],
+      "example": {
+        "lang": "js",
+        "code": "// On the order confirmation page, before the GTM container snippet or right after the order is known\nwindow.dataLayer = window.dataLayer || [];\ndataLayer.push({ ecommerce: null });  // clear the previous ecommerce object\ndataLayer.push({\n  event: \"purchase\",\n  ecommerce: {\n    transaction_id: \"T-10482\",\n    value: 119.00,\n    currency: \"EUR\",\n    items: [{ item_id: \"ARCH3-42\", item_name: \"StrideLab Arch 3\", price: 119.00, quantity: 1 }]\n  }\n});",
+        "note": "Pushed by the site when the order is confirmed; a GTM trigger on the custom event “purchase” sends it to GA4."
+      }
+    },
+    {
+      "title": "Consent, privacy and the BigQuery export",
+      "text": [
+        "In the European Union, analytics and advertising cookies need prior consent (GDPR, ePrivacy; in France, the CNIL’s rules): refusing must be as easy as accepting. A consent banner (consent management platform) stores the choice, and Google’s consent mode passes it to Google tags: analytics_storage, ad_storage, ad_user_data and ad_personalization. Consent mode v2 is required to use Google’s advertising features with EEA users since March 2024.",
+        "GA4 can export raw events to BigQuery for free (daily, or streaming at a cost). The export keeps every event without sampling or thresholds, and lets you join analytics with CRM or sales data in SQL."
+      ],
+      "points": [
+        "Without consent, tags either do not fire (basic) or send cookieless pings (advanced consent mode).",
+        "Expect fewer users in GA4 than in your server logs when many visitors refuse.",
+        "Set the export up early: it does not include history from before it was linked.",
+        "Each day is one table events_YYYYMMDD; parameters are nested in event_params."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- GA4 export in BigQuery: purchases and revenue by traffic source, November 2026\nSELECT\n  traffic_source.source AS source,\n  traffic_source.medium AS medium,\n  COUNT(*) AS purchases,\n  ROUND(SUM(ecommerce.purchase_revenue), 2) AS revenue\nFROM `my-project.analytics_123456.events_*`\nWHERE _TABLE_SUFFIX BETWEEN '20261101' AND '20261130'\n  AND event_name = 'purchase'\nGROUP BY source, medium\nORDER BY revenue DESC;",
+        "note": "traffic_source here is the first source of the user; session sources sit in other fields."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "GA4 model",
+      "items": [
+        [
+          "Event",
+          "Anything recorded: page_view, scroll, purchase"
+        ],
+        [
+          "Parameter",
+          "A detail of an event: value, currency, page_location"
+        ],
+        [
+          "Key event",
+          "An event that matters for the business (ex-conversion)"
+        ],
+        [
+          "Custom dimension",
+          "A parameter registered to appear in reports"
+        ],
+        [
+          "Engaged session",
+          "> 10 s, or a key event, or 2+ page views"
+        ]
+      ]
+    },
+    {
+      "group": "Recommended events",
+      "items": [
+        [
+          "sign_up",
+          "Account created"
+        ],
+        [
+          "generate_lead",
+          "Lead form sent"
+        ],
+        [
+          "add_to_cart",
+          "Item added to the cart"
+        ],
+        [
+          "begin_checkout",
+          "Checkout started"
+        ],
+        [
+          "purchase",
+          "Order completed (transaction_id, value, currency, items)"
+        ]
+      ]
+    },
+    {
+      "group": "Google Tag Manager",
+      "items": [
+        [
+          "Tag",
+          "What fires (GA4 event, Ads conversion, pixel)"
+        ],
+        [
+          "Trigger",
+          "When it fires (page view, click, custom event)"
+        ],
+        [
+          "Variable",
+          "A value used by tags and triggers"
+        ],
+        [
+          "dataLayer.push()",
+          "The site sends an event and its details to GTM"
+        ],
+        [
+          "Preview mode",
+          "Test which tags fire before publishing"
+        ]
+      ]
+    },
+    {
+      "group": "Analysis and privacy",
+      "items": [
+        [
+          "Funnel exploration",
+          "Users at each step and where they drop"
+        ],
+        [
+          "Data-driven attribution",
+          "GA4 default: credit shared across touchpoints"
+        ],
+        [
+          "Consent mode",
+          "Passes the visitor’s consent choice to Google tags"
+        ],
+        [
+          "BigQuery export",
+          "Raw events, no sampling, queried in SQL"
+        ]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Tagging without a measurement plan, so nobody knows which events matter.",
+    "Marking every click as a key event, which hides the ones that bring value.",
+    "Links without UTM tags, which inflate Direct and Unassigned traffic.",
+    "Sending e-mail addresses or names in event parameters.",
+    "Publishing GTM changes without testing them in Preview mode."
+  ],
+  "exercises": [
+    {
+      "q": "Tap the line that keeps this purchase out of GA4’s e-commerce reports.",
+      "type": "bug",
+      "lang": "js",
+      "snippet": "window.dataLayer = window.dataLayer || [];\ndataLayer.push({\n  event: \"Purchase Complete\",\n  ecommerce: {\n    transaction_id: \"T-10482\",\n    value: 119.00,\n    currency: \"EUR\"\n  }\n});",
+      "line": 3,
+      "fix": "  event: \"purchase\",",
+      "answer": "GA4 fills its e-commerce reports from the recommended event name purchase (lowercase). “Purchase Complete” is just a custom event. The items array should be sent too."
+    },
+    {
+      "q": "In Google Tag Manager, which part decides WHEN a tag fires?",
+      "type": "choice",
+      "options": [
+        "The trigger",
+        "The variable",
+        "The container",
+        "The data stream"
+      ],
+      "correct": 0,
+      "answer": "The trigger decides when (page view, click, custom event); the tag is what fires; variables hold values used by both."
+    },
+    {
+      "q": "Put the e-commerce events in the order a buyer goes through them.",
+      "type": "order",
+      "steps": [
+        "view_item",
+        "add_to_cart",
+        "begin_checkout",
+        "add_payment_info",
+        "purchase"
+      ],
+      "answer": "These recommended events build the purchase funnel in GA4 reports and explorations."
+    },
+    {
+      "q": "Match each Google consent mode setting with what it controls.",
+      "type": "match",
+      "pairs": [
+        [
+          "analytics_storage",
+          "Cookies used for analytics"
+        ],
+        [
+          "ad_storage",
+          "Cookies used for advertising"
+        ],
+        [
+          "ad_user_data",
+          "Sending user data to Google for advertising"
+        ],
+        [
+          "ad_personalization",
+          "Using data for personalized ads (remarketing)"
+        ]
+      ],
+      "answer": "The consent banner sets these four values; consent mode v2 added ad_user_data and ad_personalization."
+    },
+    {
+      "q": "In a product funnel, 12,000 users viewed a product and 1,800 added it to the cart. What percentage kept going to the cart?",
+      "type": "fill",
+      "blanks": [
+        [
+          "15",
+          "15%",
+          "15 %",
+          "0.15",
+          "0,15"
+        ]
+      ],
+      "answer": "1,800 / 12,000 = 15 %: 85 % of product viewers leave at that step, the biggest drop, so the product page is the first thing to improve."
+    },
+    {
+      "q": "Purchases in GA4 are 25 % lower than the orders in the shop’s back office. What do you do?",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Where do you start?",
+          "choices": [
+            {
+              "label": "Check consent: how many visitors refuse analytics cookies",
+              "best": true,
+              "feedback": "Visitors who refuse are not fully measured; part of the gap can be normal."
+            },
+            {
+              "label": "Change the attribution model",
+              "feedback": "Attribution shares credit between channels; it does not change the number of purchases."
+            }
+          ]
+        },
+        {
+          "text": "The refusal rate is 10 %. What next?",
+          "choices": [
+            {
+              "label": "Test a real order in GTM Preview and DebugView, check transaction_id and the payment page redirects",
+              "best": true,
+              "feedback": "Orders paid on an external page (bank, PayPal) often never return to the confirmation page."
+            },
+            {
+              "label": "Multiply GA4 figures by 1.25 in the reports",
+              "feedback": "That hides the problem and is wrong for every channel."
+            }
+          ]
+        }
+      ],
+      "answer": "Separate the normal gap (consent refusals, blockers) from a tracking fault, then test a real purchase end to end: the confirmation page, the data layer push, transaction_id and payment redirects."
+    },
+    {
+      "q": "Write a short measurement plan for a training website whose goal is paid sign-ups: three key events, two micro-events and the parameters you need.",
+      "answer": "Key events: purchase (paid sign-up: transaction_id, value, currency, course_id), generate_lead (brochure request: form_name, course_id), sign_up (free account: method). Micro-events: view_item on a course page (course_id, course_name, price) and begin_checkout. Parameters registered as custom dimensions: course_id, form_name. Every campaign link carries UTM tags; owner: marketing analyst; check monthly against the payment system."
+    }
+  ],
+  "interview": [
+    {
+      "q": "What is the main difference between GA4 and Universal Analytics?",
+      "a": "GA4 is event-based: every interaction is an event with parameters, for websites and apps in one property, whereas Universal Analytics was built on sessions and page views. GA4 also brought explorations, data-driven attribution by default and a free BigQuery export."
+    },
+    {
+      "q": "What is a key event in GA4?",
+      "a": "An event marked as important for the business, such as a purchase or a lead form; it was called a conversion until 2024. Key events feed the attribution reports and can be imported into Google Ads as conversions."
+    },
+    {
+      "q": "Why use a data layer instead of reading the page?",
+      "a": "Because it is a stable contract between developers and marketing: the site pushes clear events and values (order id, value, items), and tags no longer break when the page design changes."
+    },
+    {
+      "q": "How do you test a new tag before publishing?",
+      "a": "In GTM Preview mode with Tag Assistant, I do the action, check the tag fired once with the right trigger and values, then confirm the event in GA4 DebugView, and only then publish a named version."
+    },
+    {
+      "q": "Why might GA4 numbers differ from the CRM or the shop?",
+      "a": "Consent refusals and ad blockers, payment pages that do not return to the confirmation page, duplicate or missing transaction ids, time zones, and different definitions (orders vs users). I measure the gap and fix the tracking part of it."
+    },
+    {
+      "q": "What does consent mode do?",
+      "a": "It passes the visitor’s consent choice to Google tags. Without consent, tags do not set cookies; in advanced mode they send cookieless pings that Google uses for modelling. Version 2 is required for advertising features with EEA users."
+    }
+  ]
+}

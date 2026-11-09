@@ -2,7 +2,8 @@
 
 ## Project overview
 A multi-path job hunting web app targeting Data Engineers, Business Analysts, Application Support, Data Analysts, DevOps Engineers,
-AI Engineers and Digital Marketing (path id "mk", 2026-11-09: seed, skills, interview, projects; its own courses to come).
+AI Engineers and Digital Marketing (path id "mk", 2026-11-09: seed, skills, interview, projects and six courses: marketing-foundations, seo, paid-ads, ga4,
+  email-crm, marketing-analytics).
 The selected path adapts the job search, trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 
 ## Commands

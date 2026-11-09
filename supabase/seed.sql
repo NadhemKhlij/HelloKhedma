@@ -121,8 +121,8 @@ select pg_temp.seed('ai','tip','[
 select pg_temp.seed('ai','keyword','["LLM","Prompt engineering","Claude API","OpenAI API","AI agents","RAG","Vector database","LLMOps","LangChain","AI coding tools","Python","REST API","Docker","Git","SQL"]'::jsonb);
 
 -- Digital Marketing ---------------------------------------------------------------------
--- Courses: the existing Excel, statistics (A/B testing), BI tools (Looker Studio, storytelling) and SQL courses until
--- the marketing courses are written (ROADMAP "Digital Marketing path").
+-- Courses (content/courses, paths ["mk"]): marketing-foundations, seo, paid-ads, ga4, email-crm, marketing-analytics,
+-- plus the shared Excel, statistics (A/B testing), BI tools and SQL courses.
 select pg_temp.seed('mk','tool','[
  ["Google Analytics 4","Measure traffic, conversions and the funnel; a free demo account to practise"],
  ["Google Search Console","See how a site appears in Google: queries, pages, indexing"],

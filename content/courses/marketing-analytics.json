@@ -1,0 +1,379 @@
+{
+  "why": "Marketing teams spend real money and must show what it brings. Marketing analysts and growth marketers are hired to answer “what works, how much, and what next?” with data, and to run the experiments that prove it.",
+  "outcome": "break a business goal into a KPI tree, build a useful dashboard, read cohorts and estimate LTV, compare attribution with media mix models and incrementality tests, design and read an A/B test, run a CRO programme and compute marketing metrics in SQL.",
+  "lessons": [
+    {
+      "title": "From business goal to a KPI tree",
+      "text": [
+        "A KPI tree breaks the main result (revenue, sign-ups) into the factors that produce it: traffic, conversion, order value, retention. Each branch is a lever a team can act on, and each number has one definition and one owner.",
+        "When the main number moves, the tree shows where: fewer visits from one channel, a lower conversion rate on mobile, smaller baskets. That turns “sales are down” into a question someone can answer."
+      ],
+      "points": [
+        "One north star metric for the team, a few input metrics under it.",
+        "Leading indicators (traffic, add-to-cart) move before lagging ones (revenue, retention).",
+        "Define each metric: formula, source, period, filters.",
+        "Separate new and returning customers: they behave differently."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Revenue per month\n├─ New customers  = visits × conversion rate\n│   ├─ Visits by channel (organic, paid search, paid social, e-mail, referral)\n│   └─ Conversion rate by landing page and device\n├─ Orders from returning customers = active customers × repeat purchase rate\n└─ Average order value = items per order × price per item",
+        "note": "Every leaf is a number someone owns and can change."
+      }
+    },
+    {
+      "title": "Dashboards and reports that drive decisions",
+      "text": [
+        "A good marketing dashboard answers a few questions for one audience: the weekly team view (spend, CPA, conversions by channel, against target), the management view (revenue, CAC, LTV, trend), the campaign view (results of one launch). Tools: Looker Studio, Power BI, Tableau, or the BI tool of the company.",
+        "Put the comparison next to each number (target, last period, last year), keep definitions on the page, and add a short written comment: what changed, why, what we do next. Numbers without a decision are just noise."
+      ],
+      "points": [
+        "Start from the decisions, then choose the metrics, then the charts.",
+        "Blend sources carefully: ad platforms, GA4 and the CRM count differently.",
+        "Automate data refreshes; check them before the meeting.",
+        "Five charts read are better than twenty ignored."
+      ]
+    },
+    {
+      "title": "Cohorts, retention and lifetime value",
+      "text": [
+        "A cohort groups customers by when they started (month of first order, week of sign-up) and follows them over time. Cohort tables show whether retention improves or worsens, which averages hide when new customers flood in.",
+        "Lifetime value (LTV) estimates the gross margin a customer brings over the relationship: average order value × orders per year × years as a customer × margin, or better, the real cumulated margin of past cohorts. LTV compared with CAC, and the payback period (months to earn back the CAC), tell how much growth you can afford."
+      ],
+      "points": [
+        "Compare cohorts at the same age (month 1 vs month 1).",
+        "A worse cohort often comes from a channel or an offer: check where it was acquired.",
+        "Discount-driven cohorts often have lower retention.",
+        "Use margin, not revenue, for LTV when comparing with CAC."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "First order month  Customers  Month 1  Month 2  Month 3\nJanuary            1,000      32 %     24 %     21 %\nFebruary           1,200      30 %     22 %     19 %\nMarch              1,500      22 %     15 %       -\n(share of each cohort that ordered again in the months after their first order)",
+        "note": "The March cohort retains much less: check what changed in March (a promotion, a new channel)."
+      }
+    },
+    {
+      "title": "Attribution, media mix models and incrementality",
+      "text": [
+        "Attribution models share the credit of a conversion between the touchpoints a tracked user saw: last click, first click, linear, position-based or data-driven. They are fast and detailed but see only tracked clicks, lose users who refuse cookies, and cannot tell whether the sale would have happened anyway.",
+        "Media mix modelling (MMM) estimates each channel’s effect from weekly totals (spend, sales, seasonality, prices) with regression, without user tracking; open-source tools include Google’s Meridian and Meta’s Robyn. Incrementality tests (geo tests, holdout groups, platform lift studies) measure the true extra effect by comparing exposed and unexposed groups. Mature teams use all three and calibrate the models with the tests."
+      ],
+      "points": [
+        "Attribution for daily optimization, MMM for budget planning, tests for proof.",
+        "Incremental = what would not have happened without the campaign.",
+        "Brand search and retargeting usually look better in attribution than in tests.",
+        "Plan a test with a clear control group before the campaign starts."
+      ]
+    },
+    {
+      "title": "A/B tests done right",
+      "text": [
+        "An A/B test splits visitors at random between the current version (A) and a new one (B) and compares one main metric. Decide before starting: the hypothesis, the main metric, the guardrail metrics that must not fall, the minimum effect worth detecting and the sample size this needs.",
+        "Small effects need large samples: detecting a lift from 5 % to 5.5 % conversion (10 % relative) needs about 30,000 visitors per variant at the usual 95 % confidence and 80 % power. Run full weeks, do not stop as soon as the result looks significant (peeking inflates false positives), and check the sample ratio: a 50/50 test that ends 52/48 has a bug."
+      ],
+      "points": [
+        "One main metric decided in advance; others are for learning.",
+        "Statistical significance is not business significance: look at the size and the confidence interval.",
+        "Many tests fail: a neutral result is still learning.",
+        "See the Statistics course for p-values, power and confidence intervals."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Test: new product page (B) vs current page (A), 14 days, 50/50 split\n          Visitors   Orders   Conversion rate\nA          30,000      1,200   4.0 %\nB          30,000      1,380   4.6 %\nRelative lift: +15 %   p-value: < 0.001   Sample ratio: 50.0 / 50.0 (as planned)",
+        "note": "Planned length, balanced split, a clear lift: B can be rolled out, and the result logged."
+      }
+    },
+    {
+      "title": "Conversion rate optimization (CRO)",
+      "text": [
+        "CRO improves the share of visitors who do the action you want, with research rather than opinions. Research first: analytics (where people drop), heatmaps and session recordings (Microsoft Clarity, Hotjar), on-site surveys and user tests (why they hesitate), and customer reviews (the words they use).",
+        "Then write hypotheses with a reason, a change and a measure, prioritize them (for example ICE: impact, confidence, ease), test the best ones and record every result. Typical levers: clear value proposition, trust and proof, fewer form fields, visible prices and delivery costs, page speed, and a simpler checkout."
+      ],
+      "points": [
+        "Fix obvious bugs and speed problems directly: no test needed.",
+        "Test bold changes on pages with enough traffic; small tweaks rarely show.",
+        "Mobile and desktop behave differently: analyse them separately.",
+        "Keep a test log: hypothesis, result, decision, screenshots."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Because   heatmaps show 70 % of mobile visitors never reach the delivery costs,\nwe believe showing \"Free delivery from 50 EUR\" under the price\nwill raise the add-to-cart rate on mobile product pages.\nWe will know when the add-to-cart rate rises by at least 8 % (relative)\nin a 50/50 test of 3 weeks, with checkout conversion not falling.",
+        "note": "Because (evidence) → we believe (change) → we will know (metric, threshold, guardrail)."
+      }
+    },
+    {
+      "title": "Marketing analytics with SQL",
+      "text": [
+        "Most marketing data ends up in a warehouse (BigQuery, Snowflake): ad costs per day and channel, GA4 events, CRM contacts, orders. SQL joins them to answer what platforms cannot: CAC by channel from real new customers, LTV by acquisition channel, conversion from lead to customer by campaign.",
+        "Watch the joins: the grain (one row per day and channel, or per order), the date used (click date or order date), duplicates, and channel names that differ between sources. Check the totals against the source tools before sharing."
+      ],
+      "points": [
+        "Keep one mapping table from source/medium to channel.",
+        "NULLIF avoids a division by zero when a channel had no customers.",
+        "Store definitions in SQL views so every dashboard uses the same ones.",
+        "The SQL course covers joins, grouping and window functions."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Customer acquisition cost by channel, Q3 2026\nSELECT c.channel,\n       SUM(c.spend)                         AS spend,\n       COUNT(DISTINCT n.customer_id)        AS new_customers,\n       ROUND(SUM(c.spend) * 1.0 / NULLIF(COUNT(DISTINCT n.customer_id), 0), 2) AS cac\nFROM marketing_costs c\nLEFT JOIN new_customers n\n  ON n.channel = c.channel AND n.first_order_date = c.day\nWHERE c.day BETWEEN '2026-07-01' AND '2026-09-30'\nGROUP BY c.channel\nORDER BY cac;",
+        "note": "Costs and new customers joined on channel and day; customers must be counted once."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Metrics",
+      "items": [
+        [
+          "North star metric",
+          "The one result the team grows"
+        ],
+        [
+          "Leading indicator",
+          "Moves first (traffic, add-to-cart)"
+        ],
+        [
+          "Lagging indicator",
+          "Moves later (revenue, retention)"
+        ],
+        [
+          "LTV",
+          "Margin a customer brings over the relationship"
+        ],
+        [
+          "Payback period",
+          "Months to earn back the CAC"
+        ],
+        [
+          "Cohort",
+          "Customers grouped by start date"
+        ]
+      ]
+    },
+    {
+      "group": "Measurement",
+      "items": [
+        [
+          "Attribution model",
+          "Shares credit between tracked touchpoints"
+        ],
+        [
+          "MMM",
+          "Media mix model: channel effects from weekly totals"
+        ],
+        [
+          "Incrementality test",
+          "Exposed vs unexposed group: the true extra effect"
+        ],
+        [
+          "Geo test",
+          "Some regions see the campaign, others do not"
+        ]
+      ]
+    },
+    {
+      "group": "A/B testing",
+      "items": [
+        [
+          "Hypothesis",
+          "Because… we believe… we will know when…"
+        ],
+        [
+          "Guardrail metric",
+          "Must not get worse while testing"
+        ],
+        [
+          "Sample size",
+          "Visitors needed to detect the minimum effect"
+        ],
+        [
+          "Peeking",
+          "Stopping early when it looks significant: false wins"
+        ],
+        [
+          "Sample ratio mismatch",
+          "Split differs from the plan: the test is broken"
+        ]
+      ]
+    },
+    {
+      "group": "CRO",
+      "items": [
+        [
+          "Heatmap",
+          "Where visitors click, move and scroll"
+        ],
+        [
+          "Session recording",
+          "Replays of real visits"
+        ],
+        [
+          "On-site survey",
+          "Asks visitors why they hesitate"
+        ],
+        [
+          "ICE score",
+          "Impact, confidence, ease: to prioritize ideas"
+        ]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Reporting numbers with no target or comparison, and no decision.",
+    "Comparing LTV in revenue with CAC, which overstates what you can spend.",
+    "Trusting last-click attribution to cut upper-funnel channels.",
+    "Stopping an A/B test the first day it looks significant.",
+    "Testing tiny changes on pages that have too little traffic to show any result."
+  ],
+  "exercises": [
+    {
+      "q": "Version A converts at 4.0 % and version B at 4.6 %. What is B’s relative lift, in percent?",
+      "type": "fill",
+      "blanks": [
+        [
+          "15",
+          "15%",
+          "15 %",
+          "+15",
+          "+15%",
+          "+15 %"
+        ]
+      ],
+      "answer": "(4.6 − 4.0) / 4.0 = 0.15, a 15 % relative lift. The absolute difference is 0.6 percentage points; always say which one you report."
+    },
+    {
+      "q": "An A/B test was planned for 14 days. On day 3 it shows p = 0.03 in favour of B. What do you do?",
+      "type": "choice",
+      "options": [
+        "Stop and roll out B: it is significant",
+        "Keep running until the planned sample and duration",
+        "Restart the test with a new split",
+        "Add a third variant"
+      ],
+      "correct": 1,
+      "answer": "Checking every day and stopping at the first significant result (peeking) inflates false positives, and the first days are rarely representative. Finish the planned sample and full weeks."
+    },
+    {
+      "q": "Put the CRO process in order.",
+      "type": "order",
+      "steps": [
+        "Research where and why visitors drop",
+        "Write hypotheses with evidence",
+        "Prioritize them (ICE)",
+        "Run the A/B test",
+        "Analyse and record the result"
+      ],
+      "answer": "Research → hypothesis → priority → test → learning. Each result feeds the next research round."
+    },
+    {
+      "q": "Match each method with the question it answers best.",
+      "type": "match",
+      "pairs": [
+        [
+          "Attribution model",
+          "Which tracked touchpoints led to this conversion?"
+        ],
+        [
+          "Media mix model",
+          "How should next year’s budget be split between channels?"
+        ],
+        [
+          "Incrementality test",
+          "Would these sales have happened without the campaign?"
+        ],
+        [
+          "Cohort analysis",
+          "Do customers acquired in March stay as long as those of January?"
+        ]
+      ],
+      "answer": "Each method has its strength; mature teams combine them and calibrate the models with tests."
+    },
+    {
+      "q": "Sort these metrics into leading and lagging indicators for an online shop.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Leading",
+          "items": [
+            "Product page visits",
+            "Add-to-cart rate",
+            "Newsletter sign-ups"
+          ]
+        },
+        {
+          "name": "Lagging",
+          "items": [
+            "Monthly revenue",
+            "12-month retention",
+            "Customer lifetime value"
+          ]
+        }
+      ],
+      "answer": "Leading indicators move first and can be acted on this week; lagging ones confirm the result later."
+    },
+    {
+      "q": "A 50/50 test ends with 31,200 visitors in A and 28,800 in B, and B wins. What do you do?",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "What do you notice first?",
+          "choices": [
+            {
+              "label": "The split is 52/48 instead of 50/50: a sample ratio mismatch",
+              "best": true,
+              "feedback": "With 60,000 visitors, such a gap is very unlikely by chance: something removes visitors from one side."
+            },
+            {
+              "label": "Nothing: B won, roll it out",
+              "feedback": "A broken split can create a fake winner, for example if B loses slow or bot visitors."
+            }
+          ]
+        },
+        {
+          "text": "Next step?",
+          "choices": [
+            {
+              "label": "Find the cause (redirects, page errors, bot filtering, tracking on B) and re-run the test",
+              "best": true,
+              "feedback": "Results from a test with a sample ratio mismatch cannot be trusted."
+            },
+            {
+              "label": "Remove 2,400 visitors from A to balance the groups",
+              "feedback": "Cutting data by hand does not fix the bias; it adds one."
+            }
+          ]
+        }
+      ],
+      "answer": "Check the sample ratio before reading any result. A mismatch means the assignment or the tracking is broken: find the cause and run the test again."
+    },
+    {
+      "q": "Monthly revenue dropped 12 %. Using a KPI tree, list the questions you would check, in order.",
+      "answer": "1) Is it real: tracking change, a missing data source, calendar effect (fewer days, a holiday last year)? 2) New customers or returning customers? 3) For new customers: visits by channel (which channel fell?) or conversion rate (which device, which landing page?). 4) Average order value: fewer items or lower prices, end of a promotion? 5) For returning customers: repeat rate by cohort. Then report the branch that explains most of the drop, its cause and the action."
+    }
+  ],
+  "interview": [
+    {
+      "q": "How would you measure whether a campaign really worked?",
+      "a": "Agree the goal and the metric before launch, track it with UTM links and conversions, compare against a baseline or a control group, and for large budgets run an incrementality test, such as a geo holdout, because attribution alone cannot say what would have happened anyway."
+    },
+    {
+      "q": "What is the difference between attribution and media mix modelling?",
+      "a": "Attribution follows tracked users and shares credit between their touchpoints, good for daily optimization; MMM uses aggregated weekly data and regression to estimate each channel’s effect, including offline and untracked effects, good for budget planning. Tests calibrate both."
+    },
+    {
+      "q": "How do you decide the sample size of an A/B test?",
+      "a": "From the baseline conversion rate, the minimum effect worth detecting, the confidence level and the power, usually 95 % and 80 %. Smaller effects need far more visitors; if the page cannot reach the sample in a few weeks, I test a bolder change or a higher-traffic page."
+    },
+    {
+      "q": "What would you do if an A/B test is neutral?",
+      "a": "Check that it ran as planned (sample ratio, tracking), look at segments only as ideas for the next test, record the learning, and keep the simpler or cheaper version. Many tests are neutral; the learning is still worth it."
+    },
+    {
+      "q": "How do you prioritize CRO ideas?",
+      "a": "From research evidence first, then with a scoring such as ICE: impact on the main metric, confidence from the evidence, ease of building. Bugs and speed problems are fixed directly without a test."
+    },
+    {
+      "q": "How do you compute LTV and why compare it with CAC?",
+      "a": "From the real cumulated margin of past cohorts, or average order value × purchase frequency × lifetime × margin. Comparing it with CAC, and the payback period, shows whether acquiring customers creates value and how much we can spend per customer."
+    }
+  ]
+}

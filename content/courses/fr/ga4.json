@@ -1,0 +1,359 @@
+{
+  "why": "Chaque décision marketing a besoin de données fiables : quel canal amène des clients, où les visiteurs partent, ce qu’une campagne a vraiment rapporté. Google Analytics 4 et Google Tag Manager figurent dans la plupart des offres marketing, du chargé de marketing à l’analyste.",
+  "outcome": "expliquer le modèle d’événements de GA4, marquer les événements clés, lire les rapports d’acquisition et d’engagement, construire une exploration en entonnoir, choisir un modèle d’attribution, configurer balises, déclencheurs et événements de la couche de données dans GTM, respecter le consentement et interroger l’export BigQuery.",
+  "lessons": [
+    {
+      "title": "Comment GA4 mesure : événements et paramètres",
+      "text": [
+        "Google Analytics 4 enregistre tout sous forme d’événements : une page vue, un défilement, un clic, un achat. Chaque événement a un nom et des paramètres qui le décrivent (page_location, value, currency, form_name…). Les utilisateurs et les sessions sont construits à partir de ces événements.",
+        "Certains événements sont collectés automatiquement (first_visit, session_start, user_engagement) ; les mesures améliorées ajoutent d’un clic les pages vues, défilements, clics sortants, recherches sur le site, vidéos, téléchargements de fichiers et interactions avec les formulaires. Les événements recommandés (sign_up, generate_lead, add_to_cart, purchase…) ont des noms et paramètres définis par Google : utilisez-les pour que les rapports se remplissent seuls."
+      ],
+      "points": [
+        "Une propriété contient des flux de données : un pour le site, un par application.",
+        "Utilisez les noms d’événements recommandés par Google avant d’inventer les vôtres.",
+        "Les paramètres personnalisés doivent être déclarés comme dimensions personnalisées pour apparaître dans les rapports.",
+        "Une propriété standard garde les données d’événements détaillées 2 mois par défaut : passez à 14 mois dans Admin."
+      ]
+    },
+    {
+      "title": "Les événements clés et ce qu’il faut mesurer",
+      "text": [
+        "Un événement clé est un événement qui compte pour l’activité : un achat, un formulaire de contact, une inscription, une demande de démo. Vous le marquez comme clé dans Admin → Événements (il s’appelait conversion jusqu’en 2024). Google Ads utilise ses propres conversions, qui peuvent être importées depuis les événements clés de GA4.",
+        "Construisez un plan de marquage avant de poser les balises : objectifs business, événements clés qui les montrent, micro-étapes qui y mènent (ajout au panier, début de formulaire), paramètres nécessaires à l’analyse, et qui est responsable de chacun."
+      ],
+      "points": [
+        "Peu d’événements clés, tous liés à de la valeur : chaque clic n’est pas un événement clé.",
+        "Donnez une valeur aux événements clés quand c’est possible, pour comparer les canaux en euros.",
+        "Nommez les événements en minuscules avec des tirets bas, de façon cohérente.",
+        "Écrivez le plan : la personne suivante doit savoir ce que signifie chaque événement."
+      ]
+    },
+    {
+      "title": "Les rapports : acquisition, engagement et monétisation",
+      "text": [
+        "Les rapports standard répondent aux questions habituelles. Acquisition : d’où viennent utilisateurs et sessions (groupes de canaux par défaut comme Organic Search, Paid Search, Email, Organic Social, Referral, Direct, construits à partir de la source et du support, d’où l’importance des UTM). Engagement : pages, événements et sessions avec engagement. Monétisation : achats, chiffre d’affaires et produits.",
+        "Une session avec engagement dure plus de 10 secondes, contient un événement clé ou au moins deux pages vues ; le taux d’engagement est la part de ces sessions (le taux de rebond est son contraire). Comparez des périodes, ajoutez une dimension secondaire et appliquez des comparaisons comme mobile contre ordinateur."
+      ],
+      "points": [
+        "Acquisition d’utilisateurs = première source des nouveaux utilisateurs ; acquisition de trafic = source de chaque session.",
+        "(not set) et Unassigned signalent en général des UTM absents ou incohérents.",
+        "Le trafic direct grossit quand les liens ne sont pas marqués.",
+        "Vérifiez que le trafic interne (votre équipe) est filtré."
+      ]
+    },
+    {
+      "title": "Explorations, entonnoirs et attribution",
+      "text": [
+        "Les explorations sont l’espace d’analyse de GA4 : tableaux libres, explorations en entonnoir (combien d’utilisateurs passent chaque étape, où ils décrochent), explorations de chemin (ce que font les utilisateurs avant ou après un événement) et chevauchement de segments. Elles utilisent les données détaillées, donc sont limitées par la durée de conservation.",
+        "L’attribution décide quel canal reçoit le mérite d’un événement clé. GA4 utilise par défaut l’attribution basée sur les données (mérite partagé entre les points de contact d’après vos données) ; le dernier clic donne tout au dernier canal. Les rapports de la section Publicité comparent les modèles et montrent les chemins de conversion."
+      ],
+      "points": [
+        "Corrigez d’abord la plus grosse perte de l’entonnoir.",
+        "Un entonnoir ouvert laisse entrer à n’importe quelle étape ; un entonnoir fermé exige l’étape 1.",
+        "La recherche sur la marque et le direct paraissent plus forts au dernier clic.",
+        "Des seuils peuvent masquer les petits nombres dans les rapports quand Google Signals est activé."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Step                 Users   Kept from previous step\n1 view_item          12,000\n2 add_to_cart         1,800   15 %\n3 begin_checkout        900   50 %\n4 add_payment_info      720   80 %\n5 purchase              540   75 %",
+        "note": "L’étape d’ajout au panier perd 85 % des visiteurs du produit : commencez par la fiche produit."
+      }
+    },
+    {
+      "title": "Google Tag Manager : balises, déclencheurs et variables",
+      "text": [
+        "Google Tag Manager (GTM) permet au marketing d’ajouter et de modifier le suivi sans retoucher le code du site à chaque fois. Un seul extrait de conteneur va sur chaque page ; dans le conteneur, une balise est ce qui se déclenche (événement GA4, conversion Google Ads, Pixel Meta), un déclencheur dit quand (page vue, clic, envoi de formulaire, événement personnalisé) et une variable contient une valeur (URL de la page, texte du clic, valeur de la couche de données).",
+        "Testez avant de publier avec le mode Aperçu (Tag Assistant) : il montre quelles balises se sont déclenchées à chaque action et pourquoi. Publier crée une version vers laquelle revenir. Gardez un nommage clair et peu de personnes avec le droit de publier."
+      ],
+      "points": [
+        "La balise Google (gtag.js) s’installe aussi sans GTM ; GTM est plus simple à gérer avec beaucoup de balises.",
+        "Utilisez le DebugView de GA4 avec le mode Aperçu pour voir arriver les événements.",
+        "Les déclencheurs de clic et de formulaire cassent quand le site change : préférez les événements de la couche de données.",
+        "Chaque version a un nom et une note : ce qui a changé et pourquoi."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Tag      : GA4 Event - generate_lead\n           Measurement ID: G-XXXXXXX   Event name: generate_lead\n           Parameters: form_name = {{DLV - form_name}}\nTrigger  : Custom Event  event equals \"form_submit_success\"\nVariable : DLV - form_name  (Data Layer Variable \"form_name\")",
+        "note": "Nommage : type, puis destination, puis événement. La variable lit une valeur poussée par le site dans la couche de données."
+      }
+    },
+    {
+      "title": "La couche de données et le suivi e-commerce",
+      "text": [
+        "La couche de données (data layer) est un tableau JavaScript où le site pousse des faits pour GTM : un nom d’événement et ses détails. C’est plus fiable que de lire la page : quand la commande est confirmée, les développeurs poussent un événement purchase avec l’identifiant de transaction, la valeur, la devise et les articles, et GTM l’envoie à GA4, Google Ads et aux autres.",
+        "Pour l’e-commerce, suivez les événements recommandés et leurs paramètres d’articles : view_item, add_to_cart, begin_checkout, add_payment_info, purchase. Envoyez toujours transaction_id (GA4 supprime les achats en double avec le même identifiant) et videz l’objet ecommerce précédent avant un nouvel envoi."
+      ],
+      "points": [
+        "Écrivez une spécification de la couche de données pour les développeurs : événement, moment, paramètres, exemple.",
+        "value doit être un nombre et currency un code ISO comme EUR.",
+        "N’envoyez jamais de données personnelles (e-mail, nom, téléphone) à GA4 : les règles de Google l’interdisent.",
+        "Comparez les achats dans GA4 aux commandes de la boutique : un écart de plus de quelques pour cent signale un problème de suivi."
+      ],
+      "example": {
+        "lang": "js",
+        "code": "// On the order confirmation page, before the GTM container snippet or right after the order is known\nwindow.dataLayer = window.dataLayer || [];\ndataLayer.push({ ecommerce: null });  // clear the previous ecommerce object\ndataLayer.push({\n  event: \"purchase\",\n  ecommerce: {\n    transaction_id: \"T-10482\",\n    value: 119.00,\n    currency: \"EUR\",\n    items: [{ item_id: \"ARCH3-42\", item_name: \"StrideLab Arch 3\", price: 119.00, quantity: 1 }]\n  }\n});",
+        "note": "Poussé par le site quand la commande est confirmée ; un déclencheur GTM sur l’événement personnalisé « purchase » l’envoie à GA4."
+      }
+    },
+    {
+      "title": "Consentement, vie privée et export BigQuery",
+      "text": [
+        "Dans l’Union européenne, les cookies d’analyse et de publicité demandent un consentement préalable (RGPD, ePrivacy ; en France, les règles de la CNIL) : refuser doit être aussi simple qu’accepter. Une bannière de consentement (plateforme de gestion du consentement) enregistre le choix, et le mode consentement de Google le transmet aux balises Google : analytics_storage, ad_storage, ad_user_data et ad_personalization. Le mode consentement v2 est obligatoire depuis mars 2024 pour utiliser les fonctions publicitaires de Google avec des utilisateurs de l’EEE.",
+        "GA4 peut exporter gratuitement les événements bruts vers BigQuery (quotidien, ou en continu avec un coût). L’export garde chaque événement sans échantillonnage ni seuil, et permet de croiser l’analytics avec les données CRM ou de ventes en SQL."
+      ],
+      "points": [
+        "Sans consentement, les balises ne se déclenchent pas (mode de base) ou envoient des signaux sans cookie (mode avancé).",
+        "Attendez-vous à moins d’utilisateurs dans GA4 que dans les journaux du serveur quand beaucoup de visiteurs refusent.",
+        "Activez l’export tôt : il ne contient pas l’historique d’avant la liaison.",
+        "Chaque jour est une table events_YYYYMMDD ; les paramètres sont imbriqués dans event_params."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- GA4 export in BigQuery: purchases and revenue by traffic source, November 2026\nSELECT\n  traffic_source.source AS source,\n  traffic_source.medium AS medium,\n  COUNT(*) AS purchases,\n  ROUND(SUM(ecommerce.purchase_revenue), 2) AS revenue\nFROM `my-project.analytics_123456.events_*`\nWHERE _TABLE_SUFFIX BETWEEN '20261101' AND '20261130'\n  AND event_name = 'purchase'\nGROUP BY source, medium\nORDER BY revenue DESC;",
+        "note": "traffic_source est ici la première source de l’utilisateur ; les sources de session sont dans d’autres champs."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Le modèle GA4",
+      "items": [
+        [
+          "Event",
+          "Tout ce qui est enregistré : page_view, scroll, purchase"
+        ],
+        [
+          "Parameter",
+          "Un détail de l’événement : value, currency, page_location"
+        ],
+        [
+          "Key event",
+          "Un événement qui compte pour l’activité (ex-conversion)"
+        ],
+        [
+          "Custom dimension",
+          "Un paramètre déclaré pour apparaître dans les rapports"
+        ],
+        [
+          "Engaged session",
+          "> 10 s, ou un événement clé, ou 2 pages vues ou plus"
+        ]
+      ]
+    },
+    {
+      "group": "Événements recommandés",
+      "items": [
+        [
+          "sign_up",
+          "Compte créé"
+        ],
+        [
+          "generate_lead",
+          "Formulaire de contact envoyé"
+        ],
+        [
+          "add_to_cart",
+          "Article ajouté au panier"
+        ],
+        [
+          "begin_checkout",
+          "Paiement commencé"
+        ],
+        [
+          "purchase",
+          "Commande terminée (transaction_id, value, currency, items)"
+        ]
+      ]
+    },
+    {
+      "group": "Google Tag Manager",
+      "items": [
+        [
+          "Tag",
+          "Balise : ce qui se déclenche (événement GA4, conversion Ads, pixel)"
+        ],
+        [
+          "Trigger",
+          "Déclencheur : quand (page vue, clic, événement personnalisé)"
+        ],
+        [
+          "Variable",
+          "Une valeur utilisée par les balises et les déclencheurs"
+        ],
+        [
+          "dataLayer.push()",
+          "Le site envoie un événement et ses détails à GTM"
+        ],
+        [
+          "Preview mode",
+          "Tester les balises déclenchées avant de publier"
+        ]
+      ]
+    },
+    {
+      "group": "Analyse et vie privée",
+      "items": [
+        [
+          "Funnel exploration",
+          "Utilisateurs à chaque étape et où ils décrochent"
+        ],
+        [
+          "Data-driven attribution",
+          "Défaut de GA4 : mérite partagé entre les points de contact"
+        ],
+        [
+          "Consent mode",
+          "Transmet le choix de consentement aux balises Google"
+        ],
+        [
+          "BigQuery export",
+          "Événements bruts, sans échantillonnage, interrogés en SQL"
+        ]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Poser des balises sans plan de marquage, si bien que personne ne sait quels événements comptent.",
+    "Marquer chaque clic comme événement clé, ce qui cache ceux qui apportent de la valeur.",
+    "Des liens sans UTM, qui gonflent le trafic Direct et Unassigned.",
+    "Envoyer des adresses e-mail ou des noms dans les paramètres d’événements.",
+    "Publier des changements GTM sans les tester en mode Aperçu."
+  ],
+  "exercises": [
+    {
+      "q": "Touchez la ligne qui empêche cet achat d’apparaître dans les rapports e-commerce de GA4.",
+      "type": "bug",
+      "lang": "js",
+      "snippet": "window.dataLayer = window.dataLayer || [];\ndataLayer.push({\n  event: \"Purchase Complete\",\n  ecommerce: {\n    transaction_id: \"T-10482\",\n    value: 119.00,\n    currency: \"EUR\"\n  }\n});",
+      "line": 3,
+      "fix": "  event: \"purchase\",",
+      "answer": "GA4 remplit ses rapports e-commerce à partir du nom d’événement recommandé purchase (en minuscules). « Purchase Complete » n’est qu’un événement personnalisé. Il faudrait aussi envoyer le tableau items."
+    },
+    {
+      "q": "Dans Google Tag Manager, quel élément décide QUAND une balise se déclenche ?",
+      "type": "choice",
+      "options": [
+        "Le déclencheur",
+        "La variable",
+        "Le conteneur",
+        "Le flux de données"
+      ],
+      "correct": 0,
+      "answer": "Le déclencheur décide quand (page vue, clic, événement personnalisé) ; la balise est ce qui se déclenche ; les variables contiennent les valeurs utilisées par les deux."
+    },
+    {
+      "q": "Remettez les événements e-commerce dans l’ordre où un acheteur les traverse.",
+      "type": "order",
+      "steps": [
+        "view_item",
+        "add_to_cart",
+        "begin_checkout",
+        "add_payment_info",
+        "purchase"
+      ],
+      "answer": "Ces événements recommandés construisent l’entonnoir d’achat dans les rapports et explorations de GA4."
+    },
+    {
+      "q": "Associez chaque réglage du mode consentement de Google à ce qu’il contrôle.",
+      "type": "match",
+      "pairs": [
+        [
+          "analytics_storage",
+          "Les cookies d’analyse"
+        ],
+        [
+          "ad_storage",
+          "Les cookies publicitaires"
+        ],
+        [
+          "ad_user_data",
+          "L’envoi de données utilisateur à Google pour la publicité"
+        ],
+        [
+          "ad_personalization",
+          "L’usage des données pour la publicité personnalisée (remarketing)"
+        ]
+      ],
+      "answer": "La bannière de consentement fixe ces quatre valeurs ; le mode consentement v2 a ajouté ad_user_data et ad_personalization."
+    },
+    {
+      "q": "Dans un entonnoir d’achat, 12 000 utilisateurs ont vu un produit et 1 800 l’ont ajouté au panier. Quel pourcentage est allé jusqu’au panier ?",
+      "type": "fill",
+      "blanks": [
+        [
+          "15",
+          "15%",
+          "15 %",
+          "0.15",
+          "0,15"
+        ]
+      ],
+      "answer": "1 800 / 12 000 = 15 % : 85 % des visiteurs du produit partent à cette étape, la plus grosse perte, donc la fiche produit est la première chose à améliorer."
+    },
+    {
+      "q": "Les achats dans GA4 sont 25 % plus bas que les commandes du back-office de la boutique. Que faites-vous ?",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Par où commencez-vous ?",
+          "choices": [
+            {
+              "label": "Vérifier le consentement : combien de visiteurs refusent les cookies d’analyse",
+              "best": true,
+              "feedback": "Les visiteurs qui refusent ne sont pas entièrement mesurés ; une partie de l’écart peut être normale."
+            },
+            {
+              "label": "Changer le modèle d’attribution",
+              "feedback": "L’attribution répartit le mérite entre canaux ; elle ne change pas le nombre d’achats."
+            }
+          ]
+        },
+        {
+          "text": "Le taux de refus est de 10 %. Ensuite ?",
+          "choices": [
+            {
+              "label": "Tester une vraie commande dans l’Aperçu GTM et le DebugView, vérifier transaction_id et les redirections de la page de paiement",
+              "best": true,
+              "feedback": "Les commandes payées sur une page externe (banque, PayPal) ne reviennent souvent jamais sur la page de confirmation."
+            },
+            {
+              "label": "Multiplier les chiffres GA4 par 1,25 dans les rapports",
+              "feedback": "Cela cache le problème et c’est faux pour chaque canal."
+            }
+          ]
+        }
+      ],
+      "answer": "Séparez l’écart normal (refus de consentement, bloqueurs) d’un défaut de suivi, puis testez un vrai achat de bout en bout : page de confirmation, envoi dans la couche de données, transaction_id et redirections du paiement."
+    },
+    {
+      "q": "Écrivez un court plan de marquage pour un site de formation dont l’objectif est les inscriptions payantes : trois événements clés, deux micro-événements et les paramètres nécessaires.",
+      "answer": "Événements clés : purchase (inscription payante : transaction_id, value, currency, course_id), generate_lead (demande de brochure : form_name, course_id), sign_up (compte gratuit : method). Micro-événements : view_item sur une page de formation (course_id, course_name, price) et begin_checkout. Paramètres déclarés en dimensions personnalisées : course_id, form_name. Chaque lien de campagne porte des UTM ; responsable : l’analyste marketing ; contrôle mensuel face au système de paiement."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Quelle est la principale différence entre GA4 et Universal Analytics ?",
+      "a": "GA4 repose sur les événements : chaque interaction est un événement avec des paramètres, pour les sites et les applications dans une même propriété, alors qu’Universal Analytics reposait sur les sessions et les pages vues. GA4 a aussi apporté les explorations, l’attribution basée sur les données par défaut et un export BigQuery gratuit."
+    },
+    {
+      "q": "Qu’est-ce qu’un événement clé dans GA4 ?",
+      "a": "Un événement marqué comme important pour l’activité, comme un achat ou un formulaire de contact ; il s’appelait conversion jusqu’en 2024. Les événements clés alimentent les rapports d’attribution et peuvent être importés dans Google Ads comme conversions."
+    },
+    {
+      "q": "Pourquoi utiliser une couche de données plutôt que de lire la page ?",
+      "a": "Parce que c’est un contrat stable entre les développeurs et le marketing : le site pousse des événements et des valeurs clairs (identifiant de commande, valeur, articles), et les balises ne cassent plus quand le design de la page change."
+    },
+    {
+      "q": "Comment testez-vous une nouvelle balise avant de publier ?",
+      "a": "Dans le mode Aperçu de GTM avec Tag Assistant, je fais l’action, je vérifie que la balise s’est déclenchée une fois avec le bon déclencheur et les bonnes valeurs, puis je confirme l’événement dans le DebugView de GA4, et seulement ensuite je publie une version nommée."
+    },
+    {
+      "q": "Pourquoi les chiffres de GA4 peuvent-ils différer du CRM ou de la boutique ?",
+      "a": "Refus de consentement et bloqueurs de publicité, pages de paiement qui ne reviennent pas sur la page de confirmation, identifiants de transaction en double ou absents, fuseaux horaires, et définitions différentes (commandes contre utilisateurs). Je mesure l’écart et je corrige la part qui vient du suivi."
+    },
+    {
+      "q": "À quoi sert le mode consentement ?",
+      "a": "Il transmet le choix de consentement du visiteur aux balises Google. Sans consentement, les balises ne posent pas de cookies ; en mode avancé, elles envoient des signaux sans cookie que Google utilise pour la modélisation. La version 2 est obligatoire pour les fonctions publicitaires avec des utilisateurs de l’EEE."
+    }
+  ]
+}

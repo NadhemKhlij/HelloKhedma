@@ -23,7 +23,7 @@ import { pathArt } from "./icons.js";
 import { showRoute, refreshInterview, refreshSkillCheck, coursesReady } from "./router.js";
 import { PROG_KEY, loadTracks, loadProgress, renderLearn, initTraining } from "./training.js";
 import { initGuide, markPathChosen, guideSeenOnAccount } from "./guide.js";
-import { renderSearchControls, renderOffers, resetOffers, loadCompanyJobs, initOffers } from "./offers.js";
+import { renderSearchControls, renderOffers, resetOffers, loadCompanyJobs, initOffers, renderSavedSearches } from "./offers.js";
 import { renderCvVersions, renderCvSkills, useCvForPath, initCvPage } from "./cvpage.js";
 import { refreshTracker, initApplications } from "./applications.js";
 import { renderStatus, initAccount } from "./account.js";
@@ -141,6 +141,7 @@ async function onUser(user) {
   await Promise.all([refreshTracker(), loadProgress()]);
   if (user && state.cards.length) guideSeenOnAccount(); // an existing account on a new device: no first-visit guide
   renderLearn(); renderStatus();
+  state.alerts = undefined; renderSavedSearches(); // offer alerts (🔔) of this account
 }
 
 /* ---------- errors: friendly message + optional Sentry (CONFIG.SENTRY_DSN) ---------- */

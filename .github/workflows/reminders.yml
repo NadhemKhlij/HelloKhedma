@@ -1,5 +1,7 @@
 # Daily e-mail reminders (ROADMAP 2.2): calls the follow-up-reminders Edge Function, which e-mails each user who turned
-# reminders on (Account page) their follow-ups due and interviews coming up. Runs every morning at 06:17 UTC
+# reminders on (Account page) their follow-ups due and interviews coming up. Then the offer alerts (ROADMAP 3.2): calls
+# search-alerts (deployed + migration 20261109000500) until it answers remaining 0 (at most 8 calls), so each user who
+# turned 🔔 on for a saved search gets the new offers. Runs every morning at 06:17 UTC
 # (07:17 Paris in winter, 08:17 in summer); "Run workflow" runs it now (each user still gets one e-mail a day at most).
 # Needs, once:
 #   - GitHub secret REMINDERS_CRON_SECRET (any long random text) and the same value as Supabase secret CRON_SECRET;
@@ -34,3 +36,21 @@ jobs:
           echo "$body"
           echo "### E-mail reminders: $body" >> "$GITHUB_STEP_SUMMARY"
           [ "$code" = "200" ] || { echo "::error::follow-up-reminders answered $code: $body"; exit 1; }
+      - name: Call search-alerts
+        if: always()
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          CRON_SECRET: ${{ secrets.REMINDERS_CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "::notice::Offer alerts are not set up yet (REMINDERS_CRON_SECRET)."; exit 0; fi
+          for i in 1 2 3 4 5 6 7 8; do
+            out=$(curl -sS -w '\n%{http_code}' -X POST "$SUPABASE_URL/functions/v1/search-alerts" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" -H "Content-Type: application/json" -H "x-cron-secret: $CRON_SECRET" -d '{}')
+            code=$(echo "$out" | tail -1); body=$(echo "$out" | sed '$d')
+            echo "$body"
+            echo "### Offer alerts ($i): $body" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$code" = "404" ]; then echo "::notice::search-alerts is not deployed yet."; exit 0; fi
+            [ "$code" = "200" ] || { echo "::error::search-alerts answered $code: $body"; exit 1; }
+            echo "$body" | grep -q '"remaining":0' && break
+          done

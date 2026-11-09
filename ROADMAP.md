@@ -76,7 +76,10 @@ salaries given by employers; estimates and other currencies left out), % remote 
 skills with CV gaps and course links, levels asked. Next: the same from France Travail "Marché du travail" (3.6) for
 figures beyond the user's own searches.
 Done (2026-10-29): 3.1 contract and remote filters (detected from the offer text),
-3.3 hide / "not interested", seen marker, "Tracked ✓", 3.4 minimum CV-fit filter, saved searches (this browser; email alerts still to do).
+3.3 hide / "not interested", seen marker, "Tracked ✓", 3.4 minimum CV-fit filter, saved searches (this browser).
+Done (2026-11-09): 3.2 e-mail alerts: 🔔 on a saved search (signed in, 3 per account), each morning the search-alerts
+function e-mails the new offers (one e-mail per user, newest 10 per alert, never the same offer twice). Next: phone
+notifications (web push) for the installed app.
 Done (2026-10-29): "Companies I follow" (career pages on Greenhouse, Lever, Ashby, Workable, SmartRecruiters; full descriptions,
 "New since last visit"). Done (2026-10-29): "Remote jobs" tab (Jobicy by category + Remotive; Himalayas blocks browser
 calls and Arbeitnow has no search, so they are not used). Next sources to consider: Jooble / Careerjet

@@ -235,6 +235,37 @@ test("CV: a tracked offer with no kept text can be pasted once, then is kept", a
   await expect(page.locator('#jdPick optgroup[label="In your tracker"] option').first()).toContainText("Applied · Data Engineer · Acme");
 });
 
+// Offer alerts (alerts.js): a guest is asked to sign in; signed in (account calls answered by the test), 🔔 saves the
+// search to the account after the notice, and pressing it again deletes it.
+test("offers: an alert on a saved search, guest then signed in", async ({ page }) => {
+  const calls = [];
+  await page.route("**/rest/v1/search_alerts**", async (route) => {
+    const r = route.request(); calls.push(r.method());
+    if (r.method() === "GET") return route.fulfill(fake([]));
+    if (r.method() === "POST") { const b = r.postDataJSON(); return route.fulfill(fake({ id: "al1", label: b.label, params: b.params, lang: b.lang, last_sent_on: null })); }
+    return route.fulfill({ status: 204, headers: { "Access-Control-Allow-Origin": "*" }, body: "" });
+  });
+  await open(page, "#/offers");
+  await page.locator("#saveSearch").click();
+  const bell = page.locator("#savedSearches button[aria-pressed]").first();
+  await expect(bell).toHaveText("🔕");
+  await bell.click();
+  await expect(page.locator("#toast")).toContainText("Sign in to get the new offers");
+  await page.keyboard.press("Escape");
+  await page.evaluate(async () => {
+    const { state } = await import("/js/state.js"); const { renderSavedSearches } = await import("/js/offers.js");
+    state.user = { id: "00000000-0000-0000-0000-000000000001", email: "lea@example.com" }; state.alerts = undefined; renderSavedSearches();
+  });
+  await expect.poll(() => calls.includes("GET")).toBe(true);
+  page.once("dialog", (d) => { expect(d.message()).toContain("lea@example.com"); d.accept(); });
+  await page.locator("#savedSearches button[aria-pressed]").first().click();
+  await expect(page.locator("#savedSearches button[aria-pressed]").first()).toHaveText("🔔");
+  expect(calls).toContain("POST");
+  await page.locator("#savedSearches button[aria-pressed]").first().click();
+  await expect(page.locator("#savedSearches button[aria-pressed]").first()).toHaveText("🔕");
+  expect(calls).toContain("DELETE");
+});
+
 // Who's hiring on Home (pulse.js): Adzuna isn't called from tests, so the block is filled with a function answer.
 test("home: who's hiring, from Adzuna's top companies and regions", async ({ page }) => {
   await open(page, "#/");

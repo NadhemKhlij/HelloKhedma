@@ -1,12 +1,14 @@
 // E-mail reminders (ROADMAP 2.2), the switch on the Account page (#remindersPanel). Signed-in users only (a guest has
 // no e-mail address here). Off by default; turned on, the follow-up-reminders Edge Function sends one e-mail on the
 // days a follow-up is due or an interview is coming (profiles.email_reminders, reminders_lang = interface language).
-// "Send me a test e-mail now" asks the function for today's digest at once (one a day). Before the migration
+// "Send me a test e-mail now" asks the function for today's digest at once (one a day). Below: the offer alerts of the
+// account (alerts.js; turned on with 🔔 on a saved search) and "Send me today's offers now" (search-alerts, once a day). Before the migration
 // 20261108000100 is run, the panel says the feature is not available yet. Privacy policy: e-mail reminders (Resend).
 import { h, toast } from "./lib.js";
 import { t, lang } from "./i18n.js";
 import { sb } from "./supabase.js";
 import { state } from "./state.js";
+import { loadAlerts, testAlerts } from "./alerts.js";
 
 const LANG = lang === "fr" ? "fr" : "en";
 
@@ -41,5 +43,22 @@ export async function renderReminders(root) {
     h("div", { class: "flex flex-wrap gap-2" }, on
       ? [h("button", { type: "button", class: "btn-ghost", onClick: (e) => test(e.currentTarget) }, t("Send me a test e-mail now")),
         h("button", { type: "button", class: "btn-ghost", onClick: (e) => set(false, e.currentTarget) }, t("Stop e-mail reminders"))]
-      : h("button", { type: "button", class: "btn", onClick: (e) => set(true, e.currentTarget) }, t("E-mail me my follow-ups"))));
+      : h("button", { type: "button", class: "btn", onClick: (e) => set(true, e.currentTarget) }, t("E-mail me my follow-ups"))),
+    alertsBlock());
+}
+
+// Offer alerts of this account: their searches, and a test e-mail. Filled once the alerts are loaded.
+function alertsBlock() {
+  const box = h("div", { class: "grid gap-2 rounded-lg p-3 text-sm mt-1", style: "background:var(--bg);border:1px solid var(--line)" });
+  loadAlerts().then((list) => {
+    if (list === null) { box.remove(); return; } // the table is not there yet (migration 20261109000500)
+    box.replaceChildren(
+      h("p", { class: "font-medium" }, t("Offer alerts")),
+      list.length
+        ? h("ul", { class: "grid gap-1" }, list.map((a) => h("li", {}, `🔔 ${a.label}`)))
+        : h("p", { class: "mute" }, t("None yet. On the Offers page, save a search and press 🔕 next to it: the new offers of that search are e-mailed to you each morning.")),
+      list.length ? h("div", {}, h("button", { type: "button", class: "btn-ghost", onClick: async (e) => { e.currentTarget.disabled = true; await testAlerts(); } },
+        t("Send me today's offers now"))) : null);
+  });
+  return box;
 }

@@ -14,6 +14,7 @@
 // "Choose an offer" (offerpick.js, this browser only); a tracked offer keeps its text there too.
 // "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent); "✉ Cover letter" opens
 // letters.js (prompt to copy).
+// Saved searches can get an e-mail alert (🔔, alerts.js: signed-in users, saved to the account, search-alerts function).
 // Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode"),
 // when each search was last run ("hk.searchRuns", newest 30): offers posted since then get the "New" badge.
 // "More offers" asks every source for the next page and adds the offers not shown yet (job search tab only).
@@ -36,6 +37,7 @@ import { cvSwitcher, cvUsed } from "./cvpage.js";
 import { openTailor } from "./tailor.js";
 import { openCoverLetter } from "./letters.js";
 import { refreshTracker } from "./applications.js";
+import { loadAlerts, alertOf, toggleAlert } from "./alerts.js";
 
 const COUNTRIES = ["fr", "gb", "us", "de", "nl", "ca", "au", "be", "ch", "es", "it"];
 export const LOC_KEY = "hk.location";
@@ -307,13 +309,24 @@ const currentSearch = () => ({ query: $("#role").value, alt: $("#role").selected
   provider: $("#provider").value, country: $("#country").value });
 const sameSearch = (a, b) => ["query", "location", "provider", "country"].every((k) => a[k] === b[k]);
 
-function renderSavedSearches() {
-  const saved = loadList(SAVED_KEY);
+// 🔔 on a saved search: offer alerts by e-mail (alerts.js, signed-in users). Alerts made on another device are added to
+// this browser's saved searches once the account's alerts are loaded.
+export function renderSavedSearches() {
+  if (state.user && state.alerts === undefined) { loadAlerts().then(renderSavedSearches); }
+  let saved = loadList(SAVED_KEY);
+  const extra = (state.alerts || []).filter((a) => !saved.some((x) => alertOf(x) === a))
+    .map((a) => ({ query: a.params.query, alt: a.params.alt || "", path: a.params.path || "", location: a.params.location || "", provider: "all", country: a.params.country || "fr" }));
+  if (extra.length) { saved = [...saved, ...extra].slice(0, 8); ls.set(SAVED_KEY, JSON.stringify(saved)); }
   $("#savedSearches").replaceChildren(...saved.map((s, i) => h("span", { class: "chip text-xs flex items-center gap-2" },
     h("button", { type: "button", class: "hover:underline", title: t("Run this search"), onClick: () => runSavedSearch(s) },
       `☆ ${s.query}${s.location ? ` · ${s.location}` : ""} · ${s.country.toUpperCase()}`),
+    (() => { const on = Boolean(alertOf(s)); return h("button", { type: "button", class: on ? "" : "mute", "aria-pressed": String(on),
+      title: on ? t("Alert on: new offers e-mailed each morning. Press to stop.") : t("E-mail me the new offers of this search each morning"),
+      "aria-label": t("Offer alert for {query}", { query: s.query }),
+      onClick: async (e) => { e.currentTarget.disabled = true; await toggleAlert(s); renderSavedSearches(); } }, on ? "🔔" : "🔕"); })(),
     h("button", { type: "button", class: "mute", "aria-label": t("Remove saved search {query}", { query: s.query }), onClick: () => {
-      const list = loadList(SAVED_KEY); list.splice(i, 1); ls.set(SAVED_KEY, JSON.stringify(list)); renderSavedSearches();
+      const drop = () => { const list = loadList(SAVED_KEY); list.splice(i, 1); ls.set(SAVED_KEY, JSON.stringify(list)); renderSavedSearches(); };
+      if (alertOf(s)) toggleAlert(s).then((off) => { if (off) drop(); }); else drop(); // its alert goes with it
     } }, "×"))));
 }
 function onSaveSearch() {

@@ -42,7 +42,9 @@
 //   RATE_LIMIT_USER                 optional: searches per hour per signed-in user (default 60)
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 //
-// Request  (POST JSON): { query, alt?, path?, location?, provider?, country?, page?, filters? }   alt: see French titles
+// Request  (POST JSON): { query, alt?, path?, location?, provider?, country?, page?, filters?, alert? }   alert: true from
+//   the search-alerts function only (with header x-cron-secret = CRON_SECRET): no rate limit, not counted, and never
+//   JSearch, Jooble or Careerjet (ALERT_SKIP).   alt: see French titles
 //   above; path: career path id (de, da, ba, as, do, ai), used by La bonne alternance
 //   filters (Offers page, all optional): { contract: "CDI"|"CDD"|"Freelance"|"Internship"|"Apprenticeship",
 //   remote: "Remote"|"any-remote", days: 1|3|7|30 }. Sent to the sources that support them (Adzuna: max_days_old,
@@ -129,6 +131,8 @@ const SOURCE_TTL_H: Partial<Record<string, number>> = {
 };
 // A source that answered 429 (quota reached, too many requests) is not called again for this long ("pause|<source>").
 const PAUSE_MS = 3600_000;
+// Sources an offer alert never calls (see alertRun).
+const ALERT_SKIP = new Set(["jsearch", "jooble", "careerjet"]);
 // Rows older than this are deleted (salary statistics are kept 24 h too).
 const MAX_TTL_MS = Math.max(24, CACHE_TTL_H) * 3600_000;
 // Search texts in cache keys: same key for "Paris", "paris " and "Paris, France"; "Île" and "Ile".
@@ -634,9 +638,15 @@ Deno.serve(async (req) => {
   const wanted = String(body.provider ?? Deno.env.get("DEFAULT_PROVIDER") ?? "all");
   // France Travail comes first so that, for an offer listed on several sources, its full description wins the dedupe.
   const ALL: Source[] = ["francetravail", "adzuna", "jsearch", "jooble", "himalayas", "arbeitnow", "careerjet", "lba"];
-  const all = wanted === "all" || wanted === "both";
+  // Offer alerts (search-alerts function, header x-cron-secret = CRON_SECRET, body.alert = true): no rate limit, not
+  // counted as a visitor search, and only the sources that can run without a visitor: not JSearch (200 calls a month),
+  // Jooble (lifetime quota) or Careerjet (its rules want the IP of the person searching).
+  const cronSecret = Deno.env.get("CRON_SECRET") || "";
+  const alertRun = body.alert === true && Boolean(cronSecret) && req.headers.get("x-cron-secret") === cronSecret;
+  const all = alertRun || wanted === "all" || wanted === "both";
   const providers: Source[] = all
-    ? ALL.filter((p) => configured[p]() && !(p === "francetravail" && country !== "fr") && p !== "jooble" && !(p === "jsearch" && page > 1))
+    ? ALL.filter((p) => configured[p]() && !(p === "francetravail" && country !== "fr") && p !== "jooble" && !(p === "jsearch" && page > 1)
+      && !(alertRun && ALERT_SKIP.has(p)))
     : ALL.includes(wanted as Source) ? [wanted as Source] : ["adzuna"];
   if (!providers.length) return json({ error: "No job source is configured for this country." }, 502);
 
@@ -652,7 +662,7 @@ Deno.serve(async (req) => {
     normPlace(where), page, filters.contract, filters.remote, filters.days].join("|");
   const saved = new Map<Source, Job[]>();
   const paused = new Set<Source>(); // answered "429 too many requests / quota reached" less than PAUSE_MS ago
-  if (admin) {
+  if (admin && !alertRun) {
     const { bucket, limit } = await rateBucket(req);
     const { data: allowed, error } = await admin.rpc("job_search_hit", {
       p_bucket: bucket, p_limit: limit, p_window_seconds: 3600,
@@ -666,6 +676,8 @@ Deno.serve(async (req) => {
     // Anonymous daily counter for the admin page (day + count only; migration 20261106000200). Never blocks a search.
     const { error: countErr } = await admin.rpc("count_usage", { p_kind: "job_search" });
     if (countErr) console.error("usage count failed:", countErr.message);
+  }
+  if (admin) {
 
     const keys = [...providers, "jooble" as Source].filter((p) => SOURCE_TTL_H[p]).flatMap((p) => [sourceKey(p), `pause|${p}`]);
     const { data: rows, error: cacheErr } = await admin.from("job_search_cache").select("key, results, created_at").in("key", keys)
@@ -686,7 +698,7 @@ Deno.serve(async (req) => {
   const used: Source[] = [...providers];
   // Jooble as a backup (lifetime quota): only when the other sources found fewer than 10 offers on the first page.
   const found = results.reduce((n, r) => n + (r.status === "fulfilled" ? r.value.length : 0), 0);
-  if (all && page === 1 && found < 10 && configured.jooble()) {
+  if (all && !alertRun && page === 1 && found < 10 && configured.jooble()) {
     const [backup] = await Promise.allSettled([call("jooble")]);
     if (backup.status === "fulfilled") { results.push(backup); used.push("jooble"); } // a failed or empty backup is not a warning
   }

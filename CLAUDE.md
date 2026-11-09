@@ -55,7 +55,7 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 ## Tech stack
 - Frontend: HTML, Tailwind CSS 3 (css/input.css → css/app.css), vanilla JS ES modules, no bundler; installable PWA.
 - Backend: Supabase (PostgreSQL, Auth, Row Level Security, Edge Functions `job-search`, `delete-account`, `cv-tailor`,
-  `explain-mistake`, `follow-up-reminders`).
+  `explain-mistake`, `follow-up-reminders`, `search-alerts`).
 - Job data: France Travail, Adzuna, JSearch and Jooble through the `job-search` function (only providers with secrets set
   run; France Travail's API is closed to new users, its option is hidden until keys exist), plus Himalayas (remote, no
   CORS) and Arbeitnow (Europe, 2 MB pages, read hourly into the cache) there, key-less, always in "All sources";
@@ -80,7 +80,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 | LBA_API_TOKEN (La bonne alternance), CAREERJET_API_KEY (Careerjet publisher key, hellokhedma.io) | Supabase → Edge Functions → Secrets (job-search) |
 | ANTHROPIC_API_KEY; CV_TAILOR_DAILY_LIMIT, CV_TAILOR_MODEL (optional) | Supabase → Edge Functions → Secrets (cv-tailor) |
 | EXPLAIN_DAILY_LIMIT, EXPLAIN_MODEL, ASK_DAILY_LIMIT (optional; uses ANTHROPIC_API_KEY) | Supabase → Edge Functions → Secrets (explain-mistake) |
-| RESEND_API_KEY, CRON_SECRET; REMINDERS_FROM, SITE_URL (optional) | Supabase → Edge Functions → Secrets (follow-up-reminders) |
+| RESEND_API_KEY, CRON_SECRET; REMINDERS_FROM, SITE_URL (optional) | Supabase → Edge Functions → Secrets (follow-up-reminders, search-alerts; CRON_SECRET also lets search-alerts call job-search) |
+| ALERTS_DAILY_MAX (optional, default 120 alert searches a day) | Supabase → Edge Functions → Secrets (search-alerts) |
 | REMINDERS_CRON_SECRET (same value as CRON_SECRET) | GitHub → Actions → Secrets (reminders.yml only) |
 | SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (functions) | Provided automatically by Supabase; never in frontend |
 
@@ -269,7 +270,12 @@ Read the header comment of any file before modifying it; update the header if be
   create my CV" (one AI call: corrected + tailored CV opens in the CV maker with the changes and gaps) and "Rewrite
   only" (text) (cv-tailor function, signed-in users, after a notice)
 - js/offercoach.js — offer coach: offered salary vs the path's market (pulse.js marketPay), verdict, tips, prompt
-- js/reminders.js — "E-mail reminders" switch on the Account page (profiles.email_reminders) and the test e-mail
+- js/reminders.js — "E-mail reminders" switch on the Account page (profiles.email_reminders) and the test e-mail; the account's
+  offer alerts and "Send me today's offers now"
+- js/alerts.js — offer alerts: 🔔 on a saved search (Offers page), signed-in users, table search_alerts (migration
+  20261109000500, 3 per account, RLS), notice once ("hk.alertsOk"); the search-alerts function e-mails the new offers each
+  morning (reminders.yml, after follow-up-reminders), through job-search in alert mode (x-cron-secret: no rate limit, no
+  JSearch / Jooble / Careerjet)
 - js/letters.js — letters pack: cover letter prompt to copy (offers, CV match), thank-you / follow-up emails from a
   tracker card (templates EN + FR, copy or open in the email app; nothing is sent by HelloKhedma)
 - js/courses.js — course list and course page (tabs: lessons one at a time, quiz, flashcards, practice, interview, cheat sheet)
@@ -290,14 +296,15 @@ Read the header comment of any file before modifying it; update the header if be
 - content/courses/, content/interview/, content/projects/ — course, interview and project content (JSON)
 - supabase/migrations/ — schema and RLS
 - supabase/seed.sql — paths, tracks, steps, tools, tips, keywords (idempotent)
-- supabase/functions/job-search/, delete-account/, cv-tailor/, explain-mistake/, follow-up-reminders/ — Edge Functions
-  (cv-tailor: AI CV rewrite with Claude; explain-mistake: why a course answer is wrong and "Ask about this lesson" (mode "ask"), Claude Sonnet 5.5; follow-up-reminders: the opt-in daily e-mail, called by .github/workflows/reminders.yml)
+- supabase/functions/job-search/, delete-account/, cv-tailor/, explain-mistake/, follow-up-reminders/, search-alerts/ — Edge Functions
+  (cv-tailor: AI CV rewrite with Claude; explain-mistake: why a course answer is wrong and "Ask about this lesson" (mode "ask"), Claude Sonnet 5.5; follow-up-reminders: the opt-in daily e-mail, called by .github/workflows/reminders.yml; search-alerts: the opt-in offer
+  alerts e-mail, called by the same workflow until nothing remains)
 - scripts/whats-new.sh — before a deploy: what main got since your branch started, shared files, other branches
 - scripts/ — write-config.mjs (build config), copy-pyodide.mjs (build: Python engine into js/vendor/pyodide/), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node),
   gen-practice-2e.mjs (rebuilds the dwh / payments datasets and the payments log, fixed seed)
 - .github/workflows/deploy.yml — build, smoke tests, publish to GitHub Pages (main only)
 - .github/workflows/deploy-functions.yml — deploy one Edge Function on demand (Run workflow)
-- .github/workflows/reminders.yml — every morning, calls follow-up-reminders (needs REMINDERS_CRON_SECRET)
+- .github/workflows/reminders.yml — every morning, calls follow-up-reminders then search-alerts (needs REMINDERS_CRON_SECRET)
 - tests/smoke.spec.mjs, playwright.config.mjs — smoke tests (guest flows; no sign-in, no job search)
 - CHECKLIST.md — next-session note, owner tasks, done log; ROADMAP.md — roadmap + decisions log; README.md, GO-LIVE.md — setup guides
 

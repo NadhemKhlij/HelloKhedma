@@ -128,6 +128,21 @@ export const SKILLS = [
   ["Visio", "Tools", ["visio"]],
   ["Miro", "Tools", ["miro"]],
   ["SAP", "Tools", ["sap"]],
+  // Marketing (Digital Marketing path "mk", 2026-11-09)
+  ["SEO", "Marketing", ["seo", "search engine optimization", "search engine optimisation", "referencement naturel"]],
+  ["Google Ads", "Marketing", ["google ads", "google adwords", "adwords", "paid search", "sea", "referencement payant", "search ads"]],
+  ["Paid social", "Marketing", ["paid social", "social ads", "meta ads", "facebook ads", "instagram ads", "linkedin ads", "tiktok ads"]],
+  ["Social media marketing", "Marketing", ["social media marketing", "social media", "reseaux sociaux", "community management", "community manager"]],
+  ["Content marketing", "Marketing", ["content marketing", "marketing de contenu", "content strategy", "strategie de contenu", "inbound marketing"]],
+  ["Copywriting", "Marketing", ["copywriting", "redaction web", "ux writing"]],
+  ["Email marketing", "Marketing", ["email marketing", "e-mail marketing", "emailing", "e-mailing", "newsletter", "newsletters"]],
+  ["Marketing automation", "Marketing", ["marketing automation", "hubspot", "marketo", "brevo", "sendinblue", "mailchimp", "salesforce marketing cloud", "klaviyo"]],
+  ["CRM", "Marketing", ["crm", "customer relationship management", "gestion de la relation client"]],
+  ["Google Analytics", "Marketing", ["google analytics", "ga4", "universal analytics"]],
+  ["Google Tag Manager", "Marketing", ["google tag manager", "tag management", "plan de taggage"]],
+  ["Marketing analytics", "Marketing", ["marketing analytics", "web analytics", "digital analytics", "attribution", "marketing mix modeling", "mmm"]],
+  ["Growth marketing", "Marketing", ["growth marketing", "growth hacking", "growth marketer", "acquisition marketing"]],
+  ["Conversion rate optimization", "Marketing", ["conversion rate optimization", "conversion rate optimisation", "optimisation du taux de conversion", "landing page optimization"]],
   ["Salesforce", "Tools", ["salesforce"]],
 ];
 

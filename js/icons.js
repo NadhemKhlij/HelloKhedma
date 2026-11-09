@@ -34,6 +34,10 @@ const DRAW = {
     line("M12 16h36a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H26l-9 8v-8h-5a6 6 0 0 1-6-6V22a6 6 0 0 1 6-6z"),
     dot(20, 30, 2.6), dot(30, 30, 2.6), dot(40, 30, 2.6),
     line("M54 30h8v12"), ring(62, 46), line("M66 6v12M60 12h12"), dot(72, 24, 2)],
+  // Digital Marketing: a megaphone with a rising curve
+  mk: () => [
+    line("M14 30h8l20-12v32L22 38h-8z"), line("M22 38l3 12h7l-3-11"), line("M48 26c3 2 3 8 0 10"),
+    line("M54 50l6-8 5 4 7-12"), line("M67 34h5v5"), ring(54, 50), dot(18, 34, 2.4)],
 };
 const GENERIC = () => [line("M40 14v40M20 24l40 20M60 24L20 44"), ring(40, 14), ring(20, 24), dot(60, 44), ring(40, 54), dot(60, 24), ring(20, 44)];
 

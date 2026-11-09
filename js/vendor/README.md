@@ -11,4 +11,7 @@ Third-party code served from this site (no CDN, so no visitor data goes to a thi
   into one minified ES module with `esbuild entry.mjs --bundle --format=esm --platform=browser --minify
   --legal-comments=inline` where entry.mjs is `export { load, loadAll, YAMLException } from "js-yaml";` (package
   dist/js-yaml.mjs). Imported by js/filecheck.js ("fix this file" exercises), loaded on demand; CI imports the same file.
+- pyodide/ (not in git): Pyodide 314.0.7 (MPL-2.0, https://pyodide.org, CPython 3.14 compiled to WebAssembly), copied
+  from the npm devDependency by scripts/copy-pyodide.mjs at build time. js/pyworker.js loads it on demand for the
+  runnable Python exercises; CI runs the same version in scripts/check-content.mjs. Standard library only.
 Fonts are in fonts/ (Inter and Source Serif 4 from @fontsource, SIL Open Font License).

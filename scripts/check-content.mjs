@@ -19,7 +19,10 @@
 //     give a result; French copies with the same type, counts, correct option, bug line, files and code;
 //   - "fix this file" exercises (type fixfile, training step 2d, js/filecheck.js): known rules of the right file kind,
 //     the course answer passes every check and the starting file fails at least one; French copies with the same
-//     starting file, rules and answer.
+//     starting file, rules and answer;
+//   - runnable Python exercises (exercise.run = { python: tests }, training step 5): code "python", the course answer
+//     passes the hidden tests in Pyodide (devDependency pyodide, the same engine as the browser), the tests alone fail
+//     (they test something), a starting code (exercise.start) fails them.
 // The same rules as scripts/check-fr-content.ps1 (French) and the course smoke test, plus the structure rules above.
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -309,7 +312,7 @@ sameProjects("ai/fr/projects.json", aiAr, aiProjects.fr);
 const runnable = [];
 for (const e of index) {
   const c = existsSync(C("courses", `${e.id}.json`)) ? load(C("courses", `${e.id}.json`)) : null;
-  arr(c?.exercises).forEach((x, i) => { if (x.run) runnable.push({ where: `courses/${e.id}.json exercise ${i + 1}`, x }); });
+  arr(c?.exercises).forEach((x, i) => { if (x.run && x.run.python == null) runnable.push({ where: `courses/${e.id}.json exercise ${i + 1}`, x }); });
 }
 if (runnable.length) {
   const initSqlJs = createRequire(import.meta.url)("sql.js");
@@ -336,9 +339,36 @@ if (runnable.length) {
   }
 }
 
+/* ---------- runnable Python exercises ---------- */
+const pyRunnable = [];
+for (const e of index) {
+  const c = existsSync(C("courses", `${e.id}.json`)) ? load(C("courses", `${e.id}.json`)) : null;
+  arr(c?.exercises).forEach((x, i) => { if (x.run?.python != null) pyRunnable.push({ where: `courses/${e.id}.json exercise ${i + 1}`, x }); });
+}
+if (pyRunnable.length) {
+  const { loadPyodide } = await import("pyodide");
+  const py = await loadPyodide();
+  py.setStdout({ batched: () => {} }); py.setStderr({ batched: () => {} });
+  // Same steps as js/pyworker.js: a fresh namespace and folder, the code, then the tests. Returns null when they pass.
+  const attempt = async (code, tests) => {
+    py.runPython("import os, tempfile\nos.chdir(tempfile.mkdtemp())", { globals: py.globals.get("dict")() });
+    const ns = py.globals.get("dict")();
+    try { await py.runPythonAsync(code, { globals: ns }); } catch (err) { return `the code fails: ${String(err.message).trim().split("\n").at(-1)}`; }
+    try { await py.runPythonAsync(tests, { globals: ns }); return null; } catch (err) { return `a test fails: ${String(err.message).trim().split("\n").at(-1)}`; }
+  };
+  for (const { where, x } of pyRunnable) {
+    if (x.code !== "python") bad(where, "a runnable Python exercise must have code: \"python\"");
+    if (!str(x.run.python)) { bad(where, "run.python must hold the tests"); continue; }
+    const fail = await attempt(x.answer, x.run.python);
+    if (fail) bad(where, `the course answer does not pass its tests (${fail})`);
+    if (!(await attempt("", x.run.python))) bad(where, "the tests pass without any code: they test nothing");
+    if (x.start != null && !(await attempt(x.start, x.run.python))) bad(where, "the starting code already passes the tests");
+  }
+}
+
 /* ---------- result ---------- */
 const typed = index.reduce((n, e) => n + arr(existsSync(C("courses", `${e.id}.json`)) ? load(C("courses", `${e.id}.json`))?.exercises : []).filter((x) => x.type).length, 0);
-const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${SITE_PATHS.length * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises, ${typed} auto-graded exercises`;
+const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${SITE_PATHS.length * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises, ${pyRunnable.length} runnable Python exercises, ${typed} auto-graded exercises`;
 if (problems.length) {
   console.log(`Content check: ${problems.length} problem(s) (${counted})`);
   for (const p of problems) console.log(`  - ${p}`);

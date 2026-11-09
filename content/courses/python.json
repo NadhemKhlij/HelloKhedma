@@ -409,31 +409,36 @@
     {
       "q": "Given a list of job dicts with a 'salary' key, return the average salary rounded to the nearest euro.",
       "code": "python",
-      "answer": "def average_salary(jobs):\n    if not jobs:\n        return 0\n    return round(sum(j[\"salary\"] for j in jobs) / len(jobs))"
+      "answer": "def average_salary(jobs):\n    if not jobs:\n        return 0\n    return round(sum(j[\"salary\"] for j in jobs) / len(jobs))",
+      "run": {"python": "assert average_salary([{\"salary\": 30000}, {\"salary\": 35000}, {\"salary\": 40001}]) == 35000, \"average_salary of 30000, 35000 and 40001 should be 35000 (rounded to the euro)\"\nassert isinstance(average_salary([{\"salary\": 1}, {\"salary\": 2}]), int), \"round the average to a whole number of euros\"\nassert average_salary([]) == 0, \"average_salary([]) should return 0 instead of failing on an empty list\""}
     },
     {
       "q": "Count how many times each word appears in a sentence (case-insensitive).",
       "hint": "Split, lowercase, and use a dict or collections.Counter.",
       "code": "python",
-      "answer": "from collections import Counter\n\ndef word_counts(text):\n    return Counter(text.lower().split())"
+      "answer": "from collections import Counter\n\ndef word_counts(text):\n    return Counter(text.lower().split())",
+      "run": {"python": "assert dict(word_counts(\"Data data SQL\")) == {\"data\": 2, \"sql\": 1}, \"word_counts('Data data SQL') should give {'data': 2, 'sql': 1}\"\nassert dict(word_counts(\"\")) == {}, \"an empty sentence has no words\""}
     },
     {
       "q": "Write a function that reads a CSV file of jobs and returns the titles in Paris.",
       "hint": "csv.DictReader gives one dict per row.",
       "code": "python",
-      "answer": "import csv\n\ndef paris_titles(path):\n    with open(path, encoding=\"utf-8\", newline=\"\") as f:\n        return [row[\"title\"] for row in csv.DictReader(f) if row[\"city\"] == \"Paris\"]"
+      "answer": "import csv\n\ndef paris_titles(path):\n    with open(path, encoding=\"utf-8\", newline=\"\") as f:\n        return [row[\"title\"] for row in csv.DictReader(f) if row[\"city\"] == \"Paris\"]",
+      "run": {"python": "with open(\"jobs.csv\", \"w\", encoding=\"utf-8\", newline=\"\") as _f:\n    _f.write(\"title,city\\nData Engineer,Paris\\nData Analyst,Lyon\\nBI Developer,Paris\\n\")\nassert paris_titles(\"jobs.csv\") == [\"Data Engineer\", \"BI Developer\"], \"for a CSV with Paris, Lyon, Paris rows, the result should be ['Data Engineer', 'BI Developer'] in file order\""}
     },
     {
       "q": "Write count_errors(path) that returns the number of lines containing ERROR in a log file, and a pytest test for it using the tmp_path fixture.",
       "hint": "pathlib.Path.read_text().splitlines(); tmp_path gives a temporary folder.",
       "code": "python",
-      "answer": "from pathlib import Path\n\ndef count_errors(path: str) -> int:\n    return sum(1 for line in Path(path).read_text().splitlines() if \"ERROR\" in line)\n\n\ndef test_count_errors(tmp_path):\n    log = tmp_path / \"app.log\"\n    log.write_text(\"INFO ok\\nERROR boom\\nERROR again\\n\")\n    assert count_errors(log) == 2"
+      "answer": "from pathlib import Path\n\ndef count_errors(path: str) -> int:\n    return sum(1 for line in Path(path).read_text().splitlines() if \"ERROR\" in line)\n\n\ndef test_count_errors(tmp_path):\n    log = tmp_path / \"app.log\"\n    log.write_text(\"INFO ok\\nERROR boom\\nERROR again\\n\")\n    assert count_errors(log) == 2",
+      "run": {"python": "with open(\"app.log\", \"w\", encoding=\"utf-8\") as _f:\n    _f.write(\"INFO ok\\nERROR boom\\nWARN slow\\nERROR again\\n\")\nassert count_errors(\"app.log\") == 2, \"a log with 2 ERROR lines out of 4 should give 2\""}
     },
     {
       "q": "Write a generator read_jsonl(path) that yields one dict per line of a JSON Lines file and skips blank lines.",
       "hint": "Iterate over the open file line by line and json.loads each non-empty line.",
       "code": "python",
-      "answer": "import json\nfrom pathlib import Path\n\ndef read_jsonl(path: Path):\n    with path.open(encoding=\"utf-8\") as f:\n        for line in f:\n            if line.strip():\n                yield json.loads(line)"
+      "answer": "import json\nfrom pathlib import Path\n\ndef read_jsonl(path: Path):\n    with path.open(encoding=\"utf-8\") as f:\n        for line in f:\n            if line.strip():\n                yield json.loads(line)",
+      "run": {"python": "import types as _types\nfrom pathlib import Path as _Path\n_Path(\"offers.jsonl\").write_text('{\"id\": 1}\\n\\n{\"id\": 2}\\n', encoding=\"utf-8\")\n_g = read_jsonl(_Path(\"offers.jsonl\"))\nassert isinstance(_g, _types.GeneratorType), \"read_jsonl should be a generator (use yield)\"\nassert list(_g) == [{\"id\": 1}, {\"id\": 2}], \"the blank line should be skipped: expected [{'id': 1}, {'id': 2}]\""}
     },
     {
       "q": "Fetch every item from a cursor-paginated API: each response has \"items\" and \"next_cursor\" (null on the last page).",
@@ -445,7 +450,8 @@
       "q": "Create a dataclass Offer(title, salary_min, salary_max) that raises ValueError when salary_min > salary_max and exposes a midpoint property.",
       "hint": "Validate in __post_init__; @property for the computed value.",
       "code": "python",
-      "answer": "from dataclasses import dataclass\n\n@dataclass\nclass Offer:\n    title: str\n    salary_min: int\n    salary_max: int\n\n    def __post_init__(self) -> None:\n        if self.salary_min > self.salary_max:\n            raise ValueError(\"salary_min must be <= salary_max\")\n\n    @property\n    def midpoint(self) -> float:\n        return (self.salary_min + self.salary_max) / 2"
+      "answer": "from dataclasses import dataclass\n\n@dataclass\nclass Offer:\n    title: str\n    salary_min: int\n    salary_max: int\n\n    def __post_init__(self) -> None:\n        if self.salary_min > self.salary_max:\n            raise ValueError(\"salary_min must be <= salary_max\")\n\n    @property\n    def midpoint(self) -> float:\n        return (self.salary_min + self.salary_max) / 2",
+      "run": {"python": "assert Offer(\"Data Engineer\", 40000, 50000).midpoint == 45000, \"the midpoint of 40000 and 50000 should be 45000\"\ntry:\n    Offer(\"Data Engineer\", 60000, 50000)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"Offer with salary_min > salary_max should raise ValueError\")"}
     },
     {
       "q": "Write slugify(text) (\"Data Engineer\" -> \"data-engineer\", \"  BI / Reporting \" -> \"bi-reporting\") and one parametrized pytest test covering these cases and the empty string.",
@@ -476,7 +482,9 @@
       "snippet": "prices = {\"apple\": 1.2, \"pear\": 0.8}\nfor name, price in prices:\n    print(f\"{name}: {price:.2f} €\")",
       "fix": "prices = {\"apple\": 1.2, \"pear\": 0.8}\nfor name, price in prices.items():\n    print(f\"{name}: {price:.2f} €\")",
       "answer": "Looping over a dict gives its keys only (\"apple\", \"pear\"), and Python tries to unpack each string into two names. .items() gives (key, value) pairs."
-    }
+    },
+    {"q": "Write top_skills(offers, skills, n=3): offers is a list of offer texts, skills a list of skill names; return the n skills found in the most offers (case-insensitive, a skill counts once per offer), most frequent first, ties in the order of the skills list.", "hint": "Loop over the offers; for each one, the set of skills whose lowercase name is in the lowercase text; count with a Counter; sort by count (descending), then by position in skills.", "code": "python", "answer": "from collections import Counter\n\ndef top_skills(offers, skills, n=3):\n    counts = Counter()\n    for text in offers:\n        low = text.lower()\n        counts.update({s for s in skills if s.lower() in low})\n    ranked = sorted(skills, key=lambda s: (-counts[s], skills.index(s)))\n    return [s for s in ranked if counts[s]][:n]", "run": {"python": "offers = [\"Data Analyst: SQL, Power BI, Excel\", \"SQL and Python, Airflow\", \"Python, sql, Tableau\", \"Excel expert\"]\nskills = [\"Python\", \"SQL\", \"Excel\", \"Power BI\", \"Airflow\"]\nassert top_skills(offers, skills) == [\"SQL\", \"Python\", \"Excel\"], \"expected ['SQL', 'Python', 'Excel'] (SQL in 3 offers, Python 2, Excel 2: ties keep the skills order)\"\nassert top_skills(offers, skills, n=1) == [\"SQL\"], \"n=1 should return only the most frequent skill\"\nassert top_skills([\"SQL SQL SQL\"], [\"SQL\", \"Python\"]) == [\"SQL\"], \"a skill counts once per offer, and skills found nowhere are left out\""}, "explain": "The set comprehension makes each skill count once per offer, whatever the number of mentions. Sorting the skills list with the key (-count, position) gives a stable, explainable order. Simple substring matching has limits (\"R\" or \"Go\" match inside other words): in real code, match whole words with a regex such as \\b, which is what the CV page does."},
+    {"q": "Write parse_salary(text) that turns salary texts from offers into a yearly amount in euros (int), or None when there is no number: \"45k€\" → 45000, \"45 000 €\" → 45000, \"50,000 EUR\" → 50000, \"Competitive\" → None.", "hint": "Lower-case the text, remove spaces and thousands separators (space, comma), find the number with a regex, multiply by 1000 when it is followed by k.", "code": "python", "answer": "import re\n\ndef parse_salary(text):\n    t = text.lower().replace(\" \", \"\").replace(\"\\u202f\", \"\").replace(\",\", \"\")\n    m = re.search(r\"(\\d+(?:\\.\\d+)?)(k?)\", t)\n    if not m:\n        return None\n    value = float(m.group(1))\n    if m.group(2) == \"k\":\n        value *= 1000\n    return int(value)", "run": {"python": "for text, want in [(\"45k€\", 45000), (\"45 000 €\", 45000), (\"50,000 EUR\", 50000), (\"Competitive\", None), (\"52.5k\", 52500)]:\n    got = parse_salary(text)\n    assert got == want, f\"parse_salary({text!r}) should return {want!r}, not {got!r}\""}, "explain": "Normalising first (lower case, no spaces or commas) leaves one simple pattern to match: digits, an optional decimal part and an optional k. Returning None for \"Competitive\" (instead of 0) keeps unknown salaries out of averages. Real offers are messier (ranges like 45-55k, monthly amounts, the French 45 000 € with a narrow no-break space): HelloKhedma's own salary reader handles those, and each new case should come with a test like the ones here."}
   ],
   "interview": [
     {

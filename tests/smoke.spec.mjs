@@ -482,6 +482,8 @@ test("ask about this lesson: sign-in for guests, answer for signed-in learners, 
   await box.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(box).toContainText("Saved on this device");
   expect(calls).toHaveLength(1);
+});
+
 // Runnable Python (training step 5, pyrun.js + pyworker.js, Pyodide built into js/vendor/pyodide): a wrong function
 // fails a hidden test and offers "Explain my mistake", the right one passes; ▶ Run shows what the code prints.
 test("runnable Python: hidden tests reject a wrong answer and accept the right one", async ({ page }) => {

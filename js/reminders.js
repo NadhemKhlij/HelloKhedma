@@ -37,14 +37,14 @@ export async function renderReminders(root) {
     toast(msg || t("Nothing is due today: no e-mail would be sent."));
     btn.disabled = false;
   };
-  root.replaceChildren(head, what,
+  root.replaceChildren(...[head, what,
     h("p", { class: "text-sm font-medium" }, on ? t("✓ On: e-mails go to {email}, around 7:00 (Paris time).", { email: u.email }) : t("Off (off by default).")),
     on ? null : h("p", { class: "mute text-xs" }, t("The e-mail contains the job titles, companies, next actions and dates of those applications. It is sent through our e-mail provider (Resend) and nothing else is shared. Turn it off at any time.")),
     h("div", { class: "flex flex-wrap gap-2" }, on
       ? [h("button", { type: "button", class: "btn-ghost", onClick: (e) => test(e.currentTarget) }, t("Send me a test e-mail now")),
         h("button", { type: "button", class: "btn-ghost", onClick: (e) => set(false, e.currentTarget) }, t("Stop e-mail reminders"))]
       : h("button", { type: "button", class: "btn", onClick: (e) => set(true, e.currentTarget) }, t("E-mail me my follow-ups"))),
-    alertsBlock());
+    alertsBlock()].filter(Boolean)); // replaceChildren would write "null" for the missing note
 }
 
 // Offer alerts of this account: their searches, and a test e-mail. Filled once the alerts are loaded.
@@ -57,7 +57,7 @@ function alertsBlock() {
       list.length
         ? h("ul", { class: "grid gap-1" }, list.map((a) => h("li", {}, `🔔 ${a.label}`)))
         : h("p", { class: "mute" }, t("None yet. On the Offers page, save a search and press 🔕 next to it: the new offers of that search are e-mailed to you each morning.")),
-      list.length ? h("div", {}, h("button", { type: "button", class: "btn-ghost", onClick: async (e) => { e.currentTarget.disabled = true; await testAlerts(); } },
+      list.length ? h("div", { class: "flex" }, h("button", { type: "button", class: "btn-ghost", onClick: async (e) => { e.currentTarget.disabled = true; await testAlerts(); } },
         t("Send me today's offers now"))) : null);
   });
   return box;

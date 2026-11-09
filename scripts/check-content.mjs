@@ -26,7 +26,9 @@
 //   - runnable Python exercises (exercise.run = { python: tests }, training step 5): code "python", the course answer
 //     passes the hidden tests in Pyodide (devDependency pyodide, the same engine as the browser; pandas from the built
 //     js/vendor/pyodide/), the tests alone fail
-//     (they test something), a starting code (exercise.start) fails them.
+//     (they test something), a starting code (exercise.start) fails them;
+//   - coloured code (js/highlight.js): the coloured pieces of every lesson example and code answer join back into
+//     exactly the same code (what is shown is what is copied).
 // The same rules as scripts/check-fr-content.ps1 (French) and the course smoke test, plus the structure rules above.
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -37,6 +39,7 @@ import { gradeResult } from "../js/sqlgrade.js";
 import { blanks as countBlanks, parseCron, regexRun, jq } from "../js/drillcheck.js";
 import { checkFile, RULES as FILE_RULES } from "../js/filecheck.js";
 import { evaluate as evalFormula, grade as gradeFormula, usesCell } from "../js/excelcheck.js";
+import { tokens } from "../js/highlight.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const C = (...p) => join(ROOT, "content", ...p);
@@ -77,6 +80,10 @@ function checkCourse(where, c) {
     if (e.type) checkDrill(`${where} exercise ${i + 1} (${e.type})`, e);
   });
   arr(c.interview).forEach((q, i) => { if (!str(q.q) || !str(q.a)) bad(where, `interview question ${i + 1}: needs q and a`); });
+  // Coloured code (js/highlight.js): the pieces must give back exactly the code that is shown and copied.
+  const sameCode = (code, lang, what) => { if (str(code) && tokens(code, lang).map((x) => x[1]).join("") !== code) bad(where, `${what}: js/highlight.js changes this code (${lang})`); };
+  arr(c.lessons).forEach((l, i) => { if (l.example) sameCode(l.example.code, l.example.lang, `lesson ${i + 1} example`); });
+  arr(c.exercises).forEach((e, i) => { if (e.code) sameCode(e.answer, e.code, `exercise ${i + 1} answer`); });
 }
 
 // Two versions of the same content (EN/FR, Arabic letters/3arbizi): same structure, identical code.

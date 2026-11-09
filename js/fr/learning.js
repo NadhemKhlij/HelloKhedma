@@ -277,4 +277,22 @@ export default {
   "Start the course": "Commencer le cours",
   "Job source calls saved": "Appels aux sources d’offres évités",
   "{hits} of {all} answers reused, 30 days": "{hits} réponses réutilisées sur {all}, 30 jours",
+
+  /* ---------- lesson player: steps, quick check, celebration (2026-11-09) ---------- */
+  "Continue": "Continuer",
+  "Show the whole lesson": "Afficher toute la leçon",
+  "Read step by step": "Lire étape par étape",
+  "✓ Complete lesson": "✓ Terminer la leçon",
+  "Lesson complete!": "Leçon terminée !",
+  "Course complete! 🎉": "Cours terminé ! 🎉",
+  "{n} day in a row": "{n} jour d’affilée",
+  "{n} days in a row": "{n} jours d’affilée",
+  "Study streak: {n} day": "Série d’étude : {n} jour",
+  "Study streak: {n} days": "Série d’étude : {n} jours",
+  "Quick check {s}/{n}": "Vérification rapide {s}/{n}",
+  "{d}/{n} lessons": "{d}/{n} leçons",
+  "Up next: ": "Ensuite : ",
+  "Practice exercises": "Exercices pratiques",
+  "⚡ Quick check": "⚡ Vérification rapide",
+  "{s}/{n} right · these cards come back in your reviews.": "{s}/{n} juste(s) · ces cartes reviendront dans vos révisions.",
 };

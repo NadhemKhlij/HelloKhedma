@@ -1,6 +1,10 @@
 # HelloKhedma: launch checklist
 
 ## 👉 Next session (written 2026-11-08)
+- **Just finished (2026-11-09, evening), branch `claude/awesome-cannon-17lkgm`:** livelier lessons after the owner found
+  the courses dull: step-by-step reading with a progress bar, coloured code, a quick check in each lesson, a
+  celebration when a lesson is done, a path map of the lessons, streak and XP in the course header. Owner confirmed
+  step by step as the default (2026-11-09) and asked to ship it. Nothing to set up.
 - **Just finished (2026-11-08):** AI Engineer career path + the AI track in English and French (see Done), merged after
   Training step 3. O35 done (seed re-run). The owner also discussed adding more job APIs (ROADMAP Phase 3b, O32).
 - **Parallel work (2026-11-08):** every session runs `sh scripts/whats-new.sh` at the start and before each merge into
@@ -93,6 +97,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-09 | Livelier lessons (owner feedback: courses looked dull): each lesson is read one step at a time (paragraph, example, key points) with a segmented progress bar and "Continue"; "Show the whole lesson" for reading it all at once (remembered). A "⚡ Quick check" of 1–2 questions ends ~85 % of the lessons (generated from the cheat sheet items each lesson teaches; answers give XP and join the reviews). Code is coloured (SQL, Python, DAX, YAML, Bash… WCAG AA in both themes) and code words in the text are shown as code. "✓ Complete lesson" shows a small celebration (XP, streak, quick check score, up next). Lesson list drawn as a path map; streak and XP in the course header. Works in EN / FR and for the AI track in Derja (right to left). CI checks that the colouring never changes code; new smoke test; axe checks the whole lesson. Nothing for the owner |
 | 2026-11-09 | Roadmaps point to our courses (owner: "DAX is not in the Data Analyst path", "learn without going elsewhere"): training_steps.course_id, 71 steps of the seven paths linked to HelloKhedma courses (outside resource kept as "also: …"), a finished course ticks its step, the study plan counts each course once; Data Analyst: new steps Excel and DAX, DAX keyword. Needs O45 (its seed run also covers O44). Next (owner's go): DAX engine in the browser, then DAX foundations course |
 | 2026-11-09 | O34 done by the owner: follow-up-reminders and search-alerts deployed, the test e-mail arrived. E-mail reminders and offer alerts run every morning (reminders.yml) |
 | 2026-11-09 | "Send me a test e-mail now" (owner report: nothing happened): it only sent when a follow-up was due. Now it always sends (when nothing is due, a short "your reminders work" e-mail), and a refusal by Resend shows its reason on the page (also for "Send me today's offers now"). Needs follow-up-reminders and search-alerts deployed again (O34) |

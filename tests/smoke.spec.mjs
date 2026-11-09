@@ -42,7 +42,8 @@ test("logo in the top bar, icons served, browser bar colour follows the theme", 
 // and with a path colour that is hard to read on white (Application Support, orange); and the keyboard basics.
 for (const theme of ["light", "dark"]) {
   test(`accessibility: main pages pass axe in the ${theme} theme`, async ({ page }) => {
-    await page.addInitScript((th) => { localStorage.setItem("hk.theme", th); localStorage.setItem("hk.path", "as"); }, theme);
+    // Lessons open whole ("hk.lessonView"), so the coloured code and the quick check are checked too.
+    await page.addInitScript((th) => { localStorage.setItem("hk.theme", th); localStorage.setItem("hk.path", "as"); localStorage.setItem("hk.lessonView", "all"); }, theme);
     const problems = [];
     for (const route of ["#/", "#/offers", "#/training", "#/course/sql", "#/cv", "#/cv/maker", "#/interview", "#/applications", "#/account", "#/ai", "#/privacy"]) {
       await open(page, route);
@@ -654,6 +655,50 @@ test("account: CV sync needs an account, anonymous statistics can be turned on a
   await expect(stats).toContainText("You share anonymous statistics");
   await stats.getByRole("button", { name: "Stop sharing" }).click();
   await expect(stats).toContainText("off by default");
+});
+
+// Lessons (2026-11-09): read step by step (paragraphs, example, key points), coloured code that stays the same code,
+// code words in the text, a quick check from the cheat sheet that schedules reviews, a celebration when the lesson is
+// done, then the next lesson; "Show the whole lesson" is remembered.
+test("a lesson is read step by step, with a quick check and a celebration", async ({ page }) => {
+  await open(page, "#/course/sql");
+  const lesson = page.locator('section[data-page="course"] article');
+  const course = await page.evaluate(async () => (await fetch("content/courses/sql.json")).json());
+  await expect(lesson.locator("[data-step]")).toHaveCount(1);
+  await expect(lesson.locator(".lesson-p code.inline-code").first()).toBeVisible();
+  const steps = await lesson.locator(".lseg > span").count();
+  for (let i = 1; i < steps; i++) await lesson.locator("[data-continue]").click();
+  await expect(lesson.locator("[data-step]")).toHaveCount(steps);
+  await expect(lesson.locator("[data-continue]")).toHaveCount(0);
+  await expect(lesson.locator("pre .tok-kw").first()).toHaveText("SELECT");
+  expect(await lesson.locator("pre code").textContent()).toBe(course.lessons[0].example.code);
+  // Quick check: every answer right, found in the cheat sheet.
+  const pairs = course.cheatsheet.flatMap((g) => g.items), check = lesson.locator("[data-quick-check]");
+  await expect(check).toBeVisible();
+  for (let i = 0; await check.locator("[data-q]").nth(i).count(); i++) {
+    const q = check.locator("[data-q]").nth(i), prompt = q.locator("[data-prompt]");
+    const side = await prompt.getAttribute("data-prompt"), text = (await prompt.textContent()).trim();
+    const pair = pairs.find((p) => (side === "front" ? p[0] : p[1]) === text);
+    await q.getByRole("button", { name: side === "front" ? pair[1] : pair[0], exact: true }).click();
+    await expect(q).toContainText("Correct");
+  }
+  const n = await check.locator("[data-q]").count();
+  await expect(check).toContainText(`${n}/${n} right`);
+  expect(await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("hk.srs") || "{}").sql || {}).length)).toBe(n);
+  // Done: the celebration, the lesson saved, then the next lesson from the start.
+  await lesson.getByRole("button", { name: "✓ Complete lesson" }).click();
+  await expect(lesson.locator(".celebrate")).toContainText("Lesson complete!");
+  await expect(lesson.locator(".celebrate")).toContainText(`Quick check ${n}/${n}`);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("hk.lessons") || "[]"))).toContain("sql:0");
+  await lesson.getByRole("button", { name: "Next lesson →" }).click();
+  await expect(lesson.locator(".eyebrow").first()).toContainText("Lesson 2 of");
+  await expect(lesson.locator("[data-step]")).toHaveCount(1);
+  // The whole lesson at once, still so after a reload.
+  await lesson.getByRole("button", { name: "Show the whole lesson" }).click();
+  await expect(lesson.locator("[data-continue]")).toHaveCount(0);
+  await page.reload();
+  await expect(lesson.getByRole("button", { name: "Read step by step" })).toBeVisible();
+  await expect(lesson.locator("[data-continue]")).toHaveCount(0);
 });
 
 test("a course opens with its tabs and the quiz", async ({ page }) => {

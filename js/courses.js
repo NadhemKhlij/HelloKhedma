@@ -19,15 +19,23 @@
 // French, Derja in Arabic letters or 3arbizi), right-to-left content in Arabic letters, a language switch in the header
 // and a back link to #/ai. Its ready courses are added to the course index as the courses of the AI Engineer path
 // ("ai"), with their names in the track's current language, so Training, "Close the gaps" and Interview prep list them.
-// Course page: header with progress, then tabs: Lessons (one lesson at a time, lesson list + "Mark as done & continue"),
-// Quiz, Flashcards, Practice, Interview (practice.js) and the printable Cheat sheet. XP and "Resume" via activity.js.
+// Course page: header with progress, streak and XP, then tabs: Lessons, Quiz, Flashcards, Practice, Interview
+// (practice.js) and the printable Cheat sheet. XP and "Resume" via activity.js.
+// Lessons (2026-11-09, "lessons felt dull"): the lesson list is a path map (done / current / next), and a lesson is read
+// one step at a time: each paragraph, then the example, the key points and a "⚡ Quick check" (practice.js
+// lessonChecks / quickCheck: up to 2 questions from the cheat sheet items the lesson teaches, none when no item
+// matches), with a segmented progress bar and "Continue". "Show the whole lesson" switches to reading it all at once
+// (remembered in this browser, "hk.lessonView" = "all"); a lesson already done opens whole. "✓ Complete lesson" shows a
+// small celebration (XP, streak, quick check score) and what comes next. Code is coloured and code words in the text
+// are shown as code (highlight.js). Steps are built from the course JSON, so nothing changes in the content files.
 // Under each lesson, "💬 Ask about this lesson" (asklesson.js: Claude answers from the lesson, signed-in users).
 // At the bottom, "⚑ Report a problem" (report.js), preset to the open lesson or tab.
 import { $, h, ls, toast, safeUrl } from "./lib.js";
-import { t, lang, fetchContent } from "./i18n.js";
+import { t, tn, lang, fetchContent } from "./i18n.js";
 import { isAiCourse, aiScript, aiMeta, aiDir, aiText, loadAiCourse, loadAiIndex, scriptSwitch } from "./aitrack.js";
-import { logActivity, setLastCourse, lastCourse } from "./activity.js";
-import { quiz, flashcards, exercises, interviewCards, quizBest, exercisesSolved } from "./practice.js";
+import { logActivity, setLastCourse, lastCourse, streak, xp } from "./activity.js";
+import { quiz, flashcards, exercises, interviewCards, quizBest, exercisesSolved, lessonChecks, quickCheck } from "./practice.js";
+import { highlight, codeWords, inlineCode } from "./highlight.js";
 import { lessonTime, courseTime, formatMinutes } from "./coursetime.js";
 import { logInsight } from "./insights.js";
 import { reportBox } from "./report.js";
@@ -36,6 +44,10 @@ import { passedCourses } from "./srs.js";
 
 const BASE = "content/courses/";
 const LESSONS_KEY = "hk.lessons";
+const VIEW_KEY = "hk.lessonView"; // "all": read a lesson all at once; otherwise step by step
+// The header's streak and XP follow every learning action (logActivity) on the open course page.
+let onActivity = null;
+document.addEventListener("hk:activity", () => onActivity?.());
 let index = [];
 const cache = new Map();
 
@@ -75,6 +87,7 @@ export function courseForSkill(name) {
 }
 
 function lessonCount(c) { return c.lessonCount || 0; }
+const fill = (el, ...kids) => el.replaceChildren(...kids.filter(Boolean)); // replaceChildren() would print null as text
 const lessonsDone = (id, done = doneSet()) => [...done].filter((k) => k.startsWith(`${id}:`)).length;
 
 function courseCard(c, done, known = new Set()) {
@@ -144,7 +157,7 @@ function codeBlock(lang, code, play) {
       try { await navigator.clipboard.writeText(code); btn.textContent = t("Copied ✓"); } catch { btn.textContent = t("Copy failed"); }
       setTimeout(() => { btn.textContent = t("Copy"); }, 1500);
     } }, t("Copy"));
-  return h("div", { class: "relative", dir: "ltr" }, h("pre", { tabindex: "0", class: `codeblock ${play ? "!pr-36" : "!pr-16"}`, "data-lang": lang || "" }, h("code", {}, code)), // ltr inside Arabic text too
+  return h("div", { class: "relative", dir: "ltr" }, h("pre", { tabindex: "0", class: `codeblock ${play ? "!pr-36" : "!pr-16"}`, "data-lang": lang || "" }, h("code", {}, highlight(code, lang))), // ltr inside Arabic text too
     h("div", { class: "absolute top-2 right-2 flex gap-1" }, play ? playLink(play, () => code) : null, btn));
 }
 
@@ -186,10 +199,13 @@ export async function renderCourse(id) {
         h("span", { id: "courseProgress", class: "font-medium" }, t("{d}/{n} lessons done", { d, n })),
         h("span", { class: "mute" }, best != null ? t("Quiz best {s}", { s: best }) : t("Quiz not taken yet")),
         c.exercises?.length ? h("span", { class: "mute" }, t("{d}/{n} exercises solved", { d: ex, n: c.exercises.length })) : null,
-        d === n ? h("span", { class: "badge ml-auto", style: "background:color-mix(in srgb,var(--ok) 18%,var(--panel));color:var(--ok)" }, t("🏅 Course complete")) : null),
+        d === n ? h("span", { class: "badge", style: "background:color-mix(in srgb,var(--ok) 18%,var(--panel));color:var(--ok)" }, t("🏅 Course complete")) : null,
+        h("span", { class: "chip !py-0 text-xs ml-auto", title: tn(streak(), "Study streak: {n} day", "Study streak: {n} days") }, `🔥 ${streak()} · ⚡ ${xp()} XP`)),
       h("div", { class: "h-2 rounded-full", style: "background:var(--line)" },
         h("div", { class: "h-2 rounded-full", style: `width:${Math.round((d / n) * 100)}%;background:${d === n ? "var(--ok)" : "var(--accent)"};transition:width .4s ease` })));
   };
+
+  onActivity = () => { if (progress.isConnected) drawProgress(); };
 
   const tabBar = h("div", { role: "tablist", "aria-label": t("Course sections"), "data-print-hide": "" });
   const body = h("div", { role: "tabpanel", ...(ai ? aiDir() : {}) }); // Tunisian in Arabic letters reads right to left
@@ -198,9 +214,11 @@ export async function renderCourse(id) {
     (k !== "interview" || c.interview?.length) && (k !== "practice" || c.exercises?.length)).map(([k, label]) =>
     h("button", { type: "button", role: "tab", class: tab === k ? "btn" : "btn-ghost", "aria-selected": String(tab === k), onClick: () => show(k) }, t(label))));
 
-  /* lessons: list on the left, one lesson on the right */
+  /* lessons: path map on the left, one lesson on the right, read step by step */
+  const words = codeWords(c), checks = lessonChecks(c);
+  const rich = (text) => inlineCode(text, words);
   function drawLessons() {
-    const l = c.lessons[cur], done = isDone(cur);
+    const l = c.lessons[cur], done = isDone(cur), isLast = cur === n - 1;
     setLastCourse(id, cur);
     const go = (i) => { cur = i; drawLessons(); const top = body.getBoundingClientRect().top; if (top < 0) body.scrollIntoView({ behavior: "smooth" }); };
     const toggle = (val) => {
@@ -211,42 +229,104 @@ export async function renderCourse(id) {
       // Anonymous statistics, only if the user opted in (insights.js): which courses get finished.
       if (!wasComplete && c.lessons.every((_, i) => s.has(`${id}:${i}`))) logInsight("course_done", ls.get("hk.path"), [id]);
     };
-    const list = h("ol", { class: "grid gap-1" }, c.lessons.map((x, i) => h("li", {},
-      h("button", { type: "button", class: "w-full text-left flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-[var(--soft)]",
+
+    /* the path map */
+    const list = h("ol", { class: "lmap grid gap-1" }, c.lessons.map((x, i) => h("li", { class: isDone(i) ? "done" : i === cur ? "cur" : "" },
+      h("button", { type: "button", class: "w-full text-left flex items-start gap-3 rounded-xl px-3 py-2 hover:bg-[var(--soft)]",
         style: i === cur ? "background:var(--soft)" : "", "aria-current": i === cur ? "step" : null, onClick: () => go(i) },
-        h("span", { class: "w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold",
+        h("span", { class: "lmap-node w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold",
           style: isDone(i) ? "background:var(--ok-fill);color:#fff" : i === cur ? "background:var(--accent-fill);color:#fff" : "background:var(--panel);border:1px solid var(--line)" },
           isDone(i) ? "✓" : String(i + 1)),
-        h("span", { class: "min-w-0" }, h("span", { class: "block text-sm font-medium leading-snug" }, x.title),
+        h("span", { class: "min-w-0 pt-0.5" }, h("span", { class: "block text-sm font-medium leading-snug" }, x.title),
           h("span", { class: "mute text-xs", dir: "ltr" }, `≈ ${formatMinutes(lessonTime(x).total)}`))))));
-    const isLast = cur === n - 1;
-    const nextBtn = done
-      ? (isLast ? h("button", { type: "button", class: "btn", onClick: () => show("quiz") }, t("Test yourself: take the quiz →"))
-        : h("button", { type: "button", class: "btn", onClick: () => go(cur + 1) }, t("Next lesson →")))
-      : h("button", { type: "button", class: "btn", onClick: () => {
-          toggle(true);
-          toast(t("+10 XP · lesson done"));
-          if (isLast) { drawLessons(); show("quiz"); } else go(cur + 1);
-        } }, isLast ? t("✓ Finish the course") : t("✓ Mark as done & continue"));
+
+    /* the steps: each paragraph, the example, the key points, the quick check */
+    let checkScore = null;
+    const steps = [
+      ...(l.text || []).map((p, k) => () => h("p", { class: `lesson-p${k === 0 ? " lesson-lead" : ""}` }, rich(p))),
+      ...(l.example ? [() => h("div", { class: "grid gap-1" },
+        h("p", { class: "eyebrow" }, t("Example")),
+        codeBlock(l.example.lang, l.example.code, l.example.try && c.playground),
+        l.example.note ? h("p", { class: "mute text-xs" }, rich(l.example.note)) : null)] : []),
+      ...(l.points?.length ? [() => h("div", { class: "rounded-xl p-4", style: "background:var(--soft)" },
+        h("p", { class: "eyebrow mb-2" }, t("Key points")),
+        h("ul", { class: "grid gap-2 text-sm" }, l.points.map((p) => h("li", { class: "flex gap-2" },
+          h("span", { class: "shrink-0", style: "color:var(--accent-ink)", "aria-hidden": "true" }, "✓"), h("span", {}, rich(p))))))] : []),
+      ...(checks[cur]?.length ? [() => quickCheck(c, checks[cur], { onDone: (s, all) => { checkScore = { s, all }; } })] : []),
+    ];
+    const stepView = ls.get(VIEW_KEY) !== "all";
+    let shown = done || !stepView ? steps.length : Math.min(1, steps.length);
+    const stepBox = h("div", { class: "grid grid-cols-[minmax(0,1fr)] gap-4", "aria-live": "polite" });
+    const segs = h("div", { class: `lseg${done ? " done" : ""}`, "aria-hidden": "true" }, steps.map(() => h("span")));
+    const drawSegs = () => [...segs.children].forEach((x, i) => x.classList.toggle("on", i < shown));
+    const addStep = (i, animate) => stepBox.append(h("div", { class: `min-w-0${animate ? " step-in" : ""}`, "data-step": String(i) }, steps[i]()));
+    for (let i = 0; i < shown; i++) addStep(i, false);
+
+    const foot = h("div", { class: "lesson-foot flex flex-wrap items-center gap-2 pt-4 mt-1", style: "border-top:1px solid var(--line)" });
+    const prevBtn = () => (cur > 0 ? h("button", { type: "button", class: "btn-ghost", onClick: () => go(cur - 1) }, t("← Previous")) : null);
+    const nextAction = () => (isLast
+      ? h("button", { type: "button", class: "btn", onClick: () => show("quiz") }, t("Test yourself: take the quiz →"))
+      : h("button", { type: "button", class: "btn", onClick: () => go(cur + 1) }, t("Next lesson →")));
+    const drawFoot = (focus) => {
+      let main;
+      if (shown < steps.length) {
+        main = h("button", { type: "button", class: "btn", "data-continue": "", onClick: () => {
+          addStep(shown++, true); drawSegs(); drawFoot(true);
+          stepBox.lastElementChild.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } }, t("Continue"));
+        fill(foot, prevBtn(), h("span", { class: "ml-auto mute text-xs" }, t("Step {n} of {all}", { n: shown, all: steps.length })), main);
+      } else if (!isDone(cur)) {
+        main = h("button", { type: "button", class: "btn", onClick: () => { toggle(true); celebrate(); } }, isLast ? t("✓ Finish the course") : t("✓ Complete lesson"));
+        fill(foot, prevBtn(), h("span", { class: "ml-auto" }), main);
+      } else {
+        main = nextAction();
+        fill(foot, prevBtn(), h("button", { type: "button", class: "mute text-xs underline", onClick: () => { toggle(false); drawLessons(); } }, t("Mark as not done")),
+          h("span", { class: "ml-auto" }), main);
+      }
+      if (focus) main.focus({ preventScroll: true });
+    };
+    // Lesson done: a short celebration with what was earned and what comes next.
+    const celebrate = () => {
+      const all = c.lessons.every((_, i) => isDone(i)), s = streak(), nx = c.lessons[cur + 1];
+      const next = nextAction(), node = list.children[cur]?.querySelector(".lmap-node");
+      list.children[cur].className = "done";
+      if (node) { node.textContent = "✓"; node.style.cssText = "background:var(--ok-fill);color:#fff"; }
+      foot.replaceChildren(h("div", { class: "celebrate w-full grid justify-items-center gap-3 text-center", role: "status" },
+        h("div", { class: "confetti", "aria-hidden": "true" }, [...Array(14)].map((_, k) => {
+          const a = (k / 14) * Math.PI * 2, d = 60 + (k % 3) * 25;
+          return h("i", { style: `--x:${Math.round(Math.cos(a) * d * 1.8)}px;--y:${Math.round(Math.sin(a) * d - 25)}px;--r:${(k * 47) % 360}deg;animation-delay:${(k % 4) * 40}ms` });
+        })),
+        h("span", { class: "celebrate-badge", "aria-hidden": "true" }, "✓"),
+        h("p", { class: "serif text-2xl" }, all ? t("Course complete! 🎉") : t("Lesson complete!")),
+        h("div", { class: "flex flex-wrap justify-center gap-2 text-sm" },
+          h("span", { class: "chip" }, "⚡ +10 XP"),
+          s ? h("span", { class: "chip" }, `🔥 ${tn(s, "{n} day in a row", "{n} days in a row")}`) : null,
+          checkScore ? h("span", { class: "chip" }, t("Quick check {s}/{n}", { s: checkScore.s, n: checkScore.all })) : null,
+          h("span", { class: "chip" }, t("{d}/{n} lessons", { d: c.lessons.filter((_, i) => isDone(i)).length, n }))),
+        nx ? h("p", { class: "text-sm" }, h("span", { class: "mute" }, t("Up next: ")), h("b", {}, nx.title), h("span", { class: "mute" }, ` · ≈ ${formatMinutes(lessonTime(nx).total)}`)) : null,
+        h("div", { class: "flex flex-wrap justify-center gap-2" }, next,
+          isLast && c.exercises?.length ? h("button", { type: "button", class: "btn-ghost", onClick: () => show("practice") }, t("Practice exercises")) : null)));
+      badge.hidden = false; viewBtn.hidden = true; segs.classList.add("done");
+      next.focus({ preventScroll: true });
+      foot.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    };
+
+    const badge = h("span", { class: "badge", hidden: !done, style: "background:color-mix(in srgb,var(--ok) 18%,var(--panel));color:var(--ok)" }, t("Done"));
+    // Step by step (default) or the whole lesson at once, remembered in this browser.
+    const viewBtn = h("button", { type: "button", class: "ml-auto mute text-xs underline", hidden: done,
+      onClick: () => { ls.set(VIEW_KEY, stepView ? "all" : "steps"); drawLessons(); } },
+      stepView ? t("Show the whole lesson") : t("Read step by step"));
+    drawSegs(); drawFoot(false);
     body.replaceChildren(h("div", { class: "grid gap-4 grid-cols-[minmax(0,1fr)] lg:grid-cols-[260px_minmax(0,1fr)] items-start" },
       h("nav", { class: "panel !p-2 order-last lg:order-none lg:sticky lg:top-20", "aria-label": t("Lessons") }, list),
-      h("article", { class: "panel grid grid-cols-[minmax(0,1fr)] gap-3 min-w-0" },
-        h("p", { class: "eyebrow" }, t("Lesson {n} of {all} · {time}", { n: cur + 1, all: n, time: `≈ ${formatMinutes(lessonTime(l).total)}` }),
-          done ? h("span", { class: "badge", style: "background:color-mix(in srgb,var(--ok) 18%,var(--panel));color:var(--ok)" }, t("Done")) : null),
-        h("h2", { class: "serif !text-2xl !font-medium !mb-0" }, l.title),
-        ...(l.text || []).map((p) => h("p", { class: "leading-relaxed" }, p)),
-        l.points?.length ? h("div", { class: "rounded-xl p-4", style: "background:var(--soft)" },
-          h("p", { class: "eyebrow mb-2" }, t("Key points")),
-          h("ul", { class: "grid gap-1.5 text-sm" }, l.points.map((p) => h("li", { class: "flex gap-2" }, h("span", { style: "color:var(--accent-ink)" }, "●"), h("span", {}, p))))) : null,
-        l.example ? h("div", { class: "grid gap-1" },
-          h("p", { class: "eyebrow" }, t("Example")),
-          codeBlock(l.example.lang, l.example.code, l.example.try && c.playground),
-          l.example.note ? h("p", { class: "mute text-xs" }, l.example.note) : null) : null,
-        askBox(c, l, cur),
-        h("div", { class: "flex flex-wrap items-center gap-2 pt-3 mt-1", style: "border-top:1px solid var(--line)" },
-          cur > 0 ? h("button", { type: "button", class: "btn-ghost", onClick: () => go(cur - 1) }, t("← Previous")) : null,
-          done ? h("button", { type: "button", class: "mute text-xs underline", onClick: () => { toggle(false); drawLessons(); } }, t("Mark as not done")) : null,
-          h("span", { class: "ml-auto" }), nextBtn))));
+      h("article", { class: "panel lesson grid grid-cols-[minmax(0,1fr)] gap-3 min-w-0" },
+        h("div", { class: "flex flex-wrap items-center gap-2" },
+          h("p", { class: "eyebrow" }, t("Lesson {n} of {all} · {time}", { n: cur + 1, all: n, time: `≈ ${formatMinutes(lessonTime(l).total)}` })),
+          badge, viewBtn),
+        h("h2", { class: "serif !text-2xl sm:!text-[1.75rem] !font-medium !mb-0 leading-tight" }, l.title),
+        steps.length > 1 ? segs : null,
+        stepBox, foot,
+        askBox(c, l, cur))));
   }
 
   function drawCheat() {

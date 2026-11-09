@@ -261,6 +261,13 @@ Traffic Manager). A data-minded marketing path: it fits the app (CV keywords, of
 
 ## Decisions log (so they are not reopened by accident)
 
+- 2026-11-09: Lessons are read step by step by default (owner feedback: "the courses looked dull, I couldn't keep
+  attention"): one paragraph at a time, then the example, key points and a quick check, with coloured code and a
+  celebration at the end; the owner confirmed step by step as the default. "Show the whole lesson" stays one click
+  away and is remembered. Built from the existing
+  course JSON (no content rewrite); the quick check is generated from the cheat sheet, so a lesson whose items match no
+  cheat sheet entry simply has none.
+
 - 2026-11-09: Logo = lowercase h + dot (picked among 4 minimal options after a legibility check at 16 px; HK ligature,
   speech bubble and door rejected). Site palette only: charcoal / ivory, dot in the path colour in the top bar.
 - 2026-10-29: Courses and interview content are static JSON in content/ (deployed with the site), not database rows.

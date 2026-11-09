@@ -18,6 +18,9 @@
 //   only on that click is anything sent (explain-mistake function).
 // - Courses with a playground (DAX.do): written exercises with "try" get "▶ Run my attempt on …" (copies the attempt,
 //   opens the playground in a new tab) and a ▶ button on the answer code (courses.js playLink).
+// - lessonChecks() + quickCheck(): the "⚡ Quick check" at the end of a lesson (courses.js): up to 2 questions on the
+//   cheat sheet items that lesson teaches (matched on the words of its example code and text), answered in place;
+//   every answer schedules the card for spaced-repetition reviews (srs.js), like a flashcard.
 // - interviewCards(): think first, then reveal the model answer.
 // Everything stays in this browser (synced to the account when signed in, learnsync.js); each action adds XP (activity.js).
 import { h, ls } from "./lib.js";
@@ -43,18 +46,95 @@ const bar = (pct) => h("div", { class: "h-1.5 rounded-full", style: "background:
   h("div", { class: "h-1.5 rounded-full", style: `width:${pct}%;background:var(--accent);transition:width .3s ease` }));
 
 /* ---------- quiz ---------- */
+// One question on a cheat sheet item: syntax → meaning (toMeaning) or meaning → syntax, 3 distractors from the same
+// group first, then the rest of the course, never a duplicate text.
+function ask(all, it, toMeaning) {
+  const field = toMeaning ? "back" : "front";
+  const seen = new Set([it[field]]);
+  const pool = [...shuffle(all.filter((x) => x.group === it.group)), ...shuffle(all.filter((x) => x.group !== it.group))];
+  const wrong = [];
+  for (const x of pool) { if (wrong.length === 3) break; if (!seen.has(x[field])) { seen.add(x[field]); wrong.push(x); } }
+  return { it, toMeaning, options: shuffle([it, ...wrong]) };
+}
 export function makeQuestions(c, n = 8) {
   const all = items(c);
-  return shuffle(all).slice(0, Math.min(n, all.length)).map((it, qi) => {
-    const toMeaning = qi % 2 === 0; // alternate the direction
-    const field = toMeaning ? "back" : "front";
-    const seen = new Set([it[field]]);
-    // distractors: same group first, then the rest of the course, never a duplicate text
-    const pool = [...shuffle(all.filter((x) => x.group === it.group)), ...shuffle(all.filter((x) => x.group !== it.group))];
-    const wrong = [];
-    for (const x of pool) { if (wrong.length === 3) break; if (!seen.has(x[field])) { seen.add(x[field]); wrong.push(x); } }
-    return { it, toMeaning, options: shuffle([it, ...wrong]) };
-  });
+  return shuffle(all).slice(0, Math.min(n, all.length)).map((it, qi) => ask(all, it, qi % 2 === 0)); // alternate the direction
+}
+
+/* ---------- quick check at the end of a lesson ---------- */
+// For each lesson, the cheat sheet items (up to 2) it teaches: an item goes to the lesson whose example code (full
+// weight) and text (0.6) share the most of its words, rare words counting more (a word used by every lesson counts
+// little). Items with no clear lesson (score ≤ 0.9) are left out, so a lesson can have no check. Works in every
+// language: the code is identical and the syntax column of the cheat sheet is mostly code.
+const STOP = new Set("the a an and or of to in is for with on by as at be it from this that not no col table name value df".split(" "));
+const words = (s) => new Set((String(s || "").match(/[A-Za-z_][A-Za-z0-9_.]*[A-Za-z0-9_]/g) || []).map((w) => w.toLowerCase()).filter((w) => !STOP.has(w)));
+const checkCache = new WeakMap();
+export function lessonChecks(c) {
+  if (checkCache.has(c)) return checkCache.get(c);
+  const lessons = c.lessons || [], all = items(c);
+  const lw = lessons.map((l) => [words(l.example?.code), words([l.title, ...(l.text || []), ...(l.points || [])].join(" "))]);
+  const df = new Map();
+  for (const [a, b] of lw) for (const w of new Set([...a, ...b])) df.set(w, (df.get(w) || 0) + 1);
+  const found = lessons.map(() => []);
+  if (all.length >= 4) for (const it of all) { // 4 items at least: one answer + 3 distractors
+    const fw = words(it.front);
+    if (!fw.size) continue;
+    let best = 0, at = -1;
+    lw.forEach(([code, text], i) => {
+      let s = 0;
+      for (const w of fw) {
+        const idf = Math.log((lessons.length + 1) / ((df.get(w) || 0) + 0.5));
+        if (code.has(w)) s += idf; else if (text.has(w)) s += 0.6 * idf;
+      }
+      s /= Math.sqrt(fw.size);
+      if (s > best) { best = s; at = i; }
+    });
+    if (best > 0.9) found[at].push({ it, s: best });
+  }
+  const out = found.map((x) => x.sort((a, b) => b.s - a.s).slice(0, 2).map((x) => x.it));
+  checkCache.set(c, out);
+  return out;
+}
+
+// The questions one under the other: an answer shows the right option and opens the next question. +2 XP per right
+// answer. onDone(score, total) after the last one.
+export function quickCheck(c, its, { onDone } = {}) {
+  const all = items(c), qs = its.map((it, i) => ask(all, it, i % 2 === 0));
+  let score = 0;
+  const list = h("div", { class: "grid gap-4" });
+  const summary = h("p", { class: "text-sm font-medium", "aria-live": "polite", dir: "auto", hidden: true });
+  const one = (qi) => {
+    const { it, toMeaning, options } = qs[qi];
+    const feedback = h("p", { class: "text-sm min-h-[1.25rem]", "aria-live": "polite", dir: "auto" });
+    const opts = options.map((o) => h("button", { type: "button", class: "opt", onClick: (e) => answer(o, e.currentTarget) },
+      toMeaning ? o.back : code(o.front)));
+    function answer(o, btn) {
+      const ok = o.key === it.key;
+      opts.forEach((b, k) => { b.disabled = true; if (options[k].key === it.key) b.classList.add("opt-ok"); });
+      if (!ok) btn.classList.add("opt-bad");
+      grade(c.id, it.key, ok);
+      if (ok) { score++; logActivity(2); }
+      feedback.replaceChildren(ok ? h("span", { style: "color:var(--ok)" }, t("✓ Correct! +2 XP"))
+        : h("span", {}, h("span", { style: "color:var(--bad)" }, t("✗ Not quite. ")), h("span", { class: "mute" }, t("The answer: ")), toMeaning ? it.back : code(it.front)));
+      if (qi + 1 < qs.length) {
+        const next = one(qi + 1);
+        list.append(next);
+        next.querySelector(".opt")?.focus({ preventScroll: true });
+        next.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } else {
+        summary.textContent = t("{s}/{n} right · these cards come back in your reviews.", { s: score, n: qs.length });
+        summary.hidden = false;
+        onDone?.(score, qs.length);
+      }
+    }
+    return h("div", { class: "grid gap-2 step-in", "data-q": "" },
+      h("p", { class: "text-sm mute", dir: "auto" }, qs.length > 1 ? `${qi + 1}/${qs.length} · ` : null, toMeaning ? t("What does this do?") : t("Which one does this?")),
+      h("p", { class: "font-medium text-[1.05rem]", "data-prompt": toMeaning ? "front" : "back" }, toMeaning ? h("code", { class: "inline-code !text-[.95rem] !px-1.5 !py-0.5" }, it.front) : it.back),
+      h("div", { class: "grid gap-2 sm:grid-cols-2" }, opts), feedback);
+  };
+  if (qs.length) list.append(one(0));
+  return h("div", { class: "quick-check grid gap-3", "data-quick-check": "" },
+    h("p", { class: "eyebrow font-medium", style: "color:var(--accent-ink)", dir: "auto" }, t("⚡ Quick check")), list, summary);
 }
 
 export function quiz(root, c, { onReview } = {}) {

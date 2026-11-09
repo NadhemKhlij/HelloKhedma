@@ -283,8 +283,13 @@ Read the header comment of any file before modifying it; update the header if be
   JSearch / Jooble / Careerjet)
 - js/letters.js — letters pack: cover letter prompt to copy (offers, CV match), thank-you / follow-up emails from a
   tracker card (templates EN + FR, copy or open in the email app; nothing is sent by HelloKhedma)
-- js/courses.js — course list and course page (tabs: lessons one at a time, quiz, flashcards, practice, interview, cheat sheet)
-- js/practice.js — quiz (generated from the cheat sheet), flashcards, self-graded exercises, interview reveal
+- js/courses.js — course list and course page (tabs: lessons, quiz, flashcards, practice, interview, cheat sheet). A lesson
+  is read step by step (each paragraph, the example, the key points, a "⚡ Quick check"; "Show the whole lesson" =
+  "hk.lessonView"), the lesson list is a path map, "✓ Complete lesson" shows a small celebration and what is next
+- js/highlight.js — coloured code (lesson examples, code answers) and code words in lesson text, built from the course's
+  own code; pure tokens() checked by CI (the pieces always give back the exact code). Colours: .tok-* in css/input.css
+- js/practice.js — quiz (generated from the cheat sheet), flashcards, self-graded exercises, interview reveal, the lesson
+  quick check (lessonChecks: cheat sheet items matched to each lesson's code and text; answers feed the reviews)
 - js/srs.js — spaced-repetition schedule of flashcards ("hk.srs") and skill check results ("hk.placement"), no DOM;
   js/review.js — "Review today" page; js/skillcheck.js — placement test (passed courses leave the study plan and gaps)
 - js/activity.js — XP, study streak, 7-day strip, last course for "Resume" (local only, "hk.activity")

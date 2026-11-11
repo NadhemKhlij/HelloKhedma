@@ -269,6 +269,9 @@ Read the header comment of any file before modifying it; update the header if be
 - js/pulse.js — path market pulse on Home, from the offers seen on the Offers page (local only, "hk.pulse.<path>"), and
   Adzuna's statistics for the path's main title (advertised salaries; who's hiring: top companies, regions, offers of the
   last 7 days; job-search kind "salary", cached 24 h); marketSkills() also feeds "The market" on #/cv
+- js/places.js — location suggestions on the Offers search (<datalist>): main cities per country of the Offers menu (local
+  spelling, cities only: the Geo API knows towns, not regions) + places searched before in that country ("hk.places");
+  built in, nothing sent while typing
 - js/offerpick.js — "Choose an offer" on #/cv (match without pasting): offers seen on the Offers page ("hk.recentOffers.<path>",
   newest 60, 30 days) and the text of tracked offers ("hk.trackedOffers"), this browser only
 - js/tailor.js — "Tailor my CV" dialog: honest gap analysis, prompt to copy for the user's own AI, "Correct, tailor and

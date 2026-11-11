@@ -400,6 +400,29 @@ test("job search in France: French titles with their English pair, both sent; ti
   await expect(page.locator("#role option").first()).toHaveText("Data Engineer");
 });
 
+// Location suggestions (places.js): the country's main cities in a <datalist>, following the country menu; a place
+// searched before comes first for that country only. Nothing is fetched while typing (built-in list).
+test("job search: the location box suggests the country's cities and places searched before", async ({ page }) => {
+  const sent = [];
+  await page.route("**/functions/v1/job-search", async (route) => { sent.push(route.request().postDataJSON()); await route.fulfill(fake({ warnings: [], jobs: [] })); });
+  await open(page, "#/offers");
+  const country = (c) => page.evaluate((v) => { const el = document.querySelector("#country"); el.value = v; el.dispatchEvent(new Event("change")); }, c);
+  await expect(page.locator("#loc")).toHaveAttribute("list", "locList");
+  await country("fr");
+  await expect(page.locator('#locList option[value="Lille"]')).toHaveCount(1);
+  await country("gb");
+  await expect(page.locator('#locList option[value="Manchester"]')).toHaveCount(1);
+  await expect(page.locator('#locList option[value="Lille"]')).toHaveCount(0);
+  await country("fr");
+  await page.locator("#loc").fill("Roubaix");
+  await page.locator("#searchForm").evaluate((f) => f.requestSubmit());
+  await expect.poll(() => sent.length).toBe(1);
+  expect(sent[0]).toMatchObject({ location: "Roubaix", country: "fr" });
+  await expect(page.locator("#locList option").first()).toHaveAttribute("value", "Roubaix");
+  await country("gb");
+  await expect(page.locator('#locList option[value="Roubaix"]')).toHaveCount(0);
+});
+
 test("remote jobs: Remote OK offers are listed, credited by name and linked with the referrer kept", async ({ page }) => {
   await page.route("https://remotive.com/**", (r) => r.fulfill(fake({ jobs: [] })));
   await page.route("https://jobicy.com/**", (r) => r.fulfill(fake({ jobs: [] })));

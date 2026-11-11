@@ -15,6 +15,8 @@
 // "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent); "✉ Cover letter" opens
 // letters.js (prompt to copy).
 // Saved searches can get an e-mail alert (🔔, alerts.js: signed-in users, saved to the account, search-alerts function).
+// Location box: suggestions of the country's main cities and the places already searched there (places.js, built in:
+// nothing is sent while typing), refreshed when the country changes and after each search.
 // Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode"),
 // when each search was last run ("hk.searchRuns", newest 30): offers posted since then get the "New" badge.
 // "More offers" asks every source for the next page and adds the offers not shown yet (job search tab only).
@@ -27,6 +29,7 @@ import { recordOffers } from "./pulse.js";
 import { rememberOffers, rememberTracked } from "./offerpick.js";
 import { state, path, fitColor, skillChip } from "./state.js";
 import { searchJobs, boardLinks } from "./jobs.js";
+import { placeOptions, rememberPlace } from "./places.js";
 import { extractSkills, matchSkills, norm } from "./ats.js";
 import { offerSalary, formatSalary } from "./salary.js";
 import { searchRemote } from "./remote.js";
@@ -79,8 +82,10 @@ export function renderSearchControls() {
     $("#country").replaceChildren(...COUNTRIES.map((c) => h("option", { value: c, selected: c === (CONFIG.DEFAULT_COUNTRY || "fr") }, c.toUpperCase())));
   }
   $("#role").replaceChildren(...titleOptions(p));
-  renderBoards();
+  renderBoards(); fillPlaces();
 }
+// The location suggestions follow the country (places.js).
+const fillPlaces = () => $("#locList").replaceChildren(...placeOptions($("#country").value).map((v) => h("option", { value: v })));
 function renderBoards() {
   $("#boards").replaceChildren(...boardLinks($("#role").value, $("#loc").value.trim()).map(([name, href]) =>
     h("a", { href, target: "_blank", rel: "noopener noreferrer", class: "btn-ghost" }, name)));
@@ -350,6 +355,7 @@ async function onSearch(e) {
   const btn = $("#searchBtn"), msg = $("#searchMsg");
   const params = currentSearch();
   ls.set(LOC_KEY, params.location);
+  rememberPlace(params.country, params.location); fillPlaces();
   btn.disabled = true; msg.textContent = t("Searching…");
   state.jobs = []; state.skillFilter = null; renderOffers();
   try {
@@ -525,7 +531,7 @@ export function initOffers() {
   $("#searchForm").addEventListener("submit", onSearch);
   $("#moreBtn").addEventListener("click", onMore);
   for (const id of ["#sortBy", "#fFit", "#fSalary", "#fLevel", "#fTrust", "#fHidden", "#fTitle"]) $(id).addEventListener("change", renderOffers);
-  $("#country").addEventListener("change", () => { $("#role").replaceChildren(...titleOptions(path())); renderBoards(); });
+  $("#country").addEventListener("change", () => { $("#role").replaceChildren(...titleOptions(path())); renderBoards(); fillPlaces(); });
   // Contract, remote and date also go to the sources: after a search, changing one searches again (cached server-side).
   for (const id of ["#fContract", "#fRemote", "#fDate"]) $(id).addEventListener("change", () => {
     if (state.offerMode === "search" && state.searchMsg && !$("#searchBtn").disabled) $("#searchForm").requestSubmit();

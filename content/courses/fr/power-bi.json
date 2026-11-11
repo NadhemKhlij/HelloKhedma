@@ -161,6 +161,27 @@
         "code": "// Incremental refresh filter on the fact query (RangeStart and RangeEnd are DateTime parameters)\nFiltered = Table.SelectRows(\n    Sales,\n    each [OrderDateTime] >= RangeStart and [OrderDateTime] < RangeEnd\n)",
         "note": "Utilisez >= d’un côté et < de l’autre pour qu’aucune ligne ne soit chargée deux fois ; la stratégie elle-même se définit sur la table dans Desktop."
       }
+    },
+    {
+      "title": "Dépanner les données texte : espaces cachés, casse, paramètres régionaux et erreurs",
+      "text": [
+        "La plupart des problèmes de texte apparaissent loin de leur cause : une fusion qui ne trouve aucune correspondance, une ligne (Vide) dans un segment, une actualisation qui échoue. Deux clés peuvent sembler identiques à l’écran et pourtant différer : un espace en trop à la fin, un saut de ligne, une tabulation ou une espace insécable copiée d’une page web ou d’un export d’ERP. Ajoutez une colonne temporaire avec Text.Length([CustomerID]) et comparez-la à la longueur attendue : C042 doit compter 4 caractères, pas 5. La correction se fait dans Power Query, dans chaque table qui contient la clé : Transformer › Format › Supprimer les espaces retire les espaces aux deux extrémités, Nettoyer retire les caractères de contrôle comme les sauts de ligne et les tabulations, et remplacer le caractère 160 (Character.FromNumber(160)) par une espace normale avant de supprimer les espaces règle le cas des espaces insécables.",
+        "La casse est le deuxième piège, car Power Query et le modèle ne sont pas d’accord. Power Query respecte la casse : dans une fusion, un filtre ou Supprimer les doublons, C042 et c042 sont deux valeurs différentes. Le modèle Power BI ne la respecte pas et ne garde qu’une seule écriture. Supprimer les doublons dans Power Query laisse donc les deux lignes, le modèle voit ensuite deux fois la même clé, et l’actualisation échoue avec un message indiquant que la colonne contient une valeur en double, ce qui est interdit du côté « un » d’une relation. Mettez les clés dans une seule casse (Text.Upper) avant de supprimer les doublons, ou supprimez les doublons sans tenir compte de la casse avec Comparer.OrdinalIgnoreCase.",
+        "Les nombres, les dates et les codes stockés en texte demandent le bon type et la bonne culture. Un fichier français écrit 12,50 et 03/04/2026 (3 avril) ; converti avec une culture anglaise, la virgule décimale donne une erreur ou un nombre faux, et la date devient le 4 mars. Utilisez Modifier le type › Utilisation des paramètres régionaux… avec Français (France), qui inscrit la culture fr-FR dans l’étape. Les codes sont le cas inverse : codes postaux, références produit et numéros de département ne sont pas des quantités, ils restent en Texte. En nombre entier, 01000 devient 1000 et 2A (Corse-du-Sud) devient une erreur.",
+        "Les erreurs sont une information, pas du bruit. Activez Affichage › Qualité de la colonne, Distribution de colonne et Profil de colonne : ils montrent la part de valeurs valides, en erreur et vides, et les valeurs distinctes de chaque colonne. Par défaut, ils ne lisent que les 1 000 premières lignes ; cliquez sur la barre d’état pour profiler l’ensemble du jeu de données avant de leur faire confiance. Pour voir ce qui ne va pas, référencez la requête, utilisez Conserver les erreurs et lisez le message d’une cellule en erreur. Corrigez la cause quand c’est possible, et n’utilisez Remplacer les erreurs que volontairement : remplacer les erreurs par null fait passer l’actualisation pendant que les lignes fautives quittent discrètement vos totaux."
+      ],
+      "points": [
+        "Des clés qui semblent égales peuvent différer : vérifiez Text.Length, puis remplacez le caractère 160, supprimez les espaces et nettoyez dans Power Query.",
+        "Power Query respecte la casse, le modèle non : une seule casse pour les clés avant Supprimer les doublons.",
+        "Convertissez les nombres et dates écrits à la française avec Modifier le type › Utilisation des paramètres régionaux (fr-FR).",
+        "Les codes postaux et autres codes restent en Texte : les zéros initiaux et 2A / 2B sont conservés.",
+        "Profilez l’ensemble du jeu de données, lisez les erreurs, et ne remplacez les erreurs que volontairement."
+      ],
+      "example": {
+        "lang": "m",
+        "code": "let\n    Source = Csv.Document(File.Contents(\"C:\\Data\\customers.csv\"), [Delimiter = \";\", Encoding = 65001]),\n    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),\n    // Hidden characters: non-breaking spaces, spaces at both ends, line breaks\n    Cleaned = Table.TransformColumns(Promoted, {\n        {\"CustomerID\", each Text.Clean(Text.Trim(Text.Replace(_, Character.FromNumber(160), \" \"))), type text},\n        {\"City\", each Text.Clean(Text.Trim(_)), type text}}),\n    // One case for the key before removing duplicates: the model ignores case\n    SameCase = Table.TransformColumns(Cleaned, {{\"CustomerID\", Text.Upper, type text}}),\n    Unique = Table.Distinct(SameCase, {\"CustomerID\"}),\n    // French decimals and dates read with fr-FR; postcodes stay text\n    Typed = Table.TransformColumnTypes(Unique,\n        {{\"Revenue\", type number}, {\"SignupDate\", type date}, {\"PostCode\", type text}}, \"fr-FR\")\nin\n    Typed",
+        "note": "Chaque correction est une étape à part : cliquez-la dans Étapes appliquées pour voir exactement ce qu’elle a changé."
+      }
     }
   ],
   "cheatsheet": [
@@ -330,6 +351,39 @@
           "Actualiser des sources sur site depuis le service"
         ]
       ]
+    },
+    {
+      "group": "Corriger les données texte",
+      "items": [
+        [
+          "Text.Trim / Text.Clean",
+          "Retirer les espaces aux extrémités / les caractères de contrôle (sauts de ligne, tabulations)"
+        ],
+        [
+          "Text.Replace(_, Character.FromNumber(160), \" \")",
+          "Transformer les espaces insécables en espaces normales"
+        ],
+        [
+          "Text.Length([CustomerID])",
+          "Repérer des caractères cachés dans une clé"
+        ],
+        [
+          "Table.Distinct(t, {\"Key\", Comparer.OrdinalIgnoreCase})",
+          "Supprimer les doublons sans tenir compte de la casse, comme le modèle"
+        ],
+        [
+          "Using Locale… (fr-FR)",
+          "Lire 12,50 et 03/04/2026 à la française"
+        ],
+        [
+          "Keep Errors / Replace Errors",
+          "Voir d’abord les lignes en erreur, puis remplacer volontairement"
+        ],
+        [
+          "View › Column quality",
+          "Part de valeurs valides, en erreur et vides par colonne"
+        ]
+      ]
     }
   ],
   "pitfalls": [
@@ -339,7 +393,8 @@
     "Des relations bidirectionnelles partout, qui produisent des résultats ambigus.",
     "Passer des relations en bidirectionnel pour faire fonctionner un visuel, puis obtenir des résultats ambigus ou lents.",
     "Ajouter tôt une étape qui casse le query folding, si bien que des millions de lignes sont rapatriées avant le filtrage.",
-    "Tester la RLS en étant Administrateur de l’espace de travail et croire qu’elle fonctionne pour tout le monde."
+    "Tester la RLS en étant Administrateur de l’espace de travail et croire qu’elle fonctionne pour tout le monde.",
+    "Remplacer les erreurs par null pour faire passer l’actualisation : les lignes fautives disparaissent discrètement des totaux."
   ],
   "exercises": [
     {
@@ -442,6 +497,119 @@
       "code": "dax",
       "try": true,
       "answer": "EVALUATE\nVAR Sales =\n    DATATABLE (\n        \"Category\", STRING, \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE,\n        {\n            { \"IT\", \"Laptop\", 3, 900 },\n            { \"IT\", \"Mouse\", 40, 15 },\n            { \"Office\", \"Desk\", 2, 250 },\n            { \"Office\", \"Chair\", 6, 120 }\n        }\n    )\nRETURN\n    GROUPBY ( Sales, [Category], \"Revenue\", SUMX ( CURRENTGROUP (), [Qty] * [Price] ) )"
+    },
+    {
+      "q": "Associez chaque symptôme à sa cause la plus probable.",
+      "type": "match",
+      "pairs": [
+        [
+          "Une fusion ne trouve aucune correspondance pour des clés qui semblent identiques",
+          "Caractères cachés : espaces aux extrémités, sauts de ligne, espaces insécables"
+        ],
+        [
+          "L’actualisation échoue : valeur en double du côté « un » d’une relation",
+          "Des clés qui ne diffèrent que par la casse (C042 et c042)"
+        ],
+        [
+          "Le code postal 01000 s’affiche 1000",
+          "La colonne a été convertie en nombre entier"
+        ],
+        [
+          "03/04/2026 est lu comme le 4 mars",
+          "Les dates ont été converties avec une culture anglaise (en-US)"
+        ]
+      ],
+      "answer": "Regardez les données, pas l’écran : Text.Length montre les caractères cachés, le modèle fusionne les variantes de casse, les codes perdent leurs zéros en nombre, et les dates suivent la culture utilisée pour les convertir."
+    },
+    {
+      "q": "Cette requête fait toujours échouer l’actualisation du modèle avec une valeur en double sur CustomerID (C042 et c042 sont tous deux dans le fichier). Touchez la ligne qui en est la cause.",
+      "type": "bug",
+      "lang": "m",
+      "snippet": "let\n    Source = Excel.Workbook(File.Contents(\"C:\\Data\\customers.xlsx\"), true),\n    Customers = Source{[Item = \"Customers\", Kind = \"Sheet\"]}[Data],\n    Trimmed = Table.TransformColumns(Customers, {{\"CustomerID\", Text.Trim, type text}}),\n    Unique = Table.Distinct(Trimmed, {\"CustomerID\"}),\n    Upper = Table.TransformColumns(Unique, {{\"CustomerID\", Text.Upper, type text}})\nin\n    Upper",
+      "line": 5,
+      "fix": "let\n    Source = Excel.Workbook(File.Contents(\"C:\\Data\\customers.xlsx\"), true),\n    Customers = Source{[Item = \"Customers\", Kind = \"Sheet\"]}[Data],\n    Trimmed = Table.TransformColumns(Customers, {{\"CustomerID\", Text.Trim, type text}}),\n    Upper = Table.TransformColumns(Trimmed, {{\"CustomerID\", Text.Upper, type text}}),\n    Unique = Table.Distinct(Upper, {\"CustomerID\"})\nin\n    Unique",
+      "answer": "Table.Distinct respecte la casse, donc C042 et c042 y survivent tous les deux ; Text.Upper en fait ensuite la même clé, et le modèle, qui ignore la casse, voit un doublon. Changez d’abord la casse, puis supprimez les doublons."
+    },
+    {
+      "q": "Votre rapport Ventes par client affiche un client (Vide) qui porte 3 % des ventes. Menez l’enquête.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Où regardez-vous d’abord ?",
+          "choices": [
+            {
+              "label": "Dans Power Query : une fusion Anti gauche de Sales avec Customers sur CustomerID",
+              "best": true,
+              "feedback": "Exact : elle liste les ventes dont la clé n’a pas de correspondance, pour regarder les vraies clés."
+            },
+            {
+              "label": "Passer la relation en filtrage dans les deux sens",
+              "feedback": "Le sens du filtrage ne crée pas de correspondances : la ligne (Vide) reste et le modèle devient ambigu."
+            },
+            {
+              "label": "Masquer (Vide) avec un filtre sur le visuel",
+              "feedback": "Les 3 % disparaissent du rapport, le total ne tombe plus juste et la cause est toujours là."
+            }
+          ]
+        },
+        {
+          "text": "Les clés sans correspondance ressemblent à « C042 » suivi d’un espace et à « C108 » suivi d’un saut de ligne. Qu’est-ce qui corrige le problème durablement ?",
+          "choices": [
+            {
+              "label": "Supprimer les espaces et Nettoyer CustomerID dans Power Query, dans les deux requêtes",
+              "best": true,
+              "feedback": "Oui : les deux côtés contiennent maintenant le même texte, à chaque actualisation."
+            },
+            {
+              "label": "Corriger les 40 clés à la main dans le fichier source",
+              "feedback": "Ça marche jusqu’au prochain export, qui apportera de nouvelles clés sales."
+            },
+            {
+              "label": "Une colonne calculée DAX avec TRIM dans Sales seulement",
+              "feedback": "TRIM en DAX retire les espaces mais pas les sauts de ligne, et le nettoyage se fait en amont, dans les deux tables."
+            }
+          ]
+        },
+        {
+          "text": "Comment vérifiez-vous que c’est réglé ?",
+          "choices": [
+            {
+              "label": "Actualiser, puis vérifier que la fusion Anti gauche ne renvoie aucune ligne et que (Vide) a disparu",
+              "best": true,
+              "feedback": "Vérifié avec les données : s’il reste une ligne, regardez à nouveau sa clé (casse, espace insécable, zéro initial)."
+            },
+            {
+              "label": "Rien à vérifier : les étapes ont l’air justes",
+              "feedback": "Un autre type de clé sale (espace insécable, autre casse) peut rester ; vérifiez avec les données."
+            }
+          ]
+        }
+      ],
+      "answer": "Trouvez les lignes sans correspondance (fusion Anti gauche), lisez leurs clés, corrigez le texte en amont dans les deux tables, puis prouvez-le avec la même fusion après une actualisation."
+    },
+    {
+      "q": "Remettez dans l’ordre les étapes d’une requête clients propre.",
+      "type": "order",
+      "steps": [
+        "Se connecter au fichier et promouvoir les en-têtes",
+        "Remplacer les espaces insécables, puis supprimer les espaces et nettoyer la clé",
+        "Mettre la clé dans une seule casse avec Text.Upper",
+        "Supprimer les doublons sur la clé",
+        "Charger la table et créer la relation avec Sales"
+      ],
+      "answer": "Nettoyez d’abord le texte, puis uniformisez la casse, et seulement ensuite supprimez les doublons : Supprimer les doublons compare le texte exact, il doit donc voir des clés déjà propres et dans une seule casse."
+    },
+    {
+      "q": "La requête Customers contient C042 et c042. Quelle affirmation est vraie ?",
+      "type": "choice",
+      "options": [
+        "Power Query les garde comme deux valeurs ; le modèle Power BI les traite comme une seule valeur",
+        "Power Query et le modèle les traitent tous deux comme une seule valeur",
+        "Power Query les traite comme une seule valeur ; le modèle les garde séparées",
+        "Les deux les gardent séparées, donc rien ne peut mal tourner"
+      ],
+      "correct": 0,
+      "answer": "Power Query compare le texte exactement (en respectant la casse) sauf si vous passez Comparer.OrdinalIgnoreCase ; le modèle ignore la casse. Cet écart explique pourquoi il faut supprimer les doublons après avoir uniformisé la casse."
     }
   ],
   "interview": [
@@ -476,6 +644,10 @@
     {
       "q": "Quand choisiriez-vous DirectQuery plutôt qu’Import ?",
       "a": "Quand les données doivent être proches du temps réel ou sont trop volumineuses pour être importées, ou quand elles doivent rester dans la source pour des raisons de gouvernance. Le prix à payer : des visuels plus lents, de la charge sur la base source et certaines limites en DAX et Power Query. Import reste donc le choix par défaut, et les modèles composites permettent de combiner les deux."
+    },
+    {
+      "q": "Un visuel affiche un client (Vide) qui porte 3 % des ventes. Comment enquêtez-vous ?",
+      "a": "(Vide) signifie des lignes de ventes dont la clé n’a pas de correspondance dans la table des clients. Je les liste avec une fusion Anti gauche dans Power Query et je regarde les vraies clés : Text.Length révèle les espaces ou sauts de ligne cachés, et je vérifie la casse, les zéros initiaux et les types des deux côtés. Je corrige la cause en amont dans les deux tables (espaces insécables remplacées, suppression des espaces, nettoyage, une seule casse, codes gardés en texte), j’actualise et je vérifie que la fusion Anti gauche ne renvoie plus aucune ligne. Si des clients manquent vraiment dans la source, je fais corriger la source ou j’ajoute un client « Inconnu » explicite plutôt que de masquer le vide."
     }
   ],
   "playground": {

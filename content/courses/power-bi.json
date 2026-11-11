@@ -161,6 +161,27 @@
         "code": "// Incremental refresh filter on the fact query (RangeStart and RangeEnd are DateTime parameters)\nFiltered = Table.SelectRows(\n    Sales,\n    each [OrderDateTime] >= RangeStart and [OrderDateTime] < RangeEnd\n)",
         "note": "Use >= on one side and < on the other so no row is loaded twice; the policy itself is set on the table in Desktop."
       }
+    },
+    {
+      "title": "Troubleshoot text data: hidden spaces, case, locale and errors",
+      "text": [
+        "Most text problems show up far from their cause: a merge that finds no match, a (Blank) row in a slicer, a refresh that fails. Two keys can look identical on screen and still differ: an extra space at the end, a line break, a tab, or a non-breaking space copied from a web page or an ERP export. Add a temporary column with Text.Length([CustomerID]) and compare it with the length you expect: C042 should have 4 characters, not 5. The fix belongs in Power Query, on every table that holds the key: Transform › Format › Trim removes the spaces at both ends, Clean removes control characters such as line breaks and tabs, and replacing character 160 (Character.FromNumber(160)) with a normal space before trimming takes care of non-breaking spaces.",
+        "Case is the second trap, because Power Query and the model disagree. Power Query is case-sensitive: in a merge, a filter or Remove Duplicates, C042 and c042 are two different values. The Power BI model is case-insensitive and keeps only one spelling. So Remove Duplicates in Power Query leaves both rows, the model then sees the same key twice, and the refresh fails with a message saying the column contains a duplicate value, which is not allowed on the one side of a relationship. Put keys in one case (Text.Upper) before removing duplicates, or remove duplicates while ignoring case with Comparer.OrdinalIgnoreCase.",
+        "Numbers, dates and codes stored as text need the right type and the right culture. A French file writes 12,50 and 03/04/2026 (3 April); converted with an English culture, the decimal comma gives an error or a wrong number and the date becomes 4 March. Use Change Type › Using Locale… with French (France), which writes the culture fr-FR into the step. Codes are the opposite case: postcodes, product codes and département numbers are not quantities, so they stay Text. As whole numbers, 01000 becomes 1000 and 2A (Corse-du-Sud) becomes an error.",
+        "Errors are information, not noise. Turn on View › Column quality, Column distribution and Column profile: they show the share of valid, error and empty values and the distinct values of each column. By default they only read the first 1,000 rows; click the status bar to profile the entire data set before you trust them. To see what went wrong, reference the query, use Keep Errors and read the message of a cell in error. Fix the cause when you can, and use Replace Errors only on purpose: replacing errors with null lets the refresh pass while the bad rows quietly leave your totals."
+      ],
+      "points": [
+        "Keys that look equal can differ: check Text.Length, then replace character 160, Trim and Clean in Power Query.",
+        "Power Query is case-sensitive, the model is not: one case for keys before Remove Duplicates.",
+        "Convert French numbers and dates with Change Type › Using Locale (fr-FR).",
+        "Postcodes and other codes stay Text, so leading zeros and 2A / 2B survive.",
+        "Profile the entire data set, read the errors, and replace errors only on purpose."
+      ],
+      "example": {
+        "lang": "m",
+        "code": "let\n    Source = Csv.Document(File.Contents(\"C:\\Data\\customers.csv\"), [Delimiter = \";\", Encoding = 65001]),\n    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),\n    // Hidden characters: non-breaking spaces, spaces at both ends, line breaks\n    Cleaned = Table.TransformColumns(Promoted, {\n        {\"CustomerID\", each Text.Clean(Text.Trim(Text.Replace(_, Character.FromNumber(160), \" \"))), type text},\n        {\"City\", each Text.Clean(Text.Trim(_)), type text}}),\n    // One case for the key before removing duplicates: the model ignores case\n    SameCase = Table.TransformColumns(Cleaned, {{\"CustomerID\", Text.Upper, type text}}),\n    Unique = Table.Distinct(SameCase, {\"CustomerID\"}),\n    // French decimals and dates read with fr-FR; postcodes stay text\n    Typed = Table.TransformColumnTypes(Unique,\n        {{\"Revenue\", type number}, {\"SignupDate\", type date}, {\"PostCode\", type text}}, \"fr-FR\")\nin\n    Typed",
+        "note": "Each fix is its own step, so you can click it in Applied Steps and see exactly what it changed."
+      }
     }
   ],
   "cheatsheet": [
@@ -330,6 +351,39 @@
           "Refresh on-premises sources from the service"
         ]
       ]
+    },
+    {
+      "group": "Text data fixes",
+      "items": [
+        [
+          "Text.Trim / Text.Clean",
+          "Remove spaces at both ends / control characters (line breaks, tabs)"
+        ],
+        [
+          "Text.Replace(_, Character.FromNumber(160), \" \")",
+          "Turn non-breaking spaces into normal spaces"
+        ],
+        [
+          "Text.Length([CustomerID])",
+          "Spot hidden characters in a key"
+        ],
+        [
+          "Table.Distinct(t, {\"Key\", Comparer.OrdinalIgnoreCase})",
+          "Remove duplicates while ignoring case, like the model"
+        ],
+        [
+          "Using Locale… (fr-FR)",
+          "Read 12,50 and 03/04/2026 the French way"
+        ],
+        [
+          "Keep Errors / Replace Errors",
+          "See the rows in error first, then replace on purpose"
+        ],
+        [
+          "View › Column quality",
+          "Share of valid, error and empty values per column"
+        ]
+      ]
     }
   ],
   "pitfalls": [
@@ -339,7 +393,8 @@
     "Bi-directional relationships everywhere, which create ambiguous results.",
     "Setting relationships to both directions to make a visual work, then getting ambiguous or slow results.",
     "Adding a step that breaks query folding early, so millions of rows are pulled before filtering.",
-    "Testing RLS while being workspace Admin and believing it works for everyone."
+    "Testing RLS while being workspace Admin and believing it works for everyone.",
+    "Replacing errors with null to make the refresh pass: the bad rows quietly disappear from the totals."
   ],
   "exercises": [
     {
@@ -442,6 +497,119 @@
       "code": "dax",
       "try": true,
       "answer": "EVALUATE\nVAR Sales =\n    DATATABLE (\n        \"Category\", STRING, \"Product\", STRING, \"Qty\", INTEGER, \"Price\", DOUBLE,\n        {\n            { \"IT\", \"Laptop\", 3, 900 },\n            { \"IT\", \"Mouse\", 40, 15 },\n            { \"Office\", \"Desk\", 2, 250 },\n            { \"Office\", \"Chair\", 6, 120 }\n        }\n    )\nRETURN\n    GROUPBY ( Sales, [Category], \"Revenue\", SUMX ( CURRENTGROUP (), [Qty] * [Price] ) )"
+    },
+    {
+      "q": "Match each symptom with its most likely cause.",
+      "type": "match",
+      "pairs": [
+        [
+          "A merge finds no match for keys that look identical",
+          "Hidden characters: spaces at the ends, line breaks, non-breaking spaces"
+        ],
+        [
+          "The refresh fails: duplicate value on the one side of a relationship",
+          "Keys that differ only by case (C042 and c042)"
+        ],
+        [
+          "Postcode 01000 shows as 1000",
+          "The column was converted to a whole number"
+        ],
+        [
+          "03/04/2026 is read as 4 March",
+          "The dates were converted with an English (en-US) culture"
+        ]
+      ],
+      "answer": "Look at the data, not the screen: Text.Length shows hidden characters, the model merges case variants, codes lose their zeros as numbers, and dates follow the culture used to convert them."
+    },
+    {
+      "q": "This query still makes the model refresh fail with a duplicate value on CustomerID (C042 and c042 are both in the file). Tap the line that causes it.",
+      "type": "bug",
+      "lang": "m",
+      "snippet": "let\n    Source = Excel.Workbook(File.Contents(\"C:\\Data\\customers.xlsx\"), true),\n    Customers = Source{[Item = \"Customers\", Kind = \"Sheet\"]}[Data],\n    Trimmed = Table.TransformColumns(Customers, {{\"CustomerID\", Text.Trim, type text}}),\n    Unique = Table.Distinct(Trimmed, {\"CustomerID\"}),\n    Upper = Table.TransformColumns(Unique, {{\"CustomerID\", Text.Upper, type text}})\nin\n    Upper",
+      "line": 5,
+      "fix": "let\n    Source = Excel.Workbook(File.Contents(\"C:\\Data\\customers.xlsx\"), true),\n    Customers = Source{[Item = \"Customers\", Kind = \"Sheet\"]}[Data],\n    Trimmed = Table.TransformColumns(Customers, {{\"CustomerID\", Text.Trim, type text}}),\n    Upper = Table.TransformColumns(Trimmed, {{\"CustomerID\", Text.Upper, type text}}),\n    Unique = Table.Distinct(Upper, {\"CustomerID\"})\nin\n    Unique",
+      "answer": "Table.Distinct is case-sensitive, so C042 and c042 both survive it; Text.Upper then turns them into the same key, and the case-insensitive model sees a duplicate. Change the case first, then remove duplicates."
+    },
+    {
+      "q": "Your Sales by customer report shows a (Blank) customer holding 3% of sales. Work through it.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Where do you look first?",
+          "choices": [
+            {
+              "label": "In Power Query: a Left Anti merge of Sales with Customers on CustomerID",
+              "best": true,
+              "feedback": "Right: it lists the sales rows whose key has no match, so you can look at the actual keys."
+            },
+            {
+              "label": "Set the relationship to filter in both directions",
+              "feedback": "Filter direction does not create matches: the (Blank) row stays and the model gets ambiguous."
+            },
+            {
+              "label": "Hide (Blank) with a filter on the visual",
+              "feedback": "The 3% disappear from the report, the total no longer adds up and the cause is still there."
+            }
+          ]
+        },
+        {
+          "text": "The unmatched keys look like \"C042 \" (a space at the end) and \"C108\" followed by a line break. What fixes it for good?",
+          "choices": [
+            {
+              "label": "Trim and Clean CustomerID in Power Query, in both queries",
+              "best": true,
+              "feedback": "Yes: both sides now hold the same text, at every refresh."
+            },
+            {
+              "label": "Correct the 40 keys by hand in the source file",
+              "feedback": "It works until the next export brings new dirty keys."
+            },
+            {
+              "label": "A DAX calculated column with TRIM in Sales only",
+              "feedback": "DAX TRIM removes spaces but not line breaks, and the cleaning belongs upstream, on both tables."
+            }
+          ]
+        },
+        {
+          "text": "How do you check that it worked?",
+          "choices": [
+            {
+              "label": "Refresh, then check that the Left Anti merge returns no rows and (Blank) is gone",
+              "best": true,
+              "feedback": "Checked with the data: if a row remains, look at its key again (case, non-breaking space, leading zero)."
+            },
+            {
+              "label": "Nothing to check: the steps look right",
+              "feedback": "Another kind of dirty key (a non-breaking space, a different case) may remain; check with the data."
+            }
+          ]
+        }
+      ],
+      "answer": "Find the unmatched rows (Left Anti merge), read their keys, fix the text upstream on both tables, then prove it with the same merge after a refresh."
+    },
+    {
+      "q": "Put the steps of a clean customer query in the right order.",
+      "type": "order",
+      "steps": [
+        "Connect to the file and promote the headers",
+        "Replace non-breaking spaces, then Trim and Clean the key",
+        "Put the key in one case with Text.Upper",
+        "Remove duplicates on the key",
+        "Load the table and create the relationship to Sales"
+      ],
+      "answer": "Clean the text first, then make the case uniform, and only then remove duplicates: Remove Duplicates compares exact text, so it must see keys that are already clean and in one case."
+    },
+    {
+      "q": "The Customers query holds C042 and c042. Which statement is true?",
+      "type": "choice",
+      "options": [
+        "Power Query keeps them as two values; the Power BI model treats them as the same value",
+        "Power Query and the model both treat them as the same value",
+        "Power Query treats them as the same value; the model keeps them apart",
+        "Both keep them apart, so nothing can go wrong"
+      ],
+      "correct": 0,
+      "answer": "Power Query compares text exactly (case-sensitive) unless you pass Comparer.OrdinalIgnoreCase; the model is case-insensitive. That gap is why duplicates must be removed after the case is made uniform."
     }
   ],
   "interview": [
@@ -476,6 +644,10 @@
     {
       "q": "When would you choose DirectQuery instead of Import?",
       "a": "When data must be close to real time or is too large to import, or when the data must stay in the source for governance reasons. The cost is slower visuals, load on the source database and some DAX and Power Query limitations, so Import remains the default and composite models can mix both."
+    },
+    {
+      "q": "A visual shows a (Blank) customer holding 3% of sales. How do you investigate?",
+      "a": "(Blank) means sales rows whose key has no match in the customer table. I list them with a Left Anti merge in Power Query and look at the actual keys: Text.Length reveals hidden spaces or line breaks, and I check case, leading zeros and data types on both sides. I fix the cause upstream on both tables (replace non-breaking spaces, Trim, Clean, one case, codes kept as text), refresh, and check that the Anti merge now returns no rows. If customers are really missing from the source, I get the source fixed or add an explicit Unknown customer rather than hiding the blank."
     }
   ],
   "playground": {

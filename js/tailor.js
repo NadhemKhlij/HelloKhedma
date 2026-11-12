@@ -2,7 +2,8 @@
 // - Honest gap analysis, computed in the browser (ats.js): skills of the offer found in the active CV, the lines of
 //   the CV that mention them (to put forward) and the missing skills, with the trainings that close them (gaps.js).
 // - A ready-made prompt for the user's own AI assistant (Claude, ChatGPT…): CV + offer + skills + strict honesty
-//   rules (never invent experience, skills or numbers). It is copied to the clipboard only.
+//   rules (never invent experience, skills or numbers). Folded under "Show the prompt" (it is long); copied to the
+//   clipboard only.
 //   The prompt templates (PROMPTS) are content, written in English and French like the interface.
 // - "Rewrite with AI" (aiSection): signed-in users only. After a notice shown before every send, the CV and the offer
 //   go to the cv-tailor Edge Function (Claude API, daily limit per account), which stores nothing. This is the only
@@ -208,7 +209,8 @@ export function openTailor(offer) {
     h("div", { class: "grid gap-2" },
       h("p", { class: "text-sm font-medium" }, t("Rewrite it with your AI assistant")),
       h("p", { class: "mute text-xs" }, t("This prompt contains your CV and the offer, with strict honesty rules. It only leaves this device if you paste it somewhere. Check every line the AI writes before using it.")),
-      area,
+      // Folded by default (it is long): Copy works without opening it.
+      h("details", { class: "text-sm" }, h("summary", { class: "cursor-pointer", style: "color:var(--accent-ink)" }, t("Show the prompt")), h("div", { class: "mt-2" }, area)),
       h("div", { class: "flex flex-wrap gap-2" },
         h("button", { type: "button", class: "btn", onClick: () => copy(prompt, area) }, t("📋 Copy the prompt")),
         ext("https://claude.ai/new", t("Open Claude ↗")), ext("https://chatgpt.com/", t("Open ChatGPT ↗")))),

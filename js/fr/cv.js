@@ -202,4 +202,5 @@ export default {
   "+{n} pts": "+{n} pts",
   "📘 How to learn the missing keyword": "📘 Comment apprendre le mot-clé manquant",
   "📘 How to learn the {n} missing keywords": "📘 Comment apprendre les {n} mots-clés manquants",
+  "Show the prompt": "Afficher le prompt",
 };

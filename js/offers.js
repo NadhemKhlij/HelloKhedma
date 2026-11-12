@@ -20,6 +20,8 @@
 // Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode"),
 // when each search was last run ("hk.searchRuns", newest 30): offers posted since then get the "New" badge.
 // "More offers" asks every source for the next page and adds the offers not shown yet (job search tab only).
+// A source that fails shows visitors only its name ("Adzuna is unavailable right now", sourceNote); the technical
+// message goes to the browser console (and to the job-search function's logs).
 // Source credits required by the providers' terms: CREDITS.
 import { $, h, safeUrl, ls, toast } from "./lib.js";
 import { t, tn, LOCALE } from "./i18n.js";
@@ -351,6 +353,22 @@ function runSavedSearch(s) {
   $("#searchForm").requestSubmit();
 }
 
+// Source problems, as visitors see them: only the names of the sources that did not answer ("Adzuna is unavailable
+// right now"); the technical detail (status, provider message) goes to the browser console.
+function sourceNote(warnings) {
+  if (!warnings?.length) return "";
+  console.warn("Job sources:", warnings);
+  const names = [...new Set(warnings.map((w) => Object.values(SOURCE_NAMES).find((n) => String(w).toLowerCase().startsWith(n.toLowerCase()))).filter(Boolean))];
+  return " " + (names.length ? tn(names.length, "{list} is unavailable right now.", "{list} are unavailable right now.", { list: names.join(", ") })
+    : t("Some job sources are unavailable right now."));
+}
+// The whole search failed: a plain message (the rate limit message from the function is already plain).
+function searchFailed(err) {
+  console.error("Job search failed:", err?.message);
+  return /^Too many searches/.test(err?.message || "") ? t("Too many searches in the last hour. Please try again later.")
+    : t("Live search is unavailable right now. Use the job board links below.");
+}
+
 async function onSearch(e) {
   e.preventDefault();
   const btn = $("#searchBtn"), msg = $("#searchMsg");
@@ -366,12 +384,12 @@ async function onSearch(e) {
     const { jobs, warnings } = await searchJobs({ ...params, filters });
     const fresh = prev ? markNew(jobs, prev).filter((j) => j.isNew).length : 0;
     msg.textContent = jobs.length ? tn(jobs.length, "{n} offer.", "{n} offers.") + (fresh ? " " + tn(fresh, "{n} new offer since your last search.", "{n} new offers since your last search.") : "")
-      + (warnings.length ? " " + warnings.join(" ") : "")
-      : t("No offers found. Try another title, city or country.");
+      + sourceNote(warnings)
+      : t("No offers found. Try another title, city or country.") + sourceNote(warnings);
     state.jobs = markNew(jobs, prev);
     state.more = jobs.length ? { params, filters, page: 1, prev } : null;
   } catch (err) {
-    msg.textContent = t("Live search is unavailable ({msg}). Use the job board links below.", { msg: err.message });
+    msg.textContent = searchFailed(err);
   } finally { btn.disabled = false; }
   state.searchJobs = state.jobs; state.searchMsg = msg.textContent; // kept while switching to "Companies I follow"
   renderOffers();
@@ -392,7 +410,7 @@ async function onMore() {
     $("#searchMsg").textContent = added.length ? tn(state.searchJobs.length, "{n} offer.", "{n} offers.") : t("No more offers for this search.");
     state.searchMsg = $("#searchMsg").textContent;
   } catch (err) {
-    toast(t("Live search is unavailable ({msg}). Use the job board links below.", { msg: err.message }));
+    toast(searchFailed(err));
   } finally { btn.disabled = false; btn.textContent = t("More offers"); }
   renderOffers();
 }
@@ -435,9 +453,10 @@ async function onRemoteSearch(e) {
         + (left ? t(" ({n} unrelated titles left out)", { n: left }) : "") + (cached ? t(" · from the last 6 hours") : "") + "."
       : $("#remoteRegion").value ? t("No remote {path} offers right now for this region: try 'Anywhere'.", { path: name })
       : t("No remote {path} offers right now: these boards list few roles for this path, check back in a few days.", { path: name }))
-      + (warnings.length ? ` ${warnings.join(" ")}` : "");
+      + sourceNote(warnings);
   } catch (err) {
-    state.remoteJobs = []; state.remoteMsg = t("Remote job boards are unavailable ({msg}).", { msg: err.message });
+    console.error("Remote boards failed:", err?.message);
+    state.remoteJobs = []; state.remoteMsg = t("Remote job boards are unavailable right now. Try again in a few minutes.");
   } finally { btn.disabled = false; }
   if (state.offerMode === "remote") { state.jobs = state.remoteJobs; msg.textContent = state.remoteMsg; state.skillFilter = null; renderOffers(); }
 }

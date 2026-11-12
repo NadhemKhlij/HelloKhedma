@@ -175,6 +175,13 @@ test("CV: scored without an offer, then matched with an offer, and the cover let
   await page.locator("#letterBody").getByRole("button", { name: "Close" }).click();
   await page.locator("#atsOut").getByRole("button", { name: /Tailor my CV/ }).click();
   await expect(page.locator("#tailorDialog")).toBeVisible();
+  // The long prompt is folded; "Show the prompt" opens it, Copy stays at hand.
+  const prompt = page.locator("#tailorDialog textarea");
+  await expect(prompt).toBeHidden();
+  await expect(page.locator("#tailorDialog").getByRole("button", { name: "📋 Copy the prompt" })).toBeVisible();
+  await page.locator("#tailorDialog summary", { hasText: "Show the prompt" }).click();
+  await expect(prompt).toBeVisible();
+  await expect(prompt).toHaveValue(/Built 12 Python and SQL pipelines on Airflow/);
 });
 
 // "Choose an offer" on the CV page (offerpick.js): offers seen on the Offers page, a tracked one, and the market.
@@ -398,6 +405,18 @@ test("job search in France: French titles with their English pair, both sent; ti
   await expect(page.locator("#results > li")).toHaveCount(2);
   await page.evaluate(() => { const c = document.querySelector("#country"); c.value = "gb"; c.dispatchEvent(new Event("change")); });
   await expect(page.locator("#role option").first()).toHaveText("Data Engineer");
+});
+
+// A source that fails (Adzuna's HTML error page, Careerjet's bad key): visitors see only which sources are unavailable.
+test("job search: a failing source shows its name only, not the technical error", async ({ page }) => {
+  await page.route("**/functions/v1/job-search", (route) => route.fulfill(fake({ jobs: [], warnings: [
+    "Adzuna returned 503: <!DOCTYPE html> <html> <head> <title>Uh oh, something isn't right</title>",
+    "Careerjet returned 401: Invalid API key provided"] })));
+  await open(page, "#/offers");
+  await page.locator("#searchForm").evaluate((f) => f.requestSubmit());
+  await expect(page.locator("#searchMsg")).toContainText("Adzuna, Careerjet are unavailable right now.");
+  await expect(page.locator("#searchMsg")).not.toContainText("401");
+  await expect(page.locator("#searchMsg")).not.toContainText("<");
 });
 
 // Usage counters (usage.js): automated browsers never send them, so smoke tests do not inflate the admin page numbers.

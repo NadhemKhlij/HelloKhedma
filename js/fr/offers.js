@@ -353,4 +353,10 @@ export default {
   "{n} new offers since your last search.": "{n} nouvelles offres depuis votre dernière recherche.",
   "Only titles for my path": "Seulement les intitulés de mon parcours",
   "La bonne alternance (work-study, France)": "La bonne alternance (alternance, France)",
+  "{list} is unavailable right now.": "{list} est indisponible pour le moment.",
+  "{list} are unavailable right now.": "{list} sont indisponibles pour le moment.",
+  "Some job sources are unavailable right now.": "Certaines sources d’offres sont indisponibles pour le moment.",
+  "Live search is unavailable right now. Use the job board links below.": "La recherche en direct est indisponible pour le moment. Utilisez les liens vers les sites d’emploi ci-dessous.",
+  "Remote job boards are unavailable right now. Try again in a few minutes.": "Les sites d’emploi à distance sont indisponibles pour le moment. Réessayez dans quelques minutes.",
+  "Too many searches in the last hour. Please try again later.": "Trop de recherches au cours de la dernière heure. Réessayez plus tard.",
 };

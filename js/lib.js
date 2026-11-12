@@ -79,7 +79,10 @@ export function toast(msg) {
 
 // Copy a text to the clipboard (selecting `area` as a fallback where the clipboard API is refused), then a toast.
 export async function copyText(text, area, message) {
-  try { await navigator.clipboard.writeText(text); } catch { area?.select(); document.execCommand("copy"); }
+  try { await navigator.clipboard.writeText(text); } catch {
+    const fold = area?.closest("details"); if (fold) fold.open = true; // a folded text must be visible to be selected
+    area?.select(); document.execCommand("copy");
+  }
   toast(message);
 }
 

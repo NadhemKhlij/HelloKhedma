@@ -691,9 +691,20 @@ Deno.serve(async (req) => {
   }
 
   const fetchers = { francetravail: franceTravail, adzuna, jsearch, jooble, himalayas, arbeitnow, lba, careerjet };
+  // A source that fails with a server error (5xx: e.g. Adzuna's "Uh oh, something isn't right" page) or a network /
+  // timeout error gets one more try after a short pause; other errors (bad key, 4xx) are not retried.
+  const transient = (e: unknown) => /returned 5\d\d\b|time(d)? ?out|network|connection|fetch failed|ECONNRESET/i.test(String((e as Error)?.message ?? e));
+  const fetchOnce = async (p: Source) => {
+    try { return await fetchers[p](query, where, country, page, filters, alt, ctx); }
+    catch (e) {
+      if (!transient(e)) throw e;
+      await new Promise((r) => setTimeout(r, 800));
+      return await fetchers[p](query, where, country, page, filters, alt, ctx);
+    }
+  };
   const call = (p: Source) => saved.has(p) ? Promise.resolve(saved.get(p)!)
     : paused.has(p) ? Promise.resolve([] as Job[]) // skipped quietly until the pause ends
-    : fetchers[p](query, where, country, page, filters, alt, ctx);
+    : fetchOnce(p);
   const results = await Promise.allSettled(providers.map(call));
   const used: Source[] = [...providers];
   // Jooble as a backup (lifetime quota): only when the other sources found fewer than 10 offers on the first page.
@@ -731,7 +742,11 @@ Deno.serve(async (req) => {
   const jobs: Job[] = [];
   for (const r of results) {
     if (r.status === "rejected") {
-      warnings.push(r.reason instanceof Error ? r.reason.message : "A provider failed.");
+      // Plain text (no HTML error page); the app shows visitors only which sources are unavailable, the detail stays
+      // here, in the browser console and in these logs.
+      const msg = (r.reason instanceof Error ? r.reason.message : "A provider failed.").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+      console.error("source failed:", msg);
+      warnings.push(msg);
       continue;
     }
     for (const j of r.value) {

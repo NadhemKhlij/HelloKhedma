@@ -23,6 +23,7 @@ import { atsReport, atsView } from "./atsscore.js";
 import { loadCvs, addCv, updateCv, setActiveCv } from "./cvs.js";
 import { cvPdf } from "./cvpdf.js";
 import { localChange } from "./cvsync.js";
+import { countFeature } from "./usage.js";
 
 const KEY = "hk.cvmaker";
 const HEAD = {
@@ -255,6 +256,7 @@ function useAsVersion() {
 // "Download PDF": a real text PDF built in the browser (cvpdf.js). If the PDF library cannot load (offline on first use),
 // the browser prints a copy of the CV page alone instead (#cvPrint; everything else is display:none in print).
 async function downloadPdf(btn) {
+  countFeature("cv_pdf");
   btn.disabled = true;
   try {
     const bytes = await cvPdf(cvModel());

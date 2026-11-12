@@ -8,6 +8,7 @@
 import { $, h, ls, toast } from "./lib.js";
 import { t, LOCALE, fetchContent } from "./i18n.js";
 import { courseInterviewQuestions } from "./courses.js";
+import { countFeature } from "./usage.js";
 
 const RATINGS_KEY = "hk.iv.ratings", STORIES_KEY = "hk.iv.stories", CHECK_KEY = "hk.iv.checklist", TAB_KEY = "hk.iv.tab";
 const load = (k, d) => { try { return JSON.parse(ls.get(k) || "null") ?? d; } catch { return d; } };
@@ -30,6 +31,7 @@ async function loadContent(pathId) {
 /* ---------- entry point ---------- */
 // ctx: { path, cards } — re-rendered when the page is shown, the path changes or the tracker changes.
 export async function renderInterview(ctx) {
+  countFeature("interview");
   const root = $("#ivBody");
   if (!ctx.path) return;
   let content;

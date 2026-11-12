@@ -12,6 +12,7 @@ import { $, h, toast, copyText } from "./lib.js";
 import { t, lang } from "./i18n.js";
 import { state, path, skillChip } from "./state.js";
 import { extractSkills, matchSkills } from "./ats.js";
+import { countFeature } from "./usage.js";
 
 const COVER = {
   en: ({ role, matched, missing, title, company, offer, cv, me }) => `You are an experienced recruiter for ${role} roles. Write a cover letter for the job offer below, using my CV, honestly.
@@ -184,6 +185,7 @@ const title = (text, sub) => h("h2", { class: "!mb-0" }, text, h("span", { class
 
 // offer: { title, company, text }
 export function openCoverLetter(offer, l = textLang(`${offer.title} ${offer.text}`)) {
+  countFeature("cover_letter");
   const heading = title(t("Cover letter"), [offer.title, offer.company].filter(Boolean).join(" · "));
   if (!state.cv.text.trim()) {
     show(heading, h("p", { class: "text-sm" }, t("Add your CV first on the "),

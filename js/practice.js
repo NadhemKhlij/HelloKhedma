@@ -29,6 +29,7 @@ import { logActivity } from "./activity.js";
 import { drill, solution } from "./drills.js";
 import { grade, dueCards } from "./srs.js";
 import { explainBox } from "./explain.js";
+import { countFeature } from "./usage.js";
 
 const store = (key) => ({
   all() { try { return JSON.parse(ls.get(key) || "{}"); } catch { return {}; } },
@@ -173,6 +174,7 @@ export function quiz(root, c, { onReview } = {}) {
     opts[0]?.focus({ preventScroll: true });
   };
   function end() {
+    countFeature("quiz_done");
     const best = Math.max(quizBest(c.id) ?? 0, score), pct = Math.round((score / qs.length) * 100);
     QUIZ.set(c.id, best);
     logActivity(5);

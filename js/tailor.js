@@ -15,6 +15,7 @@ import { state, path, fitColor, skillChip } from "./state.js";
 import { extractSkills, matchSkills } from "./ats.js";
 import { loadAiCv, renderCvMaker } from "./cvmaker.js";
 import { gapTrainings } from "./gaps.js";
+import { countFeature } from "./usage.js";
 
 const PROMPTS = {
   en: ({ role, matched, missing, title, company, offer, cv }) => `You are an experienced recruiter and CV coach for ${role} roles. Help me tailor my CV to the job offer below, honestly.
@@ -75,7 +76,7 @@ function linesToPutForward(cvText, wanted) {
     .slice(0, 6);
 }
 
-const copy = (text, area, message = t("Prompt copied. Paste it into your AI assistant.")) => copyText(text, area, message);
+const copy = (text, area, message = t("Prompt copied. Paste it into your AI assistant.")) => { countFeature("tailor_prompt"); return copyText(text, area, message); };
 
 // Messages for the error codes of the cv-tailor function.
 const AI_ERRORS = {
@@ -102,7 +103,7 @@ function aiSection({ offer, r }) {
   if (!state.user) {
     box.append(h("p", { class: "mute text-xs" }, t("For signed-in users: up to 5 rewrites a day.")),
       h("button", { type: "button", class: "btn-ghost justify-self-start",
-        onClick: () => { $("#tailorDialog").close(); $("#authOpen").click(); } }, t("Sign in to use it")));
+        onClick: () => { countFeature("tailor_signin"); $("#tailorDialog").close(); $("#authOpen").click(); } }, t("Sign in to use it")));
     return box;
   }
   const out = h("div", { class: "grid gap-2", "aria-live": "polite" });
@@ -164,6 +165,7 @@ function aiSection({ offer, r }) {
 
 // offer: { title, company, text }
 export function openTailor(offer) {
+  countFeature("tailor_open");
   const dlg = $("#tailorDialog"), body = $("#tailorBody");
   const close = h("button", { type: "button", class: "btn-ghost", onClick: () => dlg.close() }, t("Close"));
   const heading = h("h2", { class: "!mb-0" }, t("Tailor my CV"),

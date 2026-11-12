@@ -7,6 +7,9 @@
 //                  chosen paths, anonymous statistics, open problem reports with Done / Ignore, share of job source
 //                  answers reused from the database: source_saved / source_call, migration 20261109000400)
 //   checkAdmin()   true when the signed-in user is an admin (is_admin()); account.js shows the Admin link with it
+// Site activity (2026-11-12, migration 20261112000100, js/usage.js): "Active accounts" = signed in or used the site
+// while signed in (profiles.last_seen_at); "Visitors and features" = anonymous daily counts of browsers that used each
+// feature (guests included, at most once per feature per day per browser), features_daily of admin_stats().
 // Charts: one series each, in the path color (--accent), a tooltip (title) on every bar; the numbers are also written
 // out, so nothing relies on the bars alone.
 import { $, h } from "./lib.js";
@@ -154,6 +157,23 @@ async function claudeSection() {
     h("p", { class: "mute text-xs" }, t("Estimated from the tokens of every AI CV call (counted from the day cv-tailor was redeployed) and Anthropic's prices per model. Anthropic has no API for the remaining credit: the exact balance is in the Claude Console.")));
 }
 
+// Feature counts (usage.js FEATURES): label shown on the admin page.
+const FEATURE_LABELS = {
+  visit: "Opened the site", job_search_page: "Searched for offers", tailor_open: "Opened Tailor my CV", tailor_prompt: "Copied the AI prompt",
+  tailor_signin: "Tailor my CV: pressed Sign in", cover_letter: "Opened the cover letter", cv_check: "Checked a CV (ATS score)",
+  cv_pdf: "Downloaded a CV as PDF", tracker_add: "Added an application", lesson_done: "Finished a lesson", quiz_done: "Finished a quiz",
+  review: "Opened Review today", interview: "Opened Interview prep", skillcheck: "Opened the skill check",
+};
+function featuresSection(rows) {
+  if (!rows) return section(t("Visitors and features (30 days)"), h("p", { class: "mute text-sm" }, t("Not installed yet: run the migration 20261112000100_site_activity.sql.")));
+  const total = (k) => rows.filter((r) => r.kind === k).reduce((a, r) => a + r.n, 0);
+  return section(t("Visitors and features (30 days)"),
+    columns(daily(rows, "visit"), t("Browsers that opened the site, per day")),
+    bars(Object.keys(FEATURE_LABELS).filter((k) => k !== "visit").map((k) => ({ label: t(FEATURE_LABELS[k]), n: total(k) })).filter((x) => x.n)
+      .sort((a, b) => b.n - a.n), t("No data yet.")),
+    h("p", { class: "mute text-xs" }, t("Guests and signed-in users alike: each number counts the browsers that used a feature, once a day at most (so 3 = three browser-days). No account and no IP are kept. Counted from 12 November 2026; test runs and preview builds are not counted.")));
+}
+
 const section = (title, ...kids) => h("section", { class: "panel grid gap-3 content-start" }, h("h2", { class: "font-semibold" }, title), ...kids);
 
 export async function renderAdmin() {
@@ -199,14 +219,14 @@ export async function renderAdmin() {
       h("button", { type: "button", class: "btn-ghost !py-1 !px-3 !text-xs", onClick: () => renderAdmin() }, t("↻ Refresh")),
       h("a", { href: "https://dash.cloudflare.com/?to=/:account/web-analytics", target: "_blank", rel: "noopener", class: "btn-ghost !py-1 !px-3 !text-xs" }, t("Visitors (Cloudflare) ↗"))),
     h("div", { class: "grid grid-cols-2 sm:grid-cols-4 gap-3" },
-      tile(t("Accounts"), num(a.total), t("{n} confirmed", { n: num(a.confirmed) })),
+      tile(t("Accounts"), num(a.total), t("{n} confirmed · test accounts included", { n: num(a.confirmed) })),
       tile(t("New accounts"), num(a.new_7d), t("7 days · {n} in 30 days", { n: num(a.new_30d) })),
-      tile(t("Active accounts"), num(a.active_7d), t("signed in, 7 days · {n} in 30 days", { n: num(a.active_30d) })),
+      tile(t("Active accounts"), num(a.active_7d), t("used the site signed in, 7 days · {n} in 30 days", { n: num(a.active_30d) })),
       tile(t("Applications tracked"), num(apps.total), t("by {n} accounts", { n: num(apps.accounts) })),
       tile(t("CVs saved to an account"), num(s.cv_sync_accounts), t("accounts with the option on")),
-      tile(t("Learning synced"), num(s.learning_sync_accounts), t("accounts")),
-      tile(t("Job searches"), num(daily(s.usage_daily || [], "job_search").reduce((x, p) => x + p.n, 0)), t("last 30 days")),
-      tile(t("AI CV calls"), num(daily(s.usage_daily || [], "cv_tailor").reduce((x, p) => x + p.n, 0)), t("last 30 days")),
+      tile(t("Learning synced"), num(s.learning_sync_accounts), t("accounts that saved course progress")),
+      tile(t("Job searches"), num(daily(s.usage_daily || [], "job_search").reduce((x, p) => x + p.n, 0)), t("server calls, guests included, 30 days")),
+      tile(t("AI CV calls"), num(daily(s.usage_daily || [], "cv_tailor").reduce((x, p) => x + p.n, 0)), t("signed-in users only, 30 days")),
       tile(t("AI explanations"), num(daily(s.usage_daily || [], "explain").reduce((x, p) => x + p.n, 0)), t("last 30 days")),
       tile(t("Saved explanations reused"), num(daily(s.usage_daily || [], "explain_saved").reduce((x, p) => x + p.n, 0)), t("last 30 days")),
       tile(t("Lesson questions"), num(daily(s.usage_daily || [], "ask_lesson").reduce((x, p) => x + p.n, 0)), t("last 30 days")),
@@ -214,6 +234,7 @@ export async function renderAdmin() {
         const sum = (k) => daily(s.usage_daily || [], k).reduce((x, p) => x + p.n, 0), hits = sum("source_saved"), all = hits + sum("source_call");
         return tile(t("Job source calls saved"), all ? `${Math.round((100 * hits) / all)}%` : "–", t("{hits} of {all} answers reused, 30 days", { hits: num(hits), all: num(all) }));
       })()),
+    featuresSection(s.features_daily),
     claude,
     h("div", { class: "grid gap-4 md:grid-cols-2" },
       section(t("Sign-ups per week"), columns(weekly(s.signups_weekly || []), t("Sign-ups per week"))),

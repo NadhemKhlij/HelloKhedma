@@ -41,6 +41,7 @@ import { logInsight } from "./insights.js";
 import { reportBox } from "./report.js";
 import { askBox } from "./asklesson.js";
 import { passedCourses } from "./srs.js";
+import { countFeature } from "./usage.js";
 
 const BASE = "content/courses/";
 const LESSONS_KEY = "hk.lessons";
@@ -224,7 +225,7 @@ export async function renderCourse(id) {
     const toggle = (val) => {
       const s = doneSet(), key = `${id}:${cur}`;
       const wasComplete = c.lessons.every((_, i) => s.has(`${id}:${i}`));
-      if (val) { if (!s.has(key)) logActivity(10); s.add(key); } else s.delete(key);
+      if (val) { if (!s.has(key)) { logActivity(10); countFeature("lesson_done"); } s.add(key); } else s.delete(key);
       saveDone(s); drawProgress();
       // Anonymous statistics, only if the user opted in (insights.js): which courses get finished.
       if (!wasComplete && c.lessons.every((_, i) => s.has(`${id}:${i}`))) logInsight("course_done", ls.get("hk.path"), [id]);

@@ -27,6 +27,7 @@ import { renderSearchControls, renderOffers, resetOffers, loadCompanyJobs, initO
 import { renderCvVersions, renderCvSkills, useCvForPath, initCvPage } from "./cvpage.js";
 import { refreshTracker, initApplications } from "./applications.js";
 import { renderStatus, initAccount } from "./account.js";
+import { countFeature, touchSeen } from "./usage.js";
 
 const PATH_KEY = "hk.path";
 
@@ -119,6 +120,7 @@ async function onUser(user) {
   if ((user?.id || null) === (state.user?.id || null)) return;
   state.user = user;
   if (user) {
+    touchSeen(user);
     state.store = new CloudStore(sb);
     try {
       const n = await importLocalToCloud(sb);
@@ -156,7 +158,7 @@ function onUnexpectedError(err) {
 function initMonitoring() {
   window.addEventListener("error", (e) => onUnexpectedError(e.error || e.message));
   window.addEventListener("unhandledrejection", (e) => onUnexpectedError(e.reason));
-  initWebAnalytics();
+  initWebAnalytics(); countFeature("visit");
   if (!CONFIG.SENTRY_DSN) return;
   const s = document.createElement("script");
   s.src = "https://browser.sentry-cdn.com/8.38.0/bundle.min.js";

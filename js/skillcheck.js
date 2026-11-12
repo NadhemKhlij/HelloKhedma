@@ -10,6 +10,7 @@ import { loadCourseIndex, loadCourse } from "./courses.js";
 import { makeQuestions } from "./practice.js";
 import { saveCheck, checkResult, passed } from "./srs.js";
 import { logActivity } from "./activity.js";
+import { countFeature } from "./usage.js";
 
 const PER_COURSE = 4, SECONDS_PER_QUESTION = 20;
 const code = (s) => h("code", { class: "inline-code !text-[.85rem]" }, s);
@@ -23,6 +24,7 @@ const badge = (r) => (r ? h("span", { class: "chip !py-0 text-xs", style: passed
   passed(r) ? t("✓ Passed {got}/{of}", r) : t("Last try {got}/{of}", r)) : null);
 
 export async function renderSkillCheck() {
+  countFeature("skillcheck");
   const root = $("#skillcheckBody");
   const all = (await loadCourseIndex()).filter((c) => c.paths.includes(state.pathId));
   const sub = t("Pick the skills of the {path} path you think you already know. {n} questions each: with 3 right, the course is marked as known and your study plan skips it.",

@@ -400,6 +400,16 @@ test("job search in France: French titles with their English pair, both sent; ti
   await expect(page.locator("#role option").first()).toHaveText("Data Engineer");
 });
 
+// Usage counters (usage.js): automated browsers never send them, so smoke tests do not inflate the admin page numbers.
+test("usage counters are not sent by test runs", async ({ page }) => {
+  const calls = [];
+  page.on("request", (r) => { if (/\/rpc\/(count_feature|touch_seen)/.test(r.url())) calls.push(r.url()); });
+  await open(page, "#/");
+  await open(page, "#/cv");
+  await page.waitForTimeout(500);
+  expect(calls).toEqual([]);
+});
+
 // Location suggestions (places.js): the country's main cities in a <datalist>, following the country menu; a place
 // searched before comes first for that country only. Nothing is fetched while typing (built-in list).
 test("job search: the location box suggests the country's cities and places searched before", async ({ page }) => {

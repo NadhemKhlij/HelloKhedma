@@ -10,6 +10,7 @@ import { loadCourse, courseMeta, loadCourseIndex } from "./courses.js";
 import { isAiCourse, aiMeta, aiDir } from "./aitrack.js";
 import { items, flipCard } from "./practice.js";
 import { logActivity } from "./activity.js";
+import { countFeature } from "./usage.js";
 
 const SESSION = 20;
 const bar = (pct) => h("div", { class: "h-1.5 rounded-full", style: "background:var(--line)" },
@@ -36,6 +37,7 @@ async function loadDue(courseId) {
 const when = (days) => (days === 0 ? t("today") : tn(days, "tomorrow", "in {n} days"));
 
 export async function renderReview(courseId = null) {
+  countFeature("review");
   const root = $("#reviewBody");
   root.replaceChildren(h("p", { class: "mute" }, t("Loading your cards…")));
   const deck = await loadDue(courseId);

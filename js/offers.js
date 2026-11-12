@@ -41,6 +41,7 @@ import { openTailor } from "./tailor.js";
 import { openCoverLetter } from "./letters.js";
 import { refreshTracker } from "./applications.js";
 import { loadAlerts, alertOf, toggleAlert } from "./alerts.js";
+import { countFeature } from "./usage.js";
 
 const COUNTRIES = ["fr", "gb", "us", "de", "nl", "ca", "au", "be", "ch", "es", "it"];
 export const LOC_KEY = "hk.location";
@@ -355,6 +356,7 @@ async function onSearch(e) {
   const btn = $("#searchBtn"), msg = $("#searchMsg");
   const params = currentSearch();
   ls.set(LOC_KEY, params.location);
+  countFeature("job_search_page");
   rememberPlace(params.country, params.location); fillPlaces();
   btn.disabled = true; msg.textContent = t("Searching…");
   state.jobs = []; state.skillFilter = null; renderOffers();

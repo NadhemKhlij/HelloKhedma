@@ -232,6 +232,9 @@ Read the header comment of any file before modifying it; update the header if be
 - js/insights.js — opt-in anonymous statistics (asked once under a CV check; Account page switch)
 - js/gaps.js — "Close the gaps": courses, roadmap steps and projects for the missing skills (#/cv, Tailor my CV)
 - js/learnsync.js — learning progress synced for signed-in users (learning_sync; merge per key, lib.js onStore watcher)
+- js/usage.js — site activity (migration 20261112000100): countFeature(kind) = anonymous daily feature counter for everyone
+  (count_feature(): day + kind + count, once per feature per day per browser, "hk.counted"), touchSeen() = signed-in
+  account used the site today (profiles.last_seen_at, "Active accounts"); off on local / preview / automated browsers
 - js/admin.js — admin page: admin_stats() totals (accounts, usage counters, applications, anonymous statistics, open
   reports with Done / Ignore), link to Cloudflare Web Analytics for visitors; Admin link on the Account page via is_admin()
 - js/report.js — "⚑ Report a problem" on course and project pages (report_content(), e-mail fallback)

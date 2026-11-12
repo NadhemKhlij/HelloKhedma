@@ -10,6 +10,7 @@
 // and cvSupported() (CHECKLIST O13).
 import { ls } from "./lib.js";
 import { t } from "./i18n.js";
+import { countFeature } from "./usage.js";
 
 // Stage ids are stored; labels are translated ("stage|" keys: the nav's "Interview" is translated differently).
 export const STAGES = [
@@ -47,6 +48,7 @@ export class LocalStore {
   }
   async #save(rows) { ls.set(LOCAL_KEY, JSON.stringify(rows)); }
   async add(a) {
+    countFeature("tracker_add");
     const rows = await this.list();
     if (a.external_id && rows.some((r) => r.source === a.source && r.external_id === a.external_id)) throw dup();
     const stage = a.stage || "saved";
@@ -92,6 +94,7 @@ export class CloudStore {
     return data;
   }
   async add(a) {
+    countFeature("tracker_add");
     const stage = a.stage || "saved";
     const row = pick({ history: [{ stage, at: now() }], ...a, stage }, await this.#fields());
     const { data, error } = await this.sb.from("applications").insert(row).select().single();

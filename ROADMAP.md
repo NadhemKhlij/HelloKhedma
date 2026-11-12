@@ -261,6 +261,11 @@ Traffic Manager). A data-minded marketing path: it fits the app (CV keywords, of
 
 ## Decisions log (so they are not reopened by accident)
 
+- 2026-11-12: Owner approved anonymous feature counters for every visitor, guests included (feature_daily: day +
+  feature + count, no account, no IP, no identifier; once per feature per day per browser). They are audience
+  measurement like the job-search counter, so they run without the "hk.insights" consent; anything richer (skills,
+  course ids, free text) stays behind that consent. Signed-in accounts also get profiles.last_seen_at for "Active accounts".
+
 - 2026-11-09: Lessons are read step by step by default (owner feedback: "the courses looked dull, I couldn't keep
   attention"): one paragraph at a time, then the example, key points and a quick check, with coloured code and a
   celebration at the end; the owner confirmed step by step as the default. "Show the whole lesson" stays one click

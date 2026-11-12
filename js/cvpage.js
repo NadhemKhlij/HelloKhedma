@@ -30,6 +30,7 @@ import { logInsight, insightsAsk } from "./insights.js";
 import { recentOffers, trackedOffer, offerAsText, rememberTracked } from "./offerpick.js";
 import { marketSkills, skillRow } from "./pulse.js";
 import { STAGES } from "./store.js";
+import { countFeature } from "./usage.js";
 
 // Loads the active CV version into state.cv. Skills are re-extracted each time: path keywords may have changed.
 export function loadActiveCv() {
@@ -217,6 +218,7 @@ function logOffer() {
   logInsight("offer_skills", state.pathId, lastMatch.required); logInsight("gaps", state.pathId, lastMatch.missing);
 }
 function onAts({ quiet = false } = {}) {
+  if (!quiet) countFeature("cv_check");
   const jd = $("#jd").value, out = $("#atsOut");
   $("#jdClear").hidden = !jd.trim();
   lastMatch = null;

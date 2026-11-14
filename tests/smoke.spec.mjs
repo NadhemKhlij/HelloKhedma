@@ -114,7 +114,11 @@ test("home shows the career paths and a path can be selected", async ({ page }) 
   await expect(page.locator("#h-home")).toHaveText(/Good (morning|afternoon|evening)/);
   const paths = page.locator("#paths button");
   expect(await paths.count()).toBeGreaterThanOrEqual(4);
+  // The path cards are folded under "Change career path"; choosing one folds them again.
+  await expect(paths.nth(1)).toBeHidden();
+  await page.locator("#pathsFold summary").click();
   await paths.nth(1).click();
+  await expect(paths.nth(1)).toBeHidden();
   await expect(paths.nth(1)).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -530,7 +534,7 @@ test("course index matches the course files (time, lesson count, French copy)", 
 });
 
 test("portfolio projects: every path has projects and a project page works", async ({ page }) => {
-  await open(page, "#/training");
+  await open(page, "#/training/projects");
   const cards = page.locator("#projectList a");
   await expect(cards.first()).toBeVisible();
   expect(await cards.count()).toBeGreaterThanOrEqual(3);
@@ -601,7 +605,13 @@ test("AI Engineer path: its courses and projects are on Training", async ({ page
     test.skip(true, "the AI Engineer path is not in the database yet: run supabase/seed.sql");
   }
   await page.locator("#pathSelect").selectOption("ai");
+  // Training has four tabs: My plan (default), Roadmap, Courses, Projects.
+  await expect(page.locator("#learnHub")).toBeVisible();
+  await expect(page.locator("#courseList")).toBeHidden();
+  await page.locator("#trainTabs").getByRole("tab", { name: "Courses" }).click();
+  await expect(page).toHaveURL(/#\/training\/courses$/);
   await expect(page.locator('#courseList > div a[href="#/course/ai-engineer-basics"]')).toBeVisible();
+  await page.locator("#trainTabs").getByRole("tab", { name: "Projects" }).click();
   await expect(page.locator('#projectList a[href^="#/project/ai-"]').first()).toBeVisible();
 });
 

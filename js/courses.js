@@ -173,7 +173,7 @@ const TABS = [["lessons", "Lessons"], ["quiz", "Quiz"], ["cards", "Flashcards"],
 export async function renderCourse(id) {
   const root = $("#courseBody");
   root.replaceChildren(h("p", { class: "mute" }, t("Loading course…")));
-  const ai = isAiCourse(id), back = ai ? "#/ai" : "#/training";
+  const ai = isAiCourse(id), back = ai ? "#/ai" : "#/training/courses";
   const meta = ai ? await aiMeta(id) : index.find((x) => x.id === id);
   let c;
   try {

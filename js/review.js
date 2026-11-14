@@ -54,7 +54,7 @@ export async function renderReview(courseId = null) {
       h("p", { class: "mute text-sm" }, next != null
         ? t("Your next cards come back {when}. Reviews bring each card back just before you would forget it.", { when: when(next) })
         : t("Open a course's Flashcards and answer a few cards: they come back here just before you would forget them.")),
-      h("a", { href: "#/training", class: "btn-ghost justify-self-start" }, t("Go to my courses →"))));
+      h("a", { href: "#/training/courses", class: "btn-ghost justify-self-start" }, t("Go to my courses →"))));
     return;
   }
 

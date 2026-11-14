@@ -215,4 +215,5 @@ export default {
   "Opened Review today": "Ont ouvert Réviser aujourd’hui",
   "Opened Interview prep": "Ont ouvert la préparation aux entretiens",
   "Opened the skill check": "Ont ouvert le test de niveau",
+  "Change career path": "Changer de métier",
 };

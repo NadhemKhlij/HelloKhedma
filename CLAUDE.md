@@ -191,9 +191,10 @@ Read the header comment of any file before modifying it; update the header if be
 - CHECKLIST.md updated with any new owner task (migration to run, function to deploy, secret to set).
 
 ## Routes (`#/<route>[/<param>]`, router in js/router.js)
-- `#/` → home → home.js (path cards: app.js; first-visit guide: guide.js)
+- `#/` → home → home.js (path cards: app.js, folded under "Change career path" (#pathsFold); first-visit guide: guide.js)
 - `#/offers` → offers → offers.js + jobs.js, companies.js, remote.js (three tabs)
-- `#/training` → training → training.js (My learning, roadmap of tracks, study plan) + courses.js (course list)
+- `#/training[/<tab>]` → training → training.js, four tabs (showTrainTab): My plan (default: streak, reviews, next step, study
+  plan), `roadmap` (tracks, tools, tips), `courses` (courses.js course list), `projects`
 - `#/course/<id>` → course → courses.js
 - `#/project/<id>` → project → projects.js
 - `#/review[/<course id>]` → review → review.js (flashcards due today, spaced repetition, srs.js)

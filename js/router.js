@@ -9,7 +9,7 @@ import { renderInterview } from "./interview.js";
 import { renderProject } from "./projects.js";
 import { showCvTab } from "./cvpage.js";
 import { renderAiTrack } from "./aitrack.js";
-import { refreshLearning } from "./training.js";
+import { refreshLearning, showTrainTab } from "./training.js";
 import { renderHome } from "./home.js";
 import { renderAdmin } from "./admin.js";
 import { renderReview } from "./review.js";
@@ -53,6 +53,7 @@ export function showRoute(moveFocus) {
   if (r === "interview") refreshInterview();
   if (r === "admin") renderAdmin(); // admins only: the database refuses everyone else
   if (r === "cv" && path()) showCvTab(param); // #/cv/maker opens the CV maker tab
+  if (r === "training") showTrainTab(param); // #/training/courses opens the Courses tab
   if (r === "training" && path()) refreshLearning(); // lessons, quiz scores and XP may have changed on a course page
   if (r === "home" && path()) renderHome(); // streak
 }

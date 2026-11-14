@@ -295,4 +295,9 @@ export default {
   "Practice exercises": "Exercices pratiques",
   "⚡ Quick check": "⚡ Vérification rapide",
   "{s}/{n} right · these cards come back in your reviews.": "{s}/{n} juste(s) · ces cartes reviendront dans vos révisions.",
+  "My plan": "Mon plan",
+  "Roadmap": "Feuille de route",
+  "Courses": "Cours",
+  "Next step": "Prochaine étape",
+  "Training sections": "Sections de la formation",
 };

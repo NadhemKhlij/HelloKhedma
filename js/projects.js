@@ -64,7 +64,7 @@ export async function renderProject(id) {
   const ai = pathOf(id) === "ai";
   const p = (await loadProjects(pathOf(id))).find((x) => x.id === id);
   const back = ai ? h("a", { href: "#/ai", class: "mute text-sm underline" }, t("← AI engineer track"))
-    : h("a", { href: "#/training", class: "mute text-sm underline" }, t("← Learning tracks"));
+    : h("a", { href: "#/training/projects", class: "mute text-sm underline" }, t("← Learning tracks"));
   if (!p) { root.replaceChildren(back, h("p", { class: "panel" }, t("This project could not be found."))); return; }
 
   const D = dirOf(p); // Tunisian content in Arabic letters reads right to left

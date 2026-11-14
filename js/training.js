@@ -1,4 +1,4 @@
-// Training page (#/training): learning tracks and steps (Supabase training_tracks / training_steps), step progress
+// Training page (#/training[/<tab>], tabs My plan / Roadmap / Courses / Projects since 2026-11-14: showTrainTab): learning tracks and steps (Supabase training_tracks / training_steps), step progress
 // (guests: "hk.progress.v2"; signed in: step_progress, guest progress imported on sign-in by app.js), the weekly
 // study plan ("hk.hours" h/week), tools, tips, the course list (courses.js) and the portfolio projects (projects.js).
 // Tracks are drawn as a roadmap (done / current / upcoming nodes); "My learning" shows the streak, XP and the course to
@@ -246,7 +246,20 @@ export function renderLearn() {
   renderHome();
 }
 
+// The four tabs of the page (#/training[/<tab>]): My plan (default), Roadmap, Courses, Projects.
+const TRAIN_TABS = ["plan", "roadmap", "courses", "projects"];
+export function showTrainTab(param) {
+  const tab = TRAIN_TABS.includes(param) ? param : "plan";
+  for (const el of document.querySelectorAll("[data-train]")) el.hidden = el.dataset.train !== tab;
+  for (const b of document.querySelectorAll("#trainTabs [role=tab]")) {
+    const on = b.dataset.tab === tab;
+    b.className = on ? "btn" : "btn-ghost"; b.setAttribute("aria-selected", String(on));
+  }
+}
+
 export function initTraining() {
+  for (const b of document.querySelectorAll("#trainTabs [role=tab]")) b.addEventListener("click", () => { location.hash = b.dataset.tab === "plan" ? "#/training" : `#/training/${b.dataset.tab}`; });
+  showTrainTab((location.hash.match(/^#\/training\/([a-z]+)/) || [])[1]);
   document.addEventListener("hk:activity", () => { if (!$("#learnHub").closest("[hidden]")) renderHub(); });
   $("#hoursPerWeek").value = ls.get("hk.hours") || "5";
   $("#hoursPerWeek").addEventListener("input", (e) => { ls.set("hk.hours", e.target.value); renderTracks(); });

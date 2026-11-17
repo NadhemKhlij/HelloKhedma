@@ -44,6 +44,8 @@ const PATH_TITLE_TERMS = {
     "kubernetes", "release engineer", "build engineer", "ingenieur devops", "ingenieur cloud", "systems engineer"],
   ai: ["ai engineer", "machine learning engineer", "ml engineer", "mlops", "llm", "genai", "generative ai", "applied scientist",
     "nlp engineer", "ingenieur ia", "ingenieur ml", "prompt engineer", "ai developer"],
+  fa: ["financial analyst", "finance analyst", "fp&a", "fpa", "financial planning", "finance business partner", "corporate finance",
+    "budget analyst", "controller", "controlling", "controleur de gestion", "analyste financier", "investment analyst"],
 };
 export function titleMatcher(path) {
   const terms = [...(path?.job_titles || []), ...(path?.job_titles_fr || [])].map(norm).concat(PATH_TITLE_TERMS[path?.id] || []);

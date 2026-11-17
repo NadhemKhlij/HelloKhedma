@@ -38,6 +38,10 @@ const DRAW = {
   mk: () => [
     line("M14 30h8l20-12v32L22 38h-8z"), line("M22 38l3 12h7l-3-11"), line("M48 26c3 2 3 8 0 10"),
     line("M54 50l6-8 5 4 7-12"), line("M67 34h5v5"), ring(54, 50), dot(18, 34, 2.4)],
+  // Financial Analyst: bar chart with a trend line and a coin
+  fa: () => [
+    line("M10 54h52"), line("M16 54V40h8v14"), line("M30 54V32h8v22"), line("M44 54V24h8v30"),
+    line("M14 34l14-8 14-6 14-10"), line("M50 10h6v6"), ring(64, 40), line("M64 36v8"), dot(20, 30, 2.2)],
 };
 const GENERIC = () => [line("M40 14v40M20 24l40 20M60 24L20 44"), ring(40, 14), ring(20, 24), dot(60, 44), ring(40, 54), dot(60, 24), ring(20, 44)];
 

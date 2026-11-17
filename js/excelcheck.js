@@ -2,7 +2,7 @@
 // self-hosted parser fast-formula-parser (MIT, js/vendor/formula.esm.min.js), plus the functions it lacks, written
 // here to Excel's documented rules: COUNTIFS, SUMIFS, AVERAGEIFS, MAXIFS, MINIFS (and COUNTIF / SUMIF / AVERAGEIF
 // with the same criteria rules), MATCH, XLOOKUP, MAX, MIN, COUNTA, COUNTBLANK, LARGE, SMALL, RANK, TEXTJOIN,
-// SUBSTITUTE, SEARCH, VALUE, CHOOSE, SWITCH, UPPER, LOWER, TRIM, MEDIAN. Checked against hand-worked Excel results. No DOM: the same code runs in the browser
+// SUBSTITUTE, SEARCH, VALUE, CHOOSE, SWITCH, UPPER, LOWER, TRIM, MEDIAN, and the finance functions NPV, IRR, PV, FV, PMT. Checked against hand-worked Excel results. No DOM: the same code runs in the browser
 // (drills.js, loaded on demand) and in CI (scripts/check-content.mjs), so an answer accepted by CI is accepted in the app.
 //   evaluate(rows, formula) -> { value } or { error: "#N/A" | "#NAME?" | … }   rows: the sheet from A1, row by row
 //   grade(rows, answer, attempt) -> { ok, mine, want, reason? }   same value as the answer on the sheet AND on a
@@ -117,7 +117,33 @@ export const FUNCTIONS = {
   CHOOSE: (i, ...p) => { const k = raw(i); if (!(k >= 1 && k <= p.length)) throw VALUE; return raw(p[Math.floor(k) - 1]); },
   SWITCH: (x, ...p) => { const v = raw(x); for (let i = 0; i + 1 < p.length; i += 2) if (raw(p[i]) === v || (typeof v === "string" && low(raw(p[i])) === low(v))) return raw(p[i + 1]); if (p.length % 2) return raw(p.at(-1)); throw NA; },
   MEDIAN: (...p) => { const v = nums(p.flatMap(flat)).sort((a, b) => a - b); if (!v.length) throw NA; const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; },
+  // Finance (Financial Analyst path, 2026-11-17), Excel's formulas: payments at the end of each period unless type = 1.
+  NPV: (rate, ...p) => { const r = num(rate); if (r === -1) throw DIV0; return nums(p.flatMap(flat)).reduce((a, v, i) => a + v / (1 + r) ** (i + 1), 0); },
+  PV: (rate, nper, pmt, fv, type) => { const [r, n, m, f, t] = [num(rate), num(nper), num(pmt), opt(fv), opt(type) ? 1 : 0];
+    if (r === 0) return -(m * n + f); const g = (1 + r) ** n; return -(f + m * (1 + r * t) * (g - 1) / r) / g; },
+  FV: (rate, nper, pmt, pv, type) => { const [r, n, m, v, t] = [num(rate), num(nper), num(pmt), opt(pv), opt(type) ? 1 : 0];
+    if (r === 0) return -(v + m * n); const g = (1 + r) ** n; return -(v * g + m * (1 + r * t) * (g - 1) / r); },
+  PMT: (rate, nper, pv, fv, type) => { const [r, n, v, f, t] = [num(rate), num(nper), num(pv), opt(fv), opt(type) ? 1 : 0];
+    if (n === 0) throw NUM; if (r === 0) return -(v + f) / n; const g = (1 + r) ** n; return -(v * g + f) * r / ((1 + r * t) * (g - 1)); },
+  IRR: (values, guess) => irr(nums(flat(values)), guess === undefined ? 0.1 : num(guess)),
 };
+// Finance helpers: a required number, an optional one (0 when left out), and IRR (Newton's method from the guess, then
+// bisection between -99 % and +1000 % when Newton does not settle; #NUM! without both a negative and a positive flow).
+const NUM = FormulaError.NUM;
+function num(x) { const v = raw(x); if (isNum(v)) return v; if (v === null || v === undefined || v === "") return 0; if (typeof v === "boolean") return +v; if (numText(v)) return Number(v); throw VALUE; }
+const opt = (x) => (x === undefined ? 0 : num(x));
+function irr(cf, guess) {
+  if (!cf.some((v) => v < 0) || !cf.some((v) => v > 0)) throw NUM;
+  const f = (r) => cf.reduce((a, v, i) => a + v / (1 + r) ** i, 0);
+  const d = (r) => cf.reduce((a, v, i) => a - i * v / (1 + r) ** (i + 1), 0);
+  let r = guess;
+  for (let k = 0; k < 50; k++) { const y = f(r), dy = d(r); if (!dy) break; const next = r - y / dy; if (!Number.isFinite(next) || next <= -1) break;
+    if (Math.abs(next - r) < 1e-12) return next; r = next; }
+  let lo = -0.99, hi = 10, flo = f(lo);
+  if (flo * f(hi) > 0) throw NUM;
+  for (let k = 0; k < 200; k++) { const mid = (lo + hi) / 2, fm = f(mid); if (Math.abs(fm) < 1e-12 || hi - lo < 1e-14) return mid; if (flo * fm < 0) hi = mid; else { lo = mid; flo = fm; } }
+  return (lo + hi) / 2;
+}
 
 const letters = (c) => { let s = ""; for (let n = c; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s; return s; };
 export const colName = letters;

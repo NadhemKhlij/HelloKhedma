@@ -3,7 +3,8 @@
 ## Project overview
 A multi-path job hunting web app targeting Data Engineers, Business Analysts, Application Support, Data Analysts, DevOps Engineers,
 AI Engineers and Digital Marketing (path id "mk", 2026-11-09: seed, skills, interview, projects and six courses: marketing-foundations, seo, paid-ads, ga4,
-  email-crm, marketing-analytics).
+  email-crm, marketing-analytics) and Financial Analyst (path id "fa", 2026-11-17: seed, 14 finance skills, interview, projects
+  and four courses: finance-foundations, financial-modeling, fpa, valuation).
 The selected path adapts the job search, trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 
 ## Commands
@@ -11,7 +12,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Local dev: `npm run watch:css` + a static server, e.g. `npx serve -l 5173 .` (ES modules need http, not file://).
 - No Node on the machine: `sh scripts/preview-cdn.sh`, then `scripts/serve.ps1` (or the "hellokhedma" entry of
   .claude/launch.json) and open /preview-test.html. Never commit preview-test.html. The real build runs in CI.
-- `npm run check-links`: checks every URL in supabase/seed.sql (Node 18+).
+- `npm run check-links`: checks every URL in supabase/seed.sql and the portfolio projects (Node 18+). CI runs it as a
+  report only ("Check links" step: broken links are warnings on the run); this cloud environment cannot reach most sites.
 - `npm run check-content`: checks every content JSON (structure, French copies, identical code, skills known to
   js/ats.js, projects, AI track scripts). CI runs it before the smoke tests; a problem stops the deploy.
 - Translations: `perl scripts/check-i18n.pl js` (every t() text has French, no French key in two js/fr/ files; CI runs it) and
@@ -124,7 +126,8 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Excel formula exercises (type "sheet", code "excel"): `rows` (the sheet from A1, text or numbers), `cell` (where the
   formula goes), `answer` (a formula using cells), same in French. js/excelcheck.js evaluates with fast-formula-parser
   (MIT, js/vendor/formula.esm.min.js) + our own Excel-rule functions (COUNTIFS, SUMIFS, XLOOKUP, MATCH, MAX…); a
-  formula passes when it gives the answer's value on the sheet and on a changed copy. No array maths, FILTER / SORT /
+  formula passes when it gives the answer's value on the sheet and on a changed copy. Finance functions NPV, IRR, PV, FV,
+  PMT follow Excel's argument order and signs (no XNPV / XIRR). No array maths, FILTER / SORT /
   UNIQUE, or Table[Column] references. CI evaluates every answer.
 - Auto-graded exercises: add `"type"` to an exercise (same in the French copy): choice, fill, order, match, groups,
   bug, scenario, logs, regex, cron, json, fixfile (fields in the js/drills.js header). regex / cron / json / fixfile keep

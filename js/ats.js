@@ -143,6 +143,21 @@ export const SKILLS = [
   ["Marketing analytics", "Marketing", ["marketing analytics", "web analytics", "digital analytics", "attribution", "marketing mix modeling", "mmm"]],
   ["Growth marketing", "Marketing", ["growth marketing", "growth hacking", "growth marketer", "acquisition marketing"]],
   ["Conversion rate optimization", "Marketing", ["conversion rate optimization", "conversion rate optimisation", "optimisation du taux de conversion", "landing page optimization"]],
+  // Finance (Financial Analyst path "fa", 2026-11-17)
+  ["Financial modeling", "Finance", ["financial modeling", "financial modelling", "financial model", "financial models", "modelisation financiere", "three-statement model", "3-statement model", "lbo model"]],
+  ["Financial analysis", "Finance", ["financial analysis", "analyse financiere", "ratio analysis", "financial statement analysis", "credit analysis"]],
+  ["Financial statements", "Finance", ["financial statements", "income statement", "balance sheet", "cash flow statement", "p&l", "profit and loss", "etats financiers", "compte de resultat", "tableau des flux de tresorerie"]],
+  ["Accounting", "Finance", ["accounting", "comptabilite", "general ledger", "grand livre", "bookkeeping", "accruals"]],
+  ["FP&A", "Finance", ["fp&a", "financial planning and analysis", "financial planning & analysis", "financial planning"]],
+  ["Budgeting", "Finance", ["budgeting", "budget planning", "budget process", "elaboration budgetaire", "processus budgetaire"]],
+  ["Forecasting", "Finance", ["forecasting", "financial forecasting", "rolling forecast", "rolling forecasts", "reforecast", "previsions financieres"]],
+  ["Variance analysis", "Finance", ["variance analysis", "budget vs actual", "budget vs actuals", "actual vs budget", "analyse des ecarts"]],
+  ["Financial reporting", "Finance", ["financial reporting", "reporting financier", "management reporting", "month-end close", "month end close", "cloture mensuelle"]],
+  ["Management control", "Finance", ["management control", "controle de gestion", "controleur de gestion", "cost accounting", "comptabilite analytique", "controlling"]],
+  ["Valuation", "Finance", ["valuation", "dcf", "discounted cash flow", "company valuation", "valorisation", "evaluation d'entreprise", "comparable companies"]],
+  ["Corporate finance", "Finance", ["corporate finance", "finance d'entreprise", "m&a", "mergers and acquisitions", "wacc", "capital budgeting"]],
+  ["IFRS", "Finance", ["ifrs", "us gaap", "gaap", "normes ifrs"]],
+  ["EPM tools", "Finance", ["epm", "anaplan", "hyperion", "oracle epm", "tagetik", "adaptive insights", "workday adaptive planning", "pigment", "board international"]],
   ["Salesforce", "Tools", ["salesforce"]],
 ];
 

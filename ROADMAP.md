@@ -235,6 +235,18 @@ Traffic Manager). A data-minded marketing path: it fits the app (CV keywords, of
 | C | Practice on marketing data: a fictional campaigns dataset for runnable SQL exercises (content/sql/), log-like GA4 event files for "logs"/"json" drills, take-home case "Marketing Analyst" | Later |
 | D | Expert review by a marketer (part of O11) | Owner |
 
+## Financial Analyst path ("fa", 2026-11-17)
+Target jobs: Financial Analyst, FP&A Analyst, Financial Planning Analyst, Finance Business Partner, Corporate Finance
+Analyst (French titles: Analyste Financier, Analyste FP&A, Contrôleur de Gestion, Business Partner Finance, Analyste
+Corporate Finance). Reuses the Excel, SQL, Power BI, Python and statistics courses.
+
+| Step | What | Status |
+|---|---|---|
+| A | Path in seed.sql (EN + FR: titles, tools, tips, keywords, 3 learning tracks fa-foundations / fa-modeling / fa-fpa on free material, roadmap steps opening our courses), 14 finance skills in js/ats.js (category "Finance"), 8 role interview questions, 3 portfolio projects on public data (three-statement model + DCF from SEC filings, budget vs actual pack, peer ratios from EDGAR XBRL), path card illustration, NPV / IRR / PV / FV / PMT in the Excel checker | **Done 2026-11-17** (owner: re-run seed.sql, O48) |
+| B | Four courses (EN + FR): Accounting and financial statements, Financial modelling in Excel, FP&A (budgets, forecasts, variances), Corporate finance and valuation | **Done 2026-11-17** |
+| C | Practice on finance data: a fictional general ledger / budget dataset for runnable SQL exercises, a take-home case "Financial Analyst" | Later |
+| D | Expert review by a finance professional (part of O11) | Owner |
+
 ## Phase 6: grow
 | # | Item | Why | Effort |
 |---|---|---|---|

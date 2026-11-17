@@ -52,6 +52,7 @@ export default {
   "Methods": "Méthodes",
   "Support & IT": "Support et IT",
   "Marketing": "Marketing",
+  "Finance": "Finance",
   "Tools": "Outils",
   "Path keywords": "Mots-clés du parcours",
 

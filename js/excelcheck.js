@@ -2,7 +2,7 @@
 // self-hosted parser fast-formula-parser (MIT, js/vendor/formula.esm.min.js), plus the functions it lacks, written
 // here to Excel's documented rules: COUNTIFS, SUMIFS, AVERAGEIFS, MAXIFS, MINIFS (and COUNTIF / SUMIF / AVERAGEIF
 // with the same criteria rules), MATCH, XLOOKUP, MAX, MIN, COUNTA, COUNTBLANK, LARGE, SMALL, RANK, TEXTJOIN,
-// SUBSTITUTE, SEARCH, VALUE, CHOOSE, SWITCH, UPPER, LOWER, TRIM, MEDIAN, and the finance functions NPV, IRR, PV, FV, PMT. Checked against hand-worked Excel results. No DOM: the same code runs in the browser
+// SUBSTITUTE, SEARCH, VALUE, CHOOSE, SWITCH, UPPER, LOWER, TRIM, MEDIAN, INDEX (one position on a single row or column), and the finance functions NPV, IRR, PV, FV, PMT. Checked against hand-worked Excel results. No DOM: the same code runs in the browser
 // (drills.js, loaded on demand) and in CI (scripts/check-content.mjs), so an answer accepted by CI is accepted in the app.
 //   evaluate(rows, formula) -> { value } or { error: "#N/A" | "#NAME?" | … }   rows: the sheet from A1, row by row
 //   grade(rows, answer, attempt) -> { ok, mine, want, reason? }   same value as the answer on the sheet AND on a
@@ -125,6 +125,14 @@ export const FUNCTIONS = {
     if (r === 0) return -(v + m * n); const g = (1 + r) ** n; return -(v * g + m * (1 + r * t) * (g - 1) / r); },
   PMT: (rate, nper, pv, fv, type) => { const [r, n, v, f, t] = [num(rate), num(nper), num(pv), opt(fv), opt(type) ? 1 : 0];
     if (n === 0) throw NUM; if (r === 0) return -(v + f) / n; const g = (1 + r) ** n; return -(v * g + f) * r / ((1 + r * t) * (g - 1)); },
+  // INDEX on a single row or column takes one position (Excel: INDEX(B4:D4, 2) is C4); the parser's own gives #REF!.
+  INDEX: (array, row, col) => {
+    let a = raw(array); if (!Array.isArray(a)) a = [[a]]; if (!Array.isArray(a[0])) a = [a];
+    let r = num(row), c = col === undefined ? undefined : num(col);
+    if (c === undefined) { if (a.length === 1) { c = r; r = 1; } else if (a[0].length === 1) c = 1; else throw FormulaError.REF; }
+    if (r < 1 || c < 1 || r > a.length || c > a[0].length) throw FormulaError.REF;
+    return a[Math.trunc(r) - 1][Math.trunc(c) - 1] ?? 0;
+  },
   IRR: (values, guess) => irr(nums(flat(values)), guess === undefined ? 0.1 : num(guess)),
 };
 // Finance helpers: a required number, an optional one (0 when left out), and IRR (Newton's method from the guess, then

@@ -1,0 +1,814 @@
+{
+  "why": "Analystes financiers, équipes FP&A, finance d’entreprise et transaction services passent une grande partie de leur semaine dans des modèles Excel : budgets, business plans, dossiers d’investissement, tableaux d’amortissement d’emprunt. Un modèle propre, relié et contrôlé, c’est ce que les recruteurs testent dans les études de cas et ce à quoi les managers se fient pour décider.",
+  "outcome": "organiser un modèle lisible par d’autres, séparer les hypothèses des calculs, construire le chiffre d’affaires et les coûts à partir d’inducteurs, relier compte de résultat, tableau des flux de trésorerie et bilan pour qu’ils s’équilibrent, basculer entre scénarios et mener des analyses de sensibilité, calculer des mensualités, une VAN et un TRI, et relire un modèle avec des contrôles avant qu’il n’arrive à un décideur.",
+  "lessons": [
+    {
+      "title": "À quoi sert un modèle, et une structure lisible par d’autres",
+      "text": [
+        "Un modèle financier transforme quelques hypothèses (volumes, prix, coûts, investissements, financement) en chiffres dont une décision a besoin : le budget de l’an prochain, un business plan à cinq ans, la valeur d’un projet, la capacité à rembourser un emprunt. Partez de la question et du lecteur : un budget de centre de coûts, un dossier d’investissement pour un comité et une valorisation pour un acquéreur n’ont pas besoin du même niveau de détail. Un modèle trop détaillé est plus long à construire, plus long à vérifier, et pas plus juste.",
+        "La structure classique sépare trois blocs : les entrées (inputs, les hypothèses saisies), les calculs (uniquement des formules) et les sorties (outputs : la synthèse, les graphiques et les ratios clés que le lecteur regarde). Dans un petit modèle, ce sont trois zones d’une même feuille ; dans un plus gros, des feuilles séparées, souvent dans cet ordre de gauche à droite. Celui qui veut changer la hausse des prix doit la trouver à un seul endroit, sans jamais chercher un 3 % saisi au milieu des formules.",
+        "Le temps se lit en colonnes, une colonne par période (mois, trimestres ou années), et la même colonne correspond à la même période sur toutes les feuilles : si la colonne F est 2027 dans le compte de résultat, elle est 2027 au bilan aussi. Chaque ligne porte un seul poste avec une seule formule recopiée sur toute la ligne : un relecteur lit la première cellule et connaît les autres. Une ligne dont la formule change en cours de route (une autre formule en 2028 « parce que c’était plus simple ») est la source classique d’erreurs cachées.",
+        "Un code couleur indique la nature de chaque cellule. La convention courante en banque et en FP&A : police bleue pour les valeurs saisies, noire pour les formules, verte pour les liens vers une autre feuille, et parfois un fond jaune clair pour les cellules à modifier. Ajoutez l’unité dans une colonne à côté du libellé (k€, %, unités, jours), une page de garde avec l’objet, la version et l’auteur, et figez les volets pour garder libellés et dates visibles.",
+        "En entretien, on vous tend souvent un classeur désordonné en demandant ce que vous changeriez. Les bonnes réponses citent ces réflexes : entrées séparées et libellées, aucune valeur en dur dans les formules, une formule par ligne, un axe du temps cohérent, des contrôles visibles et des unités partout."
+      ],
+      "points": [
+        "Entrées / calculs / sorties : les hypothèses sont saisies une fois, tout le reste est une formule.",
+        "Le temps en colonnes, la même colonne pour la même période sur toutes les feuilles.",
+        "Une formule par ligne, recopiée : aucune exception cachée sur une année.",
+        "Code couleur : bleu pour les entrées, noir pour les formules, vert pour les liens vers d’autres feuilles.",
+        "Une unité à côté de chaque libellé, une page de garde, et les contrôles visibles sur les sorties."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Sheet      What it holds                              Font\nCover      purpose, version, author, how to use        -\nInputs     volumes, prices, growth, costs, capex, debt  blue (typed)\nCalcs      revenue build, costs, schedules             black (formulas)\nStatements income statement, cash flow, balance sheet  black, green links\nOutputs    summary, ratios, charts, scenario results   black\nChecks     balance check, cash check, error flags      black, red if not 0\n\nColumns:   A label | B unit | C notes | D 2026 | E 2027 | F 2028 | G 2029 | H 2030",
+        "note": "Même ordre, mêmes colonnes, mêmes couleurs partout : un relecteur retrouve n’importe quel chiffre en quelques secondes."
+      }
+    },
+    {
+      "title": "Hypothèses et inducteurs",
+      "text": [
+        "Un inducteur (driver) est une hypothèse qui explique une ligne du modèle : les unités vendues et le prix expliquent le chiffre d’affaires, l’effectif et le coût moyen expliquent la masse salariale, les jours de chiffre d’affaires expliquent les créances clients. Un modèle construit sur des inducteurs répond directement aux questions « et si » : on change l’inducteur et tous les états se mettent à jour. Un modèle qui se contente d’augmenter le total de l’an dernier d’un pourcentage ne peut pas expliquer pourquoi le chiffre bouge.",
+        "Placez chaque hypothèse sur la feuille des entrées avec un libellé, une unité, une valeur par période quand elle évolue dans le temps, et une source : le réalisé de l’an dernier, le plan commercial, un contrat fournisseur, une étude de marché. Notez la source dans une colonne de commentaires. Quand un manager demande « d’où vient ce 6 % ? », la réponse doit être dans le modèle, pas dans votre mémoire.",
+        "De bonnes hypothèses s’appuient sur l’historique. Affichez deux ou trois années de réalisé à côté de la prévision et comparez les inducteurs : si la marge brute a été de 38 % à 40 % pendant trois ans, une prévision à 46 % demande une justification. Les ratios comme le DSO (délai de paiement clients), le DPO (délai de paiement fournisseurs), les jours de stock, les investissements en pourcentage du chiffre d’affaires et le taux d’impôt sont en général repris de l’historique, puis ajustés des changements connus.",
+        "Limitez le nombre d’inducteurs clés. Cinq à dix inducteurs qui font vraiment bouger le résultat (croissance des volumes, prix, marge brute, effectif, investissements, DSO) se discutent et se testent plus facilement qu’une centaine. Le détail va là où est l’argent : le modèle d’un éditeur de logiciels a besoin d’une construction soignée des abonnements, pas d’un budget de fournitures de bureau soigné."
+      ],
+      "points": [
+        "Un inducteur explique une ligne : volume × prix, effectif × coût par personne, jours × chiffre d’affaires quotidien.",
+        "Chaque hypothèse a un libellé, une unité, une valeur par période et une source.",
+        "Affichez le réalisé à côté de la prévision et justifiez toute rupture avec l’historique.",
+        "Peu d’inducteurs clés, du détail là où est l’argent."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Inputs (blue = typed)          Unit     2026     2027     2028   Source\nUnits sold growth              %                  8.0      8.0   sales plan\nPrice increase                 %                  3.0      3.0   price list policy\nVariable cost                  % rev     40.0     40.0     40.0   3-year average\nFixed costs                    EUR      60,000   60,000   60,000   budget 2026\nDSO (days sales outstanding)   days        45       45       45   last 12 months\nTax rate                       %         25.0     25.0     25.0   statutory rate",
+        "note": "Chaque inducteur a une unité et une source ; les formules du modèle lisent ces cellules et rien d’autre."
+      }
+    },
+    {
+      "title": "Construire le chiffre d’affaires et les coûts",
+      "text": [
+        "Le chiffre d’affaires se construit en volume × prix : unités vendues × prix moyen, clients × revenu par client, magasins × ventes par magasin, ou, pour un abonnement, clients en début de période + nouveaux clients − clients perdus, multipliés par l’abonnement mensuel. Avec 10 000 unités en hausse de 8 % par an et un prix de 25 en hausse de 3 % par an, le chiffre d’affaires vaut 250 000 la première année, 10 800 × 25,75 = 278 100 la deuxième et 11 664 × 26,5225 = 309 358 la troisième. La croissance se compose : chaque année applique le taux à l’année précédente, pas à la première.",
+        "Les cohortes sont utiles quand les clients se comportent différemment avec l’ancienneté. Une activité d’abonnement ajoute chaque mois les nouveaux clients comme une cohorte et applique une courbe de rétention : sur 100 clients arrivés en janvier, peut-être 90 restent au bout d’un mois et 80 au bout de six. La somme des cohortes donne les clients actifs, et le chiffre d’affaires en découle. Un simple taux de croissance sur le total cache que l’activité dépend de nouvelles ventes chaque mois pour compenser l’attrition.",
+        "Les coûts se répartissent entre coûts variables, qui suivent le volume ou le chiffre d’affaires (matières, transport, frais de paiement, commissions commerciales), et coûts fixes, qui ne bougent pas avec le volume à court terme (loyer, licences, la plupart des salaires). Les coûts variables s’expriment en pourcentage du chiffre d’affaires ou en coût unitaire ; les coûts fixes en montant mensuel ou annuel, parfois par paliers (un deuxième entrepôt au-delà d’un certain volume).",
+        "La masse salariale est souvent le premier poste de coûts et se construit à partir de l’effectif : nombre de personnes par équipe × salaire brut moyen × (1 + charges patronales), avec les dates d’arrivée des recrutements. Les charges patronales varient beaucoup selon le pays et le niveau de salaire (en France, elles ajoutent couramment entre un quart et près de la moitié du salaire brut, selon les allègements) : prenez le taux dans les données de paie. Primes, augmentations et dates d’embauche sont des inducteurs distincts.",
+        "La répartition entre coûts fixes et variables crée le levier opérationnel : quand la plupart des coûts sont fixes, une petite hausse du chiffre d’affaires donne une forte hausse du résultat, et une baisse fait mal tout aussi vite. Les recruteurs aiment demander ce que devient la marge d’EBITDA quand les volumes baissent de 10 % ; la réponse dépend exactement de cette répartition."
+      ],
+      "points": [
+        "Chiffre d’affaires = volume × prix ; la croissance se compose sur la période précédente.",
+        "Abonnements : clients en début de période + nouveaux − perdus, puis × prix ; les cohortes montrent la rétention.",
+        "Les coûts variables suivent le volume ou le chiffre d’affaires ; les coûts fixes sont des montants, parfois par paliers.",
+        "Masse salariale = effectif × salaire × (1 + charges patronales), avec les dates d’embauche.",
+        "Levier opérationnel : plus il y a de coûts fixes, plus le résultat varie avec le chiffre d’affaires."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "                         Year 1      Year 2      Year 3\nUnits sold               10,000      10,800      11,664     (+8 % a year)\nPrice                     25.00       25.75     26.5225     (+3 % a year)\nRevenue                 250,000     278,100     309,358\nVariable costs (40 %)  -100,000    -111,240    -123,743\nFixed costs             -60,000     -60,000     -60,000\nEBITDA                   90,000     106,860     125,615\nEBITDA margin            36.0 %      38.4 %      40.6 %",
+        "note": "Les coûts fixes restent stables pendant que le chiffre d’affaires progresse : la marge augmente, c’est le levier opérationnel."
+      }
+    },
+    {
+      "title": "Les formules sur lesquelles comptent les analystes",
+      "text": [
+        "Les fonctions de recherche alimentent le modèle à partir de tables : INDEX/MATCH (INDEX/EQUIV en Excel français) fonctionne dans toutes les versions d’Excel et dans Google Sheets, et XLOOKUP (RECHERCHEX, Excel 2021 et 365) est plus simple, cherche une correspondance exacte par défaut et prévoit une valeur « si introuvable ». Évitez VLOOKUP (RECHERCHEV) avec un numéro de colonne saisi : insérer une colonne dans la source renvoie silencieusement le mauvais champ. Utilisez toujours la correspondance exacte (0 dans MATCH), sauf pour une recherche par tranche.",
+        "SUMIFS et COUNTIFS (SOMME.SI.ENS et NB.SI.ENS) transforment une liste d’écritures ou un extrait du grand livre en vue par mois ou par catégorie : =SUMIFS(montants, catégories, « Rent », mois, « Feb »). Faites pointer les critères vers des cellules (la catégorie dans un en-tête, le mois dans le titre de colonne) plutôt que de les saisir, pour qu’une seule formule se recopie sur toute la grille.",
+        "Les références déterminent si une formule se recopie correctement. $B$4 est absolue (ligne et colonne fixes, pour une hypothèse unique comme le taux d’impôt) ; B$4 fixe seulement la ligne (utile pour une ligne de dates en en-tête) ; $B4 fixe seulement la colonne (un libellé ou un inducteur dans une colonne fixe). La plupart des erreurs dans les grilles viennent d’un $ oublié : la formule est juste dans la première cellule et dérive dans les autres.",
+        "IF (SI) construit la logique (pas d’impôt quand le résultat est négatif : =IF(B10>0, B10*$B$4, 0)) ; MAX et MIN plafonnent des valeurs (le remboursement de dette ne peut pas dépasser la trésorerie disponible) ; IFERROR (SIERREUR) remplace une erreur par une valeur, mais seulement là où une erreur est attendue (une division par zéro sur une période vide), car il masque aussi les vraies erreurs. ROUND (ARRONDI) modifie la valeur elle-même, alors que le format de nombre ne change que l’affichage : arrondissez là où un montant réel est arrondi (un impôt, une échéance), pas partout.",
+        "Les valeurs en dur sont l’ennemi principal : une formule comme =B5*1.08 ou =SUM(C4:C9)+1500 cache une hypothèse que personne ne voit. Déplacez le 8 % et le 1 500 dans les entrées avec un libellé et une source, puis faites-y référence. En entretien, on demande souvent les formules que vous utilisez le plus ; les citer et expliquer quand ne pas utiliser IFERROR montre de l’expérience."
+      ],
+      "points": [
+        "INDEX/MATCH ou XLOOKUP en correspondance exacte ; pas de VLOOKUP avec un numéro de colonne saisi.",
+        "SUMIFS avec des critères qui pointent vers des cellules : une seule formule remplit toute la grille.",
+        "$B$4 absolue, B$4 fixe la ligne, $B4 fixe la colonne.",
+        "IFERROR seulement là où une erreur est attendue ; ROUND seulement là où un montant est vraiment arrondi.",
+        "Aucune valeur en dur dans les formules : chaque nombre vit sur la feuille des entrées."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=INDEX($C$2:$C$50, MATCH($F2, $A$2:$A$50, 0))\n=XLOOKUP($F2, $A$2:$A$50, $C$2:$C$50, 0)\n=SUMIFS($D$2:$D$500, $B$2:$B$500, $F2, $C$2:$C$500, G$1)\n=IF(D10>0, D10*$B$4, 0)\n=IFERROR(E10/D10, 0)\n=ROUND(D12*$B$5, 2)",
+        "note": "Dans le SUMIFS, $F2 garde la colonne de la catégorie et G$1 la ligne d’en-tête : la formule se recopie en ligne et en colonne."
+      }
+    },
+    {
+      "title": "Relier les trois états financiers",
+      "text": [
+        "Un modèle à trois états relie le compte de résultat, le tableau des flux de trésorerie et le bilan, pour qu’une modification se propage partout. L’ordre de construction : les tableaux annexes (immobilisations, BFR, dette), puis le compte de résultat jusqu’au résultat net, puis le tableau des flux en partant du résultat net, puis le bilan, où la trésorerie de clôture vient du tableau des flux. Si chaque lien est juste, le total de l’actif égale le passif plus les capitaux propres à chaque période.",
+        "Le tableau des immobilisations corporelles (PP&E en anglais) fait rouler les actifs : immobilisations de clôture = ouverture + investissements (capex) − dotations aux amortissements. L’amortissement va au compte de résultat, les investissements aux flux d’investissement, et le solde de clôture au bilan. En IFRS comme en US GAAP, l’amortissement linéaire sur la durée d’utilité est la méthode la plus courante ; les IFRS imposent en plus d’amortir séparément les composants significatifs de durées différentes.",
+        "Le tableau du BFR (besoin en fonds de roulement) prévoit créances clients, stocks et dettes fournisseurs à partir de jours : créances = chiffre d’affaires × DSO / 365, dettes fournisseurs = achats × DPO / 365, stocks = coût des ventes × jours de stock / 365. Avec 1 200 de chiffre d’affaires et 45 jours de délai clients, les créances valent environ 147,9. Une hausse du BFR consomme de la trésorerie et apparaît en négatif dans les flux d’exploitation ; une baisse en libère.",
+        "Le tableau de la dette suit la dette d’ouverture, les nouveaux emprunts, les remboursements et la dette de clôture, et calcule les intérêts. Les intérêts sur le solde d’ouverture sont simples et évitent une référence circulaire ; sur le solde moyen, ils sont plus justes mais font dépendre les intérêts de la trésorerie, qui dépend des intérêts. Le classement des intérêts payés dans le tableau des flux diffère : les US GAAP les mettent en exploitation, alors qu’IAS 7 laisse aux entités en IFRS le choix entre exploitation et financement (IFRS 18, à partir de 2027, réduit ce choix).",
+        "La trésorerie ferme la boucle. Le tableau des flux donne la variation de trésorerie, et la trésorerie de clôture au bilan vaut la trésorerie d’ouverture plus cette variation : elle n’est jamais saisie ni forcée. Certains modèles ajoutent une ligne de crédit renouvelable (revolver) tirée automatiquement quand la trésorerie passerait sous un minimum. Le contrôle d’équilibre (actif − passif − capitaux propres) doit être nul dans chaque colonne ; s’il ne l’est pas, l’erreur est dans un lien, pas dans le contrôle."
+      ],
+      "points": [
+        "Ordre : tableaux annexes → compte de résultat → tableau des flux → bilan → contrôle d’équilibre.",
+        "Immobilisations : clôture = ouverture + capex − amortissements.",
+        "BFR à partir de jours : créances = chiffre d’affaires × DSO / 365 ; une hausse consomme de la trésorerie.",
+        "Dette : ouverture + emprunts − remboursements = clôture ; des intérêts sur le solde d’ouverture évitent une référence circulaire.",
+        "Trésorerie de clôture = ouverture + variation issue du tableau des flux ; jamais saisie."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "                               Opening    Year 1\nIncome statement\n  Revenue                                 1,000.0\n  Operating costs                          -700.0\n  Depreciation                              -50.0\n  Interest (5 % of opening debt)            -20.0\n  Tax (25 %)                                -57.5\n  Net income                                172.5\nCash flow statement\n  Net income                                172.5\n  + Depreciation                             50.0\n  - Increase in working capital             -30.0\n  - Capex                                   -80.0\n  - Debt repayment                          -40.0\n  Change in cash                             72.5\nBalance sheet\n  Cash                           100.0      172.5\n  Net working capital            200.0      230.0\n  PP&E                           500.0      530.0\n  Total assets                   800.0      932.5\n  Debt                           400.0      360.0\n  Equity                         400.0      572.5\n  Total liabilities + equity     800.0      932.5\n  Balance check                    0.0        0.0",
+        "note": "Immobilisations 500 + 80 − 50 = 530 ; capitaux propres 400 + 172,5 (pas de dividende) ; trésorerie 100 + 72,5. Chaque ligne est un lien."
+      }
+    },
+    {
+      "title": "Scénarios et sensibilité",
+      "text": [
+        "Un scénario est un jeu d’hypothèses cohérent : un cas bas avec des volumes faibles et une pression sur les prix, un cas central, un cas haut. Gardez les valeurs de chaque scénario côte à côte sur la feuille des entrées et ajoutez un sélecteur : une cellule où l’utilisateur choisit le scénario. Une ligne « active » va alors chercher la valeur choisie avec =INDEX(C5:E5, MATCH($B$1, $C$4:$E$4, 0)) quand le sélecteur est un nom, ou =CHOOSE($B$2, C5, D5, E5) (CHOISIR) quand c’est un numéro de 1 à 3. Le reste du modèle ne lit que la ligne active.",
+        "Une table de données (Données > Analyse de scénarios > Table de données) recalcule une sortie pour de nombreuses valeurs d’une ou deux hypothèses : par exemple la VAN pour des taux d’actualisation de 8 % à 12 % en colonnes et une croissance du chiffre d’affaires de 2 % à 8 % en lignes. Les tables de données se recalculent en permanence et ralentissent les gros modèles ; beaucoup d’équipes règlent le calcul sur « automatique sauf dans les tables de données » et appuient sur F9 au besoin. Les cellules d’entrée d’une table de données doivent être sur la même feuille que la table.",
+        "L’analyse de sensibilité cherche l’hypothèse qui compte le plus. Faites varier chaque inducteur d’un même écart raisonnable (par exemple ±10 %), un à la fois, notez l’effet sur la sortie et triez du plus fort au plus faible : en barres horizontales, c’est un graphique en tornade. Il montre où passer du temps à vérifier les hypothèses et quoi discuter avec la direction.",
+        "Un scénario change plusieurs hypothèses ensemble et raconte une histoire ; une sensibilité en change une à la fois et mesure l’effet. Les décideurs veulent les deux : le cas central avec une fourchette autour, et le point mort (le volume ou le prix à partir duquel le projet ne rapporte plus). La valeur cible (Goal Seek) trouve un point mort pour une cellule, mais elle saisit une valeur : notez le résultat, ne le laissez pas comme une valeur en dur cachée."
+      ],
+      "points": [
+        "Sélecteur de scénario : une cellule, des valeurs côte à côte, une ligne active avec INDEX/MATCH ou CHOOSE.",
+        "Table de données : une sortie recalculée pour une grille d’une ou deux hypothèses.",
+        "Graphique en tornade : chaque inducteur varie du même écart, trié par impact.",
+        "Scénario = plusieurs hypothèses ensemble ; sensibilité = une à la fois.",
+        "Montrez le point mort, et ne laissez jamais un résultat de valeur cible comme valeur en dur cachée."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "B1: Base   (picked from a drop-down list: Low, Base, High)\nC4:E4 = Low | Base | High      C5:E5 = 2% | 5% | 8%   (revenue growth)\n=INDEX(C5:E5, MATCH($B$1, $C$4:$E$4, 0))\n=CHOOSE($B$2, C5, D5, E5)\n=SWITCH($B$1, \"Low\", C5, \"Base\", D5, \"High\", E5)",
+        "note": "Les trois renvoient 5 % pour Base ; le modèle ne lit que cette cellule active, donc un seul sélecteur change tous les états."
+      }
+    },
+    {
+      "title": "Tableaux d’emprunt et valeur temps de l’argent sous Excel",
+      "text": [
+        "Un euro aujourd’hui vaut plus qu’un euro plus tard, parce qu’il peut rapporter. Les fonctions financières d’Excel suivent toutes la même convention de signe : l’argent reçu est positif, l’argent versé négatif. C’est pourquoi =PMT(4%/12, 20*12, 200000) renvoie −1 211,96 : emprunter 200 000 (reçu, positif) signifie payer 1 211,96 par mois pendant 240 mois. Mettez un signe moins devant le montant emprunté, ou devant PMT, pour afficher une mensualité positive. En Excel français, PMT s’appelle VPM, NPV VAN, IRR TRI, PV VA et FV VC.",
+        "Le taux et le nombre de périodes doivent utiliser la même période : une mensualité demande le taux annuel / 12 et les années × 12. FV donne une valeur future (10 000 placés à 5 % pendant 10 ans : =FV(5%, 10, 0, -10000) = 16 288,95) et PV une valeur actuelle (10 000 reçus dans 5 ans à 8 % : =PV(8%, 5, 0, -10000) = 6 805,83).",
+        "Un tableau d’amortissement d’emprunt montre, pour chaque période, le capital restant dû en début de période, les intérêts, le capital remboursé et le capital restant dû en fin de période. Pour 100 000 à 6 % sur 5 ans avec des annuités, =PMT(6%, 5, -100000) = 23 739,64. Les intérêts de la première année valent 6 % × 100 000 = 6 000, le capital remboursé 17 739,64 et le capital restant dû tombe à 82 260,36 ; les intérêts de la deuxième année valent 4 935,62. La part d’intérêts baisse chaque année et la part de capital augmente, l’annuité restant constante. Les intérêts vont au compte de résultat ; le capital remboursé est un flux de financement.",
+        "La VAN (valeur actuelle nette) actualise les flux futurs au rendement exigé et retranche l’investissement. La fonction NPV d’Excel considère que la première valeur arrive dans une période : l’investissement de l’instant 0 s’ajoute donc à l’extérieur : =B4+NPV(10%, C4:F4). Pour −1 000 aujourd’hui puis 300, 400, 500 et 200, la VAN à 10 % vaut 115,57 : positive, le projet rapporte plus de 10 %. Le TRI (taux de rendement interne) est le taux qui annule la VAN, ici environ 15,3 %, au-dessus du taux minimum exigé de 10 %.",
+        "VAN et TRI peuvent se contredire quand les projets diffèrent par la taille ou le calendrier : la VAN dit combien de valeur est créée, le TRI donne un taux qui ignore la taille et suppose un réinvestissement au TRI lui-même. Pour choisir entre projets qui s’excluent, utilisez la VAN. Le TRI peut aussi avoir plusieurs solutions quand les flux changent de signe plus d’une fois. Pour des dates irrégulières, XNPV et XIRR (VAN.PAIEMENTS et TRI.PAIEMENTS) prennent les dates réelles."
+      ],
+      "points": [
+        "Convention de signe : argent reçu positif, argent versé négatif.",
+        "Même période pour le taux et le nombre de périodes : taux annuel / 12 et années × 12 pour des mensualités.",
+        "Tableau d’emprunt : intérêts sur le capital restant dû en début de période, capital = échéance − intérêts.",
+        "La fonction NPV d’Excel commence une période plus tard : ajoutez l’investissement de l’instant 0 à l’extérieur.",
+        "TRI = le taux qui annule la VAN ; entre projets exclusifs, choisissez sur la VAN."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=PMT(4%/12, 20*12, 200000)      -1,211.96 a month\n=PMT(6%, 5, -100000)             23,739.64 a year\n=FV(5%, 10, 0, -10000)           16,288.95\n=PV(8%, 5, 0, -10000)             6,805.83\n=B4+NPV(10%, C4:F4)                 115.57   (B4:F4 = -1000, 300, 400, 500, 200)\n=IRR(B4:F4)                          15.3%",
+        "note": "Comparez le TRI au taux minimum exigé, et présentez la VAN en euros."
+      }
+    },
+    {
+      "title": "Relire un modèle : contrôles, références circulaires et présentation",
+      "text": [
+        "Intégrez des contrôles au modèle plutôt que de vous fier à vos yeux. Le contrôle d’équilibre (actif − passif − capitaux propres, arrondi à 2 décimales) pour chaque période, un contrôle de trésorerie (trésorerie au bilan = trésorerie de clôture du tableau des flux), des contrôles que les sous-totaux égalent la somme de leurs composantes et que les totaux mensuels égalent les totaux annuels. Regroupez-les sur une feuille de contrôles avec un indicateur unique (OK / ERROR) affiché sur la page de garde et les sorties.",
+        "Une référence circulaire apparaît quand une formule dépend de son propre résultat, par exemple des intérêts sur le solde moyen de la dette quand le tirage du revolver dépend de la trésorerie après intérêts. Excel peut la résoudre par le calcul itératif (Fichier > Options > Formules), mais une circularité masque les erreurs et peut s’emballer avec des #REF! ou #VALUE! qui se propagent dans tout le modèle. Préférez les intérêts sur le solde d’ouverture ; si vous gardez la circularité, ajoutez un disjoncteur (circuit breaker) : un interrupteur dans les entrées qui met les intérêts à 0 pour couper la boucle et effacer les erreurs.",
+        "Relisez un modèle dans un ordre fixe : vérifiez que le contrôle d’équilibre est nul sur toutes les périodes ; lisez les sorties pour leur vraisemblance (marges, croissance, trésorerie qui devient négative) ; remontez les antécédents des chiffres clés (Formules > Repérer les antécédents, Ctrl+[) ; cherchez les valeurs en dur (Atteindre > Cellules > Constantes ne doit rien trouver sur les feuilles de calcul) ; vérifiez ligne par ligne que la formule est la même d’une colonne à l’autre (Ctrl+` affiche les formules). Puis mettez-le sous tension : volume à zéro ou prix extrême, et regardez si le modèle réagit de façon sensée.",
+        "Documentez en construisant : une page de garde avec l’objet, la version, la date et l’auteur, une colonne de commentaires avec la source de chaque hypothèse, et un journal des modifications. Nommez les fichiers avec une version et une date, et n’écrasez jamais la version que la direction a déjà vue.",
+        "Présentez la réponse, pas le tableur. Commencez par le résultat et la décision (VAN de 115,6 k€ à 10 %, retour sur investissement la troisième année, recommandation de lancer), puis les trois ou quatre inducteurs qui l’expliquent, les scénarios et la sensibilité, et les principaux risques. Gardez le modèle sous la main pour les questions, mais mettez devant les décideurs une synthèse d’une page avec un graphique."
+      ],
+      "points": [
+        "Contrôles : équilibre du bilan, trésorerie, sous-totaux ; un seul indicateur OK / ERROR sur les sorties.",
+        "Évitez les références circulaires ; si besoin, calcul itératif plus un disjoncteur.",
+        "Relecture : contrôles d’abord, vraisemblance des sorties, antécédents, chasse aux valeurs en dur, lignes cohérentes.",
+        "Documentez sources, version et modifications en construisant.",
+        "Présentez d’abord la décision et ses inducteurs, le tableur ensuite."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=ROUND(D30-D45, 2)                              balance check: total assets - (liabilities + equity)\n=ROUND(D12-D78, 2)                              cash check: balance sheet cash - cash flow closing cash\n=IF(COUNTIF(D50:H51, \"<>0\")=0, \"OK\", \"ERROR\")    one flag for every check, every year\n=IF($B$3=1, 0, D60*$B$7)                        circuit breaker: B3 = 1 sets interest to 0",
+        "note": "Comptez les contrôles non nuls au lieu de les additionner : un +5 et un −5 s’annuleraient dans une somme."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Structure",
+      "items": [
+        [
+          "Entrées / calculs / sorties",
+          "Hypothèses saisies une fois, uniquement des formules, puis la synthèse"
+        ],
+        [
+          "Police bleue",
+          "Valeur saisie en dur (entrée)"
+        ],
+        [
+          "Police noire",
+          "Formule"
+        ],
+        [
+          "Police verte",
+          "Lien vers une autre feuille"
+        ],
+        [
+          "Une formule par ligne",
+          "La même formule recopiée sur toutes les périodes"
+        ],
+        [
+          "Valeur en dur",
+          "Un nombre saisi dans une formule : à déplacer dans les entrées"
+        ]
+      ]
+    },
+    {
+      "group": "Inducteurs et construction",
+      "items": [
+        [
+          "Inducteur",
+          "Une hypothèse qui explique une ligne (volume, prix, effectif, jours)"
+        ],
+        [
+          "Construction du chiffre d’affaires",
+          "Volume × prix, ou clients × revenu par client"
+        ],
+        [
+          "Coûts variables",
+          "Suivent le volume ou le chiffre d’affaires"
+        ],
+        [
+          "Coûts fixes",
+          "Ne bougent pas avec le volume à court terme"
+        ],
+        [
+          "Levier opérationnel",
+          "Plus de coûts fixes, des variations de résultat plus fortes"
+        ],
+        [
+          "DSO",
+          "Délai de paiement clients : créances = chiffre d’affaires × DSO / 365"
+        ]
+      ]
+    },
+    {
+      "group": "Formules",
+      "items": [
+        [
+          "INDEX/MATCH",
+          "Recherche valable dans toutes les versions (INDEX/EQUIV) ; 0 = correspondance exacte"
+        ],
+        [
+          "XLOOKUP",
+          "Recherche exacte avec une valeur « si introuvable » (RECHERCHEX)"
+        ],
+        [
+          "SUMIFS",
+          "Somme à plusieurs conditions, plage à additionner en premier (SOMME.SI.ENS)"
+        ],
+        [
+          "$B$4",
+          "Référence absolue : ligne et colonne fixes"
+        ],
+        [
+          "B$4",
+          "Référence mixte : ligne fixe"
+        ],
+        [
+          "IFERROR",
+          "Remplace une erreur (SIERREUR) ; masque les vraies erreurs si on en abuse"
+        ]
+      ]
+    },
+    {
+      "group": "Les trois états",
+      "items": [
+        [
+          "Tableau des immobilisations",
+          "Clôture = ouverture + capex − amortissements"
+        ],
+        [
+          "Tableau du BFR",
+          "Créances, stocks, dettes fournisseurs à partir de jours ; une hausse consomme de la trésorerie"
+        ],
+        [
+          "Tableau de la dette",
+          "Ouverture + emprunts − remboursements = clôture ; intérêts"
+        ],
+        [
+          "Trésorerie de clôture",
+          "Ouverture + variation de trésorerie du tableau des flux"
+        ],
+        [
+          "Contrôle d’équilibre",
+          "Actif − passif − capitaux propres = 0 à chaque période"
+        ]
+      ]
+    },
+    {
+      "group": "Scénarios et valeur temps",
+      "items": [
+        [
+          "Sélecteur de scénario",
+          "Une cellule choisit Low / Base / High ; INDEX/MATCH ou CHOOSE la lit"
+        ],
+        [
+          "Table de données",
+          "Une sortie pour une grille d’une ou deux hypothèses"
+        ],
+        [
+          "Graphique en tornade",
+          "Inducteurs triés selon leur impact sur la sortie"
+        ],
+        [
+          "PMT",
+          "Échéance constante d’un emprunt (VPM) : PMT(taux, nper, va)"
+        ],
+        [
+          "NPV",
+          "Flux actualisés (VAN) ; la fonction d’Excel commence une période plus tard"
+        ],
+        [
+          "IRR",
+          "Le taux qui annule la VAN (TRI)"
+        ]
+      ]
+    },
+    {
+      "group": "Relecture",
+      "items": [
+        [
+          "Référence circulaire",
+          "Une formule qui dépend de son propre résultat"
+        ],
+        [
+          "Disjoncteur",
+          "Un interrupteur dans les entrées qui coupe une boucle circulaire"
+        ],
+        [
+          "Repérer les antécédents",
+          "Montre les cellules utilisées par une formule (Ctrl+[)"
+        ],
+        [
+          "Contrôle de trésorerie",
+          "Trésorerie au bilan = trésorerie de clôture du tableau des flux"
+        ]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Saisir des nombres dans les formules (=B5*1.08) : l’hypothèse est invisible et jamais mise à jour.",
+    "Une formule qui change au milieu d’une ligne, si bien qu’une année est calculée autrement que les autres.",
+    "Appliquer la fonction NPV d’Excel à toute la plage, investissement de l’instant 0 compris, ce qui l’actualise d’une période de trop.",
+    "Mélanger des mensualités avec un taux annuel ou un nombre d’années dans PMT.",
+    "Forcer l’équilibre du bilan avec un écart saisi au lieu de trouver le lien cassé.",
+    "Envelopper tout dans IFERROR, si bien que les vraies erreurs deviennent des zéros que personne ne voit.",
+    "Laisser une référence circulaire avec le calcul itératif activé et sans disjoncteur."
+  ],
+  "exercises": [
+    {
+      "q": "En C2, le chiffre d’affaires de l’année 2 : celui de l’année 1 augmenté du taux en B4. Écrivez-la pour qu’elle puisse être recopiée en D2 en utilisant toujours B4.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Item",
+          "Year 1",
+          "Year 2",
+          "Year 3"
+        ],
+        [
+          "Revenue",
+          1200,
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Growth rate",
+          0.08,
+          "",
+          ""
+        ]
+      ],
+      "cell": "C2",
+      "answer": "=B2*(1+$B$4)",
+      "hint": "Année précédente × (1 + croissance) ; un $ garde la cellule de croissance fixe à la recopie.",
+      "explain": "=B2*(1+$B$4) donne 1200 × 1,08 = 1296. Recopiée en D2, elle devient =C2*(1+$B$4) = 1399,68 : B2 se déplace avec la formule (croissance composée sur l’année précédente) tandis que $B$4 reste sur l’hypothèse. $B4 fonctionne aussi pour une recopie le long d’une ligne."
+    },
+    {
+      "q": "En G2, le total de la catégorie en E2 pour le mois en F2 (une seule formule, qui pointe vers E2 et F2).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Month",
+          "Category",
+          "Amount",
+          "",
+          "Category",
+          "Month",
+          "Total"
+        ],
+        [
+          "Jan",
+          "Salaries",
+          42000,
+          "",
+          "Rent",
+          "Feb",
+          ""
+        ],
+        [
+          "Jan",
+          "Rent",
+          8000,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Jan",
+          "Marketing",
+          5500,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Feb",
+          "Salaries",
+          43500,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Feb",
+          "Rent",
+          8000,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Feb",
+          "Marketing",
+          7200,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Feb",
+          "Rent",
+          1500,
+          "",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "cell": "G2",
+      "answer": "=SUMIFS(C2:C8,B2:B8,E2,A2:A8,F2)",
+      "hint": "SUMIFS(plage à additionner, plage 1, critère 1, plage 2, critère 2) – SOMME.SI.ENS en Excel français.",
+      "explain": "=SUMIFS(C2:C8,B2:B8,E2,A2:A8,F2) additionne les deux lignes de loyer (Rent) de février : 8000 + 1500 = 9500. Avec les critères dans des cellules, la même formule remplit toute une grille catégorie × mois, une fois les plages rendues absolues ($C$2:$C$8…)."
+    },
+    {
+      "q": "B1 contient le scénario choisi (Low, Base ou High). En B8, renvoyez la croissance du chiffre d’affaires de ce scénario à partir du tableau en dessous.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Scenario",
+          "Base"
+        ],
+        [
+          "",
+          ""
+        ],
+        [
+          "Scenario",
+          "Revenue growth"
+        ],
+        [
+          "Low",
+          0.02
+        ],
+        [
+          "Base",
+          0.05
+        ],
+        [
+          "High",
+          0.08
+        ],
+        [
+          "",
+          ""
+        ],
+        [
+          "Growth used",
+          ""
+        ]
+      ],
+      "cell": "B8",
+      "answer": "=INDEX(B4:B6,MATCH(B1,A4:A6,0))",
+      "hint": "MATCH trouve la position de B1 parmi les noms de scénarios ; INDEX renvoie la valeur à cette position.",
+      "explain": "MATCH(\"Base\",A4:A6,0) = 2 et INDEX(B4:B6,2) = 0,05. =XLOOKUP(B1,A4:A6,B4:B6) fonctionne aussi. Avec un numéro de 1 à 3 comme sélecteur, =CHOOSE(B1,B4,B5,B6) fait la même chose. Le reste du modèle ne lit que B8 : une seule cellule change le scénario partout."
+    },
+    {
+      "q": "En B5, la mensualité de l’emprunt en nombre positif (montant en B1, taux annuel en B2, durée en années en B3).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Loan amount",
+          200000
+        ],
+        [
+          "Annual rate",
+          0.04
+        ],
+        [
+          "Years",
+          20
+        ],
+        [
+          "",
+          ""
+        ],
+        [
+          "Monthly payment",
+          ""
+        ]
+      ],
+      "cell": "B5",
+      "answer": "=PMT(B2/12,B3*12,-B1)",
+      "hint": "Taux mensuel = taux annuel / 12, nombre d’échéances = années × 12 ; le signe moins rend la mensualité positive.",
+      "explain": "=PMT(B2/12,B3*12,-B1) = 1 211,96 par mois pendant 240 mois (VPM en Excel français). =-PMT(B2/12,B3*12,B1) revient au même. Utiliser B2 et B3 sans les convertir en mois donnerait une annuité sur 20 ans, une erreur classique."
+    },
+    {
+      "q": "En B6, la VAN du projet au taux d’actualisation en B1. B4 est l’investissement d’aujourd’hui (année 0) ; C4:F4 sont les années 1 à 4.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Discount rate",
+          0.1,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "Year 0",
+          "Year 1",
+          "Year 2",
+          "Year 3",
+          "Year 4"
+        ],
+        [
+          "Cash flow",
+          -1000,
+          300,
+          400,
+          500,
+          200
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "NPV",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "cell": "B6",
+      "answer": "=B4+NPV(B1,C4:F4)",
+      "hint": "La fonction NPV d’Excel actualise sa première valeur d’une période : gardez l’année 0 hors de la fonction.",
+      "explain": "=B4+NPV(B1,C4:F4) = −1000 + 1 115,57 = 115,57. =NPV(B1,B4:F4) donnerait 105,06, car l’investissement serait traité comme payé dans un an : chaque montant est actualisé d’une période de trop."
+    },
+    {
+      "q": "Même projet : en B6, son taux de rendement interne.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Hurdle rate",
+          0.1,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "Year 0",
+          "Year 1",
+          "Year 2",
+          "Year 3",
+          "Year 4"
+        ],
+        [
+          "Cash flow",
+          -1000,
+          300,
+          400,
+          500,
+          200
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "IRR",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "cell": "B6",
+      "answer": "=IRR(B4:F4)",
+      "hint": "IRR prend toute la plage, année 0 comprise (contrairement à NPV).",
+      "explain": "=IRR(B4:F4) ≈ 15,3 %, au-dessus du taux minimum de 10 % en B1, cohérent avec une VAN positive à 10 % (TRI en Excel français). IRR a besoin d’au moins un flux négatif et un flux positif ; avec plusieurs changements de signe, il peut y avoir plusieurs solutions."
+    },
+    {
+      "q": "En B8, le contrôle d’équilibre : total de l’actif (B2:B4) moins dette et capitaux propres (B5:B6), arrondi à 2 décimales. Il doit afficher 0.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Balance sheet",
+          "Year 1"
+        ],
+        [
+          "Cash",
+          172.5
+        ],
+        [
+          "Net working capital",
+          230
+        ],
+        [
+          "PP&E",
+          530
+        ],
+        [
+          "Debt",
+          360
+        ],
+        [
+          "Equity",
+          572.5
+        ],
+        [
+          "",
+          ""
+        ],
+        [
+          "Check",
+          ""
+        ]
+      ],
+      "cell": "B8",
+      "answer": "=ROUND(SUM(B2:B4)-SUM(B5:B6),2)",
+      "hint": "SUM de l’actif moins SUM de la dette et des capitaux propres, dans ROUND(…, 2).",
+      "explain": "932,5 − 932,5 = 0. ROUND supprime les infimes écarts de calcul en virgule flottante (0,0000001) qui feraient échouer le contrôle. Prévoyez un contrôle par période et un indicateur unique comme =IF(COUNTIF(B8:F8,\"<>0\")=0,\"OK\",\"ERROR\") sur les sorties."
+    },
+    {
+      "q": "Les dotations aux amortissements augmentent de 10 et le taux d’impôt est de 25 %. Tout le reste est inchangé. Que devient la trésorerie ?",
+      "type": "choice",
+      "options": [
+        "La trésorerie baisse de 10",
+        "La trésorerie baisse de 7,5",
+        "La trésorerie augmente de 2,5",
+        "La trésorerie ne change pas"
+      ],
+      "correct": 2,
+      "answer": "Le résultat net baisse de 10 × (1 − 25 %) = 7,5. Dans le tableau des flux, l’amortissement est réintégré (+10) : la trésorerie varie de −7,5 + 10 = +2,5, l’impôt économisé sur une charge non décaissée. Au bilan, les immobilisations baissent de 10, la trésorerie monte de 2,5 et les capitaux propres baissent de 7,5 : le bilan reste équilibré."
+    },
+    {
+      "q": "La formule de D2 est recopiée sur la ligne vers les années suivantes. Complétez la référence au taux de croissance en B4 pour qu’elle ne bouge pas.",
+      "type": "fill",
+      "lang": "excel",
+      "snippet": "=C2*(1+___)",
+      "blanks": [
+        [
+          "$B$4",
+          "$B4"
+        ]
+      ],
+      "answer": "$B$4 fixe la colonne et la ligne ; $B4 suffit pour une recopie le long d’une ligne, car seule la colonne bougerait. Sans $, la formule pointerait vers C4, D4… qui sont vides, et la croissance tomberait silencieusement à 0."
+    },
+    {
+      "q": "Remettez dans l’ordre les étapes de construction d’un modèle à trois états.",
+      "type": "order",
+      "steps": [
+        "Saisir les hypothèses et inducteurs sur la feuille des entrées",
+        "Construire les tableaux annexes (immobilisations, BFR, dette)",
+        "Construire le compte de résultat jusqu’au résultat net",
+        "Construire le tableau des flux de trésorerie à partir du résultat net",
+        "Construire le bilan, avec la trésorerie de clôture issue du tableau des flux",
+        "Vérifier que l’actif égale le passif plus les capitaux propres à chaque période"
+      ],
+      "answer": "Les inducteurs alimentent les tableaux annexes ; ceux-ci envoient amortissements et intérêts au compte de résultat ; le résultat net ouvre le tableau des flux ; la variation de trésorerie boucle le bilan ; le contrôle d’équilibre prouve les liens."
+    },
+    {
+      "q": "Associez chaque fonction Excel à l’usage qu’en fait un analyste.",
+      "type": "match",
+      "pairs": [
+        [
+          "PMT",
+          "L’échéance constante d’un emprunt"
+        ],
+        [
+          "NPV",
+          "La valeur aujourd’hui de flux futurs"
+        ],
+        [
+          "IRR",
+          "Le taux qui annule la VAN d’un projet"
+        ],
+        [
+          "SUMIFS",
+          "Des totaux par catégorie et par mois à partir d’un extrait du grand livre"
+        ],
+        [
+          "INDEX/MATCH",
+          "Aller chercher la valeur du scénario choisi"
+        ],
+        [
+          "IFERROR",
+          "Afficher 0 au lieu d’une division par zéro sur une période vide"
+        ]
+      ],
+      "answer": "Ces six fonctions couvrent l’essentiel de ce qu’attendent les recruteurs dans un test de modélisation (VPM, VAN, TRI, SOMME.SI.ENS, INDEX/EQUIV, SIERREUR en Excel français) ; retenez le décalage d’une période de NPV et la convention de signe de PMT."
+    },
+    {
+      "q": "Votre modèle à trois états présente un écart de 35 au contrôle d’équilibre à partir de l’année 3 (les années 1 et 2 s’équilibrent). Comment trouvez-vous l’erreur ?",
+      "answer": "1) Partez de la première année en erreur (l’année 3) : l’erreur y a été introduite, les années suivantes ne font que la reporter. 2) Cherchez si 35 (ou 17,5, la moitié, signe d’une erreur de signe) apparaît quelque part en année 3 : un investissement, un nouvel emprunt, un dividende, une variation de BFR. 3) Vérifiez que chaque ligne du bilan qui bouge en année 3 a sa ligne correspondante dans le tableau des flux (un nouveau poste de bilan relié à rien dans le tableau des flux est la cause habituelle) et que les signes sont justes (la hausse d’un actif est une sortie de trésorerie). 4) Vérifiez que la formule de chaque ligne est la même qu’en années 1 et 2 (une formule écrasée en année 3, une plage qui s’arrête à l’année 2). 5) Vérifiez trésorerie de clôture = ouverture + variation, et capitaux propres = ouverture + résultat net − dividendes. Ne saisissez jamais un écart pour forcer l’équilibre : corrigez le lien."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Expliquez-moi comment les trois états financiers sont reliés.",
+      "a": "Le résultat net du compte de résultat est la première ligne du tableau des flux de trésorerie ; on réintègre les éléments non décaissés comme les amortissements, on ajuste la variation du BFR, puis les flux d’investissement (capex) et de financement (dette, dividendes, capital) donnent la variation de trésorerie. La trésorerie de clôture va au bilan ; le résultat net moins les dividendes augmente les réserves dans les capitaux propres ; capex moins amortissements fait bouger les immobilisations ; les mouvements de dette mettent à jour la dette. Si tous les liens sont justes, l’actif égale le passif plus les capitaux propres."
+    },
+    {
+      "q": "Les amortissements augmentent de 10. Déroulez les trois états avec un taux d’impôt de 25 %.",
+      "a": "Compte de résultat : le résultat d’exploitation baisse de 10, l’impôt de 2,5, le résultat net de 7,5. Tableau des flux : résultat net −7,5, amortissements réintégrés +10, donc trésorerie +2,5. Bilan : trésorerie +2,5, immobilisations −10, soit un actif en baisse de 7,5 ; capitaux propres −7,5 via les réserves. Les deux côtés baissent de 7,5 : le bilan est équilibré."
+    },
+    {
+      "q": "Comment structurez-vous un modèle pour que quelqu’un d’autre puisse l’utiliser ?",
+      "a": "Entrées, calculs et sorties séparés ; le temps en colonnes, cohérent sur toutes les feuilles ; une formule par ligne ; aucune valeur en dur dans les formules ; un code couleur (bleu pour les entrées, noir pour les formules, vert pour les liens) ; unités et sources à côté de chaque hypothèse ; une page de garde avec l’objet et la version ; et des contrôles visibles avec un indicateur OK / ERROR unique sur les sorties."
+    },
+    {
+      "q": "Quelle différence entre VAN et TRI, et auquel vous fiez-vous quand ils se contredisent ?",
+      "a": "La VAN est la valeur créée, en euros, au rendement exigé ; le TRI est le taux d’actualisation qui annule la VAN. Ils peuvent classer les projets différemment quand la taille ou le calendrier diffèrent, et le TRI suppose un réinvestissement au TRI et peut avoir plusieurs solutions quand les signes changent plusieurs fois. Pour des projets mutuellement exclusifs, je décide sur la VAN et j’utilise le TRI en complément. Sous Excel, je me souviens que NPV actualise sa première valeur, donc le flux de l’instant 0 s’ajoute à l’extérieur."
+    },
+    {
+      "q": "Comment intégreriez-vous des scénarios et une analyse de sensibilité dans un modèle ?",
+      "a": "Les valeurs des scénarios côte à côte sur la feuille des entrées, une cellule de sélection, et une ligne active qui va chercher la valeur choisie avec INDEX/MATCH ou CHOOSE, pour que tout le modèle lise un seul jeu d’hypothèses. Pour la sensibilité, une table de données de la sortie clé (VAN, EBITDA, trésorerie) en fonction d’un ou deux inducteurs, et un graphique en tornade où chaque inducteur varie du même écart pour montrer ceux qui comptent le plus. Je montrerais aussi le point mort de l’inducteur principal."
+    },
+    {
+      "q": "Qu’est-ce qu’une référence circulaire dans un modèle et comment la gérez-vous ?",
+      "a": "Une formule qui dépend de son propre résultat, typiquement des intérêts sur la dette moyenne ou un revolver qui dépend de la trésorerie après intérêts. Je l’évite en calculant les intérêts sur le solde d’ouverture. Si la précision supplémentaire compte, j’active le calcul itératif et j’ajoute un disjoncteur qui met les intérêts à zéro, pour pouvoir effacer les erreurs sans tout reconstruire."
+    },
+    {
+      "q": "Vous recevez un modèle construit par quelqu’un d’autre. Comment le relisez-vous ?",
+      "a": "D’abord les contrôles : est-il équilibré à chaque période et la trésorerie se rapproche-t-elle ? Puis la vraisemblance des sorties : marges, croissance et trésorerie comparées à l’historique. Ensuite les inducteurs clés et leurs sources, la recherche de valeurs en dur dans les feuilles de calcul, la cohérence des formules sur chaque ligne, et la remontée des sorties principales jusqu’aux entrées. Enfin un test de résistance avec des valeurs extrêmes, et une liste de constats classés par impact."
+    },
+    {
+      "q": "Le chiffre d’affaires baisse de 10 %. Que devient la marge d’EBITDA ?",
+      "a": "Cela dépend de la répartition entre coûts variables et fixes. Les coûts variables baissent avec le chiffre d’affaires, pas les coûts fixes, donc la marge baisse : dans l’exemple du cours (coûts variables de 40 %, 60 000 de coûts fixes, 250 000 de chiffre d’affaires), l’EBITDA passe de 90 000 à 75 000 et la marge de 36 % à environ 33,3 %. Plus les coûts fixes sont élevés, plus ce levier opérationnel est fort."
+    }
+  ]
+}

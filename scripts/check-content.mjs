@@ -38,7 +38,7 @@ import { SKILLS } from "../js/ats.js";
 import { gradeResult } from "../js/sqlgrade.js";
 import { blanks as countBlanks, parseCron, regexRun, jq } from "../js/drillcheck.js";
 import { checkFile, RULES as FILE_RULES } from "../js/filecheck.js";
-import { evaluate as evalFormula, grade as gradeFormula, usesCell } from "../js/excelcheck.js";
+import { evaluate as evalFormula, grade as gradeFormula, usesCell, changed as changedRows } from "../js/excelcheck.js";
 import { tokens } from "../js/highlight.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -206,6 +206,7 @@ function checkDrill(where, e) {
     const r = evalFormula(e.rows, e.answer);
     if (r.error) bad(where, `the answer returns ${r.error}${r.detail ? ` (${r.detail})` : ""}`);
     else if (!gradeFormula(e.rows, e.answer, e.answer).ok) bad(where, "the grader rejects the course answer");
+    else { const c = evalFormula(changedRows(e.rows), e.answer); if (c.error) bad(where, `the answer returns ${c.error} on the changed copy the grader also uses (pick numbers that keep it valid)`); }
   }
 }
 // The two languages of a typed exercise: same type and shape, same correct answer, files and code.

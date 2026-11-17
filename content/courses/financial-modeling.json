@@ -1,0 +1,814 @@
+{
+  "why": "Financial analysts, FP&A teams, corporate finance and transaction services spend much of their week in Excel models: budgets, business plans, investment cases, loan schedules. A clean, linked, checked model is what interviewers test in case studies and what managers trust when they make a decision.",
+  "outcome": "lay out a model that others can read, separate assumptions from calculations, build revenue and costs from drivers, link the income statement, cash flow statement and balance sheet so they balance, switch scenarios and run sensitivities, compute loan payments, NPV and IRR, and review a model with checks before it goes to a decision maker.",
+  "lessons": [
+    {
+      "title": "What a model is for, and a layout others can read",
+      "text": [
+        "A financial model turns a few assumptions (volumes, prices, costs, investment, financing) into the numbers a decision needs: next year’s budget, a five-year business plan, the value of a project, whether a loan can be repaid. Start from the question and the audience: a budget for a cost centre, an investment case for a committee and a valuation for a buyer do not need the same level of detail. A model with too much detail is slower to build, slower to check and no more accurate.",
+        "The standard layout separates three blocks: inputs (the assumptions you type), calculations (formulas only) and outputs (the summary, charts and key ratios a reader looks at). In a small model they can be three areas of one sheet; in a larger one they are separate sheets, often in that order from left to right. A reader who wants to change the price growth should find it in one place, and should never have to hunt through formulas for a typed 3 %.",
+        "Time runs across the columns, one column per period (months, quarters or years), and the same column means the same period on every sheet: if column F is 2027 on the income statement, it is 2027 on the balance sheet too. Each row holds one item with one formula copied across the whole row, so a reviewer can read the first cell and know the rest. A row whose formula changes in the middle (a different formula in 2028 “because it was easier”) is the classic source of hidden errors.",
+        "Colour codes tell the reader what each cell is. The common banking and FP&A convention: blue font for hard-coded inputs, black font for formulas, green font for links to another sheet, and sometimes a light yellow fill for the cells meant to be changed. Add units in a column next to the label (EUR k, %, units, days), a cover sheet with the purpose, version and author, and freeze panes so labels and dates stay visible.",
+        "Interviewers often hand over a messy workbook and ask what they would change. Good answers name these habits: inputs separated and labelled, no hard-codes inside formulas, one formula per row, consistent time axis, checks that are visible, and units everywhere."
+      ],
+      "points": [
+        "Inputs / calculations / outputs: assumptions are typed once, everything else is a formula.",
+        "Time across columns, the same column for the same period on every sheet.",
+        "One formula per row, copied across: no exceptions hidden in one year.",
+        "Colour codes: blue inputs, black formulas, green links to other sheets.",
+        "Units next to every label, a cover sheet, and the checks visible on the outputs."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Sheet      What it holds                              Font\nCover      purpose, version, author, how to use        -\nInputs     volumes, prices, growth, costs, capex, debt  blue (typed)\nCalcs      revenue build, costs, schedules             black (formulas)\nStatements income statement, cash flow, balance sheet  black, green links\nOutputs    summary, ratios, charts, scenario results   black\nChecks     balance check, cash check, error flags      black, red if not 0\n\nColumns:   A label | B unit | C notes | D 2026 | E 2027 | F 2028 | G 2029 | H 2030",
+        "note": "Same order, same columns, same colours everywhere: a reviewer can find any number in seconds."
+      }
+    },
+    {
+      "title": "Assumptions and drivers",
+      "text": [
+        "A driver is an input that explains a line of the model: units sold and price explain revenue, headcount and average cost explain salaries, days of sales explain receivables. Driver-based models answer “what if” questions directly: change the driver, and every statement updates. A model that only grows last year’s total by a percentage cannot tell you why the number moves.",
+        "Put every assumption on the inputs sheet with a label, a unit, a value per period when it changes over time, and a source: last year’s actuals, the sales plan, a supplier contract, a market study. Write the source in a notes column. When a manager asks “where does the 6 % come from?”, the answer should be in the model, not in your memory.",
+        "Good assumptions are anchored on history. Show two or three years of actuals next to the forecast and compare the forecast drivers with the past ones: if gross margin was 38 % to 40 % for three years, a forecast at 46 % needs a reason. Ratios such as days sales outstanding (DSO), days payable outstanding (DPO), inventory days, capex as a percentage of revenue and the tax rate are usually taken from history and adjusted for known changes.",
+        "Keep the number of key drivers small. Five to ten drivers that really move the result (volume growth, price, gross margin, headcount, capex, DSO) are easier to discuss and test than a hundred. Detail belongs where the money is: a model of a software company needs a careful subscription build, not a careful stationery budget."
+      ],
+      "points": [
+        "A driver explains a line: volume × price, headcount × cost per head, days × daily sales.",
+        "Each input has a label, a unit, a value per period and a source.",
+        "Show actuals next to the forecast and explain any break with history.",
+        "Few key drivers, detail where the money is."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Inputs (blue = typed)          Unit     2026     2027     2028   Source\nUnits sold growth              %                  8.0      8.0   sales plan\nPrice increase                 %                  3.0      3.0   price list policy\nVariable cost                  % rev     40.0     40.0     40.0   3-year average\nFixed costs                    EUR      60,000   60,000   60,000   budget 2026\nDSO (days sales outstanding)   days        45       45       45   last 12 months\nTax rate                       %         25.0     25.0     25.0   statutory rate",
+        "note": "Each driver has a unit and a source; the model’s formulas read these cells and nothing else."
+      }
+    },
+    {
+      "title": "Revenue and cost build-ups",
+      "text": [
+        "Revenue is built from volume × price: units sold × average price, customers × revenue per customer, stores × sales per store, or for subscriptions, opening customers + new customers − churned customers, times the monthly fee. With units of 10,000 growing 8 % a year and a price of 25 rising 3 % a year, revenue is 250,000 in year 1, 10,800 × 25.75 = 278,100 in year 2 and 11,664 × 26.5225 = 309,358 in year 3. Growth is compounded: each year applies the rate to the previous year, not to the first one.",
+        "Cohorts help when customers behave differently with age. A subscription business adds each month’s new customers as a cohort and applies a retention curve: of 100 customers who start in January, maybe 90 remain after one month and 80 after six. Summing the cohorts gives active customers, and revenue follows. A simple growth rate on total revenue hides that the business depends on new sales every month to replace churn.",
+        "Costs split into variable costs, which follow volume or revenue (materials, shipping, payment fees, sales commissions), and fixed costs, which do not move with volume in the short term (rent, software licences, most salaries). Variable costs are a percentage of revenue or a cost per unit; fixed costs are a monthly or yearly amount, sometimes with steps (a second warehouse when volume passes a threshold).",
+        "Staff costs are usually the largest cost and are built from headcount: number of people by team × average gross salary × (1 + employer social charges), with the hiring dates of new roles. Employer contributions vary a lot by country and salary level (in France they commonly add between a quarter and close to half of gross salary, depending on reductions), so take the rate from payroll data. Bonuses, salary increases and hiring dates are separate drivers.",
+        "The split between fixed and variable costs drives operating leverage: when most costs are fixed, a small rise in revenue gives a large rise in profit, and a fall hurts as fast. Interviewers like to ask what happens to EBITDA margin when volume falls 10 %; the answer depends exactly on this split."
+      ],
+      "points": [
+        "Revenue = volume × price; growth compounds on the previous period.",
+        "Subscriptions: opening customers + new − churned, then × price; cohorts show retention.",
+        "Variable costs follow volume or revenue; fixed costs are amounts, sometimes in steps.",
+        "Staff costs = headcount × salary × (1 + employer charges), with hiring dates.",
+        "Operating leverage: the more fixed costs, the more profit swings with revenue."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "                         Year 1      Year 2      Year 3\nUnits sold               10,000      10,800      11,664     (+8 % a year)\nPrice                     25.00       25.75     26.5225     (+3 % a year)\nRevenue                 250,000     278,100     309,358\nVariable costs (40 %)  -100,000    -111,240    -123,743\nFixed costs             -60,000     -60,000     -60,000\nEBITDA                   90,000     106,860     125,615\nEBITDA margin            36.0 %      38.4 %      40.6 %",
+        "note": "Fixed costs stay flat while revenue grows, so the margin rises: operating leverage."
+      }
+    },
+    {
+      "title": "Formulas analysts rely on",
+      "text": [
+        "Lookups bring data into the model from tables: INDEX/MATCH works in every Excel version and in Google Sheets, and XLOOKUP (Excel 2021 and 365) is simpler, finds exact matches by default and has a built-in “if not found” value. Avoid VLOOKUP with a typed column number: inserting a column in the source silently returns the wrong field. Always use exact match (0 in MATCH) unless you mean a band lookup.",
+        "SUMIFS and COUNTIFS turn a list of transactions or a general ledger extract into a monthly or category view: =SUMIFS(amounts, categories, “Rent”, months, “Feb”). Point the criteria at cells (the category in a header, the month in the column title) rather than typing them, so one formula can be copied across the whole grid.",
+        "References decide whether a formula copies correctly. $B$4 is absolute (fixed row and column, for a single input such as the tax rate); B$4 fixes the row only (useful for a header of dates across the top); $B4 fixes the column only (a label or driver in a fixed column). Most errors in grids come from a missing dollar sign: the formula is right in the first cell and drifts in the others.",
+        "IF builds logic (no tax when profit is negative: =IF(B10>0, B10*$B$4, 0)); MAX and MIN cap values (debt repayment cannot exceed the cash available); IFERROR replaces an error with a value, but use it only where an error is expected (a division by zero in an empty period), because it also hides real mistakes. ROUND changes the value itself, while number formats only change the display: round where a real amount is rounded (a tax bill, a payment), not everywhere.",
+        "Hard-codes are the main enemy: a formula such as =B5*1.08 or =SUM(C4:C9)+1500 hides an assumption nobody can see. Move the 8 % and the 1,500 to the inputs with a label and a source, and reference them. Interviewers often ask for the formulas you use most; naming these and explaining when not to use IFERROR shows experience."
+      ],
+      "points": [
+        "INDEX/MATCH or XLOOKUP with exact match; no VLOOKUP with a typed column number.",
+        "SUMIFS with criteria pointing at cells, so one formula fills a whole grid.",
+        "$B$4 absolute, B$4 fixes the row, $B4 fixes the column.",
+        "IFERROR only where an error is expected; ROUND only where an amount is really rounded.",
+        "No hard-codes inside formulas: every number lives on the inputs sheet."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=INDEX($C$2:$C$50, MATCH($F2, $A$2:$A$50, 0))\n=XLOOKUP($F2, $A$2:$A$50, $C$2:$C$50, 0)\n=SUMIFS($D$2:$D$500, $B$2:$B$500, $F2, $C$2:$C$500, G$1)\n=IF(D10>0, D10*$B$4, 0)\n=IFERROR(E10/D10, 0)\n=ROUND(D12*$B$5, 2)",
+        "note": "In the SUMIFS, $F2 keeps the category column and G$1 keeps the header row, so it copies across and down."
+      }
+    },
+    {
+      "title": "Linking the three statements",
+      "text": [
+        "A three-statement model links the income statement, the cash flow statement and the balance sheet so that one change flows everywhere. The order of building is: supporting schedules (fixed assets, working capital, debt), then the income statement down to net income, then the cash flow statement starting from net income, then the balance sheet, where closing cash comes from the cash flow statement. If every link is right, total assets equal liabilities plus equity in every period.",
+        "The PP&E schedule (property, plant and equipment) rolls the fixed assets forward: closing PP&E = opening PP&E + capex − depreciation. Depreciation goes to the income statement, capex to investing cash flows, and the closing balance to the balance sheet. Under both IFRS and US GAAP, straight-line depreciation over the useful life is the most common method; IFRS also requires significant components with different lives to be depreciated separately.",
+        "The working capital schedule forecasts receivables, inventory and payables from days: receivables = revenue × DSO / 365, payables = purchases × DPO / 365, inventory = cost of sales × inventory days / 365. With revenue of 1,200 and 45 days of sales outstanding, receivables are about 147.9. An increase in working capital uses cash and appears as a negative line in operating cash flows; a decrease releases cash.",
+        "The debt schedule tracks opening debt, new borrowing, repayments and closing debt, and computes interest. Interest on the opening balance is simple and avoids a circular reference; interest on the average balance is more accurate but makes interest depend on cash, which depends on interest. Where interest paid sits in the cash flow statement differs: US GAAP puts it in operating activities, while IAS 7 lets IFRS reporters choose operating or financing (IFRS 18, from 2027, narrows that choice).",
+        "Cash closes the loop. The cash flow statement gives the change in cash, and closing cash on the balance sheet is opening cash plus that change: cash is never typed and never forced. Some models add a revolving credit facility that draws automatically when cash would go below a minimum. The balance check (total assets − total liabilities − equity) must be zero in every column; when it is not, the error is in a link, not in the check."
+      ],
+      "points": [
+        "Order: schedules → income statement → cash flow statement → balance sheet → balance check.",
+        "PP&E: closing = opening + capex − depreciation.",
+        "Working capital from days: receivables = revenue × DSO / 365; an increase uses cash.",
+        "Debt: opening + borrowing − repayments = closing; interest on the opening balance avoids a circular reference.",
+        "Closing cash = opening cash + change in cash from the cash flow statement; never typed."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "                               Opening    Year 1\nIncome statement\n  Revenue                                 1,000.0\n  Operating costs                          -700.0\n  Depreciation                              -50.0\n  Interest (5 % of opening debt)            -20.0\n  Tax (25 %)                                -57.5\n  Net income                                172.5\nCash flow statement\n  Net income                                172.5\n  + Depreciation                             50.0\n  - Increase in working capital             -30.0\n  - Capex                                   -80.0\n  - Debt repayment                          -40.0\n  Change in cash                             72.5\nBalance sheet\n  Cash                           100.0      172.5\n  Net working capital            200.0      230.0\n  PP&E                           500.0      530.0\n  Total assets                   800.0      932.5\n  Debt                           400.0      360.0\n  Equity                         400.0      572.5\n  Total liabilities + equity     800.0      932.5\n  Balance check                    0.0        0.0",
+        "note": "PP&E 500 + 80 − 50 = 530; equity 400 + 172.5 (no dividend); cash 100 + 72.5. Every line is a link."
+      }
+    },
+    {
+      "title": "Scenarios and sensitivity",
+      "text": [
+        "A scenario is a consistent set of assumptions: a low case with weak volume and price pressure, a base case, a high case. Keep each scenario’s values side by side on the inputs sheet and add a switch: one cell where the user picks the scenario. A live row then pulls the chosen value with =INDEX(C5:E5, MATCH($B$1, $C$4:$E$4, 0)) when the switch is a name, or =CHOOSE($B$2, C5, D5, E5) when it is a number from 1 to 3. The rest of the model reads only the live row.",
+        "A data table (Data > What-If Analysis > Data Table) recalculates one output for many values of one or two inputs: NPV for discount rates of 8 % to 12 % across the top and revenue growth of 2 % to 8 % down the side, for example. Data tables recalculate constantly and slow large models; many teams set calculation to “automatic except data tables” and press F9 when needed. The input cells of a data table must be on the same sheet as the table.",
+        "Sensitivity analysis asks which assumption matters most. Move each driver by the same reasonable amount (say ±10 %) one at a time, record the change in the output, and sort the results from largest to smallest: drawn as horizontal bars, this is a tornado chart. It shows where to spend time checking assumptions and what to discuss with management.",
+        "A scenario changes several assumptions together and tells a story; a sensitivity changes one at a time and measures the effect. Decision makers want both: the base case with a range around it, and the break-even point (the volume or price at which the project stops paying back). Goal Seek finds a break-even for one cell, but it types a value: record the result, do not leave it as a hidden hard-code."
+      ],
+      "points": [
+        "Scenario switch: one cell, values side by side, a live row with INDEX/MATCH or CHOOSE.",
+        "Data table: one output recalculated for a grid of one or two inputs.",
+        "Tornado chart: each driver moved by the same amount, sorted by impact.",
+        "Scenario = several assumptions together; sensitivity = one at a time.",
+        "Show the break-even, and never leave a Goal Seek result as a hidden hard-code."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "B1: Base   (picked from a drop-down list: Low, Base, High)\nC4:E4 = Low | Base | High      C5:E5 = 2% | 5% | 8%   (revenue growth)\n=INDEX(C5:E5, MATCH($B$1, $C$4:$E$4, 0))\n=CHOOSE($B$2, C5, D5, E5)\n=SWITCH($B$1, \"Low\", C5, \"Base\", D5, \"High\", E5)",
+        "note": "All three return 5 % for Base; the model reads only this live cell, so one switch changes every statement."
+      }
+    },
+    {
+      "title": "Loan schedules and time value in Excel",
+      "text": [
+        "Money today is worth more than the same amount later, because it can earn a return. Excel’s time-value functions all follow the same cash sign convention: money you receive is positive, money you pay is negative. That is why =PMT(4%/12, 20*12, 200000) returns −1,211.96: borrowing 200,000 (received, positive) means paying 1,211.96 a month for 240 months. Put a minus sign in front of the loan amount, or in front of PMT, to show a positive payment.",
+        "The rate and the number of periods must use the same period: a monthly payment needs the annual rate / 12 and the years × 12. FV gives a future value (10,000 invested at 5 % for 10 years: =FV(5%, 10, 0, -10000) = 16,288.95) and PV a present value (10,000 received in 5 years at 8 %: =PV(8%, 5, 0, -10000) = 6,805.83).",
+        "A loan schedule shows, for each period, opening balance, interest, principal repaid and closing balance. For 100,000 at 6 % over 5 years with annual payments, =PMT(6%, 5, -100000) = 23,739.64. Year 1 interest is 6 % × 100,000 = 6,000, so principal repaid is 17,739.64 and the balance falls to 82,260.36; year 2 interest is 4,935.62. The interest part falls each year and the principal part rises, while the payment stays the same. Interest goes to the income statement; the principal is a financing cash flow.",
+        "NPV (net present value) discounts future cash flows at the required return and subtracts the investment. Excel’s NPV assumes the first value is one period away, so the investment at time 0 is added outside: =B4+NPV(10%, C4:F4). For −1,000 today followed by 300, 400, 500 and 200, NPV at 10 % is 115.57: positive, so the project earns more than 10 %. IRR (internal rate of return) is the rate at which NPV is zero, here about 15.3 %, above the 10 % hurdle rate.",
+        "NPV and IRR can disagree when projects differ in size or timing: NPV says how much value is created, IRR gives a rate that ignores size and assumes cash is reinvested at the IRR itself. When choosing between projects that exclude each other, use NPV. IRR may also have several answers when cash flows change sign more than once. For dates that are not evenly spaced, XNPV and XIRR take the actual dates."
+      ],
+      "points": [
+        "Sign convention: cash received positive, cash paid negative.",
+        "Same period for rate and number of periods: annual rate / 12 and years × 12 for monthly payments.",
+        "Loan schedule: interest on the opening balance, principal = payment − interest.",
+        "Excel’s NPV starts one period out: add the time-0 investment outside the function.",
+        "IRR = the rate where NPV is zero; choose between exclusive projects with NPV."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=PMT(4%/12, 20*12, 200000)      -1,211.96 a month\n=PMT(6%, 5, -100000)             23,739.64 a year\n=FV(5%, 10, 0, -10000)           16,288.95\n=PV(8%, 5, 0, -10000)             6,805.83\n=B4+NPV(10%, C4:F4)                 115.57   (B4:F4 = -1000, 300, 400, 500, 200)\n=IRR(B4:F4)                          15.3%",
+        "note": "Compare the IRR with the hurdle rate, and report the NPV in money."
+      }
+    },
+    {
+      "title": "Model review: checks, circular references and presenting a model",
+      "text": [
+        "Build checks into the model rather than trusting your eyes. The balance check (assets − liabilities − equity, rounded to 2 decimals) for every period, a cash check (balance sheet cash = closing cash of the cash flow statement), checks that subtotals equal the sum of their parts, and that totals by month equal the yearly totals. Gather them on one checks sheet with a single flag (OK / ERROR) shown on the cover and the outputs.",
+        "A circular reference happens when a formula depends on its own result, for example interest on the average debt balance when the revolver draw depends on cash after interest. Excel can solve it with iterative calculation (File > Options > Formulas), but a circularity hides errors and can blow up with #REF! or #VALUE! that spreads through the model. Prefer interest on the opening balance; if you keep the circularity, add a circuit breaker: an input switch that sets the interest to 0 to break the loop and reset errors.",
+        "Review a model in a fixed order: check that the balance check is zero in all periods; read the outputs for sense (margins, growth, cash going negative); trace precedents of the key numbers (Formulas > Trace Precedents, Ctrl+[); look for hard-codes (Go To Special > Constants on the calculation sheets should find nothing); check one row at a time that the formula is consistent across columns (Ctrl+` shows the formulas). Then stress it: set volume to zero or a price to an extreme value and see if the model reacts sensibly.",
+        "Document as you build: a cover with the purpose, version, date and author, a notes column with the source of each assumption, and a change log. Name files with a version and date, and never overwrite the version that management already saw.",
+        "Present the answer, not the spreadsheet. Lead with the result and the decision (NPV of 115.6k at 10 %, payback in year 3, recommend going ahead), then the three or four drivers behind it, the scenarios and the sensitivity, and the main risks. Keep the model available for questions, but put a one-page summary with a chart in front of the decision makers."
+      ],
+      "points": [
+        "Checks: balance check, cash check, subtotals; one OK / ERROR flag on the outputs.",
+        "Avoid circular references; if needed, iterative calculation plus a circuit breaker switch.",
+        "Review: checks first, outputs for sense, trace precedents, hunt hard-codes, consistent rows.",
+        "Document sources, version and changes as you build.",
+        "Present the decision and its drivers first, the spreadsheet second."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=ROUND(D30-D45, 2)                              balance check: total assets - (liabilities + equity)\n=ROUND(D12-D78, 2)                              cash check: balance sheet cash - cash flow closing cash\n=IF(COUNTIF(D50:H51, \"<>0\")=0, \"OK\", \"ERROR\")    one flag for every check, every year\n=IF($B$3=1, 0, D60*$B$7)                        circuit breaker: B3 = 1 sets interest to 0",
+        "note": "Count the non-zero checks instead of summing them: a +5 and a −5 would cancel in a sum."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Layout",
+      "items": [
+        [
+          "Inputs / calculations / outputs",
+          "Assumptions typed once, formulas only, then the summary"
+        ],
+        [
+          "Blue font",
+          "Hard-coded input"
+        ],
+        [
+          "Black font",
+          "Formula"
+        ],
+        [
+          "Green font",
+          "Link to another sheet"
+        ],
+        [
+          "One formula per row",
+          "The same formula copied across all periods"
+        ],
+        [
+          "Hard-code",
+          "A typed number inside a formula: move it to the inputs"
+        ]
+      ]
+    },
+    {
+      "group": "Drivers and build-ups",
+      "items": [
+        [
+          "Driver",
+          "An input that explains a line (volume, price, headcount, days)"
+        ],
+        [
+          "Revenue build",
+          "Volume × price, or customers × revenue per customer"
+        ],
+        [
+          "Variable costs",
+          "Follow volume or revenue"
+        ],
+        [
+          "Fixed costs",
+          "Do not move with volume in the short term"
+        ],
+        [
+          "Operating leverage",
+          "More fixed costs, larger profit swings"
+        ],
+        [
+          "DSO",
+          "Days sales outstanding: receivables = revenue × DSO / 365"
+        ]
+      ]
+    },
+    {
+      "group": "Formulas",
+      "items": [
+        [
+          "INDEX/MATCH",
+          "Lookup that works in every Excel version; 0 = exact match"
+        ],
+        [
+          "XLOOKUP",
+          "Lookup with exact match and an “if not found” value"
+        ],
+        [
+          "SUMIFS",
+          "Sum with several conditions: sum range first"
+        ],
+        [
+          "$B$4",
+          "Absolute reference: row and column fixed"
+        ],
+        [
+          "B$4",
+          "Mixed reference: row fixed"
+        ],
+        [
+          "IFERROR",
+          "Replaces an error; hides real mistakes if overused"
+        ]
+      ]
+    },
+    {
+      "group": "Three statements",
+      "items": [
+        [
+          "PP&E schedule",
+          "Closing = opening + capex − depreciation"
+        ],
+        [
+          "Working capital schedule",
+          "Receivables, inventory, payables from days; an increase uses cash"
+        ],
+        [
+          "Debt schedule",
+          "Opening + borrowing − repayments = closing; interest"
+        ],
+        [
+          "Closing cash",
+          "Opening cash + change in cash from the cash flow statement"
+        ],
+        [
+          "Balance check",
+          "Assets − liabilities − equity = 0 in every period"
+        ]
+      ]
+    },
+    {
+      "group": "Scenarios and time value",
+      "items": [
+        [
+          "Scenario switch",
+          "One cell picks Low / Base / High; INDEX/MATCH or CHOOSE reads it"
+        ],
+        [
+          "Data table",
+          "One output for a grid of one or two inputs"
+        ],
+        [
+          "Tornado chart",
+          "Drivers sorted by their impact on the output"
+        ],
+        [
+          "PMT",
+          "Constant loan payment: PMT(rate, nper, pv)"
+        ],
+        [
+          "NPV",
+          "Discounted cash flows; Excel’s NPV starts one period out"
+        ],
+        [
+          "IRR",
+          "The rate where NPV is zero"
+        ]
+      ]
+    },
+    {
+      "group": "Review",
+      "items": [
+        [
+          "Circular reference",
+          "A formula that depends on its own result"
+        ],
+        [
+          "Circuit breaker",
+          "An input switch that breaks a circular loop"
+        ],
+        [
+          "Trace precedents",
+          "Shows the cells a formula uses (Ctrl+[)"
+        ],
+        [
+          "Cash check",
+          "Balance sheet cash = closing cash of the cash flow statement"
+        ]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Typing numbers inside formulas (=B5*1.08): the assumption is invisible and never updated.",
+    "A formula that changes in the middle of a row, so one year is calculated differently from the others.",
+    "Using Excel’s NPV on the whole range including the time-0 investment, which discounts it one period too many.",
+    "Mixing monthly payments with an annual rate or a number of years in PMT.",
+    "Forcing the balance sheet to balance with a typed plug instead of finding the broken link.",
+    "Wrapping everything in IFERROR, so real errors become zeros nobody sees.",
+    "Leaving a circular reference with iterative calculation on and no circuit breaker."
+  ],
+  "exercises": [
+    {
+      "q": "In C2, year 2 revenue: year 1 revenue grown by the rate in B4. Write it so it can be copied to D2 and still use B4.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Item",
+          "Year 1",
+          "Year 2",
+          "Year 3"
+        ],
+        [
+          "Revenue",
+          1200,
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Growth rate",
+          0.08,
+          "",
+          ""
+        ]
+      ],
+      "cell": "C2",
+      "answer": "=B2*(1+$B$4)",
+      "hint": "Previous year × (1 + growth); a $ keeps the growth cell fixed when copied.",
+      "explain": "=B2*(1+$B$4) gives 1200 × 1.08 = 1296. Copied to D2 it becomes =C2*(1+$B$4) = 1399.68: B2 moves with the formula (compounding on the previous year) while $B$4 stays on the input. $B4 would also work when copying across a row."
+    },
+    {
+      "q": "In G2, the total of the category in E2 for the month in F2 (one formula, pointing at E2 and F2).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Month",
+          "Category",
+          "Amount",
+          "",
+          "Category",
+          "Month",
+          "Total"
+        ],
+        [
+          "Jan",
+          "Salaries",
+          42000,
+          "",
+          "Rent",
+          "Feb",
+          ""
+        ],
+        [
+          "Jan",
+          "Rent",
+          8000,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Jan",
+          "Marketing",
+          5500,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Feb",
+          "Salaries",
+          43500,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Feb",
+          "Rent",
+          8000,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Feb",
+          "Marketing",
+          7200,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Feb",
+          "Rent",
+          1500,
+          "",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "cell": "G2",
+      "answer": "=SUMIFS(C2:C8,B2:B8,E2,A2:A8,F2)",
+      "hint": "SUMIFS(range to add, range 1, condition 1, range 2, condition 2).",
+      "explain": "=SUMIFS(C2:C8,B2:B8,E2,A2:A8,F2) adds the two February rent lines: 8000 + 1500 = 9500. With the criteria in cells, the same formula fills a whole category × month grid when the ranges are made absolute ($C$2:$C$8…)."
+    },
+    {
+      "q": "B1 holds the chosen scenario (Low, Base or High). In B8, return the revenue growth of that scenario from the table below.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Scenario",
+          "Base"
+        ],
+        [
+          "",
+          ""
+        ],
+        [
+          "Scenario",
+          "Revenue growth"
+        ],
+        [
+          "Low",
+          0.02
+        ],
+        [
+          "Base",
+          0.05
+        ],
+        [
+          "High",
+          0.08
+        ],
+        [
+          "",
+          ""
+        ],
+        [
+          "Growth used",
+          ""
+        ]
+      ],
+      "cell": "B8",
+      "answer": "=INDEX(B4:B6,MATCH(B1,A4:A6,0))",
+      "hint": "MATCH finds the position of B1 in the scenario names; INDEX returns the value at that position.",
+      "explain": "MATCH(\"Base\",A4:A6,0) = 2 and INDEX(B4:B6,2) = 0.05. =XLOOKUP(B1,A4:A6,B4:B6) works too. With a number 1–3 as the switch, =CHOOSE(B1,B4,B5,B6) does the same. The rest of the model reads only B8, so one cell changes the scenario everywhere."
+    },
+    {
+      "q": "In B5, the monthly payment of the loan as a positive number (amount in B1, annual rate in B2, years in B3).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Loan amount",
+          200000
+        ],
+        [
+          "Annual rate",
+          0.04
+        ],
+        [
+          "Years",
+          20
+        ],
+        [
+          "",
+          ""
+        ],
+        [
+          "Monthly payment",
+          ""
+        ]
+      ],
+      "cell": "B5",
+      "answer": "=PMT(B2/12,B3*12,-B1)",
+      "hint": "Monthly rate = annual rate / 12, number of payments = years × 12; the minus sign turns the payment positive.",
+      "explain": "=PMT(B2/12,B3*12,-B1) = 1,211.96 a month for 240 months. =-PMT(B2/12,B3*12,B1) is the same. Using B2 and B3 without converting to months would give a yearly payment for 20 years, a classic error."
+    },
+    {
+      "q": "In B6, the NPV of the project at the discount rate in B1. B4 is the investment today (year 0); C4:F4 are years 1 to 4.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Discount rate",
+          0.1,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "Year 0",
+          "Year 1",
+          "Year 2",
+          "Year 3",
+          "Year 4"
+        ],
+        [
+          "Cash flow",
+          -1000,
+          300,
+          400,
+          500,
+          200
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "NPV",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "cell": "B6",
+      "answer": "=B4+NPV(B1,C4:F4)",
+      "hint": "Excel’s NPV discounts its first value by one period: keep year 0 outside the function.",
+      "explain": "=B4+NPV(B1,C4:F4) = −1000 + 1,115.57 = 115.57. =NPV(B1,B4:F4) would give 105.06, because it treats the investment as paid in one year: every number is discounted one period too many."
+    },
+    {
+      "q": "Same project: in B6, its internal rate of return.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Hurdle rate",
+          0.1,
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "Year 0",
+          "Year 1",
+          "Year 2",
+          "Year 3",
+          "Year 4"
+        ],
+        [
+          "Cash flow",
+          -1000,
+          300,
+          400,
+          500,
+          200
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "IRR",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "cell": "B6",
+      "answer": "=IRR(B4:F4)",
+      "hint": "IRR takes the whole range, year 0 included (unlike NPV).",
+      "explain": "=IRR(B4:F4) ≈ 15.3 %, above the 10 % hurdle rate in B1, consistent with a positive NPV at 10 %. IRR needs at least one negative and one positive cash flow; with several sign changes it can have several answers."
+    },
+    {
+      "q": "In B8, the balance check: total assets (B2:B4) minus liabilities and equity (B5:B6), rounded to 2 decimals. It should show 0.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Balance sheet",
+          "Year 1"
+        ],
+        [
+          "Cash",
+          172.5
+        ],
+        [
+          "Net working capital",
+          230
+        ],
+        [
+          "PP&E",
+          530
+        ],
+        [
+          "Debt",
+          360
+        ],
+        [
+          "Equity",
+          572.5
+        ],
+        [
+          "",
+          ""
+        ],
+        [
+          "Check",
+          ""
+        ]
+      ],
+      "cell": "B8",
+      "answer": "=ROUND(SUM(B2:B4)-SUM(B5:B6),2)",
+      "hint": "SUM of the assets minus SUM of debt and equity, inside ROUND(…, 2).",
+      "explain": "932.5 − 932.5 = 0. ROUND removes tiny floating-point differences (0.0000001) that would otherwise show as a failed check. Put one such check per period, and a single flag such as =IF(COUNTIF(B8:F8,\"<>0\")=0,\"OK\",\"ERROR\") on the outputs."
+    },
+    {
+      "q": "Depreciation rises by 10 and the tax rate is 25 %. Everything else is unchanged. What happens to cash?",
+      "type": "choice",
+      "options": [
+        "Cash falls by 10",
+        "Cash falls by 7.5",
+        "Cash rises by 2.5",
+        "Cash does not change"
+      ],
+      "correct": 2,
+      "answer": "Net income falls by 10 × (1 − 25 %) = 7.5. In the cash flow statement depreciation is added back (+10), so cash changes by −7.5 + 10 = +2.5: the tax saved on a non-cash expense. On the balance sheet, PP&E falls by 10, cash rises by 2.5 and equity falls by 7.5: it still balances."
+    },
+    {
+      "q": "The formula in D2 is copied across the row to the following years. Fill in the reference to the growth rate in B4 so it does not move.",
+      "type": "fill",
+      "lang": "excel",
+      "snippet": "=C2*(1+___)",
+      "blanks": [
+        [
+          "$B$4",
+          "$B4"
+        ]
+      ],
+      "answer": "$B$4 fixes both column and row; $B4 is enough when copying across a row, because only the column would move. Without a $, the formula would point at C4, D4… which are empty, and growth would silently become 0."
+    },
+    {
+      "q": "Put the steps of building a three-statement model in order.",
+      "type": "order",
+      "steps": [
+        "Enter the assumptions and drivers on the inputs sheet",
+        "Build the supporting schedules (PP&E, working capital, debt)",
+        "Build the income statement down to net income",
+        "Build the cash flow statement starting from net income",
+        "Build the balance sheet, with closing cash from the cash flow statement",
+        "Check that assets equal liabilities plus equity in every period"
+      ],
+      "answer": "Drivers feed the schedules; the schedules feed depreciation and interest into the income statement; net income starts the cash flow statement; its change in cash closes the balance sheet; the balance check proves the links."
+    },
+    {
+      "q": "Match each Excel function with what an analyst uses it for.",
+      "type": "match",
+      "pairs": [
+        [
+          "PMT",
+          "The constant payment of a loan"
+        ],
+        [
+          "NPV",
+          "The value today of future cash flows"
+        ],
+        [
+          "IRR",
+          "The rate at which a project’s NPV is zero"
+        ],
+        [
+          "SUMIFS",
+          "Totals by category and month from a ledger extract"
+        ],
+        [
+          "INDEX/MATCH",
+          "Pull the value of the chosen scenario"
+        ],
+        [
+          "IFERROR",
+          "Show 0 instead of a division by zero in an empty period"
+        ]
+      ],
+      "answer": "These six cover most of what interviewers expect in a modelling test; remember NPV’s one-period offset and PMT’s sign convention."
+    },
+    {
+      "q": "Your three-statement model is off by 35 in the balance check from year 3 onwards (years 1 and 2 balance). How do you find the error?",
+      "answer": "1) Start at the first year that fails (year 3): the error was introduced there, later years only carry it. 2) Check whether 35 (or 17.5, half of it, a sign error) appears anywhere in year 3: a capex, a new loan, a dividend, a working capital movement. 3) Make sure every balance sheet line moving in year 3 has its matching cash flow line (a new balance sheet item linked to nothing in the cash flow statement is the usual cause) and that signs are right (an increase in an asset is a cash outflow). 4) Check that each row’s formula is consistent with years 1 and 2 (a formula overwritten in year 3, a range that stops at year 2). 5) Check closing cash = opening cash + change in cash, and equity roll-forward = opening + net income − dividends. Never type a plug to force the balance: fix the link."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Walk me through how the three statements are linked.",
+      "a": "Net income from the income statement is the first line of the cash flow statement; non-cash items such as depreciation are added back, changes in working capital adjusted, then investing (capex) and financing (debt, dividends, equity) flows give the change in cash. Closing cash goes to the balance sheet; net income less dividends increases retained earnings in equity; capex less depreciation moves PP&E; debt movements update debt. If all links are right, assets equal liabilities plus equity."
+    },
+    {
+      "q": "Depreciation goes up by 10. Walk me through the three statements with a 25 % tax rate.",
+      "a": "Income statement: EBIT falls by 10, tax by 2.5, net income by 7.5. Cash flow statement: net income −7.5, depreciation added back +10, so cash +2.5. Balance sheet: cash +2.5, PP&E −10, so assets −7.5; equity −7.5 through retained earnings. Both sides fall by 7.5 and it balances."
+    },
+    {
+      "q": "How do you structure a model so someone else can use it?",
+      "a": "Separate inputs, calculations and outputs; time across columns, consistent on every sheet; one formula per row; no hard-codes in formulas; colour codes (blue inputs, black formulas, green links); units and sources next to every assumption; a cover sheet with purpose and version; and visible checks with one OK / ERROR flag on the outputs."
+    },
+    {
+      "q": "What is the difference between NPV and IRR, and which do you trust when they disagree?",
+      "a": "NPV is the value created in money at the required return; IRR is the discount rate at which NPV is zero. They can rank projects differently when size or timing differ, and IRR assumes reinvestment at the IRR and can have several solutions when signs change more than once. For mutually exclusive projects I choose on NPV and use IRR as a complementary measure. In Excel I remember that NPV discounts its first value, so the time-0 flow is added outside."
+    },
+    {
+      "q": "How would you build a scenario and sensitivity analysis into a model?",
+      "a": "Scenario values side by side on the inputs sheet with one switch cell, and a live row that picks the chosen value with INDEX/MATCH or CHOOSE, so the whole model reads one set. For sensitivity, a data table of the key output (NPV, EBITDA, cash) against one or two drivers, and a tornado chart moving each driver by the same amount to show which matter most. I would also show the break-even of the main driver."
+    },
+    {
+      "q": "What is a circular reference in a model and how do you deal with it?",
+      "a": "A formula that depends on its own result, typically interest on average debt or a revolver that depends on cash after interest. I avoid it by calculating interest on the opening balance. If the extra accuracy matters, I enable iterative calculation and add a circuit breaker switch that sets interest to zero, so errors can be cleared without rebuilding."
+    },
+    {
+      "q": "You receive a model built by someone else. How do you review it?",
+      "a": "First the checks: does it balance in every period and does cash reconcile? Then the outputs for sense: margins, growth and cash against history. Then the key drivers and their sources, a search for hard-codes in calculation sheets, consistency of formulas across each row, and tracing the main outputs back to inputs. Finally a stress test with extreme inputs, and a list of findings ranked by impact."
+    },
+    {
+      "q": "Revenue falls 10 %. What happens to EBITDA margin?",
+      "a": "It depends on the split between variable and fixed costs. Variable costs fall with revenue, fixed costs do not, so the margin falls: in the lesson example (40 % variable costs, 60,000 fixed costs, 250,000 revenue), EBITDA goes from 90,000 to 75,000 and the margin from 36 % to about 33.3 %. The higher the fixed costs, the stronger this operating leverage."
+    }
+  ]
+}

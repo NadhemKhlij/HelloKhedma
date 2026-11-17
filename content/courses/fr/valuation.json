@@ -1,0 +1,402 @@
+{
+  "why": "Chaque investissement, acquisition, demande de budget ou levée de fonds revient à une question : combien cela vaut-il aujourd’hui ? Analystes financiers, équipes FP&A et contrôle de gestion, corporate development, conseils en fusions-acquisitions et analystes actions sont recrutés pour y répondre avec des flux actualisés et des multiples de marché, puis pour défendre le chiffre devant des interlocuteurs qui contesteront chaque hypothèse.",
+  "outcome": "capitaliser et actualiser des flux, juger un projet avec la VAN, le TRI et le délai de récupération, construire un coût du capital (MEDAF, coût de la dette, CMPC), calculer le flux de trésorerie disponible à partir de l’EBIT, mener un DCF avec une valeur terminale, passer de la valeur d’entreprise à la valeur par action, valoriser une société par les multiples boursiers et de transactions, et défendre une valorisation avec des tables de sensibilité et des contrôles de cohérence.",
+  "lessons": [
+    {
+      "title": "Valeur temps de l’argent : capitalisation, actualisation, annuités",
+      "text": [
+        "Un euro aujourd’hui vaut plus qu’un euro dans un an : il peut être placé, l’inflation érode l’argent reçu plus tard, et une promesse de trésorerie future comporte un risque. Le taux d’actualisation met un prix sur ces trois effets. Toute valorisation de ce cours repose sur deux opérations symétriques : la capitalisation (ce que devient l’argent d’aujourd’hui) et l’actualisation (ce que vaut aujourd’hui l’argent futur).",
+        "Capitalisation : VF = VA × (1 + r)^n. 1 000 placés à 5 % pendant 3 ans deviennent 1 000 × 1,05^3 = 1 157,63, et non 1 150 : les intérêts produisent des intérêts. L’actualisation fait l’inverse : VA = VF / (1 + r)^n. 1 000 reçus dans 5 ans à 8 % valent 1 000 / 1,08^5 = 680,58 aujourd’hui. Le facteur 1 / (1 + r)^n est le facteur d’actualisation ; placez-le sur sa propre ligne dans un modèle pour que chacun puisse le vérifier.",
+        "Une annuité est un même flux versé à chaque période pendant un nombre fixe de périodes : remboursements d’emprunt, loyers, coupons. Sa valeur actuelle vaut C × (1 − (1 + r)^−n) / r. 200 par an pendant 5 ans à 6 % valent 842,47 aujourd’hui, et non 1 000. Une rente perpétuelle paie indéfiniment : VA = C / r, et une rente perpétuelle croissante VA = C₁ / (r − g), la formule de la valeur terminale d’un DCF (leçon 5).",
+        "Les fonctions financières d’Excel suivent une convention de signe : l’argent qui sort est négatif, l’argent qui entre est positif. C’est pourquoi =PV(6%,5,-200) renvoie 842,47 positif et =PMT(4%,20,-100000) renvoie 7 358,18, l’annuité d’un emprunt de 100 000 à 4 % sur 20 ans. Oublier le signe est la première raison pour laquelle une formule renvoie une valeur négative inattendue.",
+        "Gardez des taux et des périodes cohérents : un taux annuel de 6 % avec des paiements mensuels demande 6 %/12 par période et n en mois, et un taux annuel effectif n’est pas le taux nominal divisé par 12. En entretien, une question d’échauffement classique est « préférez-vous 100 aujourd’hui ou 110 dans un an ? » : la réponse est « cela dépend du taux d’actualisation ; au-delà de 10 %, je prends 100 aujourd’hui »."
+      ],
+      "points": [
+        "VF = VA × (1 + r)^n ; VA = VF / (1 + r)^n.",
+        "Annuité : VA = C × (1 − (1 + r)^−n) / r ; rente perpétuelle : VA = C / r.",
+        "Rente perpétuelle croissante : VA = C₁ / (r − g), seulement si r > g.",
+        "Convention de signe d’Excel : sorties de trésorerie négatives, entrées positives.",
+        "Accordez le taux à la période : des flux mensuels demandent un taux mensuel."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=1000*(1+5%)^3\n=FV(5%,3,0,-1000)\n=1000/(1+8%)^5\n=PV(8%,5,0,-1000)\n=PV(6%,5,-200)\n=PMT(4%,20,-100000)",
+        "note": "1 157,63 / 1 157,63 / 680,58 / 680,58 / 842,47 / 7 358,18. Les fonctions et les formules à la main doivent concorder : construisez les deux une fois pour vous vérifier (dans un Excel en français : VA, VC, VPM)."
+      }
+    },
+    {
+      "title": "Décisions d’investissement : VAN, TRI, délai de récupération et leurs pièges",
+      "text": [
+        "La valeur actuelle nette (VAN) est la somme de tous les flux d’un projet actualisés au coût du capital, investissement initial de l’année 0 compris. Un projet qui coûte 1 000 et rapporte 300, 400, 500 et 200 sur quatre ans a une VAN de 115,57 à 10 %. Une VAN positive signifie que le projet rapporte plus que la rentabilité exigée par les investisseurs, et crée cette valeur aujourd’hui. Règle : accepter les projets de VAN > 0 ; entre projets mutuellement exclusifs, prendre la VAN la plus élevée.",
+        "Le taux de rentabilité interne (TRI) est le taux d’actualisation qui annule la VAN : 15,32 % pour le même projet. Il est apprécié parce qu’un pourcentage se compare facilement à un taux de rentabilité minimum (accepter si TRI > coût du capital). Mais le TRI suppose que les flux intermédiaires sont réinvestis au TRI lui-même, ignore la taille du projet, et peut tromper dans deux cas bien connus.",
+        "Projets mutuellement exclusifs : le projet S coûte 100 et rapporte 70 puis 60 (TRI 20 %, VAN à 10 % = 13,22) ; le projet L coûte 1 000 et rapporte 500, 450 et 400 (TRI 17,37 %, VAN = 126,97). Le TRI préfère S, la VAN préfère L. Si vous ne pouvez en faire qu’un, prenez L : les actionnaires s’enrichissent de 127 au lieu de 13. Quand la VAN et le TRI divergent, la VAN l’emporte. TRI multiples : des flux qui changent de signe plus d’une fois (−100, +230, −132, par exemple une mine avec un coût de remise en état à la fin) ont deux TRI, 10 % et 20 %, et aucun n’a de sens. Utilisez la VAN, ou un TRI modifié (TRIM) avec un taux de réinvestissement explicite.",
+        "Le délai de récupération est le temps nécessaire pour récupérer la mise initiale : 2,6 ans pour le projet ci-dessus (−1 000, puis −700, −300 et +200 après l’année 3 : 2 ans + 300/500). Il est simple et parle de liquidité, mais ignore la valeur temps de l’argent et tout ce qui suit la date limite. Le délai de récupération actualisé corrige le premier défaut (3,15 ans ici) mais pas le second. Utilisez-le comme indicateur de risque à côté de la VAN, jamais seul.",
+        "Dans Excel, NPV() (VAN en français) est un piège : elle considère que sa première valeur arrive dans une période. Écrivez =NPV(taux, année 1 à année N) + année 0, jamais =NPV(taux, année 0 à année N), qui actualise tout d’un an de trop (105,06 au lieu de 115,57 ici). IRR() (TRI) prend toute la série, année 0 comprise, et demande au moins un changement de signe."
+      ],
+      "points": [
+        "VAN > 0 : accepter ; entre projets exclusifs, la VAN la plus élevée gagne.",
+        "TRI : le taux auquel la VAN = 0 ; comparez-le au taux minimum exigé.",
+        "La VAN et le TRI divergent sur la taille et le calendrier : suivez la VAN.",
+        "Plus d’un changement de signe peut donner plusieurs TRI : utilisez la VAN ou le TRIM.",
+        "Excel : =NPV(taux, flux à partir de l’année 1) + flux de l’année 0."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=NPV(10%,B3:B6)+B2\n=IRR(B2:B6)\n=MIRR(B2:B6,10%,10%)",
+        "note": "B2 = −1 000 (année 0), B3:B6 = 300, 400, 500, 200. VAN 115,57, TRI 15,32 %. Mettre B2 dans NPV() est l’erreur classique."
+      }
+    },
+    {
+      "title": "Coût du capital : MEDAF, coût de la dette et CMPC",
+      "text": [
+        "Le taux d’actualisation d’une valorisation est la rentabilité que les investisseurs exigent pour le risque qu’ils prennent. Une entreprise est financée par des actionnaires et des prêteurs, son coût du capital combine donc les deux : le coût moyen pondéré du capital, CMPC (WACC en anglais) = E/(D+E) × Re + D/(D+E) × Rd × (1 − t). Les pondérations utilisent des valeurs de marché (cours × nombre d’actions pour les capitaux propres ; la dette en valeur de marché, souvent proche de la valeur comptable), idéalement la structure financière cible que l’entreprise gardera sur la période de prévision.",
+        "Le coût des capitaux propres vient du modèle d’équilibre des actifs financiers (MEDAF, CAPM en anglais) : Re = Rf + β × (Rm − Rf). Rf est le taux sans risque (le rendement d’une obligation d’État à long terme dans la devise des flux), β mesure la sensibilité de l’action au marché, et Rm − Rf est la prime de risque du marché. Avec Rf = 3 %, β = 1,2 et une prime de 5,5 %, Re = 3 % + 1,2 × 5,5 % = 9,6 %. Les praticiens ajoutent souvent une prime de taille ou une prime de risque pays ; dites-le explicitement si vous le faites.",
+        "Le bêta s’observe sur des actions cotées, il intègre donc la dette de l’entreprise : plus de dette, plus de risque pour l’actionnaire, bêta plus élevé. Pour utiliser les bêtas des comparables, désendettez-les (βu = βL / (1 + (1 − t) × D/E), la formule de Hamada), prenez la médiane, puis réendettez-la au D/E propre à la cible. Une société non cotée n’a pas de bêta propre : c’est ainsi que l’on construit son coût des capitaux propres.",
+        "Le coût de la dette est ce que l’entreprise paierait pour emprunter aujourd’hui (le rendement de ses obligations, ou une marge sur le taux sans risque selon sa notation), pas le coupon d’une dette ancienne. Les intérêts sont déductibles, donc le coût après impôt vaut Rd × (1 − t) : 5 % avant impôt à un taux de 25 % donnent 3,75 %. Avec E = 600 et D = 400, CMPC = 60 % × 9,6 % + 40 % × 3,75 % = 7,26 %.",
+        "Le CMPC va avec le flux de trésorerie disponible non endetté (leçon 4), qui est avant intérêts : l’économie d’impôt de la dette est dans le taux, pas dans les flux, et ne doit pas être comptée deux fois. Utilisez le coût des capitaux propres seul pour actualiser des flux revenant aux actionnaires (dividendes, FCF endetté). Une variation d’un point de CMPC peut faire bouger un DCF de bien plus de 10 % (13 à 17 % dans l’exemple de la leçon 8), d’où la question d’entretien : comment avez-vous choisi chaque paramètre ?"
+      ],
+      "points": [
+        "MEDAF : Re = Rf + β × (Rm − Rf).",
+        "Coût de la dette après impôt : Rd × (1 − t), au taux d’emprunt actuel.",
+        "Pondérations du CMPC : valeurs de marché ou structure financière cible.",
+        "Désendettez les bêtas des comparables, prenez la médiane, réendettez au D/E cible.",
+        "Le CMPC actualise le FCF non endetté ; le coût des capitaux propres actualise les flux aux actionnaires."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Cost of equity  = 3.0% + 1.2 x 5.5%        = 9.60%\nCost of debt    = 5.0% x (1 - 25%)         = 3.75%\nWeights         = E 600 / D 400            = 60% / 40%\nWACC            = 60% x 9.60% + 40% x 3.75% = 7.26%",
+        "note": "Chaque paramètre a une source : rendement obligataire, bêta tiré des comparables, prime issue d’une étude publiée, taux d’emprunt de l’entreprise."
+      }
+    },
+    {
+      "title": "Flux de trésorerie disponible non endetté à partir de l’EBIT",
+      "text": [
+        "Un DCF valorise la trésorerie que l’activité génère pour l’ensemble des investisseurs, actionnaires et prêteurs : le flux de trésorerie disponible non endetté (unlevered free cash flow, UFCF, ou flux disponible pour l’entreprise). Il part du résultat d’exploitation et ignore la façon dont l’entreprise est financée : UFCF = EBIT × (1 − t) + D&A − capex − variation du besoin en fonds de roulement.",
+        "EBIT × (1 − t) est le NOPAT, résultat d’exploitation après impôt : l’impôt que paierait l’entreprise sans dette. Les dotations aux amortissements (D&A) sont réintégrées parce que ce sont des charges comptables, pas des décaissements. Les investissements (capex) sont soustraits parce que c’est de la trésorerie réellement dépensée pour des actifs que le compte de résultat n’étale que dans le temps. Exemple : EBIT 200, impôt 25 % → NOPAT 150 ; + D&A 40 ; − capex 60 ; − hausse du BFR 10 → UFCF = 120.",
+        "Le besoin en fonds de roulement (BFR) d’exploitation, c’est l’actif circulant d’exploitation moins le passif circulant d’exploitation : créances clients + stocks − dettes fournisseurs (la trésorerie et la dette en sont exclues, elles relèvent du financement). Quand une entreprise grandit, ses clients lui doivent davantage et elle détient plus de stock : le BFR augmente et consomme de la trésorerie, une hausse du BFR se soustrait. Prévoyez-le en jours de chiffre d’affaires (DSO), en jours de coût des ventes (DIO, DPO) ou en pourcentage du chiffre d’affaires.",
+        "Les normes comptables comptent. Sous IFRS 16, presque tous les contrats de location sont au bilan : les loyers deviennent amortissement et intérêts, l’EBITDA est donc plus élevé et les dettes locatives comptent comme de la dette. En US GAAP (ASC 842), la charge des locations simples reste une seule charge d’exploitation au-dessus de l’EBIT. Soyez cohérent : si les locations sont traitées comme de la dette dans le passage aux capitaux propres, les flux doivent exclure les loyers, et les multiples des comparables doivent être sur la même base. Les rémunérations en actions sont un vrai coût : ne les réintégrez pas sans compter aussi la dilution.",
+        "Contrôles qu’un relecteur fera : pour une entreprise en croissance, les capex restent au moins égaux aux D&A (sinon la base d’actifs fond), le taux d’impôt tend vers le taux légal, et le BFR suit le chiffre d’affaires. Le flux de trésorerie disponible endetté (pour les actionnaires) soustrait les intérêts après impôt et ajoute l’endettement net nouveau ; il s’actualise au coût des capitaux propres, jamais au CMPC."
+      ],
+      "points": [
+        "UFCF = EBIT × (1 − t) + D&A − capex − ΔBFR.",
+        "NOPAT = EBIT × (1 − t) : l’impôt comme s’il n’y avait pas de dette.",
+        "BFR = créances clients + stocks − dettes fournisseurs ; une hausse consomme de la trésorerie.",
+        "Locations IFRS 16 : EBITDA plus élevé, dettes locatives dans la dette nette ; soyez cohérent.",
+        "Entreprise en croissance : capex ≥ D&A sur la durée."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EBIT                         200\n- Taxes on EBIT (25%)         -50\n= NOPAT                      150\n+ D&A                         40\n- Capex                      -60\n- Increase in NWC            -10\n= Unlevered free cash flow   120",
+        "note": "Les intérêts n’apparaissent pas : le financement est dans le CMPC et dans la dette nette, jamais dans les flux. (NWC = BFR.)"
+      }
+    },
+    {
+      "title": "Valorisation par DCF : prévisions, valeur terminale, valeur d’entreprise",
+      "text": [
+        "Une valorisation par actualisation des flux de trésorerie (DCF) additionne la valeur actuelle des flux disponibles sur une période de prévision explicite (en général 5 à 10 ans, jusqu’à ce que croissance et marges soient stables) et la valeur actuelle d’une valeur terminale pour tout ce qui suit. Le résultat est la valeur d’entreprise (VE, enterprise value) : la valeur de l’activité pour l’ensemble des investisseurs.",
+        "Exemple : des UFCF de 100, 110, 120, 130 et 140 sur cinq ans, CMPC 9 %. Actualisés à 1/1,09^n, ils valent 460,08 aujourd’hui. Le vrai travail, c’est la prévision : moteurs du chiffre d’affaires (volume × prix, part de marché), marges comparées à l’historique et aux concurrents, capex et BFR liés à la croissance.",
+        "Valeur terminale de Gordon-Shapiro : VT = FCF(n) × (1 + g) / (CMPC − g), g étant le taux de croissance à long terme, en général proche de l’inflation de long terme ou de la croissance du PIB nominal (2 à 3 % dans les pays développés). Ici VT = 140 × 1,02 / (9 % − 2 %) = 2 040, soit 2 040 / 1,09^5 = 1 325,86 aujourd’hui. VE = 460,08 + 1 325,86 = 1 785,94. La valeur terminale représente 74 % de la VE : c’est courant, et c’est pourquoi il faut la tester sérieusement.",
+        "Méthode du multiple de sortie : VT = EBITDA de la dernière année × un multiple VE/EBITDA tiré des comparables. Avec un EBITDA de 200 en année 5 et 9,0x, VT = 1 800 et VE = 460,08 + 1 800 / 1,09^5 = 1 629,95. Vérifiez une méthode par l’autre : la VT de Gordon implique 2 040 / 200 = 10,2x l’EBITDA ; le multiple de 9,0x implique une croissance perpétuelle d’environ 1,1 % seulement. Si les valeurs implicites semblent étranges, une hypothèse est fausse.",
+        "Points vérifiés en entretien : actualiser la valeur terminale avec le même facteur que le flux de la dernière année (année 5, pas année 6) ; g doit rester sous le CMPC et sous la croissance économique de long terme ; la convention de milieu d’année (la trésorerie arrive au fil de l’année, on actualise à n − 0,5) augmente un peu la VE ; et la date de valorisation doit correspondre à la dette nette soustraite à l’étape suivante."
+      ],
+      "points": [
+        "VE = VA des FCF prévus + VA de la valeur terminale.",
+        "Gordon : VT = FCF(n) × (1 + g) / (CMPC − g), g sous la croissance du PIB de long terme.",
+        "Multiple de sortie : VT = EBITDA de la dernière année × multiple VE/EBITDA.",
+        "Actualisez la VT avec le facteur de la dernière année ; recoupez g et multiple implicites.",
+        "La valeur terminale fait souvent 60 à 80 % de la VE : testez-la."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Year                 1       2       3       4       5\nUFCF               100     110     120     130     140\nDiscount factor  0.917   0.842   0.772   0.708   0.650\nPV of UFCF        91.7    92.6    92.7    92.1    91.0   -> 460.08\nTerminal value (Gordon, g 2%)                    2,040   -> 1,325.86\nEnterprise value                                          1,785.94",
+        "note": "CMPC 9 %. Chaque facteur d’actualisation vaut 1 / 1,09^n ; la valeur terminale utilise le facteur de l’année 5."
+      }
+    },
+    {
+      "title": "De la valeur d’entreprise à la valeur par action",
+      "text": [
+        "Un DCF sur des flux non endettés donne la valeur d’entreprise, qui appartient à tous les apporteurs de capitaux. Pour obtenir ce que possèdent les actionnaires, on fait le passage (bridge) : valeur des capitaux propres = VE − dette + trésorerie − intérêts minoritaires − actions de préférence + actifs hors exploitation (sociétés mises en équivalence, placements absents des flux). Le même passage, lu à l’envers, transforme une capitalisation boursière en VE pour les multiples.",
+        "La dette désigne tout le financement porteur d’intérêts à la date de valorisation : emprunts bancaires, obligations et, de manière cohérente avec les flux, dettes locatives (IFRS 16) et souvent engagements de retraite non financés. La trésorerie se déduit de la dette pour former la dette nette, mais seulement la trésorerie excédentaire : celle bloquée dans un pays ou nécessaire à l’exploitation reste dans l’activité. Les intérêts minoritaires (participations ne donnant pas le contrôle) se soustraient parce que le groupe consolide à 100 % des filiales qu’il ne détient qu’en partie : l’EBITDA et les flux incluent une part qui revient à d’autres. Les sociétés mises en équivalence s’ajoutent parce que leurs résultats ne sont pas dans l’EBITDA.",
+        "Exemple : VE 2 000, dette 600, trésorerie 150, intérêts minoritaires 50, mises en équivalence 30 → valeur des capitaux propres = 2 000 − 600 + 150 − 50 + 30 = 1 530.",
+        "La valeur par action se calcule sur le nombre d’actions dilué, pas sur le nombre de base. Les options et bons dans la monnaie se comptent par la méthode du rachat d’actions (treasury stock method) : l’entreprise encaisse le prix d’exercice et est supposée racheter des actions au cours actuel. 100 millions d’actions de base et 10 millions d’options au prix d’exercice de 10 avec un cours de 15 : les 100 millions encaissés rachètent 6,67 millions d’actions, la dilution est donc de 3,33 millions et le nombre dilué de 103,33 millions. Valeur par action = 1 530 / 103,33 = 14,81. Les obligations convertibles dans la monnaie se comptent en actions, puis sortent de la dette.",
+        "Les questions d’entretien sont précises ici : « pourquoi ajoute-t-on la trésorerie ? » (l’acheteur de toute l’entreprise la récupère), « pourquoi soustraire les minoritaires ? » (cohérence entre le numérateur et l’EBITDA consolidé à 100 %), « la VE peut-elle être inférieure à la valeur des capitaux propres ? » (oui, quand la trésorerie dépasse la dette). Donnez l’ordre et les signes sans hésiter."
+      ],
+      "points": [
+        "Capitaux propres = VE − dette + trésorerie − minoritaires − préférence + mises en équivalence.",
+        "Dette nette = dette (avec les locations, de manière cohérente) − trésorerie excédentaire.",
+        "Minoritaires en moins, mises en équivalence en plus : cohérence avec l’EBITDA consolidé.",
+        "Actions diluées par la méthode du rachat d’actions pour les options dans la monnaie.",
+        "Utilisez le bilan à la date de valorisation."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Enterprise value            2,000\n- Debt                       -600\n+ Cash                       +150\n- Minority interests          -50\n+ Associates                  +30\n= Equity value              1,530\nDiluted shares (m)         103.33\nValue per share             14.81",
+        "note": "Actions diluées : 100 + 10 − 10 × 10 / 15 = 103,33 millions (méthode du rachat d’actions)."
+      }
+    },
+    {
+      "title": "Multiples et comparables",
+      "text": [
+        "La valorisation relative donne à une société le prix de sociétés similaires : valeur = agrégat de la cible × multiple observé sur les comparables. Elle est rapide, reflète le marché d’aujourd’hui, et tout comité d’investissement veut la voir à côté du DCF. Sa faiblesse est l’envers de sa force : si tout le secteur est surévalué, votre valorisation l’est aussi.",
+        "Accordez le numérateur et le dénominateur. La valeur d’entreprise va avec des agrégats avant intérêts qui reviennent à tous les investisseurs : VE/EBITDA (le plus courant, neutre vis-à-vis de la structure financière et de la politique d’amortissement), VE/EBIT (meilleur quand les investissements sont lourds), VE/CA (pour les sociétés déficitaires ou jeunes, ou quand les marges convergent). La valeur des capitaux propres va avec des agrégats après intérêts : le PER = cours / bénéfice par action, utilisé pour les banques et assureurs, où la dette fait partie de l’exploitation et où la VE n’a pas de sens. VE/résultat net est une incohérence : ne l’utilisez jamais.",
+        "Le choix des comparables est là où le jugement se voit : même secteur et même modèle économique, croissance, marges, taille et géographie proches. Prenez-en 5 à 10, regardez la médiane plutôt que la moyenne (une valeur extrême fausse la moyenne), et expliquez pourquoi votre cible mérite une prime ou une décote. Exemple : comparables à 7,5x, 8,0x, 9,0x, 10,5x et 12,0x VE/EBITDA, médiane 9,0x ; EBITDA de la cible 150 → VE de 1 350.",
+        "Utilisez la même période et la même définition pour tous : LTM (douze derniers mois) ou NTM (douze prochains mois, d’après les prévisions des analystes), les mêmes retraitements des éléments non récurrents, le même traitement des locations (l’EBITDA IFRS 16 est plus élevé que l’EBITDA US GAAP pour une société qui loue beaucoup). Calendarisez les exercices qui se terminent à des mois différents.",
+        "Les transactions comparables reprennent les prix payés pour des sociétés entières lors d’opérations passées. Elles incluent une prime de contrôle (souvent 20 à 40 % au-dessus du cours avant l’offre) et les conditions de marché de leur date, et donnent donc en général des valeurs plus élevées que les comparables boursiers. Utilisez-les pour une acquisition, un processus de cession ou une attestation d’équité ; utilisez les comparables boursiers pour valoriser une participation minoritaire ou une introduction en bourse."
+      ],
+      "points": [
+        "Multiples de VE avec des agrégats avant intérêts ; PER avec le résultat après intérêts.",
+        "VE/EBITDA le plus courant ; VE/CA pour les sociétés déficitaires ; PER pour banques et assureurs.",
+        "Médiane de 5 à 10 vrais comparables ; justifiez primes et décotes.",
+        "Même période (LTM ou NTM) et mêmes retraitements pour chaque société.",
+        "Les transactions comparables incluent une prime de contrôle."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=MEDIAN(B2:B6)\n=MEDIAN(B2:B6)*C8\n=AVERAGE(B2:B6)",
+        "note": "B2:B6 = VE/EBITDA des comparables (7,5 ; 8,0 ; 9,0 ; 10,5 ; 12,0), C8 = EBITDA de la cible (150). Médiane 9,0x → VE 1 350. La moyenne (9,4x) est tirée vers le haut par le comparable à 12,0x."
+      }
+    },
+    {
+      "title": "Défendre une valorisation",
+      "text": [
+        "Une valorisation est une fourchette construite sur des hypothèses, pas un chiffre unique. Celui qui la présente doit montrer quelles hypothèses comptent et de combien. La table de sensibilité est l’outil standard : CMPC en lignes, croissance terminale (ou multiple de sortie) en colonnes, la VE ou la valeur par action dans chaque case. Excel la construit avec Données → Analyse de scénarios → Table de données.",
+        "Pour le DCF de la leçon 5 (VE 1 786 à 9 % et 2 %) : à un CMPC de 8 %, la VE va de 1 961 à 2 249 pour g de 1,5 à 2,5 % ; à 10 %, de 1 486 à 1 636. Un point de CMPC fait bouger la valeur d’environ 13 à 17 %. Le dire avant qu’on vous le demande montre que vous savez où est le risque.",
+        "Le graphique en « football field » place la fourchette de chaque méthode sur une page : cours sur 52 semaines, comparables boursiers, transactions comparables, DCF, parfois une analyse LBO (ce qu’un acquéreur financier pourrait payer). Le recouvrement des barres indique où se situe une valeur défendable, et une méthode éloignée des autres doit être expliquée.",
+        "Contrôles de cohérence avant que quoi que ce soit ne quitte votre bureau : multiple de sortie implicite de la valeur terminale de Gordon et croissance implicite du multiple de sortie ; part de la valeur terminale dans la VE ; croissance et marges prévues face à l’historique et aux concurrents ; une rentabilité des capitaux investis (ROIC) qui ne reste pas indéfiniment très au-dessus du CMPC ; un bilan équilibré et un tableau de flux qui se rapproche ; les signes du passage aux capitaux propres. La plupart des erreurs qui arrivent chez un client sont l’une de celles-ci.",
+        "« Walk me through a DCF » (déroulez-moi un DCF) est la question la plus posée en entretien de finance. Une bonne réponse en moins de deux minutes : prévoir les flux de trésorerie disponibles non endettés sur 5 à 10 ans à partir du chiffre d’affaires, des marges, des capex et du BFR ; calculer une valeur terminale par Gordon-Shapiro ou par un multiple de sortie ; tout actualiser au CMPC ; on obtient la valeur d’entreprise ; soustraire la dette nette et les autres droits pour obtenir la valeur des capitaux propres, puis diviser par le nombre d’actions dilué. Ensuite, nommer les paramètres qui pilotent le résultat : CMPC, croissance terminale, marges."
+      ],
+      "points": [
+        "Table de sensibilité : CMPC × croissance terminale (ou multiple de sortie).",
+        "Football field : la fourchette de chaque méthode sur un même graphique.",
+        "Recoupez multiple implicite, croissance implicite et part de la VT dans la VE.",
+        "Prévisions face à l’historique et aux concurrents ; le ROIC ne bat pas le CMPC éternellement.",
+        "Déroulez un DCF : FCF → VT → actualisation au CMPC → VE → capitaux propres → par action."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EV          g = 1.5%   g = 2.0%   g = 2.5%\nWACC 8%        1,961      2,093      2,249\nWACC 9%        1,691      1,786      1,895\nWACC 10%       1,486      1,556      1,636",
+        "note": "Les cinq mêmes flux qu’à la leçon 5 ; seuls le CMPC et g changent. Le scénario central est au milieu."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Valeur temps de l’argent",
+      "items": [
+        ["VF = VA × (1 + r)^n", "Capitalisation : ce que devient l’argent d’aujourd’hui"],
+        ["VA = VF / (1 + r)^n", "Actualisation : ce que vaut aujourd’hui l’argent futur"],
+        ["Annuité VA = C × (1 − (1 + r)^−n) / r", "Même flux pendant n périodes"],
+        ["Rente perpétuelle VA = C / r", "Même flux indéfiniment"],
+        ["Rente perpétuelle croissante VA = C₁ / (r − g)", "Flux croissant à g indéfiniment, r > g"],
+        ["Convention de signe d’Excel", "Sorties de trésorerie négatives, entrées positives"]
+      ]
+    },
+    {
+      "group": "Décisions d’investissement",
+      "items": [
+        ["VAN", "Somme des flux actualisés, année 0 comprise ; accepter si > 0"],
+        ["TRI", "Taux d’actualisation auquel la VAN = 0"],
+        ["=NPV(taux, année 1…N) + année 0", "La fonction NPV() d’Excel commence une période plus tard"],
+        ["Délai de récupération", "Années pour récupérer la mise initiale, ignore les flux suivants"],
+        ["Projets mutuellement exclusifs", "Choisir la VAN la plus élevée, pas le TRI le plus élevé"],
+        ["TRI multiples", "Flux qui changent de signe plus d’une fois"]
+      ]
+    },
+    {
+      "group": "Coût du capital",
+      "items": [
+        ["MEDAF", "Re = Rf + β × (Rm − Rf)"],
+        ["Prime de risque du marché", "Rm − Rf : rentabilité supplémentaire exigée pour détenir des actions"],
+        ["Coût de la dette après impôt", "Rd × (1 − t), au taux d’emprunt actuel"],
+        ["CMPC", "E/(D+E) × Re + D/(D+E) × Rd × (1 − t)"],
+        ["Bêta désendetté", "βu = βL / (1 + (1 − t) × D/E)"]
+      ]
+    },
+    {
+      "group": "Flux de trésorerie et DCF",
+      "items": [
+        ["NOPAT", "EBIT × (1 − t)"],
+        ["Flux de trésorerie disponible non endetté", "NOPAT + D&A − capex − hausse du BFR"],
+        ["BFR", "Créances clients + stocks − dettes fournisseurs"],
+        ["Valeur terminale de Gordon-Shapiro", "FCF(n) × (1 + g) / (CMPC − g)"],
+        ["Valeur terminale par multiple de sortie", "EBITDA de la dernière année × multiple VE/EBITDA"],
+        ["Valeur d’entreprise", "VA des FCF prévus + VA de la valeur terminale"]
+      ]
+    },
+    {
+      "group": "Passage aux capitaux propres et multiples",
+      "items": [
+        ["Valeur des capitaux propres", "VE − dette + trésorerie − intérêts minoritaires + mises en équivalence"],
+        ["Méthode du rachat d’actions", "Le produit des options rachète des actions au cours actuel"],
+        ["VE/EBITDA", "Multiple le plus courant, neutre vis-à-vis de la structure financière"],
+        ["VE/CA", "Sociétés déficitaires ou jeunes"],
+        ["PER", "Cours / BPA ; banques et assureurs"],
+        ["Transactions comparables", "Prix payés lors d’opérations passées, prime de contrôle incluse"]
+      ]
+    },
+    {
+      "group": "Défendre le chiffre",
+      "items": [
+        ["Table de sensibilité", "Valeur pour chaque couple CMPC / croissance terminale"],
+        ["Football field", "La fourchette de chaque méthode sur un même graphique"],
+        ["Multiple de sortie implicite", "Valeur terminale de Gordon / EBITDA de la dernière année"],
+        ["Convention de milieu d’année", "Actualiser à n − 0,5 : la trésorerie arrive au fil de l’année"]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Mettre le flux de l’année 0 dans la fonction NPV() d’Excel, qui actualise alors chaque flux d’une période de trop.",
+    "Choisir entre projets mutuellement exclusifs selon le TRI au lieu de la VAN.",
+    "Actualiser le flux de trésorerie non endetté au coût des capitaux propres, ou le flux endetté au CMPC.",
+    "Soustraire les intérêts dans le flux de trésorerie tout en utilisant un coût de la dette après impôt dans le CMPC : l’économie d’impôt est comptée deux fois.",
+    "Un taux de croissance terminal supérieur à la croissance du PIB de long terme, ou proche du CMPC, qui fait exploser la valeur terminale.",
+    "Diviser la valeur des capitaux propres par le nombre d’actions de base, ou oublier les minoritaires et les locations dans le passage.",
+    "Comparer des multiples construits sur des périodes différentes (LTM contre NTM) ou des traitements des locations différents (IFRS 16 contre US GAAP)."
+  ],
+  "exercises": [
+    {
+      "q": "En D2, la valeur actuelle du flux en A2, reçu l’année indiquée en B2, au taux d’actualisation en C2.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Cash flow", "Year", "Discount rate"], [5000, 4, 0.07]],
+      "cell": "D2",
+      "answer": "=A2/(1+C2)^B2",
+      "hint": "Divisez par (1 + taux) puissance le nombre d’années. =PV(C2,B2,0,-A2) donne la même valeur.",
+      "explain": "5000 / 1,07^4 = 3814,48. Le facteur d’actualisation 1 / 1,07^4 = 0,763 : de l’argent reçu dans quatre ans vaut environ les trois quarts de sa valeur nominale aujourd’hui à 7 %."
+    },
+    {
+      "q": "En D1, la VAN du projet au taux d’actualisation en B1 (année 0 en B3, années 1 à 4 en B4:B7), avec la fonction NPV d’Excel.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Discount rate", 0.1], ["Year", "Cash flow"], [0, -1000], [1, 300], [2, 400], [3, 500], [4, 200]],
+      "cell": "D1",
+      "answer": "=NPV(B1,B4:B7)+B3",
+      "hint": "NPV() actualise sa première valeur d’une période : donnez-lui les années 1 à 4, puis ajoutez le flux de l’année 0 à l’extérieur.",
+      "explain": "=NPV(B1,B4:B7)+B3 = 1115,57 − 1000 = 115,57. =NPV(B1,B3:B7) renverrait 105,06 : chaque flux actualisé d’un an de trop."
+    },
+    {
+      "q": "En D1, le taux de rentabilité interne du projet en B2:B6.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Year", "Cash flow"], [0, -1000], [1, 300], [2, 400], [3, 500], [4, 200]],
+      "cell": "D1",
+      "answer": "=IRR(B2:B6)",
+      "hint": "IRR() prend toute la série, année 0 comprise ; il lui faut au moins un flux négatif et un flux positif.",
+      "explain": "TRI = 15,32 % : à ce taux, la VAN est nulle. Il dépasse un coût du capital de 10 %, ce qui concorde avec la VAN positive de 115,57."
+    },
+    {
+      "q": "En F2, le CMPC à partir des valeurs de marché des capitaux propres et de la dette, du coût des capitaux propres, du coût de la dette avant impôt et du taux d’impôt.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Equity value", "Debt value", "Cost of equity", "Cost of debt (pre-tax)", "Tax rate"], [600, 400, 0.096, 0.05, 0.25]],
+      "cell": "F2",
+      "answer": "=A2/(A2+B2)*C2+B2/(A2+B2)*D2*(1-E2)",
+      "hint": "Pondérez chaque coût par sa part de E + D, et appliquez (1 − impôt) au seul coût de la dette.",
+      "explain": "60 % × 9,6 % + 40 % × 5 % × 75 % = 5,76 % + 1,50 % = 7,26 %. Seule la dette bénéficie de l’économie d’impôt, car les intérêts sont déductibles et les dividendes non."
+    },
+    {
+      "q": "En D2, la valeur terminale de Gordon-Shapiro à partir du flux de la dernière année, du taux de croissance à long terme et du CMPC.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Final-year FCF", "Growth rate", "WACC"], [140, 0.02, 0.09]],
+      "cell": "D2",
+      "answer": "=A2*(1+B2)/(C2-B2)",
+      "hint": "Faites croître le dernier flux d’un an, puis divisez par CMPC − g.",
+      "explain": "140 × 1,02 / (9 % − 2 %) = 2040. C’est une valeur à la fin de l’année 5 : actualisez-la avec le facteur de l’année 5 (1 / 1,09^5) pour obtenir 1325,86 aujourd’hui."
+    },
+    {
+      "q": "En G2, la valeur par action : valeur d’entreprise moins dette, plus trésorerie, moins intérêts minoritaires, plus mises en équivalence, divisée par le nombre d’actions dilué.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Enterprise value", "Debt", "Cash", "Minority interests", "Associates", "Diluted shares"], [2000, 600, 150, 50, 30, 102]],
+      "cell": "G2",
+      "answer": "=(A2-B2+C2-D2+E2)/F2",
+      "hint": "Construisez d’abord la valeur des capitaux propres entre parenthèses, puis divisez.",
+      "explain": "(2000 − 600 + 150 − 50 + 30) / 102 = 1530 / 102 = 15,00 par action. Sans les parenthèses, seules les mises en équivalence seraient divisées par le nombre d’actions."
+    },
+    {
+      "q": "MEDAF : le taux sans risque est de 3 %, le bêta de 1,2 et la prime de risque du marché de 5 %. Quel est le coût des capitaux propres, en pourcentage ?",
+      "type": "fill",
+      "blanks": [["9", "9%", "9 %", "9.0", "9.0%", "9.0 %", "9,0", "9,0 %", "0.09"]],
+      "answer": "Re = Rf + β × (Rm − Rf) = 3 % + 1,2 × 5 % = 9 %. Le bêta multiplie la prime, pas la rentabilité du marché."
+    },
+    {
+      "q": "Associez chaque multiple à la situation où il convient le mieux.",
+      "type": "match",
+      "pairs": [
+        ["VE/EBITDA", "Des sociétés industrielles aux niveaux d’endettement différents"],
+        ["VE/CA", "Un éditeur de logiciels en forte croissance, pas encore rentable"],
+        ["PER", "Une banque, où la dette fait partie de l’exploitation"],
+        ["VE/EBIT", "Des comparables très capitalistiques aux amortissements très différents"],
+        ["Multiple de transaction", "Valoriser la cession de 100 % d’une société"]
+      ],
+      "answer": "Les multiples de VE utilisent des agrégats avant intérêts, le PER le résultat après intérêts. VE/CA fonctionne quand il n’y a pas encore de bénéfice ; le PER convient aux financières ; les multiples de transaction incluent une prime de contrôle, ils conviennent donc à une cession du contrôle."
+    },
+    {
+      "q": "Remettez dans l’ordre les étapes d’une valorisation par DCF.",
+      "type": "order",
+      "steps": [
+        "Prévoir le chiffre d’affaires, les marges, les capex et le BFR",
+        "Calculer le flux de trésorerie disponible non endetté de chaque année",
+        "Calculer la valeur terminale",
+        "Actualiser les flux et la valeur terminale au CMPC",
+        "Les additionner pour obtenir la valeur d’entreprise",
+        "Soustraire la dette nette et les autres droits pour obtenir la valeur des capitaux propres",
+        "Diviser par le nombre d’actions dilué"
+      ],
+      "answer": "Prévisions d’exploitation → UFCF → valeur terminale → actualisation au CMPC → VE → passage aux capitaux propres → par action. C’est la réponse à « déroulez-moi un DCF »."
+    },
+    {
+      "q": "Deux projets mutuellement exclusifs, coût du capital 10 %. S : VAN 13,2, TRI 20 %. L : VAN 127,0, TRI 17,4 %. Lequel choisissez-vous ?",
+      "type": "choice",
+      "options": ["S, parce que son TRI est plus élevé", "L, parce que sa VAN est plus élevée", "Les deux, puisque les deux TRI dépassent 10 %", "Aucun : les deux règles se contredisent"],
+      "correct": 1,
+      "answer": "Quand un seul projet est possible, la VAN tranche : L crée 127 de valeur contre 13 pour S. Le TRI ignore la taille de l’investissement (S coûte 100, L coûte 1 000)."
+    },
+    {
+      "q": "Les flux d’un projet sont −100, +230, −132. Que vous apprend son TRI ?",
+      "type": "choice",
+      "options": ["Le TRI est de 10 %", "Le TRI est de 20 %", "Il y a deux TRI (10 % et 20 %), le TRI n’est donc pas une règle fiable ici : utilisez la VAN", "Il n’y a pas de TRI car le dernier flux est négatif"],
+      "correct": 2,
+      "answer": "Des flux qui changent deux fois de signe peuvent avoir deux TRI ; ici 10 % comme 20 % donnent une VAN nulle. Aucun n’a de sens : calculez la VAN au coût du capital, ou un TRIM."
+    },
+    {
+      "q": "Votre DCF donne une valeur par action 40 % au-dessus du cours actuel. Votre manager demande : « Vous y croyez ? » Que vérifiez-vous avant de répondre ?",
+      "answer": "1) La valeur terminale : sa part dans la VE, le taux de croissance face au PIB et à l’inflation de long terme, et le multiple de sortie implicite face aux comparables. 2) Les paramètres du CMPC : taux sans risque dans la bonne devise, bêta des comparables réendetté, coût de la dette actuel, pondérations en valeur de marché. 3) Les prévisions : croissance du chiffre d’affaires et marges face à l’historique et aux concurrents, capex au moins égaux aux D&A, BFR qui suit le chiffre d’affaires. 4) La mécanique : VT actualisée avec le facteur de la dernière année, pas d’intérêts dans les flux, signes du passage aux capitaux propres, actions diluées. 5) Les autres méthodes : comparables boursiers et transactions sur un football field. Si l’écart résiste, expliquez ce que le marché ne voit pas (un contrat, une restructuration) et montrez la table de sensibilité : à quel CMPC et quelle croissance le DCF rejoint-il le cours ?"
+    }
+  ],
+  "interview": [
+    {
+      "q": "Déroulez-moi un DCF.",
+      "a": "Je prévois le flux de trésorerie disponible non endetté sur 5 à 10 ans : le chiffre d’affaires et les marges donnent l’EBIT, j’applique l’impôt pour obtenir le NOPAT, je réintègre les D&A, je soustrais les capex et la hausse du BFR. Puis je calcule une valeur terminale, par la formule de Gordon-Shapiro ou par un multiple VE/EBITDA de sortie. J’actualise les flux et la valeur terminale au CMPC pour obtenir la valeur d’entreprise. Je soustrais la dette nette, les intérêts minoritaires et les autres droits, j’ajoute les actifs hors exploitation pour obtenir la valeur des capitaux propres, et je divise par le nombre d’actions dilué. Le résultat est surtout sensible au CMPC, à la croissance terminale et aux marges, je montre donc une table de sensibilité."
+    },
+    {
+      "q": "Pourquoi utilise-t-on ensemble le flux de trésorerie non endetté et le CMPC ?",
+      "a": "Le flux non endetté est la trésorerie disponible pour tous les investisseurs avant tout paiement aux prêteurs : il faut donc l’actualiser à la rentabilité exigée par l’ensemble des investisseurs, le CMPC, qui combine le coût des capitaux propres et le coût de la dette après impôt. L’économie d’impôt liée à la dette est dans le CMPC. Si j’utilisais le flux endetté, après intérêts, je l’actualiserais au coût des capitaux propres et j’obtiendrais directement la valeur des capitaux propres."
+    },
+    {
+      "q": "La VAN et le TRI donnent des classements différents. À laquelle vous fiez-vous, et pourquoi ?",
+      "a": "À la VAN. Elle mesure la valeur créée en euros au bon coût du capital. Le TRI ignore la taille du projet, suppose un réinvestissement au TRI lui-même, et peut avoir plusieurs valeurs quand les flux changent de signe plus d’une fois. Le TRI est utile comme indicateur rapide de rentabilité ou pour le comparer à un taux minimum, mais entre projets mutuellement exclusifs je choisis la VAN la plus élevée."
+    },
+    {
+      "q": "Comment calculez-vous le coût des capitaux propres d’une société non cotée ?",
+      "a": "Avec le MEDAF, à partir de comparables : je prends les bêtas endettés de sociétés cotées comparables, je les désendette avec leur propre ratio dette / capitaux propres et leur taux d’impôt, je prends la médiane, je la réendette à la structure financière cible de la société, puis Re = taux sans risque + bêta × prime de risque du marché. J’ajoute en général une prime de taille, et une prime de risque pays si l’activité est dans un pays émergent, en le disant explicitement."
+    },
+    {
+      "q": "La valeur d’entreprise est de 1 000, la société a 300 de dette et 100 de trésorerie. Quelle est la valeur des capitaux propres ? Et si elle lève 200 de dette nouvelle et garde la trésorerie ?",
+      "a": "Valeur des capitaux propres = 1 000 − 300 + 100 = 800. Lever 200 de dette et les garder en trésorerie ne change pas la valeur d’entreprise (la dette nette reste à 200), donc la valeur des capitaux propres reste 800. La valeur d’entreprise ne change qu’avec l’exploitation, pas avec le financement, du moins avant de tenir compte des impôts et des coûts de faillite."
+    },
+    {
+      "q": "Pourquoi peut-on comparer un multiple VE/EBITDA entre sociétés, mais pas VE/résultat net ?",
+      "a": "Le numérateur et le dénominateur doivent concerner les mêmes investisseurs. La VE est la valeur pour les prêteurs et les actionnaires, et l’EBITDA est gagné avant de payer les uns et les autres : les deux sont indépendants de la structure financière. Le résultat net est après intérêts, il revient aux seuls actionnaires : il se compare à la valeur des capitaux propres (PER). VE/résultat net ferait paraître plus chère une société plus endettée sans raison économique."
+    },
+    {
+      "q": "Votre valeur terminale représente 85 % de la valeur d’entreprise. Est-ce un problème ?",
+      "a": "Pas en soi : pour une entreprise en croissance, l’essentiel de la valeur est loin dans le futur, et 60 à 80 % est courant. Mais cela signifie que la valorisation repose sur les hypothèses terminales, donc je les vérifie : le taux de croissance face à l’inflation et au PIB de long terme, le multiple de sortie implicite face aux comparables actuels, et si la dernière année de prévision est une année normale et stable (marges, capex proches des D&A plus la croissance). Si la prévision explicite est trop courte pour atteindre un régime de croisière, je l’allonge."
+    },
+    {
+      "q": "Pourquoi les transactions comparables donnent-elles en général une valeur plus élevée que les comparables boursiers ?",
+      "a": "Parce que l’acheteur d’une société entière paie une prime de contrôle, souvent 20 à 40 % au-dessus du cours avant l’offre, pour les synergies et le droit de diriger l’activité. Les cours de bourse correspondent à des participations minoritaires. Les multiples de transaction reflètent aussi le marché au moment de la signature : je vérifie donc les dates, et je les utilise pour les acquisitions et les cessions, pas pour valoriser une participation minoritaire."
+    }
+  ]
+}

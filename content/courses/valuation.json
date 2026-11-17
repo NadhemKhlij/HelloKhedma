@@ -1,0 +1,402 @@
+{
+  "why": "Every investment, acquisition, budget request and fundraising round comes down to one question: what is it worth today? Financial analysts, FP&A teams, corporate development, M&A advisers and equity researchers are hired to answer it with discounted cash flows and market multiples, and to defend the number in front of people who will challenge every assumption.",
+  "outcome": "discount and compound cash flows, judge a project with NPV, IRR and payback, build a cost of capital (CAPM, cost of debt, WACC), derive unlevered free cash flow from EBIT, run a DCF with a terminal value, bridge enterprise value to value per share, value a company with trading and transaction multiples, and defend a valuation with sensitivity tables and sanity checks.",
+  "lessons": [
+    {
+      "title": "Time value of money: compounding, discounting, annuities",
+      "text": [
+        "A euro today is worth more than a euro in a year: it can be invested, inflation erodes money received later, and a promise of future cash carries risk. The discount rate puts a price on all three. Every valuation in this course rests on two mirror operations: compounding (what today’s money becomes) and discounting (what future money is worth today).",
+        "Compounding: FV = PV × (1 + r)^n. 1,000 invested at 5 % for 3 years becomes 1,000 × 1.05^3 = 1,157.63, not 1,150: interest earns interest. Discounting is the reverse: PV = FV / (1 + r)^n. 1,000 received in 5 years at 8 % is worth 1,000 / 1.08^5 = 680.58 today. The factor 1 / (1 + r)^n is the discount factor; lay it out on its own row in a model so anyone can check it.",
+        "An annuity is the same cash flow every period for a fixed number of periods: loan repayments, lease payments, a coupon. Its present value is C × (1 − (1 + r)^−n) / r. 200 a year for 5 years at 6 % is worth 842.47 today, not 1,000. A perpetuity pays forever: PV = C / r, and a growing perpetuity PV = C₁ / (r − g), the formula behind the terminal value of a DCF (lesson 5).",
+        "Excel’s finance functions follow a cash-flow sign convention: money you pay out is negative, money you receive is positive. That is why =PV(6%,5,-200) returns a positive 842.47 and =PMT(4%,20,-100000) returns 7,358.18, the yearly payment on a 100,000 loan at 4 % over 20 years. Forgetting the sign is the most common reason a formula returns a negative value nobody expected.",
+        "Keep rates and periods consistent: a 6 % annual rate with monthly payments needs 6 %/12 per period and n in months, and an effective annual rate is not the nominal rate divided by 12. In interviews, a classic warm-up is “would you rather have 100 today or 110 in a year?”: the answer is “it depends on the discount rate; above 10 %, take the 100 today”."
+      ],
+      "points": [
+        "FV = PV × (1 + r)^n; PV = FV / (1 + r)^n.",
+        "Annuity: PV = C × (1 − (1 + r)^−n) / r; perpetuity: PV = C / r.",
+        "Growing perpetuity: PV = C₁ / (r − g), only when r > g.",
+        "Excel sign convention: cash out negative, cash in positive.",
+        "Match the rate to the period: monthly flows need a monthly rate."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=1000*(1+5%)^3\n=FV(5%,3,0,-1000)\n=1000/(1+8%)^5\n=PV(8%,5,0,-1000)\n=PV(6%,5,-200)\n=PMT(4%,20,-100000)",
+        "note": "1,157.63 / 1,157.63 / 680.58 / 680.58 / 842.47 / 7,358.18. The functions and the hand formulas must agree: build both once to check yourself."
+      }
+    },
+    {
+      "title": "Investment decisions: NPV, IRR, payback and their traps",
+      "text": [
+        "Net present value (NPV) is the sum of all a project’s cash flows discounted at the cost of capital, including the initial investment at year 0. A project costing 1,000 that returns 300, 400, 500 and 200 over four years has an NPV of 115.57 at 10 %. A positive NPV means the project earns more than the return investors require, and creates that much value today. Rule: accept projects with NPV > 0; between mutually exclusive projects, take the higher NPV.",
+        "The internal rate of return (IRR) is the discount rate that sets NPV to zero: 15.32 % for the same project. It is popular because a percentage is easy to compare with a hurdle rate (accept if IRR > cost of capital). But IRR assumes intermediate cash flows are reinvested at the IRR itself, ignores the size of the project, and can mislead in two well-known cases.",
+        "Mutually exclusive projects: project S costs 100 and returns 70 and 60 (IRR 20 %, NPV at 10 % = 13.22); project L costs 1,000 and returns 500, 450 and 400 (IRR 17.37 %, NPV = 126.97). IRR prefers S, NPV prefers L. If you can do only one, take L: shareholders are richer by 127 rather than 13. When NPV and IRR conflict, NPV wins. Multiple IRRs: cash flows that change sign more than once (−100, +230, −132, for example a mine with a clean-up cost at the end) have two IRRs, 10 % and 20 %, and neither means anything. Use NPV, or a modified IRR (MIRR) with an explicit reinvestment rate.",
+        "Payback is the time to recover the initial outlay: 2.6 years for the project above (−1,000, then −700, −300 and +200 after year 3: 2 years + 300/500). It is simple and speaks to liquidity, but ignores the time value of money and everything after the cut-off. Discounted payback fixes the first problem (3.15 years here) but not the second. Use payback as a risk indicator next to NPV, never alone.",
+        "In Excel, NPV() is a trap: it treats its first value as received one period from now. Write =NPV(rate, year 1 to year N) + year 0, never =NPV(rate, year 0 to year N), which discounts everything one year too much (105.06 instead of 115.57 here). IRR() takes the full series including year 0 and needs at least one sign change."
+      ],
+      "points": [
+        "NPV > 0: accept; between exclusive projects, the higher NPV wins.",
+        "IRR: the rate where NPV = 0; compare it with the hurdle rate.",
+        "NPV and IRR conflict on size and timing: follow NPV.",
+        "More than one sign change can mean several IRRs: use NPV or MIRR.",
+        "Excel: =NPV(rate, flows from year 1) + year 0 flow."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=NPV(10%,B3:B6)+B2\n=IRR(B2:B6)\n=MIRR(B2:B6,10%,10%)",
+        "note": "B2 = −1,000 (year 0), B3:B6 = 300, 400, 500, 200. NPV 115.57, IRR 15.32 %. Putting B2 inside NPV() is the classic error."
+      }
+    },
+    {
+      "title": "Cost of capital: CAPM, cost of debt and WACC",
+      "text": [
+        "The discount rate of a valuation is the return investors require for the risk they take. A company is financed by shareholders and lenders, so its cost of capital blends the two: the weighted average cost of capital, WACC = E/(D+E) × Re + D/(D+E) × Rd × (1 − t). The weights use market values (share price × shares for equity; debt at market value, often close to book value), and ideally the target capital structure the company will hold over the forecast.",
+        "The cost of equity comes from the capital asset pricing model (CAPM): Re = Rf + β × (Rm − Rf). Rf is the risk-free rate (a long-term government bond yield in the currency of the cash flows), β measures how much the share moves with the market, and Rm − Rf is the equity risk premium. With Rf = 3 %, β = 1.2 and a 5.5 % premium, Re = 3 % + 1.2 × 5.5 % = 9.6 %. Practitioners often add a size or country risk premium; say so explicitly when you do.",
+        "Beta is observed on listed shares, so it includes the company’s debt: more debt, more risk for shareholders, higher beta. To use peers’ betas, unlever them (βu = βL / (1 + (1 − t) × D/E), the Hamada formula), take the median, then relever at the target’s own D/E. A private company has no beta of its own: this is how its cost of equity is built.",
+        "The cost of debt is what the company would pay to borrow today (the yield on its bonds, or a spread over the risk-free rate for its credit rating), not the coupon on old debt. Interest is tax-deductible, so the after-tax cost is Rd × (1 − t): 5 % before tax at a 25 % rate is 3.75 %. With E = 600 and D = 400, WACC = 60 % × 9.6 % + 40 % × 3.75 % = 7.26 %.",
+        "WACC goes with unlevered free cash flow (lesson 4), which is before interest: the tax benefit of debt sits in the rate, not in the cash flows, so it must not be counted twice. Use the cost of equity alone when you discount cash flows to equity (dividends, levered FCF). A one-point change in WACC can move a DCF by well over 10 % (13 to 17 % in the example of lesson 8), which is why interviewers ask how you chose each input."
+      ],
+      "points": [
+        "CAPM: Re = Rf + β × (Rm − Rf).",
+        "After-tax cost of debt: Rd × (1 − t), at today’s borrowing rate.",
+        "WACC weights: market values or the target capital structure.",
+        "Unlever peers’ betas, take the median, relever at the target D/E.",
+        "WACC discounts unlevered FCF; cost of equity discounts flows to equity."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Cost of equity  = 3.0% + 1.2 x 5.5%        = 9.60%\nCost of debt    = 5.0% x (1 - 25%)         = 3.75%\nWeights         = E 600 / D 400            = 60% / 40%\nWACC            = 60% x 9.60% + 40% x 3.75% = 7.26%",
+        "note": "Every input has a source: bond yield, beta from peers, premium from a published study, the company’s borrowing rate."
+      }
+    },
+    {
+      "title": "Unlevered free cash flow from EBIT",
+      "text": [
+        "A DCF values the cash the business generates for all its investors, shareholders and lenders together: unlevered free cash flow (UFCF, or free cash flow to the firm). It starts from operating profit and ignores how the company is financed: UFCF = EBIT × (1 − t) + D&A − capex − increase in net working capital.",
+        "EBIT × (1 − t) is NOPAT, net operating profit after tax: the tax the company would pay with no debt. Depreciation and amortisation (D&A) are added back because they are accounting charges, not cash. Capital expenditure (capex) is subtracted because it is real cash spent on assets that the income statement only expenses over time. Example: EBIT 200, tax 25 % → NOPAT 150; + D&A 40; − capex 60; − increase in working capital 10 → UFCF = 120.",
+        "Net working capital (NWC) is operating current assets minus operating current liabilities: receivables + inventory − payables (cash and debt are excluded, they belong to the financing side). When a company grows, customers owe it more and it holds more stock, so NWC rises and absorbs cash: an increase in NWC is subtracted. Forecast it as days of sales (DSO), days of cost of sales (DIO, DPO) or a percentage of revenue.",
+        "Accounting standards matter. Under IFRS 16, almost all leases are on the balance sheet: lease payments become depreciation and interest, so EBITDA is higher and lease liabilities count as debt. Under US GAAP (ASC 842), operating lease cost stays a single operating expense above EBIT. Be consistent: if leases are treated as debt in the equity bridge, the cash flows must exclude the lease payments, and peers’ multiples must be on the same basis. Stock-based compensation is a real cost: do not add it back without also counting the dilution.",
+        "Sanity checks a reviewer will make: capex should stay at or above D&A for a growing company (otherwise its asset base shrinks), the tax rate should move toward the statutory rate, and NWC should follow revenue. Levered free cash flow (to equity) subtracts after-tax interest and adds net borrowing; it is discounted at the cost of equity, never at WACC."
+      ],
+      "points": [
+        "UFCF = EBIT × (1 − t) + D&A − capex − ΔNWC.",
+        "NOPAT = EBIT × (1 − t): taxes as if there were no debt.",
+        "NWC = receivables + inventory − payables; an increase uses cash.",
+        "IFRS 16 leases: higher EBITDA, lease liabilities in net debt; be consistent.",
+        "Growing company: capex ≥ D&A over the long run."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EBIT                         200\n- Taxes on EBIT (25%)         -50\n= NOPAT                      150\n+ D&A                         40\n- Capex                      -60\n- Increase in NWC            -10\n= Unlevered free cash flow   120",
+        "note": "Interest does not appear: the financing is in the WACC and in net debt, never in the cash flows."
+      }
+    },
+    {
+      "title": "DCF valuation: forecast, terminal value, enterprise value",
+      "text": [
+        "A discounted cash flow (DCF) valuation adds up the present value of the free cash flows over an explicit forecast (usually 5 to 10 years, until growth and margins are stable) and the present value of a terminal value for everything after. The result is the enterprise value (EV): the value of the operating business for all investors.",
+        "Example: UFCF of 100, 110, 120, 130 and 140 over five years, WACC 9 %. Discounted at 1/1.09^n, they are worth 460.08 today. The forecast itself is the real work: revenue drivers (volume × price, market share), margins compared with history and peers, capex and working capital tied to growth.",
+        "Gordon growth terminal value: TV = FCF(n) × (1 + g) / (WACC − g), with g the long-term growth rate, usually near long-run inflation or nominal GDP growth (2 to 3 % in developed markets). Here TV = 140 × 1.02 / (9 % − 2 %) = 2,040, worth 2,040 / 1.09^5 = 1,325.86 today. EV = 460.08 + 1,325.86 = 1,785.94. The terminal value is 74 % of EV: typical, and the reason to test it hard.",
+        "Exit multiple method: TV = final-year EBITDA × an EV/EBITDA multiple from comparables. With EBITDA of 200 in year 5 and 9.0x, TV = 1,800 and EV = 460.08 + 1,800 / 1.09^5 = 1,629.95. Check one method with the other: the Gordon TV implies 2,040 / 200 = 10.2x EBITDA; the 9.0x multiple implies a perpetual growth of only about 1.1 %. If the implied numbers look odd, an assumption is wrong.",
+        "Details interviewers check: discount the terminal value with the same factor as the last year’s cash flow (year 5, not year 6); g must be below WACC and below long-run economic growth; the mid-year convention (cash arrives through the year, so discount at n − 0.5) raises EV a little; and the valuation date must match the net debt you subtract in the next step."
+      ],
+      "points": [
+        "EV = PV of forecast FCF + PV of terminal value.",
+        "Gordon: TV = FCF(n) × (1 + g) / (WACC − g), g below long-run GDP growth.",
+        "Exit multiple: TV = final-year EBITDA × EV/EBITDA multiple.",
+        "Discount the TV with the final-year factor; cross-check implied g and multiple.",
+        "The terminal value is often 60 to 80 % of EV: test it."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Year                 1       2       3       4       5\nUFCF               100     110     120     130     140\nDiscount factor  0.917   0.842   0.772   0.708   0.650\nPV of UFCF        91.7    92.6    92.7    92.1    91.0   -> 460.08\nTerminal value (Gordon, g 2%)                    2,040   -> 1,325.86\nEnterprise value                                          1,785.94",
+        "note": "WACC 9 %. Each discount factor is 1 / 1.09^n; the terminal value uses the year 5 factor."
+      }
+    },
+    {
+      "title": "From enterprise value to equity value per share",
+      "text": [
+        "A DCF on unlevered cash flows gives the enterprise value, which belongs to all capital providers. To get what shareholders own, walk the bridge: equity value = EV − debt + cash − minority interests − preferred shares + non-operating assets (associates, investments not in the cash flows). The same bridge, read backwards, turns a market capitalisation into an EV for multiples.",
+        "Debt means all interest-bearing financing at the valuation date: bank loans, bonds, and, consistently with the cash flows, lease liabilities (IFRS 16) and often unfunded pension deficits. Cash is subtracted from debt as net debt, but only excess cash: cash trapped in a country or needed for operations stays in the business. Minority (non-controlling) interests are subtracted because the group consolidates 100 % of subsidiaries it only partly owns, so the EBITDA and cash flows include a part that belongs to others. Associates are added because their profits are not in EBITDA.",
+        "Example: EV 2,000, debt 600, cash 150, minority interests 50, associates 30 → equity value = 2,000 − 600 + 150 − 50 + 30 = 1,530.",
+        "Value per share divides by the diluted share count, not the basic one. Options and warrants in the money are counted with the treasury stock method: the company receives the strike price and is assumed to buy back shares at the current price. 100 million basic shares and 10 million options at a strike of 10 with the share at 15: proceeds 100 million buy back 6.67 million shares, so dilution is 3.33 million and diluted shares 103.33 million. Value per share = 1,530 / 103.33 = 14.81. Convertible bonds in the money are counted as shares, and then removed from debt.",
+        "Interview questions here are precise: “why do we add cash?” (a buyer of the whole company gets it), “why subtract minority interests?” (consistency between the numerator and the 100 % consolidated EBITDA), “can EV be lower than equity value?” (yes, when cash exceeds debt). Get the order and the signs right without hesitating."
+      ],
+      "points": [
+        "Equity value = EV − debt + cash − minorities − preferred + associates.",
+        "Net debt = debt (with leases, consistently) − excess cash.",
+        "Minorities out, associates in: consistency with consolidated EBITDA.",
+        "Diluted shares with the treasury stock method for in-the-money options.",
+        "Use the balance sheet at the valuation date."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Enterprise value            2,000\n- Debt                       -600\n+ Cash                       +150\n- Minority interests          -50\n+ Associates                  +30\n= Equity value              1,530\nDiluted shares (m)         103.33\nValue per share             14.81",
+        "note": "Diluted shares: 100 + 10 − 10 × 10 / 15 = 103.33 million (treasury stock method)."
+      }
+    },
+    {
+      "title": "Multiples and comparables",
+      "text": [
+        "Relative valuation prices a company like similar ones: value = the target’s metric × a multiple observed on peers. It is fast, reflects today’s market, and every investment committee wants to see it next to the DCF. Its weakness is the reverse: if the whole sector is overpriced, so is your valuation.",
+        "Match the numerator and the denominator. Enterprise value goes with metrics before interest that belong to all investors: EV/EBITDA (the most common, neutral to capital structure and depreciation policy), EV/EBIT (better when capex is heavy), EV/Sales (for loss-making or early-stage companies, or when margins converge). Equity value goes with metrics after interest: P/E = share price / earnings per share, used for banks and insurers, where debt is part of operations and EV makes no sense. EV/Net income is a mismatch, never use it.",
+        "Choosing peers is where judgement shows: same sector and business model, similar growth, margins, size and geography. Take 5 to 10, look at the median rather than the mean (one outlier distorts a mean), and explain why your target deserves a premium or a discount. Example: peers at 7.5x, 8.0x, 9.0x, 10.5x and 12.0x EV/EBITDA, median 9.0x; target EBITDA 150 → EV of 1,350.",
+        "Use the same period and definition for everyone: LTM (last twelve months) or NTM (next twelve months, from analyst forecasts), the same adjustments for one-off items, the same lease treatment (IFRS 16 EBITDA is higher than US GAAP EBITDA for a company with many leases). Calendarise fiscal years that end in different months.",
+        "Precedent transactions use the prices paid for whole companies in past deals. They include a control premium (often 20 to 40 % above the share price before the offer) and the market conditions of their date, so they usually give higher values than trading comparables. Use them for M&A, a sale process or a fairness opinion; use trading comparables to price a minority stake or an IPO."
+      ],
+      "points": [
+        "EV multiples with pre-interest metrics; P/E with earnings after interest.",
+        "EV/EBITDA most common; EV/Sales for loss-makers; P/E for banks and insurers.",
+        "Median of 5 to 10 real peers; explain premiums and discounts.",
+        "Same period (LTM or NTM) and same adjustments for every company.",
+        "Precedent transactions include a control premium."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=MEDIAN(B2:B6)\n=MEDIAN(B2:B6)*C8\n=AVERAGE(B2:B6)",
+        "note": "B2:B6 = peers’ EV/EBITDA (7.5, 8.0, 9.0, 10.5, 12.0), C8 = target EBITDA (150). Median 9.0x → EV 1,350. The mean (9.4x) is pulled up by the 12.0x peer."
+      }
+    },
+    {
+      "title": "Defending a valuation",
+      "text": [
+        "A valuation is a range built from assumptions, not a single number. The person who presents it must show which assumptions matter and how much. The sensitivity table is the standard tool: rows of WACC, columns of terminal growth (or exit multiple), the EV or the value per share in each cell. Excel builds it with Data → What-If Analysis → Data Table.",
+        "For the DCF of lesson 5 (EV 1,786 at 9 % and 2 %): at 8 % WACC the EV is 1,961 to 2,249 for g of 1.5 to 2.5 %; at 10 %, 1,486 to 1,636. One point of WACC moves the value by about 13 to 17 %. Saying this before anyone asks shows you know where the risk is.",
+        "The football field chart puts each method’s range on one page: 52-week share price, trading comparables, precedent transactions, DCF, sometimes an LBO analysis (what a financial buyer could pay). The overlap of the bars is where a defensible value sits, and a method far from the others must be explained.",
+        "Sanity checks before anything leaves your desk: implied exit multiple of the Gordon terminal value and implied growth of the exit multiple; terminal value as a share of EV; forecast growth and margins against history and peers; return on invested capital not staying far above WACC forever; the balance sheet balancing and the cash flow reconciling; signs in the equity bridge. Most errors that reach a client are one of these.",
+        "“Walk me through a DCF” is the most asked question in finance interviews. A good answer in under two minutes: forecast unlevered free cash flows for 5 to 10 years from revenue, margins, capex and working capital; compute a terminal value with the Gordon growth or exit multiple method; discount everything at the WACC; that gives the enterprise value; subtract net debt and other claims to reach the equity value, and divide by the diluted shares. Then name the inputs that drive the result: WACC, terminal growth, margins."
+      ],
+      "points": [
+        "Sensitivity table: WACC × terminal growth (or exit multiple).",
+        "Football field: each method’s range on one chart.",
+        "Cross-check implied multiple, implied growth and TV share of EV.",
+        "Forecast against history and peers; ROIC cannot beat WACC forever.",
+        "Walk me through a DCF: FCF → TV → discount at WACC → EV → equity → per share."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EV          g = 1.5%   g = 2.0%   g = 2.5%\nWACC 8%        1,961      2,093      2,249\nWACC 9%        1,691      1,786      1,895\nWACC 10%       1,486      1,556      1,636",
+        "note": "The same five cash flows as lesson 5; only WACC and g change. The base case sits in the middle."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Time value of money",
+      "items": [
+        ["FV = PV × (1 + r)^n", "Compounding: what money today becomes"],
+        ["PV = FV / (1 + r)^n", "Discounting: what future money is worth today"],
+        ["Annuity PV = C × (1 − (1 + r)^−n) / r", "Same cash flow for n periods"],
+        ["Perpetuity PV = C / r", "Same cash flow forever"],
+        ["Growing perpetuity PV = C₁ / (r − g)", "Cash flow growing at g forever, r > g"],
+        ["Excel sign convention", "Cash out negative, cash in positive"]
+      ]
+    },
+    {
+      "group": "Investment decisions",
+      "items": [
+        ["NPV", "Sum of discounted cash flows including year 0; accept if > 0"],
+        ["IRR", "Discount rate at which NPV = 0"],
+        ["=NPV(rate, year 1…N) + year 0", "Excel’s NPV() starts one period from now"],
+        ["Payback", "Years to recover the initial outlay, ignores later cash flows"],
+        ["Mutually exclusive projects", "Choose the higher NPV, not the higher IRR"],
+        ["Multiple IRRs", "Cash flows that change sign more than once"]
+      ]
+    },
+    {
+      "group": "Cost of capital",
+      "items": [
+        ["CAPM", "Re = Rf + β × (Rm − Rf)"],
+        ["Equity risk premium", "Rm − Rf: extra return required to hold shares"],
+        ["After-tax cost of debt", "Rd × (1 − t), at today’s borrowing rate"],
+        ["WACC", "E/(D+E) × Re + D/(D+E) × Rd × (1 − t)"],
+        ["Unlevered beta", "βu = βL / (1 + (1 − t) × D/E)"]
+      ]
+    },
+    {
+      "group": "Free cash flow and DCF",
+      "items": [
+        ["NOPAT", "EBIT × (1 − t)"],
+        ["Unlevered free cash flow", "NOPAT + D&A − capex − increase in NWC"],
+        ["Net working capital", "Receivables + inventory − payables"],
+        ["Gordon growth terminal value", "FCF(n) × (1 + g) / (WACC − g)"],
+        ["Exit multiple terminal value", "Final-year EBITDA × EV/EBITDA multiple"],
+        ["Enterprise value", "PV of forecast FCF + PV of terminal value"]
+      ]
+    },
+    {
+      "group": "Equity bridge and multiples",
+      "items": [
+        ["Equity value", "EV − debt + cash − minority interests + associates"],
+        ["Treasury stock method", "Option proceeds buy back shares at the current price"],
+        ["EV/EBITDA", "Most common multiple, neutral to capital structure"],
+        ["EV/Sales", "Loss-making or early-stage companies"],
+        ["P/E", "Share price / EPS; banks and insurers"],
+        ["Precedent transactions", "Prices paid in past deals, include a control premium"]
+      ]
+    },
+    {
+      "group": "Defending the number",
+      "items": [
+        ["Sensitivity table", "Value for each WACC and terminal growth pair"],
+        ["Football field", "Each method’s value range on one chart"],
+        ["Implied exit multiple", "Gordon terminal value / final-year EBITDA"],
+        ["Mid-year convention", "Discount at n − 0.5: cash arrives through the year"]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Putting the year 0 cash flow inside Excel’s NPV(), which discounts every flow one period too much.",
+    "Choosing between mutually exclusive projects on IRR instead of NPV.",
+    "Discounting unlevered free cash flow at the cost of equity, or levered cash flow at the WACC.",
+    "Subtracting interest in the free cash flow and also using an after-tax cost of debt in the WACC: the tax shield is counted twice.",
+    "A terminal growth rate above long-run GDP growth, or close to the WACC, so the terminal value explodes.",
+    "Dividing equity value by basic shares, or forgetting minority interests and leases in the bridge.",
+    "Comparing multiples built on different periods (LTM vs NTM) or different lease treatments (IFRS 16 vs US GAAP)."
+  ],
+  "exercises": [
+    {
+      "q": "In D2, the present value of the cash flow in A2, received in the year in B2, at the discount rate in C2.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Cash flow", "Year", "Discount rate"], [5000, 4, 0.07]],
+      "cell": "D2",
+      "answer": "=A2/(1+C2)^B2",
+      "hint": "Divide by (1 + rate) raised to the number of years. =PV(C2,B2,0,-A2) gives the same value.",
+      "explain": "5000 / 1.07^4 = 3814.48. The discount factor 1 / 1.07^4 = 0.763: money received in four years is worth about three quarters of its face value today at 7 %."
+    },
+    {
+      "q": "In D1, the NPV of the project at the discount rate in B1 (year 0 in B3, years 1 to 4 in B4:B7), with Excel’s NPV function.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Discount rate", 0.1], ["Year", "Cash flow"], [0, -1000], [1, 300], [2, 400], [3, 500], [4, 200]],
+      "cell": "D1",
+      "answer": "=NPV(B1,B4:B7)+B3",
+      "hint": "NPV() discounts its first value by one period: give it years 1 to 4, then add the year 0 flow outside.",
+      "explain": "=NPV(B1,B4:B7)+B3 = 1115.57 − 1000 = 115.57. =NPV(B1,B3:B7) would return 105.06: every flow discounted one year too much."
+    },
+    {
+      "q": "In D1, the internal rate of return of the project in B2:B6.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Year", "Cash flow"], [0, -1000], [1, 300], [2, 400], [3, 500], [4, 200]],
+      "cell": "D1",
+      "answer": "=IRR(B2:B6)",
+      "hint": "IRR() takes the whole series, year 0 included; it needs at least one negative and one positive flow.",
+      "explain": "IRR = 15.32 %: at that rate the NPV is zero. It is above a 10 % cost of capital, which agrees with the positive NPV of 115.57."
+    },
+    {
+      "q": "In F2, the WACC from the market values of equity and debt, the cost of equity, the pre-tax cost of debt and the tax rate.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Equity value", "Debt value", "Cost of equity", "Cost of debt (pre-tax)", "Tax rate"], [600, 400, 0.096, 0.05, 0.25]],
+      "cell": "F2",
+      "answer": "=A2/(A2+B2)*C2+B2/(A2+B2)*D2*(1-E2)",
+      "hint": "Weight each cost by its share of E + D, and apply (1 − tax) to the cost of debt only.",
+      "explain": "60 % × 9.6 % + 40 % × 5 % × 75 % = 5.76 % + 1.50 % = 7.26 %. Only debt gets the tax shield, because interest is deductible and dividends are not."
+    },
+    {
+      "q": "In D2, the Gordon growth terminal value from the final-year free cash flow, the long-term growth rate and the WACC.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Final-year FCF", "Growth rate", "WACC"], [140, 0.02, 0.09]],
+      "cell": "D2",
+      "answer": "=A2*(1+B2)/(C2-B2)",
+      "hint": "Grow the last cash flow one year, then divide by WACC − g.",
+      "explain": "140 × 1.02 / (9 % − 2 %) = 2040. This is a value at the end of year 5: discount it with the year 5 factor (1 / 1.09^5) to get 1325.86 today."
+    },
+    {
+      "q": "In G2, the equity value per share: enterprise value minus debt, plus cash, minus minority interests, plus associates, divided by the diluted shares.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Enterprise value", "Debt", "Cash", "Minority interests", "Associates", "Diluted shares"], [2000, 600, 150, 50, 30, 102]],
+      "cell": "G2",
+      "answer": "=(A2-B2+C2-D2+E2)/F2",
+      "hint": "Build the equity value in brackets first, then divide.",
+      "explain": "(2000 − 600 + 150 − 50 + 30) / 102 = 1530 / 102 = 15.00 per share. Forgetting the brackets divides only the associates by the share count."
+    },
+    {
+      "q": "CAPM: the risk-free rate is 3 %, the beta 1.2 and the equity risk premium 5 %. What is the cost of equity, in percent?",
+      "type": "fill",
+      "blanks": [["9", "9%", "9 %", "9.0", "9.0%", "9.0 %", "9,0", "9,0 %", "0.09"]],
+      "answer": "Re = Rf + β × (Rm − Rf) = 3 % + 1.2 × 5 % = 9 %. The beta multiplies the premium, not the market return."
+    },
+    {
+      "q": "Match each multiple with the situation where it fits best.",
+      "type": "match",
+      "pairs": [
+        ["EV/EBITDA", "Industrial companies with different debt levels"],
+        ["EV/Sales", "A fast-growing software company that is not yet profitable"],
+        ["P/E", "A bank, where debt is part of the operations"],
+        ["EV/EBIT", "Capital-heavy peers with very different depreciation"],
+        ["Precedent transaction multiple", "Pricing the sale of 100 % of a company"]
+      ],
+      "answer": "EV multiples use metrics before interest, P/E uses earnings after interest. EV/Sales works when there is no profit yet; P/E fits financials; transaction multiples carry a control premium, so they fit a sale of control."
+    },
+    {
+      "q": "Put the steps of a DCF valuation in order.",
+      "type": "order",
+      "steps": [
+        "Forecast revenue, margins, capex and working capital",
+        "Compute unlevered free cash flow for each year",
+        "Compute the terminal value",
+        "Discount the cash flows and the terminal value at the WACC",
+        "Add them up to get the enterprise value",
+        "Subtract net debt and other claims to get the equity value",
+        "Divide by the diluted shares"
+      ],
+      "answer": "Operating forecast → UFCF → terminal value → discount at WACC → EV → equity bridge → per share. This is the answer to “walk me through a DCF”."
+    },
+    {
+      "q": "Two mutually exclusive projects, cost of capital 10 %. S: NPV 13.2, IRR 20 %. L: NPV 127.0, IRR 17.4 %. Which do you choose?",
+      "type": "choice",
+      "options": ["S, because its IRR is higher", "L, because its NPV is higher", "Both, since both IRRs beat 10 %", "Neither: the two rules disagree"],
+      "correct": 1,
+      "answer": "When only one project can be done, NPV decides: L adds 127 of value against 13 for S. IRR ignores the size of the investment (S costs 100, L costs 1,000)."
+    },
+    {
+      "q": "A project’s cash flows are −100, +230, −132. What does its IRR tell you?",
+      "type": "choice",
+      "options": ["The IRR is 10 %", "The IRR is 20 %", "There are two IRRs (10 % and 20 %), so IRR is not a reliable rule here: use NPV", "There is no IRR because the last flow is negative"],
+      "correct": 2,
+      "answer": "Cash flows that change sign twice can have two IRRs; here both 10 % and 20 % give NPV = 0. Neither is meaningful: compute the NPV at the cost of capital, or a MIRR."
+    },
+    {
+      "q": "Your DCF gives a value per share 40 % above the current share price. Your manager asks: “Do you believe it?” What do you check before answering?",
+      "answer": "1) Terminal value: its share of EV, the growth rate against long-run GDP and inflation, and the implied exit multiple against peers. 2) WACC inputs: risk-free rate in the right currency, beta from relevered peers, today’s cost of debt, market-value weights. 3) Forecast: revenue growth and margins against history and peers, capex at or above D&A, working capital following revenue. 4) Mechanics: TV discounted with the final-year factor, no interest in the cash flows, signs in the equity bridge, diluted shares. 5) Other methods: trading and transaction multiples on a football field. If the gap survives, explain what the market misses (a contract, a restructuring) and show the sensitivity table: at what WACC and growth does the DCF meet the share price?"
+    }
+  ],
+  "interview": [
+    {
+      "q": "Walk me through a DCF.",
+      "a": "Forecast unlevered free cash flow for 5 to 10 years: revenue and margins give EBIT, tax it to NOPAT, add back D&A, subtract capex and the increase in working capital. Then compute a terminal value, with the Gordon growth formula or an exit EV/EBITDA multiple. Discount the cash flows and the terminal value at the WACC to get the enterprise value. Subtract net debt, minority interests and other claims, add non-operating assets to get the equity value, and divide by the diluted shares. The result is most sensitive to the WACC, the terminal growth and the margins, so I show a sensitivity table."
+    },
+    {
+      "q": "Why do we use unlevered free cash flow and the WACC together?",
+      "a": "Unlevered free cash flow is the cash available to all investors before any payment to lenders, so it must be discounted at the return all investors require: the WACC, which blends the cost of equity and the after-tax cost of debt. The tax benefit of debt sits in the WACC. If I used levered cash flow, after interest, I would discount it at the cost of equity and get the equity value directly."
+    },
+    {
+      "q": "NPV and IRR give different rankings. Which do you trust, and why?",
+      "a": "NPV. It measures value created in euros at the right cost of capital. IRR ignores the scale of the project, assumes reinvestment at the IRR itself, and can have several values when cash flows change sign more than once. IRR is useful as a quick return figure or for comparison with a hurdle rate, but between mutually exclusive projects I choose the higher NPV."
+    },
+    {
+      "q": "How do you calculate the cost of equity for a private company?",
+      "a": "With the CAPM, using peers: take the levered betas of comparable listed companies, unlever them with their own debt-to-equity and tax rate, take the median, relever it at the target’s target capital structure, then Re = risk-free rate + beta × equity risk premium. I would usually add a size premium, and a country risk premium if the business is in an emerging market, and say so explicitly."
+    },
+    {
+      "q": "Enterprise value is 1,000, the company has 300 of debt and 100 of cash. What is the equity value? And if it raises 200 of new debt and keeps the cash?",
+      "a": "Equity value = 1,000 − 300 + 100 = 800. Raising 200 of debt and holding it as cash does not change the enterprise value (net debt is unchanged at 200), so the equity value stays 800. Enterprise value only changes with operations, not with financing, at least before considering taxes and distress costs."
+    },
+    {
+      "q": "Why can an EV/EBITDA multiple be compared across companies but not EV/Net income?",
+      "a": "The numerator and denominator must refer to the same investors. EV is the value for lenders and shareholders, and EBITDA is earned before paying either, so both are independent of the capital structure. Net income is after interest, so it belongs to shareholders only: it must be compared with the equity value (P/E). EV/Net income would make a company with more debt look more expensive for no economic reason."
+    },
+    {
+      "q": "Your terminal value is 85 % of the enterprise value. Is that a problem?",
+      "a": "Not on its own: for a growing company most of the value is far in the future, and 60 to 80 % is common. But it means the valuation rests on the terminal assumptions, so I check them: the growth rate against long-run inflation and GDP, the implied exit multiple against today’s peers, and whether the final forecast year is a normal, steady year (margins, capex close to D&A plus growth). If the explicit forecast is too short to reach a steady state, I extend it."
+    },
+    {
+      "q": "Why do precedent transactions usually give a higher value than trading comparables?",
+      "a": "Because a buyer of a whole company pays a control premium, often 20 to 40 % above the share price before the offer, for the synergies and the right to run the business. Trading prices are for minority stakes. Transaction multiples also reflect the market when the deal was signed, so I check the dates and use them for M&A and sale processes, not to value a minority stake."
+    }
+  ]
+}

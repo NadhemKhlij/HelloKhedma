@@ -190,6 +190,13 @@ or save as a version named after the offer. Same notice and daily limit. Then th
 and create my CV" (also fixes spelling, grammar, tense, dates and wording, and lists the changes); "Rewrite only" keeps
 the text answer.
 
+## AI Engineer path (2026-11-08)
+Owner request: AI Engineer as a 6th learning and job-hunt path, with the track in Arabic letters, 3arbizi, English and
+French. Done: path in seed.sql (job titles, tools, tips, keywords, 3 tracks EN + FR), interview questions, path card,
+offer title terms, track in 4 languages (language follows the interface until chosen). Next: owner runs seed.sql (O33);
+expert review of the English / French translation (O11); later, AI-path skills linked by "Close the gaps" (gaps.js uses
+the general course index only).
+
 ## Tunisian AI Teacher (live on main since 2026-11-05)
 A learning track to become an AI engineer (build apps with Claude and other AI tools, run them in production, maintain
 and improve them), taught only in Tunisian Derja, in Arabic letters and in 3arbizi (switch, remembered). Page #/ai,

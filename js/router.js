@@ -16,7 +16,7 @@ import { renderAdmin } from "./admin.js";
 const ROUTES = {
   home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course",
   account: "Your account & data", legal: "Legal notice", privacy: "Privacy policy", interview: "Interview prep",
-  project: "Portfolio project", ai: "AI engineer in Tunisian", admin: "Site statistics",
+  project: "Portfolio project", ai: "AI Engineer track", admin: "Site statistics",
 };
 const NAV_OF = { course: "training", project: "training", ai: "training", admin: "account" }; // which nav tab is highlighted for sub-pages
 export const coursesReady = loadCourseIndex();

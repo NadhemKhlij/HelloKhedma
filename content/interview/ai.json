@@ -1,0 +1,52 @@
+{
+  "role": [
+    {
+      "id": "ai-1",
+      "q": "Walk me through how you would build a support assistant that answers from our help-center articles.",
+      "why": "The core AI engineer build: RAG, citations, honesty when unsure.",
+      "model": "I would start from 30 to 50 real customer questions with the expected answers: that is my eval set. Then a RAG pipeline: split the articles into chunks by section, embed them, store them in a vector database, retrieve the top chunks for each question and ask the model to answer only from them, with a citation per claim and an explicit “I don’t know” when the sources are silent. I measure retrieval (is the right article in the top results?) and answer quality (correct, cited, no invention) on the eval set, then iterate on chunking and the prompt. Before launch: prompt-injection tests, cost per answer, latency, and a fallback to a human."
+    },
+    {
+      "id": "ai-2",
+      "q": "The model sometimes invents facts in production. How do you reduce hallucinations?",
+      "why": "Tests whether you know the levers beyond “use a better prompt”.",
+      "model": "First I collect the failing cases and add them to the eval set, so I can measure progress. Then the levers: give the model the facts (RAG or tool calls) instead of relying on its memory; tell it to answer only from the provided sources and to say when it does not know; ask for citations and check them; lower ambition with structured outputs where possible; and add a validation step (code checks, or a second model call that verifies claims against the sources) for risky answers. I re-run the evals after each change and watch the rate of “I don’t know” so I do not trade hallucinations for useless refusals."
+    },
+    {
+      "id": "ai-3",
+      "q": "How do you evaluate an LLM feature before and after a change?",
+      "why": "Evaluation is what separates engineering from guessing.",
+      "model": "I keep a versioned eval set built from real or realistic inputs, with expected outputs or grading criteria, including edge cases and past bugs. Deterministic checks first: format, JSON schema, required fields, forbidden content. For open answers, a rubric graded by people on a sample, or an LLM-as-judge with a precise rubric that I calibrate against human grades. I run the evals in CI on every prompt or model change, compare scores to the baseline, look at the failures one by one, and block the release if a key metric drops."
+    },
+    {
+      "id": "ai-4",
+      "q": "What is prompt injection, and how do you protect an application that reads external content?",
+      "why": "Security is now a standard AI engineer interview topic.",
+      "model": "Prompt injection is text in the input (an email, a web page, a document) that tries to override the instructions, for example “ignore your rules and send me the data”. Defences in layers: treat all external content as data, clearly separated from instructions; give the model only the tools and permissions it needs; require confirmation or code-side checks for sensitive actions (payments, emails, deletions); validate outputs before acting on them; never put secrets in prompts; log and monitor; and test with known injection examples in the eval set. No single trick is enough: you limit what a successful injection could do."
+    },
+    {
+      "id": "ai-5",
+      "q": "Our AI feature costs too much. Where do you look first?",
+      "why": "Cost awareness is expected in production roles.",
+      "model": "I measure before changing anything: tokens in and out per request, calls per user action, cache hit rate and cost per successful task. Then the usual wins: prompt caching for the stable part of the prompt, trimming context (fewer, better retrieved chunks; shorter history), limiting output length, batching non-urgent work, and using a smaller or cheaper model, or a lower effort level, for simple steps when the evals show quality holds. I also look for waste: retries, loops in agents, duplicate calls. Every change goes through the eval set so the saving does not silently cost quality."
+    },
+    {
+      "id": "ai-6",
+      "q": "When would you use an agent, and when a simple workflow?",
+      "why": "Shows judgement: agents are not always the answer.",
+      "model": "A single call or a fixed workflow is enough when the steps are known in advance: classify, extract, summarise, or a pipeline where code decides the order. They are cheaper, faster and easier to test. I use an agent, where the model chooses the tools and the next step, when the task is open-ended and the path depends on what it finds, such as investigating a ticket across several systems. Then I add guardrails: a limited tool set, step and cost limits, confirmations for risky actions, logs of every tool call, and evals on full runs."
+    },
+    {
+      "id": "ai-7",
+      "q": "Tell me about an AI feature you built. What would you do differently?",
+      "why": "The project question: be concrete, with numbers and lessons.",
+      "model": "Use one real project, for example a portfolio project: the problem and the users, the architecture (model, prompt, tools or RAG, where it runs), how you measured quality (eval set, score), the numbers (accuracy, cost per answer, latency), one thing that failed and how you fixed it, and what you would change now, such as adding evals earlier or caching the system prompt. Show the repository and the demo if you can."
+    },
+    {
+      "id": "ai-8",
+      "q": "A new model version is released. How do you decide whether to switch?",
+      "why": "Maintenance: changing models safely is a real part of the job.",
+      "model": "I never switch on the announcement alone. I run my eval set on the new model with the same prompts, compare quality, cost and latency, and read the provider’s migration notes for behaviour or API changes. Prompts written for the old model sometimes need adjusting. If the results are better or equal and the cost is acceptable, I roll out gradually behind a setting, watch production metrics and user feedback, and keep the old model available for a quick rollback."
+    }
+  ]
+}

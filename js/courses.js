@@ -22,7 +22,7 @@
 // At the bottom, "⚑ Report a problem" (report.js), preset to the open lesson or tab.
 import { $, h, ls, toast, safeUrl } from "./lib.js";
 import { t, lang, fetchContent } from "./i18n.js";
-import { isAiCourse, aiScript, aiMeta, aiDir, loadAiCourse, scriptSwitch } from "./aitrack.js";
+import { isAiCourse, aiScript, aiMeta, aiDir, loadAiCourse, scriptSwitch, loadAiIndex } from "./aitrack.js";
 import { logActivity, setLastCourse, lastCourse } from "./activity.js";
 import { quiz, flashcards, exercises, interviewCards, quizBest, exercisesSolved } from "./practice.js";
 import { lessonTime, courseTime, formatMinutes } from "./coursetime.js";
@@ -83,13 +83,19 @@ function courseCard(c, done) {
       best != null ? h("span", { class: "mute ml-auto" }, t("Quiz best {s}", { s: best })) : null));
 }
 
-// Courses for the current path first; the others in a collapsible block.
+// Courses for the current path first; the others in a collapsible block. The AI Engineer path ("ai") starts with the
+// 9 courses of the AI track (aitrack.js), in the language chosen for the track, before the general courses it uses.
 export function renderCourseList(root, pathId) {
   if (!index.length) { root.replaceChildren(h("p", { class: "mute text-sm" }, t("Courses could not be loaded."))); return; }
   const done = doneSet();
   const mine = index.filter((c) => c.paths.includes(pathId));
   const others = index.filter((c) => !c.paths.includes(pathId));
+  const aiGrid = pathId === "ai" ? h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mb-3" }) : null;
+  if (aiGrid) loadAiIndex().then((list) => Promise.all(list.filter((c) => c.status === "ready").map((c) => aiMeta(c.id))))
+    .then((metas) => aiGrid.replaceChildren(...metas.filter(Boolean).map((c) => { const a = courseCard(c, done); Object.assign(a, aiDir()); return a; })))
+    .catch(() => {});
   root.replaceChildren(...[ // filter: replaceChildren() would print null as text
+    aiGrid,
     h("div", { class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }, mine.map((c) => courseCard(c, done))),
     others.length ? h("details", { class: "mt-3" },
       h("summary", { class: "cursor-pointer mute text-sm" }, t("Other courses ({n})", { n: others.length })),

@@ -8,7 +8,8 @@
 //     order, identical code (lesson examples, code answers), and actually translated (why differs);
 //   - interview (content/interview): ids unique, model answers present;
 //   - portfolio projects (content/projects): 3 per path, required fields, ids "<path>-…", http(s) data links;
-//   - AI track (content/ai): index entries, Arabic-letter and 3arbizi files with the same structure and identical code;
+//   - AI track (content/ai): index entries, Arabic-letter and 3arbizi files with the same structure and identical code,
+//     and the English / French copies (content/ai/en, content/ai/fr) when present, checked the same way;
 //   - runnable SQL exercises (exercise.run, training step 2): the dataset exists, the course answer runs on it with
 //     SQLite (sql.js, the same engine as the browser) and returns rows, and the grader (js/sqlgrade.js) accepts it;
 //     a "fix this query" starting query (exercise.start) is not accepted, and is the same in the French copy;
@@ -31,7 +32,7 @@ import { checkFile, RULES as FILE_RULES } from "../js/filecheck.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const C = (...p) => join(ROOT, "content", ...p);
-const PATHS = new Set(["de", "da", "ba", "as", "do"]);
+const PATHS = new Set(["de", "da", "ba", "as", "do", "ai"]); // "ai": its projects are in content/ai/<language>/projects.json
 const SKILL_NAMES = new Set(SKILLS.map(([name]) => name));
 const problems = [];
 const bad = (where, msg) => problems.push(`${where}: ${msg}`);
@@ -266,6 +267,7 @@ function sameProjects(where, a, b, { codeOnly = false } = {}) {
   });
 }
 for (const id of PATHS) {
+  if (id === "ai") continue; // checked with the AI track below
   const en = load(C("projects", `${id}.json`))?.projects || [];
   if (en.length !== 3) bad(`projects/${id}.json`, `${en.length} projects instead of 3`);
   en.forEach((p) => checkProject(`projects/${id}.json`, p, id));
@@ -275,8 +277,11 @@ for (const id of PATHS) {
   sameProjects(`projects/fr/${id}.json`, en, fr);
 }
 
-/* ---------- AI track (Tunisian: Arabic letters and 3arbizi) ---------- */
+/* ---------- AI track (Tunisian: Arabic letters and 3arbizi; English and French copies) ---------- */
+// All four languages are required for every ready course (en and fr since 2026-11-08): same structure as the Arabic
+// file, identical code, and actually translated (why differs from the 3arbizi one).
 const aiIndex = load(C("ai", "index.json")) || [];
+const AI_EXTRA = ["en", "fr"];
 for (const e of aiIndex) {
   if (!String(e.id).startsWith("ai-")) bad("ai/index.json", `id ${e.id} should start with "ai-"`);
   if (e.status !== "ready") continue;
@@ -285,12 +290,27 @@ for (const e of aiIndex) {
   if (!ar || !lat) { bad(`ai/${e.id}`, "missing Arabic-letter or 3arbizi file"); continue; }
   checkCourse(`ai/ar/${e.id}.json`, ar); checkCourse(`ai/lat/${e.id}.json`, lat);
   sameShape(`ai/lat/${e.id}.json`, ar, lat, { translated: false });
+  for (const s of AI_EXTRA) {
+    if (!existsSync(C("ai", s, `${e.id}.json`))) { bad(`ai/${s}/${e.id}.json`, "missing"); continue; }
+    const x = load(C("ai", s, `${e.id}.json`));
+    if (!x) continue;
+    checkCourse(`ai/${s}/${e.id}.json`, x);
+    sameShape(`ai/${s}/${e.id}.json`, ar, x, { translated: false });
+    if (x.why && x.why === lat.why) bad(`ai/${s}/${e.id}.json`, "why is not translated");
+    for (const k of ["name", "summary"]) if (e[k] && !str(e[k][s])) bad(`ai/index.json ${e.id}`, `missing ${k}.${s}`);
+  }
   if (e.lessonCount !== arr(ar.lessons).length) bad(`ai/index.json ${e.id}`, `lessonCount ${e.lessonCount} but ${arr(ar.lessons).length} lessons`);
 }
 const aiAr = load(C("ai", "ar", "projects.json"))?.projects || [], aiLat = load(C("ai", "lat", "projects.json"))?.projects || [];
 aiAr.forEach((p) => checkProject("ai/ar/projects.json", p, "ai"));
 aiLat.forEach((p) => checkProject("ai/lat/projects.json", p, "ai"));
 sameProjects("ai/lat/projects.json", aiAr, aiLat, { codeOnly: true });
+for (const s of AI_EXTRA) {
+  if (!existsSync(C("ai", s, "projects.json"))) { bad(`ai/${s}/projects.json`, "missing"); continue; }
+  const x = load(C("ai", s, "projects.json"))?.projects || [];
+  x.forEach((p) => checkProject(`ai/${s}/projects.json`, p, "ai"));
+  sameProjects(`ai/${s}/projects.json`, aiLat, x);
+}
 
 /* ---------- runnable SQL exercises ---------- */
 const runnable = [];
@@ -325,7 +345,7 @@ if (runnable.length) {
 
 /* ---------- result ---------- */
 const typed = index.reduce((n, e) => n + arr(existsSync(C("courses", `${e.id}.json`)) ? load(C("courses", `${e.id}.json`))?.exercises : []).filter((x) => x.type).length, 0);
-const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${PATHS.size * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises, ${typed} auto-graded exercises`;
+const counted = `${index.length} courses, ${aiIndex.length} AI-track courses, ${(PATHS.size - 1) * 3} + ${aiAr.length} projects, ${runnable.length} runnable SQL exercises, ${typed} auto-graded exercises`;
 if (problems.length) {
   console.log(`Content check: ${problems.length} problem(s) (${counted})`);
   for (const p of problems) console.log(`  - ${p}`);

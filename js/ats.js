@@ -51,7 +51,7 @@ export const SKILLS = [
   ["NumPy", "Data & BI", ["numpy"]],
   ["Scikit-learn", "Data & BI", ["scikit-learn", "sklearn", "scikit learn"]],
   ["Machine learning", "Data & BI", ["machine learning", "apprentissage automatique", "ml"]],
-  // AI engineering (Tunisian AI Teacher track, content/ai/)
+  // AI engineering (AI Engineer path and its track, content/ai/)
   ["LLM", "AI & LLM", ["llm", "llms", "large language model", "large language models", "generative ai", "genai", "gen ai", "ia generative", "intelligence artificielle generative"]],
   ["Prompt engineering", "AI & LLM", ["prompt engineering", "prompting", "prompt design"]],
   ["Claude API", "AI & LLM", ["claude api", "anthropic api", "anthropic", "claude sonnet", "claude opus"]],
@@ -62,6 +62,10 @@ export const SKILLS = [
   ["AI coding tools", "AI & LLM", ["claude code", "github copilot", "copilot", "cursor ai"]],
   ["LangChain", "AI & LLM", ["langchain", "langgraph", "llamaindex"]],
   ["OpenAI API", "AI & LLM", ["openai", "chatgpt api", "gpt-4", "gpt-5"]],
+  ["MCP", "AI & LLM", ["mcp", "model context protocol", "mcp server", "mcp servers"]],
+  ["Hugging Face", "AI & LLM", ["hugging face", "huggingface", "transformers library"]],
+  ["PyTorch", "AI & LLM", ["pytorch", "torch"]],
+  ["FastAPI", "AI & LLM", ["fastapi", "fast api"]],
   ["Statistics", "Data & BI", ["statistics", "statistiques", "statistical", "statistique"]],
   ["A/B testing", "Data & BI", ["a/b testing", "ab testing", "a/b test", "tests a/b"]],
   ["Data visualization", "Data & BI", ["data visualization", "data visualisation", "dataviz", "visualisation de donnees"]],

@@ -29,7 +29,9 @@ insert into public.career_paths (id, name, blurb, color, job_titles, sort_order)
  ('da','Data Analyst','Insights, dashboards, storytelling','#e0508b',
    array['Data Analyst','Analyste de Données','BI Analyst','Reporting Analyst'],4),
  ('do','DevOps Engineer','CI/CD, containers, cloud, automation','#3b82f6',
-   array['DevOps Engineer','Ingénieur DevOps','Site Reliability Engineer','Platform Engineer','Cloud Engineer'],5)
+   array['DevOps Engineer','Ingénieur DevOps','Site Reliability Engineer','Platform Engineer','Cloud Engineer'],5),
+ ('ai','AI Engineer','LLM apps, RAG, agents, production','#a855f7',
+   array['AI Engineer','LLM Engineer','Generative AI Engineer','Ingénieur IA','AI Developer'],6)
 on conflict (id) do update set
   name = excluded.name, blurb = excluded.blurb, color = excluded.color,
   job_titles = excluded.job_titles, sort_order = excluded.sort_order;
@@ -88,6 +90,17 @@ select pg_temp.seed('do','tip','[
  "Talk about incidents you handled and what you automated afterwards; DevOps interviews test judgement as much as tools.",
  "Quantify your impact: deployment time cut, releases per week, incidents avoided, cloud costs saved."]'::jsonb);
 select pg_temp.seed('do','keyword','["CI/CD","Docker","Kubernetes","Terraform","AWS","Azure","GCP","Linux","Bash","Python","Git","Ansible","Helm","Prometheus","Grafana","Monitoring"]'::jsonb);
+
+-- AI Engineer (2026-11-08; its own course track is in the app: #/ai, content/ai/) ------------------------
+select pg_temp.seed('ai','tool','[
+ ["Claude API + Python SDK","Call a model, tools, structured outputs"],["Claude Code / GitHub Copilot","AI coding tools, used with review"],
+ ["pgvector / Qdrant","Vector search for RAG"],["FastAPI + Docker","Serve and ship an AI feature"],
+ ["Evals in pytest","Measure quality before every change"]]'::jsonb);
+select pg_temp.seed('ai','tip','[
+ "Ship one AI feature end to end: prompt, tools or RAG, evals, cost and a deployed demo. Recruiters want working products, not notebooks.",
+ "Show how you measure quality: an eval set, a score before and after a change, and the failures you fixed.",
+ "Talk about cost, latency and safety (prompt injection, personal data): that is what separates an AI engineer from a prompt writer."]'::jsonb);
+select pg_temp.seed('ai','keyword','["Python","LLM","Claude API","OpenAI API","Prompt engineering","RAG","Vector database","AI agents","MCP","LangChain","LLMOps","FastAPI","Docker","Git","SQL","AWS"]'::jsonb);
 
 -- =====================================================================================
 -- Learning tracks. Step = [title, description, kind, provider, url, est_hours, is_free?]
@@ -240,6 +253,33 @@ select pg_temp.track('do','do-cloud','Cloud, Infrastructure as Code and reliabil
  ["Project: infrastructure as code","Create the cloud resources of your API with Terraform from a pipeline, with remote state, a dashboard and one alert.","project","Your repo","",15],
  ["AWS Certified Cloud Practitioner or CKA","Pick one: cloud fundamentals (AWS) or Kubernetes administration (CNCF). Check current exam details.","certification","AWS / CNCF","https://aws.amazon.com/certification/",25,false]]'::jsonb);
 
+-- AI Engineer ---------------------------------------------------------------------------
+select pg_temp.track('ai','ai-foundations','Foundations: Python, LLMs and prompting','beginner',
+ 'What an AI engineer does, how language models work and how to talk to them reliably.',
+ 'Write clean Python, explain tokens, context and hallucinations, and write prompts that give stable, checkable answers.',1,'[
+ ["HelloKhedma AI Engineer track: courses 1 and 2","The job, how LLMs work, and prompt engineering, in English, French, Tunisian Arabic or 3arbizi.","learn","HelloKhedma","https://hellokhedma.io/#/ai",8],
+ ["Python tutorial","The official walkthrough: data structures, modules, errors, files.","learn","Python docs","https://docs.python.org/3/tutorial/",8],
+ ["Prompt engineering guide","Anthropic’s guide: clear instructions, examples, XML structure, letting the model think, chaining prompts.","learn","Anthropic","https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview",4],
+ ["Hugging Face LLM course","How transformers and language models work, with code.","learn","Hugging Face","https://huggingface.co/learn/llm-course",10],
+ ["Pro Git book","Chapters 1 to 3: basics and branching.","learn","git-scm.com","https://git-scm.com/book/en/v2",5]]'::jsonb);
+select pg_temp.track('ai','ai-building','Build: the Claude API, tools, MCP and RAG','intermediate',
+ 'Build the features companies ask for: assistants that use tools and answer from your own documents.',
+ 'Call the Claude API from Python, give the model tools and an MCP server, and build a RAG assistant that cites its sources.',2,'[
+ ["HelloKhedma AI Engineer track: courses 3 to 6","Claude API in Python, tools / MCP / agents, RAG and embeddings, AI coding tools.","learn","HelloKhedma","https://hellokhedma.io/#/ai",16],
+ ["Claude documentation","Messages API, tool use, structured outputs, prompt caching: the reference.","learn","Anthropic","https://platform.claude.com/docs/en/home",6],
+ ["Claude cookbooks","Worked notebooks: RAG, tool use, extraction, evaluation.","practice","Anthropic on GitHub","https://github.com/anthropics/claude-cookbooks",8],
+ ["Model Context Protocol","Connect a model to tools and data with an MCP server.","learn","modelcontextprotocol.io","https://modelcontextprotocol.io",4],
+ ["FastAPI tutorial","Serve your AI feature as an API.","learn","FastAPI","https://fastapi.tiangolo.com/tutorial/",5],
+ ["Project: documentation assistant with RAG","Answers from your documents with citations, and says when it does not know.","project","HelloKhedma","https://hellokhedma.io/#/project/ai-doc-assistant",15]]'::jsonb);
+select pg_temp.track('ai','ai-production','Production: evals, security, cost and maintenance','advanced',
+ 'Keep an AI feature reliable, safe and affordable once real users depend on it.',
+ 'Measure quality with evals, defend against prompt injection, monitor cost and latency, and improve the feature release after release.',3,'[
+ ["HelloKhedma AI Engineer track: courses 7 to 9","Evaluation and tests, production (security, monitoring, cost), maintenance and continuous improvement.","learn","HelloKhedma","https://hellokhedma.io/#/ai",12],
+ ["DeepLearning.AI short courses","Short practical courses on agents, evaluation and RAG from industry teams.","learn","DeepLearning.AI","https://www.deeplearning.ai/short-courses/",8],
+ ["Docker: get started","Images, containers, volumes and Compose.","learn","Docker docs","https://docs.docker.com/get-started/",6],
+ ["Project: support agent with tools in production","An agent with tools, evals in CI, logs, cost limits and a deployed demo.","project","HelloKhedma","https://hellokhedma.io/#/project/ai-support-agent",20],
+ ["AWS Certified AI Practitioner","A recognised entry-level AI certification. Check current exam details.","certification","AWS","https://aws.amazon.com/certification/certified-ai-practitioner/",20,false]]'::jsonb);
+
 -- =====================================================================================
 -- French texts (shown when the interface is French). Needs migration 20261029000200_content_fr.sql.
 -- Rows are matched on their English title (the id key): when you rename an English title, update it here too.
@@ -253,7 +293,8 @@ from (values
   ('ba', 'Business Analyst', 'Besoins, processus, parties prenantes'),
   ('as', 'Support applicatif', 'Incidents, supervision, run'),
   ('da', 'Data Analyst', 'Analyses, tableaux de bord, storytelling'),
-  ('do', 'DevOps Engineer', 'CI/CD, conteneurs, cloud, automatisation')
+  ('do', 'DevOps Engineer', 'CI/CD, conteneurs, cloud, automatisation'),
+  ('ai', 'AI Engineer', 'Applications LLM, RAG, agents, production')
 ) as v(id, n, b)
 where p.id = v.id;
 
@@ -449,3 +490,40 @@ select pg_temp.track_fr('do-cloud','Cloud, Infrastructure as Code et fiabilité'
  ["SRE book: service level objectives","Livre SRE : les objectifs de niveau de service","Définir SLI, SLO et budgets d’erreur."],
  ["Project: infrastructure as code","Projet : infrastructure as code","Créez les ressources cloud de votre API avec Terraform depuis un pipeline, avec un état distant, un tableau de bord et une alerte."],
  ["AWS Certified Cloud Practitioner or CKA","AWS Certified Cloud Practitioner ou CKA","Choisissez-en une : fondamentaux du cloud (AWS) ou administration Kubernetes (CNCF). Vérifiez les détails actuels de l’examen."]]'::jsonb);
+
+-- AI Engineer ------------------------------------------------------------------------
+select pg_temp.res_fr('ai','tool','[
+ ["Claude API + Python SDK","Claude API + SDK Python","Appeler un modèle, des outils, des sorties structurées"],["Claude Code / GitHub Copilot","Claude Code / GitHub Copilot","Outils de code IA, utilisés avec relecture"],
+ ["pgvector / Qdrant","pgvector / Qdrant","Recherche vectorielle pour le RAG"],["FastAPI + Docker","FastAPI + Docker","Servir et livrer une fonctionnalité IA"],
+ ["Evals in pytest","Evals avec pytest","Mesurer la qualité avant chaque changement"]]'::jsonb);
+select pg_temp.res_fr('ai','tip','[
+ ["Ship one AI feature end to end: prompt, tools or RAG, evals, cost and a deployed demo. Recruiters want working products, not notebooks.","Livrez une fonctionnalité IA de bout en bout : prompt, outils ou RAG, evals, coût et une démo en ligne. Les recruteurs veulent des produits qui marchent, pas des notebooks."],
+ ["Show how you measure quality: an eval set, a score before and after a change, and the failures you fixed.","Montrez comment vous mesurez la qualité : un jeu d’évaluation, un score avant et après un changement, et les erreurs corrigées."],
+ ["Talk about cost, latency and safety (prompt injection, personal data): that is what separates an AI engineer from a prompt writer.","Parlez de coût, de latence et de sécurité (injection de prompt, données personnelles) : c’est ce qui distingue un AI engineer d’un simple rédacteur de prompts."]]'::jsonb);
+
+-- Learning tracks: AI Engineer ------------------------------------------------------
+select pg_temp.track_fr('ai-foundations','Fondamentaux : Python, LLM et prompting',
+ 'Ce que fait un AI engineer, comment fonctionnent les modèles de langage et comment leur parler de façon fiable.',
+ 'Écrire du Python propre, expliquer tokens, contexte et hallucinations, et rédiger des prompts qui donnent des réponses stables et vérifiables.','[
+ ["HelloKhedma AI Engineer track: courses 1 and 2","Parcours AI Engineer de HelloKhedma : cours 1 et 2","Le métier, le fonctionnement des LLM et le prompt engineering, en français, en anglais, en tunisien ou en 3arbizi."],
+ ["Python tutorial","Tutoriel Python","Le guide officiel : structures de données, modules, erreurs, fichiers."],
+ ["Prompt engineering guide","Guide du prompt engineering","Le guide d’Anthropic : consignes claires, exemples, structure XML, laisser le modèle réfléchir, enchaîner les prompts."],
+ ["Hugging Face LLM course","Cours LLM de Hugging Face","Comment fonctionnent les transformers et les modèles de langage, avec du code."],
+ ["Pro Git book","Le livre Pro Git","Chapitres 1 à 3 : les bases et les branches."]]'::jsonb);
+select pg_temp.track_fr('ai-building','Construire : API Claude, outils, MCP et RAG',
+ 'Construire ce que les entreprises demandent : des assistants qui utilisent des outils et répondent à partir de vos documents.',
+ 'Appeler l’API Claude depuis Python, donner des outils et un serveur MCP au modèle, et construire un assistant RAG qui cite ses sources.','[
+ ["HelloKhedma AI Engineer track: courses 3 to 6","Parcours AI Engineer de HelloKhedma : cours 3 à 6","L’API Claude en Python, outils / MCP / agents, RAG et embeddings, outils de code IA."],
+ ["Claude documentation","Documentation Claude","Messages API, outils, sorties structurées, prompt caching : la référence."],
+ ["Claude cookbooks","Claude cookbooks","Des notebooks complets : RAG, outils, extraction, évaluation."],
+ ["Model Context Protocol","Model Context Protocol","Relier un modèle à des outils et des données avec un serveur MCP."],
+ ["FastAPI tutorial","Tutoriel FastAPI","Servir votre fonctionnalité IA sous forme d’API."],
+ ["Project: documentation assistant with RAG","Projet : assistant documentaire avec RAG","Répond à partir de vos documents en citant ses sources, et dit quand il ne sait pas."]]'::jsonb);
+select pg_temp.track_fr('ai-production','Production : evals, sécurité, coût et maintenance',
+ 'Garder une fonctionnalité IA fiable, sûre et abordable quand de vrais utilisateurs en dépendent.',
+ 'Mesurer la qualité avec des evals, se protéger de l’injection de prompt, suivre coût et latence, et améliorer la fonctionnalité version après version.','[
+ ["HelloKhedma AI Engineer track: courses 7 to 9","Parcours AI Engineer de HelloKhedma : cours 7 à 9","Évaluation et tests, production (sécurité, supervision, coût), maintenance et amélioration continue."],
+ ["DeepLearning.AI short courses","Cours courts DeepLearning.AI","Des cours pratiques et courts sur les agents, l’évaluation et le RAG, par des équipes de l’industrie."],
+ ["Docker: get started","Docker : premiers pas","Images, conteneurs, volumes et Compose."],
+ ["Project: support agent with tools in production","Projet : agent de support avec outils en production","Un agent avec des outils, des evals en CI, des logs, des limites de coût et une démo en ligne."],
+ ["AWS Certified AI Practitioner","AWS Certified AI Practitioner","Une certification IA d’entrée reconnue. Vérifiez les détails actuels de l’examen."]]'::jsonb);

@@ -1189,4 +1189,8 @@ export default {
   "All of Adzuna's offers for this title in this country, not only the ones you looked at.": "Toutes les offres d’Adzuna pour cet intitulé dans ce pays, pas seulement celles que vous avez consultées.",
   "Adzuna, {n} offer with a salary": "Adzuna, {n} offre avec salaire",
   "Adzuna, {n} offers with a salary": "Adzuna, {n} offres avec salaire",
+  // AI Engineer path and track in 4 languages (aitrack.js, index.html)
+  "Course language": "Langue du cours",
+  "AI Engineer track": "Parcours AI Engineer",
+  "Build apps with Claude and other AI tools, run them in production and keep improving them. 9 courses and 3 projects, in English, French, Tunisian Arabic or 3arbizi.": "Construisez des applications avec Claude et d’autres outils d’IA, mettez-les en production et améliorez-les sans cesse. 9 cours et 3 projets, en français, en anglais, en tunisien ou en 3arbizi.",
 };

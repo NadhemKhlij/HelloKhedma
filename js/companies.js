@@ -29,6 +29,8 @@ export const SUGGESTED = [
 
 // Job-title words per career path, used by "Only roles for my path" (in addition to the path's job titles).
 const PATH_TITLE_TERMS = {
+  ai: ["ai engineer", "llm engineer", "genai", "generative ai", "ai developer", "machine learning engineer", "ml engineer",
+    "ingenieur ia", "ingenieur intelligence artificielle", "developpeur ia", "prompt engineer", "applied ai", "nlp engineer"],
   de: ["data engineer", "analytics engineer", "data platform", "data infrastructure", "big data", "etl", "data pipeline",
     "ingenieur data", "ingenieur de donnees", "dataops", "data ops", "machine learning engineer", "mlops"],
   da: ["data analyst", "analyste", "business intelligence", "bi analyst", "bi developer", "analytics", "reporting",

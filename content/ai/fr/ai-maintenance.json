@@ -1,0 +1,402 @@
+{
+  "why": "Une app d’IA n’est pas terminée le jour du lancement. Les modèles changent et sont retirés, les utilisateurs écrivent autrement, les données évoluent, et la facture grimpe sans qu’on s’en aperçoive. Les entreprises, en Tunisie comme en Europe, cherchent un AI engineer capable de faire tourner une fonctionnalité six mois et un an après la démo : changer de modèle sans rien casser, améliorer avec des chiffres plutôt qu’à l’intuition, et savoir réagir quand un problème survient. C’est le dernier cours du parcours : le métier qui commence après le lancement.",
+  "outcome": "Vous planifiez une migration de modèle et de SDK en toute sécurité (eval, canary, rollback), versionnez les prompts dans git avec un audit régulier, transformez le feedback des utilisateurs en eval cases, améliorez la qualité et le coût par hill-climbing, gérez un incident en rédigeant un post-mortem et un runbook, et construisez un portfolio qui prouve que vous savez maintenir une app d’IA.",
+  "lessons": [
+    {
+      "title": "Pourquoi une app d’IA change-t-elle toute seule ? Le drift et la maintenance",
+      "text": [
+        "Dans une app classique, si vous ne touchez pas au code, l’app continue de fonctionner à l’identique. Avec un LLM, non. Le jour du lancement, l’eval donne 93 %, et six mois plus tard l’équipe support se plaint que les tickets partent dans la mauvaise file, alors que personne n’a modifié la moindre ligne. C’est ce qu’on appelle le drift : l’app s’éloigne peu à peu du comportement voulu. Ce cours vous apprend à le détecter et à améliorer l’app dans la durée.",
+        "Le drift vient de trois sources. D’abord, les modèles changent. Un nouveau modèle sort, l’ancien devient deprecated, puis un jour il est retiré (retired) et renvoie une 404. Exemple : claude-3-5-sonnet-20241022 a été retiré en octobre 2025. Même d’une génération à l’autre, les valeurs par défaut changent : sur Claude Opus 5, l’effort par défaut est 'high' ; sur Opus 5.5, c’est 'medium'. Si vous n’avez pas fixé l’effort explicitement, le comportement et le coût changent le jour où vous changez l’id.",
+        "Ensuite, les utilisateurs changent. Au départ, les clients écrivent en français, puis beaucoup se mettent à écrire en derja avec des lettres latines, ou posent des questions absentes du prompt (un nouveau produit, une promo du Ramadan). Votre eval set continue de mesurer l’ancien monde. Enfin, les données changent : les prix, la FAQ, le catalogue, les documents du RAG, la réglementation. Un prompt qui dit « la livraison coûte 7 dinars » se met à mentir le jour où le prix change.",
+        "La maintenance en IA ne se limite donc pas à « corriger les bugs ». C’est une routine : surveiller (le monitoring, vu dans le cours sur la production), lire les release notes du fournisseur, relancer l’eval (vue dans le cours sur les evals) après chaque changement, collecter le feedback et améliorer pas à pas. Première condition : tout ce qui peut changer (model id, effort, version du prompt, eval set) est écrit à un seul endroit, dans git, et non éparpillé dans dix fichiers.",
+        "Pensez à une voiture : on n’attend pas que le moteur lâche pour faire la vidange. Fixez un calendrier : triage du feedback chaque semaine, lecture des notes de migration et eval à chaque nouveau modèle, prompt audit chaque trimestre. Et chaque élément a un responsable et un suppléant, pour que l’app ne se retrouve pas orpheline quand quelqu’un part en congé ou change de poste."
+      ],
+      "points": [
+        "Drift = l’app change sans que vous changiez le code : le modèle, les utilisateurs, les données.",
+        "Le model id est figé (par exemple 'claude-opus-5-5', sans date) et ne change que par une PR relue.",
+        "Fixez l’effort explicitement : la valeur par défaut varie d’un modèle à l’autre.",
+        "Maintenance = calendrier + responsable + eval, et non une réaction quand quelque chose casse."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# ai_config.yaml - everything that can drift lives in one reviewed file\napp: support-tickets\nmodel:\n  id: claude-opus-5-5        # pinned id, changed only through a reviewed PR\n  effort: medium             # set explicitly: the default differs between models\n  max_tokens: 16000\nprompt:\n  file: prompts/ticket_system.md\n  version: \"2026-10-30.1\"    # logged with every request\neval:\n  set: evals/tickets_v4.jsonl  # anonymised real messages with the expected ticket\n  min_accuracy: 0.92           # a release below this score is blocked\n  last_run: \"2026-11-02\"\nroutine:\n  feedback_triage: weekly\n  migration_notes: every model release\n  prompt_audit: every model release and every quarter\nowners:\n  primary: ines\n  backup: karim",
+        "note": "Ce format n’est pas un standard : c’est un exemple. L’important, c’est que l’app lise le modèle et la version du prompt dans un seul fichier relu, et que toute modification de ce fichier passe par une eval."
+      }
+    },
+    {
+      "title": "Migration de modèle : changer de modèle sans rien casser",
+      "text": [
+        "Pourquoi changer de modèle ? Parfois parce que le nouveau est meilleur et moins cher : Claude Opus 5.5 coûte $4 / $20 par million de tokens, contre $5 / $25 pour Opus 5, et fait le même travail avec moins de tokens. Parfois parce que l’ancien va être retiré. Mais une migration est un changement en production comme un autre : le nouveau modèle peut refuser ce que l’ancien acceptait, répondre plus longuement, ou renvoyer une 400 sur des paramètres qui fonctionnaient.",
+        "Première étape : lire les notes de migration du fournisseur. Anthropic classe les changements en deux catégories : [BLOCKS], qui provoquent une 400 ou une boucle cassée si vous les oubliez, et [TUNE], qui touchent la qualité ou le coût. Exemple Opus 5 -> Opus 5.5 : thinking={'type': 'disabled'} et budget_tokens renvoient une 400 (le thinking est toujours actif, le réglage passe par l’effort) ; tool_choice 'any' ou 'tool' renvoie une 400 (utilisez 'auto' + strict: true, indiquez l’outil dans le prompt et vérifiez que l’appel a bien eu lieu) ; l’effort par défaut est passé à 'medium' ; un classifieur de sécurité (bio) a été ajouté, il faut donc gérer les refus ; enfin, changer de modèle invalide le cache (la première requête le réécrit).",
+        "Deuxième étape : le code dans une branche, et l’eval relancée sur les deux modèles avec les mêmes cas : score, coût par tâche, latence, taux de refus. Méfiez-vous des changements qui ne provoquent aucune erreur : par exemple, de Haiku 4.5 à Haiku 5.5, le même texte donne environ 30 % de tokens en plus (nouveau tokenizer). Relancez count_tokens sur le nouveau modèle, vérifiez max_tokens et mettez à jour la baseline des dashboards avant que quelqu’un ne s’affole. Par ailleurs, temperature et le prefill renvoient une 400 sur Haiku 5.5.",
+        "Troisième étape : un déploiement progressif. Le shadow : le nouveau modèle reçoit une copie du trafic réel en arrière-plan, l’utilisateur ne voit que la réponse de l’ancien, et vous comparez. Le canary : 5 % des requêtes reçoivent vraiment la réponse du nouveau, vous suivez les chiffres, puis 25 %, 50 %, 100 %. Dans une conversation, gardez le même modèle du début à la fin : le cache est propre à chaque modèle, et les thinking blocks d’un modèle ne sont pas toujours lisibles par un autre.",
+        "Quatrième étape : un rollback prêt à l’emploi. L’ancien modèle reste dans la config jusqu’à ce que vous soyez sûr, et revenir en arrière = changer un flag (CANARY_SHARE = 0), sans redéploiement. Enregistrez aussi response.model dans les logs : il indique quel modèle a réellement répondu, et non ce que vous avez écrit dans la config. Une fois la migration terminée, faites un prompt audit (leçon 4) et un effort sweep (leçon 6) sur le nouveau modèle : chacun dans sa propre PR."
+      ],
+      "points": [
+        "Les [BLOCKS] se corrigent avant le déploiement ; les [TUNE] se testent sur l’eval.",
+        "Un seul changement à la fois : d’abord le modèle, puis le réglage du prompt dans une PR séparée.",
+        "Enregistrez response.model dans les logs pour comparer les groupes du canary.",
+        "Le shadow double le coût tant qu’il tourne : fixez une durée et un budget dès le départ."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import random\n\nimport anthropic\n\nclient = anthropic.Anthropic()\n\nSTABLE = {\"model\": \"claude-opus-5\", \"effort\": \"high\"}\nCANDIDATE = {\"model\": \"claude-opus-5-5\", \"effort\": \"medium\"}  # set effort explicitly, then sweep it\nCANARY_SHARE = 0.05  # 5% of requests; set it to 0.0 to roll back without a deploy\n\n\ndef pick_config():\n    # Fine for one-shot requests; a conversation must stay on one model from start to end\n    return CANDIDATE if random.random() < CANARY_SHARE else STABLE\n\n\ndef classify(message):\n    cfg = pick_config()\n    response = client.messages.create(\n        model=cfg[\"model\"],\n        max_tokens=16000,  # thinking counts toward max_tokens\n        output_config={\"effort\": cfg[\"effort\"]},\n        # Removed during the migration (both return 400 on claude-opus-5-5):\n        #   thinking={\"type\": \"disabled\"}\n        #   tool_choice={\"type\": \"tool\", \"name\": \"...\"}\n        system=\"Classify the customer message: billing, network, sales or other. Answer with one word.\",\n        messages=[{\"role\": \"user\", \"content\": message}],\n    )\n    # Log which model really answered, to compare the two groups on the dashboard\n    print(\"served_by\", response.model, \"stop\", response.stop_reason,\n          \"out_tokens\", response.usage.output_tokens)\n    if response.stop_reason == \"refusal\":\n        return None  # handle refusals before reading the content\n    return \"\".join(b.text for b in response.content if b.type == \"text\").strip()",
+        "note": "Le tirage aléatoire par requête convient à la classification. Pour un chatbot, choisissez le groupe par utilisateur ou par conversation, et gardez-le fixe."
+      }
+    },
+    {
+      "title": "Le SDK et la version de l’API : des mises à jour sans surprise",
+      "text": [
+        "Trois éléments ont chacun leur propre version : le modèle, le SDK (le package 'anthropic' installé avec pip install) et la version de l’API (le header 'anthropic-version' que le SDK envoie avec chaque requête). Chaque mise à jour a ses propres breaking changes. Ne les mélangez pas dans la même PR : si quelque chose casse, vous saurez d’où ça vient.",
+        "Le SDK : figez la version dans requirements.txt (par exemple 'anthropic>=1,<2') et dans le lockfile, et faites la mise à jour délibérément, dans une branche, après avoir lu le changelog ou le MIGRATION.md du SDK. Un exemple réel : le SDK Python de 0.x à 1.x. Il exige Python 3.10 ou plus. La couche HTTP est passée à httpx2 (cela ne compte que si vous passez des objets httpx au SDK, par exemple un transport personnalisé, et des mocks comme respx peuvent ne plus voir le trafic). client.completions.create (l’ancienne API Text Completions) a été supprimé : il faut messages.create. temperature, top_p et top_k ne sont plus acceptés (TypeError). Et output_format={...} sous forme de dict devient output_config={'format': {...}} ; en revanche, output_format=Model avec parse reste.",
+        "La version de l’API est une date dans le header. Anthropic publie les breaking changes de l’API dans une nouvelle version, et votre code migre quand il est prêt. Version '2026-10-21' : temperature, top_p et top_k renvoient une 400 sur tous les modèles, même avec la valeur par défaut ; un bloc 'document' placé directement dans un message 'assistant' renvoie une 400 ; et un bloc 'text' contenant 'citations' dans un message 'user' renvoie une 400. Attention : le SDK Python 2.0.0 envoie '2026-10-21' par défaut, donc passer en 2.x change aussi la version de l’API. Les batches créés auparavant se terminent avec l’ancienne version.",
+        "La méthode : un inventaire avec grep (temperature, completions.create, output_format, httpx), le tri de chaque résultat (parfois 'temperature' est une variable de capteur : n’y touchez pas), les corrections, un type checker (pyright ou mypy trouve la plupart des appels), les tests, et pour finir une petite requête réelle (max_tokens réduit, car elle est facturée). Si le serveur de production est encore en Python 3.9, c’est une décision d’équipe : pip continuera d’installer la dernière 0.x sans rien vous dire.",
+        "Pour ne pas accumuler de retard : laissez un outil comme Dependabot ou Renovate ouvrir des PR de mise à jour, mais n’activez jamais l’auto-merge sur une version majeure. Une petite mise à jour chaque mois est bien plus simple qu’un saut de deux ans en une seule journée, le jour où l’ancien modèle est retiré et où vous êtes sous pression."
+      ],
+      "points": [
+        "Modèle, SDK, version de l’API : trois mises à jour distinctes, chacune dans sa propre PR.",
+        "pip index versions anthropic affiche les versions publiées avant que vous n’écriviez le pin.",
+        "Figez la version de Python dans la CI : en 3.9, pip reste silencieusement sur la 0.x.",
+        "Après la mise à jour, un smoke test : response.model, stop_reason et parsing de la sortie."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# requirements.txt - pin the major version and upgrade on purpose, in a branch:\n#   anthropic>=1,<2\nimport anthropic\n\nclient = anthropic.Anthropic()\nprint(\"anthropic SDK\", anthropic.__version__)\n\nSCHEMA = {\n    \"type\": \"object\",\n    \"properties\": {\"category\": {\"type\": \"string\", \"enum\": [\"billing\", \"network\", \"sales\", \"other\"]}},\n    \"required\": [\"category\"],\n    \"additionalProperties\": False,\n}\n\n# Before (SDK 0.x, older model):\n# client.beta.messages.create(\n#     model=\"claude-sonnet-4-6\", max_tokens=1024, temperature=0.2,\n#     output_format={\"type\": \"json_schema\", \"schema\": SCHEMA},\n#     messages=[...],\n# )\n\n# After (SDK 1.x): no sampling parameters, the schema moves into output_config\nresponse = client.messages.create(\n    model=\"claude-sonnet-5-5\",\n    max_tokens=2048,\n    output_config={\"effort\": \"low\", \"format\": {\"type\": \"json_schema\", \"schema\": SCHEMA}},\n    messages=[{\"role\": \"user\", \"content\": \"El facture mte3i ghalta, 5allast zouz marrat\"}],\n)\n\n# Smoke test after the upgrade: the right model answered and the output is usable\nassert response.model.startswith(\"claude-sonnet-5-5\"), response.model\nassert response.stop_reason == \"end_turn\", response.stop_reason\nprint(next(b.text for b in response.content if b.type == \"text\"))",
+        "note": "Le message de l’exemple est écrit en derja en lettres latines, comme l’écrivent les clients. Le smoke test est facturé : gardez-le petit et ne le lancez pas à chaque commit."
+      }
+    },
+    {
+      "title": "Les prompts dans git : versioning, review et prompt audit",
+      "text": [
+        "Un prompt, c’est du code : il modifie le comportement du produit autant qu’un changement de fonction. Pourtant, beaucoup d’équipes le laissent sous forme de chaîne au milieu d’un fichier Python, ou dans un panneau d’administration que chacun modifie en production. Résultat : personne ne sait quel prompt a donné quelle réponse, et les bugs deviennent impossibles à expliquer.",
+        "Les règles : chaque prompt dans son propre fichier (prompts/ticket_system.md), dans git. Toute modification passe par une PR, relue par quelqu’un d’autre, avec le résultat de l’eval dans la description de la PR. Chaque version a un id (date + numéro) enregistré avec chaque requête (prompt_version, model, request_id) : face à une mauvaise réponse, vous retrouvez le prompt exact. Un CHANGELOG explique pourquoi il a changé et ce qu’est devenu le score. Le rollback devient simple : vous revenez à la version précédente dans la config.",
+        "Le prompt audit : les prompts accumulent des instructions écrites pour d’anciens modèles. Les modèles actuels suivent les instructions plus à la lettre, si bien que les vieilles béquilles deviennent nuisibles. Ce qu’il faut chercher : le langage de pression ('CRITICAL', 'MUST', 'NEVER' en majuscules, '!!!'), qui pousse le modèle à en faire trop (over-triggering) : dites-le normalement, une seule fois, avec la raison. Les échafaudages remplacés par des fonctionnalités : « think step by step » ou '<scratchpad>' deviennent adaptive thinking + effort ; « réponds uniquement en JSON » + prefill + retry deviennent les structured outputs. Les fossiles : contournements pour un modèle retiré, « rappel » répété à chaque tour, et limites du type « 50 mots maximum » qui étouffent le raisonnement.",
+        "Ce qu’il faut garder : le contexte que vous seul connaissez : le public, le produit, les règles métier avec leurs raisons (plafond de remboursement, règles sur les données) et le contrat des tools. La question à poser pour chaque ligne : « le modèle peut-il le savoir seul ? » Si non, gardez-la. Et supprimer est une hypothèse, pas une conclusion : retirez une ligne ou un bloc, relancez l’eval, et si le score baisse, remettez-le sous une forme plus simple. Avant de supprimer, faites un grep sur le texte complet : des tests ou des log parsers s’appuient parfois dessus.",
+        "Qui relit ? Un développeur + une personne du métier (un responsable support, par exemple) pour la formulation et les règles. En Tunisie, les équipes sont petites, et il arrive que vous soyez seul : même dans ce cas, ouvrez une PR pour vous-même et laissez la CI lancer l’eval. Refaites aussi le prompt audit à chaque nouveau modèle : les prompts sont des artefacts propres à un modèle, et ce dont une génération a besoin peut être superflu pour la suivante."
+      ],
+      "points": [
+        "Enregistrez prompt_version avec chaque requête : sans lui, aucun bug ne s’explique.",
+        "Un prompt audit à chaque nouveau modèle et chaque trimestre.",
+        "Retirez un seul élément à la fois et mesurez ; si le score baisse, remettez-le en plus simple.",
+        "Le CHANGELOG dit pourquoi, et pas seulement ce qui a changé."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# prompts/CHANGELOG.md\n\n## 2026-10-30.1 - ticket_system.md (PR #212, reviewed by Karim)\nWhy: prompt audit after the move to claude-opus-5-5.\n- Removed: \"CRITICAL: You MUST ALWAYS answer in valid JSON!!!\"\n  -> the JSON shape is enforced by output_config.format (structured outputs).\n- Removed: \"Think step by step before answering.\"\n  -> thinking is always on; its depth is set with effort, not with prose.\n- Rewritten: \"NEVER invent an order id\" -> \"Use null when the message has no order id:\n  agents search orders by this field, and a wrong id opens another customer's order.\"\n- Kept: refunds above 50 TND go to a human (business rule, with its reason).\nEval (test split): accuracy 0.93 -> 0.94, cost per ticket -6%.\n\n## 2026-09-12.2 - ticket_system.md (PR #188, reviewed by Ines)\nWhy: weekly triage found 14 Derja messages in Latin letters sent to 'other'.\n- Added three varied examples in Latin-letter Derja, labelled as illustrative.\nEval (test split): accuracy 0.90 -> 0.93.",
+        "note": "Chaque entrée indique la raison, la PR, le relecteur et l’effet sur l’eval. La règle de remboursement reste, car c’est une règle métier et non une béquille pour le modèle."
+      }
+    },
+    {
+      "title": "Le feedback des utilisateurs et les logs : d’une erreur à un eval case",
+      "text": [
+        "Les meilleurs eval cases viennent de la production : de vrais messages, de vraies erreurs. L’eval set écrit le jour du lancement mesure ce que vous aviez imaginé ; la production montre ce que font réellement les utilisateurs. Le travail : repérer les erreurs, les comprendre et les transformer en tests pour qu’elles ne reviennent pas.",
+        "Les sources : le feedback explicite (pouce levé / pouce baissé à côté de la réponse, bouton « signaler ») et le feedback implicite : l’agent du support corrige la catégorie (le signal le plus fort, car il contient la bonne réponse), l’utilisateur repose la même question, demande un humain ou quitte la conversation. Et les logs : stop_reason 'refusal' ou 'max_tokens', JSON rejeté par la validation, retries nombreux, latence élevée, requête au coût anormal. Enregistrez request_id, prompt_version, model et les tokens ; le texte complet de l’utilisateur seulement si vous en avez vraiment besoin.",
+        "Le triage hebdomadaire : prenez un échantillon : tous les pouces baissés + 50 conversations au hasard (la plupart des utilisateurs ne disent rien quand la réponse est fausse). Lisez, et attribuez à chaque erreur une failure category : mauvaise catégorie, numéro de commande inventé, mauvaise langue, refus d’une demande normale, réponse trop longue, information périmée (FAQ non mise à jour). Comptez les erreurs par catégorie : la plus grosse est votre prochain chantier. Gardez une liste de catégories stable pour comparer semaine après semaine, et n’en ajoutez une que si c’est vraiment nécessaire.",
+        "D’une erreur à un eval case : l’anonymisation (en Tunisie, les numéros de téléphone et de CIN ont tous deux 8 chiffres, sans oublier les e-mails), la bonne réponse issue de la correction humaine, des tags (failure type, langue) et une source. Les regex ne sont pas parfaites : faites relire les nouveaux cas par un humain avant qu’ils n’entrent dans l’eval set. Et les nouveaux cas sont répartis au hasard entre train et test (leçon 6), et non tous du même côté.",
+        "La confidentialité : les messages des utilisateurs sont des données personnelles. Indiquez dans la politique de confidentialité que le feedback peut servir à améliorer le service, conservez les données brutes le moins longtemps possible et supprimez-les après anonymisation. C’est exigé par la loi tunisienne sur la protection des données personnelles, et par le RGPD si vous avez des utilisateurs en Europe. Un eval set sans données personnelles peut être partagé avec l’équipe et versionné dans git sans crainte."
+      ],
+      "points": [
+        "La correction d’un humain = le meilleur label : elle contient la bonne réponse.",
+        "Prenez aussi un échantillon aléatoire, pas seulement les pouces baissés.",
+        "Des failure categories stables permettent de comparer semaine après semaine.",
+        "Pas de données personnelles dans l’eval set : il est partagé, commité et envoyé à l’API."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import json\nimport re\n\n# Tunisian phone numbers and CIN numbers both have 8 digits: mask any 8-digit number\nEIGHT_DIGITS = re.compile(r\"(?<!\\d)(?:\\+216\\s?)?\\d{2}\\s?\\d{3}\\s?\\d{3}(?!\\d)\")\nEMAIL = re.compile(r\"[\\w.+-]+@[\\w-]+\\.[\\w.]+\")\n\n\ndef anonymize(text):\n    text = EMAIL.sub(\"<email>\", text)\n    return EIGHT_DIGITS.sub(\"<number>\", text)\n\n\ndef feedback_to_cases(feedback_path, eval_path):\n    \"\"\"Turn answers corrected by the support team into new eval cases.\"\"\"\n    added = 0\n    with open(feedback_path, encoding=\"utf-8\") as src, \\\n            open(eval_path, \"a\", encoding=\"utf-8\") as out:\n        for line in src:\n            fb = json.loads(line)\n            # Keep only the cases where a human gave the right answer\n            if fb[\"rating\"] != \"down\" or not fb.get(\"corrected_category\"):\n                continue\n            case = {\n                \"id\": f\"fb-{fb['request_id']}\",\n                \"input\": anonymize(fb[\"message\"]),\n                \"expected\": {\"category\": fb[\"corrected_category\"]},\n                \"tags\": [fb.get(\"failure_type\", \"untriaged\"), fb[\"language\"]],\n                \"source\": \"user_feedback\",\n            }\n            out.write(json.dumps(case, ensure_ascii=False) + \"\\n\")\n            added += 1\n    return added\n\n\nprint(feedback_to_cases(\"feedback_2026-11-03.jsonl\", \"evals/new_cases.jsonl\"), \"new cases to review\")",
+        "note": "Le script écrit dans new_cases.jsonl et non directement dans l’eval set : un humain vérifie l’anonymisation et la réponse, puis ajoute les cas."
+      }
+    },
+    {
+      "title": "La boucle d’amélioration : hill-climbing, coût et performance",
+      "text": [
+        "Améliorer sans eval, c’est changer et espérer. Le hill-climbing : vous lancez l’eval, lisez les échecs, changez une seule chose, relancez, gardez le changement seulement s’il améliore le résultat et l’annulez sinon, puis recommencez jusqu’à ce que le score plafonne ou que le budget soit épuisé. L’objectif peut être d’augmenter la qualité, ou de réduire le coût ou la latence à qualité constante.",
+        "Le split : train (vous lisez ses transcripts) et test (vous ne le lisez jamais, vous le mesurez seulement). Le split est aléatoire, stratifié par tags (langue, catégorie), et jamais fondé sur le score. Pourquoi ? En lisant les échecs, vous corrigez précisément ces cas, et le score sur eux monte sans que l’app progresse réellement. Le chiffre que vous annoncez est l’écart sur le test entre la baseline et la version finale. Et généralisez : décrivez le comportement fautif, ne collez pas dans le prompt des mots tirés des cas de train.",
+        "Le bruit : pour un pass rate, la marge (95 %) vaut environ 1/sqrt(n x reps) : 25 test cases avec 2 reps donnent environ ±14 points, 50 avec 2 environ ±10. Donc +2 points sur 25 cas, c’est du bruit. D’où : des changements assez importants pour être visibles (une section entière, une nouvelle règle, pas un mot), plus de cas ou de reps, et plateau = 3 rounds sans gain. À chaque round : un seul changement, le jeu complet relancé, et une ligne dans un tableau (round, changement, test, train, coût/tâche). Vérifiez aussi response.model : le modèle que vous comptez doit être celui qui a répondu.",
+        "Le coût : mesurez-le par tâche réussie, pas par token : un modèle bon marché qui se trompe paie le retry et l’humain qui corrige. Les leviers, dans l’ordre. Les premiers ne dégradent pas la qualité : le caching (il reste toujours actif ; surveillez cache_read_input_tokens, comme dans le cours sur l’API Claude), un input plus léger (prompt audit, gros documents derrière un tool), l’output (max_tokens est une protection, pas un réglage ; réduisez la longueur avec un format clair), et la Batches API pour le travail que personne n’attend (50 %, cumulable avec le caching). Viennent ensuite les compromis : un effort sweep avant de toucher au modèle, et le modèle en dernier. Et avant de descendre vers un modèle plus petit, vérifiez s’il existe un modèle plus récent du même niveau avec un effort plus faible : c’est parfois le moins cher par tâche.",
+        "Chaque levier dans son propre diff : s’il fait économiser de l’argent mais baisser l’accuracy, ce n’est pas une optimisation, annulez-le. Mesurez aussi la queue de distribution : les 10 % de cas les plus difficiles sont ceux où part l’argent et où le modèle bon marché se trompe. Et après chaque migration, refaites l’effort sweep à partir de la valeur par défaut du nouveau modèle ; ne reprenez pas l’ancien niveau."
+      ],
+      "points": [
+        "Train = lire ; test = mesurer. Le score annoncé vient toujours du test.",
+        "Un seul changement par round, pour savoir ce qui a fait la différence.",
+        "Caching, input, output, batch d’abord ; puis l’effort ; le modèle en dernier.",
+        "max_tokens protège d’une réponse sans fin ; ce n’est pas un outil pour réduire le coût."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "import json\nimport random\n\nimport anthropic\n\nclient = anthropic.Anthropic()\nPRICES = {\"claude-opus-5-5\": (4.00, 20.00), \"claude-sonnet-5-5\": (2.00, 10.00)}  # USD per 1M tokens\n\nwith open(\"evals/tickets_v4.jsonl\", encoding=\"utf-8\") as f:\n    cases = [json.loads(line) for line in f]\n\n# Fixed seed: the same random split every round. You read train failures, you report test.\nrng = random.Random(42)\nrng.shuffle(cases)\ncut = len(cases) // 2\ntrain, test = cases[:cut], cases[cut:]\n\n\ndef run(cases, system, model, effort):\n    passed, cost = 0, 0.0\n    for case in cases:\n        r = client.messages.create(\n            model=model,\n            max_tokens=4000,\n            system=system,\n            output_config={\"effort\": effort},\n            messages=[{\"role\": \"user\", \"content\": case[\"input\"]}],\n        )\n        if r.stop_reason == \"end_turn\":  # a refusal or a cut-off answer counts as a failure\n            answer = \"\".join(b.text for b in r.content if b.type == \"text\").strip()\n            passed += answer == case[\"expected\"][\"category\"]\n        p_in, p_out = PRICES[model]\n        cost += (r.usage.input_tokens * p_in + r.usage.output_tokens * p_out) / 1_000_000\n    return passed / len(cases), cost / len(cases)\n\n\nwith open(\"prompts/ticket_system.md\", encoding=\"utf-8\") as f:\n    SYSTEM = f.read()\n\n# One change per round: here only effort moves, the prompt and the model stay frozen\nfor effort in [\"medium\", \"low\"]:\n    acc_train, _ = run(train, SYSTEM, \"claude-opus-5-5\", effort)\n    acc_test, cost = run(test, SYSTEM, \"claude-opus-5-5\", effort)\n    print(f\"{effort}: train={acc_train:.2f} test={acc_test:.2f} cost/task=${cost:.5f}\")",
+        "note": "Le coût est calculé ici sans cache pour garder le code court. Chaque run est facturé : estimez le budget à l’avance (nombre de cas x configs x coût par tâche) et utilisez la Batches API pour les gros sweeps."
+      }
+    },
+    {
+      "title": "Les incidents, le post-mortem et la documentation",
+      "text": [
+        "Un incident sur une fonctionnalité d’IA ne produit parfois aucune erreur 500 : tout renvoie 200, mais les réponses sont fausses. Les types : sorties dégradées (plus d’hallucinations, mauvaise langue, tous les tickets envoyés dans 'other'), panne ou surcharge (5xx, 529, timeouts), hausse des refus après un changement de modèle, coût qui s’envole d’un coup (boucle qui ne s’arrête pas, cache cassé), et sécurité (la prompt injection, vue dans le cours sur la production).",
+        "Pour les détecter : des alertes sur les signaux de qualité, pas seulement sur les erreurs : la distribution des catégories, le taux de refus, le taux de JSON rejeté, le taux de pouces baissés, le coût horaire, la latence p95. Et très souvent, quelqu’un au support remarque le problème avant le dashboard : donnez-lui un canal clair pour le signaler.",
+        "Quand ça arrive : d’abord atténuer, ensuite comprendre. Les leviers doivent être prêts avant l’incident : un rollback du prompt ou du modèle via un flag de config ; un kill switch qui coupe la fonctionnalité et sert un fallback (un message « un conseiller va vous répondre », ou une file vers un humain) ; et, pour les pannes, des retries et un second modèle si vous l’avez prévu. Communiquez : dites à l’équipe support ce qui se passe. Ensuite, réparez les données (par exemple, reclassez les tickets erronés avec un batch).",
+        "Le post-mortem blameless : chronologie, impact, root cause, ce qui a bien marché et ce qui a moins bien marché, et des actions, chacune avec un responsable et une date. On ne cherche pas qui s’est trompé : on cherche la faille dans le process. En IA, l’action la plus importante : l’incident devient des eval cases et une alerte, pour que la même erreur ne puisse plus passer dans une PR.",
+        "La documentation et la passation : un RUNBOOK.md qui décrit l’architecture, l’emplacement des prompts, les model ids et la raison de leur choix, comment lancer l’eval, les dashboards et les alertes, comment faire un rollback, les noms des secrets (jamais leurs valeurs), le coût et les limites, et les responsables. Plus un decisions log (« pourquoi Sonnet et pas Opus pour les tickets », avec les chiffres de l’eval). Lors de la passation, la nouvelle personne fait un rollback d’essai de ses propres mains. Et si vous êtes freelance, livrer un runbook avec le projet donne confiance au client et lui donne envie de revenir vers vous."
+      ],
+      "points": [
+        "Atténuer avant la root cause : revenez à la version qui marche, puis comprenez.",
+        "Un rollback jamais testé n’est pas un rollback : testez-le une fois par trimestre.",
+        "Chaque incident laisse derrière lui des eval cases et une alerte.",
+        "Le runbook contient les noms des secrets, jamais leurs valeurs."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# Post-mortem: wrong ticket categories after a prompt change (2026-10-14)\n\nSeverity: medium - no data leak, about 900 tickets sent to the wrong queue\nDuration: 09:40 -> 11:05 (85 minutes)\n\n## Timeline\n- 09:10 Prompt 2026-10-14.1 deployed (PR #201: \"shorter system prompt\")\n- 09:40 Support lead: \"everything goes to 'other'\"; dashboard: 'other' 6% -> 41%\n- 09:52 Rollback: PROMPT_VERSION=2026-10-02.3 (config flag, no redeploy)\n- 10:05 'other' back to 7%; misrouted tickets re-classified with a batch job\n- 11:05 Incident closed\n\n## Root cause\nThe PR removed the definitions of the categories, judged \"too long\".\nThe eval still passed: tickets_v3 had only 4 'payment' cases.\n\n## What went well / what went badly\n- Rollback in 12 minutes thanks to the version flag.\n- No alert on the category distribution: a human noticed first.\n\n## Actions (owner, date)\n- [ ] Add 40 anonymised 'payment' cases to the eval (Ines, 2026-10-21)\n- [ ] Alert when one category moves more than 15 points in an hour (Karim, 2026-10-24)\n- [ ] Prompt PRs show the eval score per category, not only the total (Ines, 2026-10-28)",
+        "note": "Aucun nom de personne dans la root cause : le problème venait d’une eval qui n’avait que 4 cas 'payment', et de l’absence d’alerte."
+      }
+    },
+    {
+      "title": "Votre parcours d’AI engineer : portfolio, veille et apprentissage continu",
+      "text": [
+        "Vous voici au bout du parcours : des tokens et du premier appel aux prompts, à l’API, aux agents, au RAG, aux evals, à la production, et maintenant à la maintenance. Ce qui distingue un junior qui est recruté d’un autre qui ne l’est pas, ce n’est pas le nombre de démos : c’est la preuve qu’il sait mesurer, maintenir et améliorer. Les recruteurs, en Tunisie comme en Europe, demandent « comment savez-vous que ça marche ? » et « que faites-vous quand le modèle change ? ». Vous avez désormais une réponse.",
+        "Le portfolio : 2 ou 3 projets complets, chacun avec un eval set et des chiffres, le coût par tâche, un CHANGELOG qui montre les itérations (v1 -> v4), un README avec les limites, et une section « comment il est maintenu ». Un petit projet sur lequel vous avez travaillé pendant des mois (changement de modèle, cas ajoutés depuis le feedback, coût réduit) vaut plus que 10 démos. Et le multilingue derja / français / arabe est un véritable atout : les entreprises européennes ont rarement ces données et cette compréhension.",
+        "La veille : l’IA change tous les mois. Les sources de référence : la documentation officielle, les release notes et les guides de migration des fournisseurs (Anthropic, OpenAI, Google, Mistral...) et le changelog des SDK. La méthode : quand un nouveau modèle sort, lancez votre eval sur vos projets avant de croire les benchmarks et le battage médiatique. Une demi-heure de lecture par semaine et une expérience par mois suffisent pour rester à jour. Et méfiez-vous des vieux tutoriels : temperature et le prefill ne fonctionnent plus sur les nouveaux modèles.",
+        "Les débouchés : AI engineer dans une équipe produit, LLMOps ou plateforme, freelance (automatisation, intégrations, chatbots), conseil auprès des PME tunisiennes, ou télétravail pour une entreprise européenne. Approfondissez les bases : Python et le software engineering (tests, CI), SQL, le cloud, l’évaluation, la sécurité. Et les soft skills : expliquer les limites au client, écrire clairement, estimer le coût avant de commencer. En entretien, préparez l’histoire d’une vraie erreur et de la façon dont vous l’avez mesurée et corrigée : elle convainc bien davantage que « tout s’est bien passé ».",
+        "L’apprentissage ne s’arrête jamais. Partagez ce que vous apprenez : un article en derja, en français ou en anglais, une courte intervention dans un meetup, une contribution open source (documentation, petit correctif), et aidez les juniors qui viennent après vous : expliquer quelque chose à quelqu’un est la meilleure façon de le comprendre. Un plan sur 90 jours : le premier mois, un projet + une eval ; le deuxième, déploiement + logs + boucle de feedback ; le troisième, une migration ou une optimisation du coût documentée dans le CHANGELOG + un article. Félicitations pour ce parcours, et maintenant, lancez-vous."
+      ],
+      "points": [
+        "Portfolio = projets mesurés : score, coût, limites et historique des améliorations.",
+        "Un nouveau modèle est sorti ? Lancez votre eval avant de croire les benchmarks.",
+        "La documentation officielle et les release notes avant les vidéos.",
+        "Apprenez en partageant : article, talk, contribution open source, mentorat."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# derja-ticket-router\n\nRoutes customer messages (Tunisian Derja in Arabic or Latin letters, French, Arabic)\nto the right support queue with the Claude API.\n\n## Results (eval: 200 anonymised messages, scores on the 100-case test split)\n| Version | Model / effort | Accuracy | Cost per 1000 messages |\n|---|---|---|---|\n| v1 | claude-opus-5-5 / medium | 0.88 | $2.10 |\n| v3 | claude-opus-5-5 / medium + Derja examples | 0.94 | $2.30 |\n| v4 | claude-haiku-5-5 / low | 0.93 | $0.09 |\n\n## How it is maintained\n- Model id, effort and prompt version live in config.yaml; every change is a PR with an eval run\n- Every week, answers flagged by users become new eval cases (personal data masked)\n- CHANGELOG.md lists every prompt change and its effect on the score\n\n## Limits\n- Messages mixing Derja and French slang are still the weakest group (0.86)\n- No message text is stored: logs keep request ids, versions and token counts\n\n## Run it\npip install -r requirements.txt, set ANTHROPIC_API_KEY in the environment, then: python -m router.eval",
+        "note": "Les chiffres de ce README sont un exemple. Dans votre projet, chaque chiffre doit provenir d’un run réel que vous pouvez reproduire."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Le drift et la config",
+      "items": [
+        [
+          "model='claude-opus-5-5'",
+          "Id figé sans date, modifié uniquement par une PR relue"
+        ],
+        [
+          "output_config={'effort': 'medium'}",
+          "À fixer explicitement : la valeur par défaut varie selon les modèles"
+        ],
+        [
+          "response.model",
+          "Le modèle qui a réellement répondu, pour les logs"
+        ],
+        [
+          "ai_config.yaml",
+          "Le modèle, la version du prompt et l’eval au même endroit"
+        ]
+      ]
+    },
+    {
+      "group": "Migration de modèle",
+      "items": [
+        [
+          "[BLOCKS] / [TUNE]",
+          "Changement qui donne une 400 ou une boucle cassée / changement de qualité ou de coût"
+        ],
+        [
+          "thinking={'type': 'disabled'} sur Opus 5.5",
+          "Renvoie une 400 : retirez-le et réglez avec l’effort"
+        ],
+        [
+          "tool_choice 'any' / 'tool' sur Opus 5.5",
+          "Renvoie une 400 : 'auto' + strict: true + consigne dans le prompt"
+        ],
+        [
+          "shadow",
+          "Le nouveau modèle tourne en parallèle ; l’utilisateur ne voit pas sa réponse"
+        ],
+        [
+          "canary 5% -> 25% -> 100%",
+          "Une part croissante du trafic reçoit le nouveau modèle, par paliers"
+        ],
+        [
+          "CANARY_SHARE = 0.0",
+          "Rollback par flag, sans redéploiement"
+        ]
+      ]
+    },
+    {
+      "group": "Le SDK et la version de l’API",
+      "items": [
+        [
+          "anthropic>=1,<2",
+          "Figer la version majeure dans requirements.txt"
+        ],
+        [
+          "anthropic.__version__",
+          "La version du SDK installé"
+        ],
+        [
+          "anthropic-version: 2026-10-21",
+          "Nouvelle version de l’API : temperature, top_p, top_k renvoient une 400"
+        ],
+        [
+          "output_format={...} -> output_config={'format': {...}}",
+          "SDK 1.x : le schéma passe dans output_config"
+        ],
+        [
+          "client.completions.create",
+          "Supprimé dans le SDK 1.x : utilisez messages.create"
+        ]
+      ]
+    },
+    {
+      "group": "Les prompts",
+      "items": [
+        [
+          "prompts/*.md dans git",
+          "Un fichier par prompt, une PR par changement"
+        ],
+        [
+          "prompt_version dans les logs",
+          "Retrouver le prompt qui a donné la réponse"
+        ],
+        [
+          "CHANGELOG.md",
+          "Pourquoi il a changé et l’effet sur l’eval"
+        ],
+        [
+          "prompt audit",
+          "Retirer CRITICAL/MUST, « think step by step », prefill, fossiles"
+        ]
+      ]
+    },
+    {
+      "group": "Le feedback et la boucle d’amélioration",
+      "items": [
+        [
+          "thumbs down + correction",
+          "Le meilleur eval case : il contient la bonne réponse"
+        ],
+        [
+          "failure categories",
+          "Un classement stable des erreurs : vous savez où travailler"
+        ],
+        [
+          "train / test split",
+          "Le train se lit, le test se mesure seulement"
+        ],
+        [
+          "1/sqrt(n x reps)",
+          "Marge approximative d’un pass rate (95 %)"
+        ],
+        [
+          "Un seul changement par round",
+          "Savoir ce qui a fait la différence"
+        ]
+      ]
+    },
+    {
+      "group": "Le coût, les incidents et la doc",
+      "items": [
+        [
+          "cost per completed task",
+          "Et non le coût par token"
+        ],
+        [
+          "caching -> input -> output -> batch -> effort -> model",
+          "L’ordre des leviers"
+        ],
+        [
+          "kill switch + fallback",
+          "Coupe la fonctionnalité et sert une solution de repli"
+        ],
+        [
+          "post-mortem blameless",
+          "Chronologie, root cause, actions avec un responsable"
+        ],
+        [
+          "RUNBOOK.md",
+          "Architecture, eval, rollback, noms des secrets, responsables"
+        ]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "Votre code tourne sur claude-opus-5 avec : thinking={'type': 'disabled'}, tool_choice={'type': 'tool', 'name': 'create_ticket'}, aucun effort, et un system prompt qui contient 'CRITICAL: you MUST use the tool'. Vous le migrez vers claude-opus-5-5. Classez chaque point en [BLOCKS] ou [TUNE] et dites ce que vous faites.",
+      "hint": "Qu’est-ce qui renvoie une 400 sur Opus 5.5, et qu’est-ce qui change seulement la qualité ou le coût ?",
+      "answer": "[BLOCKS] Le model id -> 'claude-opus-5-5'. [BLOCKS] thinking disabled renvoie une 400 : retirez-le ; le réglage passe par output_config.effort (commencez par 'low' si la latence compte, et mesurez). [BLOCKS] tool_choice 'tool' renvoie une 400 : 'auto' + 'strict': True sur le tool + 'Use the create_ticket tool' dans le prompt, et vérifiez dans le code qu’il y a bien un tool_use, sinon relancez. [BLOCKS] Gérez stop_reason 'refusal' avant de lire le content. [TUNE] Fixez l’effort explicitement (la valeur par défaut est passée de 'high' à 'medium') et faites un sweep. [TUNE] 'CRITICAL: you MUST' devient 'Use the create_ticket tool when...' : les nouveaux modèles suivent les instructions à la lettre. [TUNE] Vérifiez max_tokens (le thinking compte dedans) et les rate limits du nouveau pool."
+    },
+    {
+      "q": "Écrivez une fonction served_by(response, expected, newer=()) qui renvoie True si c’est bien le modèle attendu qui a répondu, sans confondre 'claude-opus-5' et 'claude-opus-5-5'.",
+      "hint": "'claude-opus-5-5'.startswith('claude-opus-5') renvoie True.",
+      "code": "python",
+      "answer": "def served_by(response, expected, newer=()):\n    \"\"\"True when the expected model answered.\n\n    response.model is checked with startswith, so list the longer ids that share\n    the prefix: \"claude-opus-5-5\" also starts with \"claude-opus-5\".\n    \"\"\"\n    model = response.model\n    return model.startswith(expected) and not any(model.startswith(n) for n in newer)\n\n\n# Usage during a canary on claude-opus-5 -> claude-opus-5-5:\n# served_by(r, \"claude-opus-5\", newer=[\"claude-opus-5-5\"])   # stable group\n# served_by(r, \"claude-opus-5-5\")                            # candidate group"
+    },
+    {
+      "q": "Le triage de la semaine compte 40 pouces baissés. 18 : mauvaise catégorie sur des messages en derja en lettres latines ; 9 : numéro de commande inventé ; 7 : FAQ périmée (le prix de la livraison a changé) ; 6 : l’utilisateur était simplement agacé et la réponse était juste. Que faites-vous, dans l’ordre ?",
+      "hint": "Tout ne se corrige pas dans le prompt, et toutes les erreurs ne viennent pas du modèle.",
+      "answer": "1) Les 7 de la FAQ : c’est un problème de données, pas de modèle : corrigez la FAQ (et ajoutez un contrôle sur sa date de dernière mise à jour), sans round d’eval. 2) Les 18 (la plus grosse catégorie) : anonymisez, ajoutez les cas à l’eval avec la bonne réponse, répartissez-les au hasard entre train et test, puis faites un round d’amélioration (par exemple des exemples variés en derja en lettres latines) mesuré sur le test. 3) Les 9 : des eval cases + une règle claire « null s’il n’y a pas de numéro » avec la raison, ou un contrôle dans le code que le numéro existe en base. 4) Les 6 : ne changez rien au modèle ; classez-les « not a model failure ». Et ajoutez 50 conversations au hasard au prochain triage, pour ne pas voir uniquement ceux qui se plaignent."
+    },
+    {
+      "q": "Écrivez une fonction should_rollback(stable, canary) qui renvoie la liste des raisons d’arrêter le canary : accuracy en baisse de plus de 2 points, refus au-delà de max(1 %, le double du stable), ou coût par tâche plus de 1,5 fois supérieur.",
+      "hint": "Liste vide = poursuivre le rollout.",
+      "code": "python",
+      "answer": "def should_rollback(stable, canary, max_drop=0.02, max_refusal_rate=0.01):\n    \"\"\"stable / canary: accuracy, refusal_rate and cost_per_task measured over the same period.\"\"\"\n    reasons = []\n    if canary[\"accuracy\"] < stable[\"accuracy\"] - max_drop:\n        reasons.append(\"accuracy dropped\")\n    if canary[\"refusal_rate\"] > max(max_refusal_rate, 2 * stable[\"refusal_rate\"]):\n        reasons.append(\"more refusals\")\n    if canary[\"cost_per_task\"] > 1.5 * stable[\"cost_per_task\"]:\n        reasons.append(\"cost per task +50%\")\n    return reasons  # empty: continue the rollout; otherwise set CANARY_SHARE = 0.0\n\n\nprint(should_rollback(\n    {\"accuracy\": 0.93, \"refusal_rate\": 0.002, \"cost_per_task\": 0.004},\n    {\"accuracy\": 0.90, \"refusal_rate\": 0.003, \"cost_per_task\": 0.003},\n))  # ['accuracy dropped']"
+    },
+    {
+      "q": "Un collègue vous dit : « J’ai lu les 60 cas, corrigé le prompt 12 fois, et le score est passé de 0.86 à 0.95 sur ces mêmes 60. » Pourquoi ne pas vous fier à ce chiffre, et que proposez-vous ?",
+      "answer": "Parce qu’il a lu les cas sur lesquels il mesure : les changements ont corrigé précisément ces 60 cas (overfitting), et on ne sait pas si l’app s’est améliorée sur de nouveaux messages. De plus, 12 changements cumulés ne disent pas lequel a fait la différence, et sur 60 cas la marge est d’environ ±13 points (1/sqrt(60)). La proposition : un split aléatoire (stratifié par tags) en train et test, lire uniquement le train, un seul changement par round, relancer le jeu complet, et annoncer l’écart sur le test entre la baseline et la version finale. Si besoin, ajouter des cas ou des reps."
+    },
+    {
+      "q": "Après une migration de Haiku 4.5 vers Haiku 5.5, le dashboard affiche +30 % de tokens et quelques réponses tronquées. Le manager s’inquiète. Expliquez-lui la situation et dites ce que vous faites.",
+      "hint": "Pensez au tokenizer et au thinking.",
+      "answer": "Haiku 5.5 a un nouveau tokenizer : le même texte donne environ 30 % de tokens en plus, donc l’usage augmente même si le travail est identique. Mais le prix par token de Haiku 5.5 ($0.10 / $0.50 quand le prompt fait 100K ou moins) est bien plus bas que celui de Haiku 4.5 ($1 / $5) : il faut donc comparer le coût par tâche en dollars, et non les tokens. Les réponses tronquées : le thinking est désormais actif par défaut et compte dans max_tokens, et max_tokens avait été calibré pour l’ancien tokenizer : on l’augmente et on surveille stop_reason 'max_tokens'. On relance count_tokens sur claude-haiku-5-5, on essaie l’effort 'low' sur l’eval, et on met à jour la baseline des dashboards."
+    },
+    {
+      "q": "Vous partez et confiez un projet d’IA à un nouveau développeur. Listez ce qui doit figurer dans le RUNBOOK.md (au moins 7 éléments).",
+      "answer": "1) L’architecture : qui appelle l’API, d’où, et quels sont les flux. 2) Les model ids et l’effort, et pourquoi ils ont été choisis (decisions log avec les chiffres de l’eval). 3) L’emplacement des prompts, la gestion des versions et le CHANGELOG. 4) Comment lancer l’eval (commande, jeu de cas, seuil). 5) Les dashboards et les alertes, et les valeurs normales. 6) Le rollback et le kill switch : les flags et les commandes, avec la date du dernier test. 7) Les noms des secrets et l’endroit où ils sont définis (jamais leurs valeurs). 8) Le coût : combien par mois, les limites et les alertes de budget. 9) La routine : triage hebdomadaire, notes de migration, prompt audit. 10) Les responsables et la communication en cas d’incident. Pour finir : une séance de passation où le nouveau développeur fait un rollback d’essai de ses propres mains."
+    }
+  ],
+  "pitfalls": [
+    "Le model id écrit à dix endroits dans le code et l’effort laissé par défaut : le jour de la migration, vous oubliez un endroit, et le comportement change sans que vous sachiez pourquoi.",
+    "Changer le modèle, le prompt et le SDK dans la même PR : quand quelque chose casse, vous ignorez la cause, et le rollback annule aussi les bons changements.",
+    "Améliorer le prompt en lisant les cas sur lesquels vous mesurez, ou trancher sur un écart de 2 points sur 25 cas : c’est de l’overfitting et du bruit, pas une amélioration.",
+    "Ajouter « CRITICAL: MUST » à chaque bug sans jamais rien retirer : le prompt devient un labyrinthe de cas particuliers, et le nouveau modèle en fait trop.",
+    "Mettre les messages bruts des utilisateurs (CIN, téléphone, e-mails) dans l’eval set et dans git : l’eval est partagée et envoyée à l’API.",
+    "Un rollback jamais testé et aucun kill switch : le jour de l’incident, vous écrivez du code sous pression au lieu de changer un flag.",
+    "Comparer les modèles au prix par token et descendre vers un modèle plus petit avant d’avoir essayé le caching et l’effort : c’est le coût par tâche réussie qui compte, et un modèle qui se trompe paie le retry et l’humain."
+  ],
+  "interview": [
+    {
+      "q": "Pourquoi une app qui utilise un LLM change-t-elle même si l’on n’a pas modifié le code ?",
+      "a": "À cause du drift, qui vient de trois sources : les modèles (nouvelles versions, deprecations, retirements, valeurs par défaut qui changent, comme l’effort), les utilisateurs (nouvelles langues et nouvelles questions) et les données (FAQ, prix, documents). On le détecte grâce à un monitoring des signaux de qualité, à un triage hebdomadaire du feedback et à une eval relancée après chaque changement. Et on fige tout ce qui peut changer dans un seul fichier de config, dans git."
+    },
+    {
+      "q": "Comment migrez-vous vers un nouveau modèle en production ?",
+      "a": "Je lis les notes de migration et je sépare les [BLOCKS] (400 ou boucles) des [TUNE] (qualité et coût). Je corrige les BLOCKS dans une branche et je lance l’eval sur les deux modèles : score, coût par tâche, latence, refus. Ensuite, un shadow ou un canary progressif ; j’enregistre response.model, et le rollback se fait par flag. Une fois la situation stable, un prompt audit et un effort sweep sur le nouveau modèle, chacun dans sa propre PR."
+    },
+    {
+      "q": "Comment versionnez-vous les prompts ?",
+      "a": "Chaque prompt est un fichier dans git, chaque changement une PR avec review et résultat de l’eval ; un id de version est enregistré avec chaque requête (avec le modèle et le request_id), et un CHANGELOG indique le pourquoi et l’effet. Rollback = revenir à la version précédente dans la config. Et un prompt audit à chaque nouveau modèle pour retirer les instructions devenues inutiles."
+    },
+    {
+      "q": "Comment transformez-vous le feedback des utilisateurs en amélioration réelle ?",
+      "a": "On collecte le feedback explicite (pouces) et implicite (corrections du support, escalades), ainsi que les signaux des logs (refus, max_tokens, JSON rejeté). Chaque semaine, triage des pouces baissés et d’un échantillon aléatoire, classés selon des failure categories stables. La plus grosse catégorie devient des eval cases anonymisés avec la bonne réponse, puis un round d’amélioration mesuré sur le test split."
+    },
+    {
+      "q": "Pourquoi faire un split train / test quand on améliore un prompt ?",
+      "a": "Parce qu’en lisant les échecs, on corrige précisément ces cas, et le score sur eux devient trompeur. On lit le train et on mesure seulement le test, avec un split aléatoire et stratifié, jamais fondé sur le score. Le chiffre annoncé est l’écart sur le test. Et on tient compte du bruit : environ 1/sqrt(n x reps), pour ne pas croire à un petit écart."
+    },
+    {
+      "q": "La facture de l’API a augmenté de 40 % ce mois-ci. Que faites-vous ?",
+      "a": "D’abord mesurer : l’usage par classe de trafic (chat, batch de nuit...). Je vérifie si cache_read_input_tokens a baissé (un élément dynamique entré dans le préfixe, un changement de modèle), s’il y a eu une migration (tokenizer, effort par défaut), une boucle qui ne s’arrête pas, max_tokens, ou plus de trafic. Ensuite, les leviers dans l’ordre : caching, input, output, batch, puis l’effort, et le modèle en dernier, chacun dans son propre diff avec une eval, en mesurant le coût par tâche réussie."
+    },
+    {
+      "q": "Racontez-moi un incident sur une fonctionnalité d’IA et la façon dont vous l’avez géré.",
+      "a": "Je le raconte avec une structure claire : ce qui s’est passé (par exemple, tous les tickets envoyés dans 'other' après un nouveau prompt), comment on l’a détecté, l’atténuation (rollback par flag en 12 minutes), la réparation (reclassement avec un batch) et le post-mortem blameless : la root cause (une eval avec seulement 4 cas 'payment') et les actions : nouveaux eval cases, alerte sur la distribution, score par catégorie dans les PR."
+    },
+    {
+      "q": "Comment restez-vous à jour en IA ?",
+      "a": "La documentation officielle, les release notes et les guides de migration des fournisseurs, et le changelog des SDK. Quand un nouveau modèle sort, je lance mon eval dessus avant de croire les benchmarks. Et j’apprends par la pratique et le partage : un petit projet par mois, un article, un meetup."
+    }
+  ]
+}

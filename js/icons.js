@@ -29,6 +29,11 @@ const DRAW = {
   do: () => [
     line("M14 34c0-7 5-12 11-12 9 0 21 24 30 24 6 0 11-5 11-12s-5-12-11-12c-9 0-21 24-30 24-6 0-11-5-11-12z"),
     line("M50 18l5 4-5 4"), line("M30 42l-5 4 5 4"), ring(25, 22), dot(55, 46), ring(66, 34, 3), dot(14, 34, 2.6)],
+  // AI Engineer: a chat bubble with a spark, wired to a tool
+  ai: () => [
+    line("M12 16h36c3 0 5 2 5 5v16c0 3-2 5-5 5H26l-8 7v-7h-6c-3 0-5-2-5-5V21c0-3 2-5 5-5z"),
+    line("M30 22v12M24 28h12M26 24l8 8M34 24l-8 8"), line("M53 29h7c3 0 5 2 5 5v8"), line("M61 42h8v10h-8z"),
+    dot(65, 47, 2.4), ring(53, 29, 3)],
 };
 const GENERIC = () => [line("M40 14v40M20 24l40 20M60 24L20 44"), ring(40, 14), ring(20, 24), dot(60, 44), ring(40, 54), dot(60, 24), ring(20, 44)];
 

@@ -1,0 +1,397 @@
+{
+  "why": "Beaucoup de développeurs utilisent aujourd’hui des outils de code IA au quotidien : Copilot dans l’IDE, Cursor, Claude Code dans le terminal. En Tunisie comme en Europe, les recruteurs commencent à poser la question en entretien. Mais ces outils peuvent vous rendre plus rapide… ou vous faire introduire des bugs et des failles plus vite. Ce cours vous apprend à les utiliser de façon professionnelle : contexte, plan, tests, revue, sécurité, et comment apprendre avec eux au lieu de simplement copier.",
+  "outcome": "Distinguer autocomplétion, chat et agent et choisir le bon outil, écrire un bon CLAUDE.md, piloter un agent avec un plan et de petits diffs, protéger le code par des tests, relire du code écrit par l’IA, protéger vos secrets, et expliquer votre façon de travailler en entretien.",
+  "lessons": [
+    {
+      "title": "Le paysage : autocomplétion, chat et agents",
+      "text": [
+        "Quand on parle d’« outils de code IA », on parle de 3 familles. La première : l’autocomplétion. Vous tapez dans l’IDE, l’outil propose en gris la ligne suivante ou une fonction entière, et vous appuyez sur Tab si elle vous convient. GitHub Copilot a popularisé l’idée, et beaucoup d’éditeurs proposent désormais l’équivalent. L’autocomplétion est rapide et ne coupe pas votre élan, mais elle voit peu de contexte : le fichier ouvert et quelques fichiers proches.",
+        "La deuxième famille : le chat dans l’IDE. Vous sélectionnez du code et demandez « que fait ce code ? » ou « écris un test pour cette fonction », et la réponse s’affiche dans un panneau latéral. Copilot Chat, Cursor (un éditeur construit sur VS Code, avec l’IA au cœur) et d’autres extensions fonctionnent ainsi. C’est très utile pour comprendre du code, poser une question sur une erreur ou ébaucher un petit morceau. Mais c’est vous qui copiez, exécutez et décidez.",
+        "La troisième famille : les agents (agentic coding tools). Ici, vous ne demandez pas un bout de code : vous confiez une mission (« ajoute la pagination à l’endpoint /orders et teste-la »). L’agent lit le dépôt, cherche dans les fichiers, en modifie plusieurs, lance des commandes (tests, linter, build), regarde le résultat et recommence jusqu’à avoir terminé. Claude Code, l’outil d’Anthropic, appartient à cette famille : on le lance dans le terminal (CLI), dans l’application desktop, sur le web ou via des extensions d’IDE comme VS Code et JetBrains. Cursor et Copilot ont eux aussi ajouté des modes agent. Comme on l’a vu dans le cours sur l’API Claude, agent = modèle + tools + boucle ; ici, les tools sont ceux d’un développeur : lire un fichier, écrire un fichier, lancer une commande.",
+        "Quand utiliser chacun ? L’autocomplétion pour du code que vous connaissez et voulez écrire plus vite : boilerplate, tests similaires, mapping. Le chat pour comprendre ou poser une question sur un morceau précis. L’agent quand la mission touche plusieurs fichiers et demande de lancer des commandes : refactoring, petite fonctionnalité avec tests, migration, investigation d’un bug. Mais l’agent n’a rien de magique : quand la mission est floue ou que le dépôt n’a pas de tests, il peut construire quelque chose de gros et de faux avec beaucoup d’assurance.",
+        "La règle générale : plus l’outil a d’autonomie, plus il vous faut de contexte et de contrôle. Et n’oubliez pas que beaucoup de choses n’ont pas besoin d’IA : le renommage et le refactoring de l’IDE ne se trompent pas. Pour les prix et les abonnements, consultez les pages officielles de chaque outil : ils changent souvent, et votre entreprise a peut-être déjà fait un choix (leçon 6)."
+      ],
+      "points": [
+        "Autocomplétion : rapide, peu de contexte, vous complétez et décidez.",
+        "Chat dans l’IDE : comprendre et questionner ; vous copiez et exécutez.",
+        "Agent : lit, modifie et lance des commandes seul, en boucle.",
+        "Plus d’autonomie = plus de contexte, de tests et de revue."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Need                                   Best fit\n-------------------------------------  ----------------------------------\nFinish the line, boilerplate           Autocomplete (Copilot, Cursor...)\n\"What does this function do?\"          Chat in the IDE\nFix a failing test across 4 files      Agent (Claude Code, agent modes)\nExplore an unknown repository          Agent or chat, read-only first\nRename a variable in one file          The IDE's own refactor, no AI",
+        "note": "Tout n’a pas besoin d’IA : le refactoring de l’IDE est déterministe et ne se trompe pas."
+      }
+    },
+    {
+      "title": "Piloter un agent : contexte, plan, petites étapes et revue",
+      "text": [
+        "L’agent ne connaît pas votre projet comme vous. Il ne sait pas pourquoi cette table a deux colonnes de date, ni qui utilise encore l’ancien endpoint. Si vous lui donnez une mission en une phrase, il comble les vides avec des hypothèses. D’où la première règle : le contexte. Dites-lui l’objectif (pas seulement la tâche), les fichiers importants, les contraintes (ne pas modifier l’API publique, ne pas ajouter de dépendance) et comment savoir que c’est terminé (quels tests doivent passer).",
+        "Deuxième règle : un plan avant le code. Demandez-lui de lire et de proposer un plan sans rien modifier. Claude Code a un plan mode pour cela : l’agent ne fait que chercher et lire, puis vous présente un plan à relire et corriger. Un plan faux se corrige en une minute ; 400 lignes fausses se corrigent en une heure. Et en lisant le plan, vous découvrez souvent que vous n’étiez pas clair non plus sur ce que vous vouliez.",
+        "Troisième règle : de petites étapes. Découpez une grosse mission (« réécris le module de paiement ») : d’abord les tests, puis le refactoring, puis la fonctionnalité. Chaque étape = un petit diff que vous relisez, des tests que vous lancez, et un commit. Quand une étape tourne mal, vous revenez au commit précédent au lieu de fouiller dans 30 fichiers modifiés. Git est votre ceinture de sécurité : une branche par mission, et de petits commits.",
+        "Quatrième règle : relire chaque diff. L’agent peut modifier quelque chose que vous n’avez pas demandé : supprimer un test parce qu’il échoue, ajouter un try/except qui avale l’erreur, ou modifier un fichier sans aucun rapport. Claude Code vous montre le diff et demande la permission avant de modifier un fichier ou de lancer une commande (selon vos réglages). Ne répondez pas « yes » à chaque fois sans lire : c’est le « yes » à l’aveugle qui fait entrer les bugs.",
+        "Et quand l’agent s’embrouille (il répète la même erreur, ou la conversation devient trop longue), ne le laissez pas tourner en rond : arrêtez-le, expliquez-lui l’erreur, ou ouvrez une nouvelle session avec un contexte propre et un court résumé. La context window est grande mais pas infinie, et une conversation pleine de tentatives ratées embrouille le modèle encore plus."
+      ],
+      "points": [
+        "Contexte : l’objectif, les fichiers, les contraintes et un critère de « terminé ».",
+        "Un plan avant le code ; le plan mode quand c’est possible.",
+        "Petite étape = petit diff = revue facile = commit.",
+        "Relire chaque diff ; jamais de « yes » à l’aveugle.",
+        "Quand il s’embrouille : l’arrêter, clarifier, ou nouvelle session."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Goal: customers must be able to page through their orders\n(the mobile app loads 2,000 orders at once today).\n\nTask: add pagination to GET /orders in api/orders.py.\n- Query params: page (default 1) and page_size (default 20, max 100).\n- Keep the response backward compatible: add \"page\" and \"total\", do not rename fields.\n- Do not add new dependencies.\n\nDone when: the existing tests pass and new tests cover page 1,\nthe last page and page_size > 100.\n\nFirst read the relevant files and propose a short plan.\nDo not edit anything until I approve the plan.",
+        "note": "Le prompt donne le pourquoi, le quoi, les contraintes et le critère, et demande un plan avant toute modification."
+      }
+    },
+    {
+      "title": "CLAUDE.md : les instructions du projet",
+      "text": [
+        "À chaque nouvelle session, l’agent repart de zéro : il ne se souvient pas de ce que vous lui avez dit la veille. La solution : un fichier d’instructions qu’il lit tout seul au démarrage. Dans Claude Code, c’est CLAUDE.md : un fichier markdown à la racine du dépôt, que Claude Code ajoute automatiquement au contexte de chaque session. Vous pouvez aussi placer un CLAUDE.md dans un sous-dossier (instructions propres à une partie du code), et un fichier personnel dans votre dossier utilisateur pour vos préférences sur tous les projets. La commande /init prépare une première version à partir du dépôt, et vous la corrigez.",
+        "Que mettre dedans ? D’abord les commandes : comment installer, lancer les tests, le linter, le build. C’est ce qui sert le plus : sans elles, l’agent devine (« npm test ? pytest ? make ? ») et perd du temps. Ensuite les conventions : le style, la structure des dossiers, les bibliothèques utilisées (et celles à éviter), le nommage des fichiers. Enfin les règles : « ne touche pas aux anciennes migrations », « chaque nouvel endpoint a besoin d’un test », « ne commite jamais directement sur main ».",
+        "Soyez court et précis. CLAUDE.md entre dans le contexte à chaque session : chaque ligne coûte des tokens et prend un peu de l’attention du modèle. « Écris du code propre » ne sert à rien : le modèle le sait. « Utilise httpx, pas requests » est utile. Et ne remplissez pas le fichier de « IMPORTANT » à chaque ligne : quand tout est important, plus rien ne l’est.",
+        "CLAUDE.md est un fichier vivant. Quand vous voyez l’agent répéter la même erreur (mauvaise bibliothèque, venv oublié), ajoutez une ligne. Commitez-le dans le dépôt pour que toute l’équipe en profite, et relisez ses modifications comme du code. Et n’y mettez jamais de secret : le fichier est dans Git, lu par toute l’équipe et par le modèle.",
+        "Les autres outils ont la même idée sous d’autres noms : Copilot lit un fichier d’instructions du dépôt, Cursor a des règles de projet, et beaucoup d’outils lisent désormais AGENTS.md. Le nom change, le principe reste : les informations que l’agent ne peut pas deviner, écrites de façon courte et précise."
+      ],
+      "points": [
+        "CLAUDE.md à la racine est lu à chaque session ; /init prépare une première version.",
+        "Commandes, conventions et règles : ce que l’agent ne peut pas deviner.",
+        "Court et précis : chaque ligne prend de la place dans le contexte.",
+        "Commitez-le, relisez-le, complétez-le quand une erreur se répète, et aucun secret dedans."
+      ],
+      "example": {
+        "lang": "markdown",
+        "code": "# CLAUDE.md\n\n## Project\nDjango API for a Tunisian delivery startup. Python 3.12, PostgreSQL.\n\n## Commands\n- Install: pip install -r requirements-dev.txt\n- Run tests: pytest -q\n- Lint and format: ruff check . && ruff format .\n- Run locally: python manage.py runserver\n\n## Conventions\n- Business logic goes in services/, not in views.\n- Use httpx for HTTP calls, not requests.\n- Money is stored in millimes (integer), never as float.\n- Every new endpoint needs tests in tests/api/.\n\n## Rules\n- Never edit existing files in migrations/; create a new migration.\n- Never read or print .env files.\n- Run pytest and ruff before saying a task is done.",
+        "note": "L’agent ne peut pas deviner seul ces éléments : les millimes, httpx, les migrations."
+      }
+    },
+    {
+      "title": "Les tests : votre filet de sécurité",
+      "text": [
+        "Du code écrit par l’IA peut avoir l’air juste et être faux. La relecture à l’œil attrape beaucoup de choses, mais pas tout : cas limites, arrondis, date dans un fuseau horaire… Les tests sont la preuve que le code fait ce que vous voulez, et qu’une modification demain n’a rien cassé. Avec un agent, les tests comptent encore plus : l’agent peut lancer les tests lui-même, voir ce qui échoue et corriger, à condition que les tests existent et que la commande soit écrite dans CLAUDE.md.",
+        "Demandez les tests avec précision. Pas « ajoute des tests », mais : « écris des tests pytest pour apply_discount : cas normal, code inconnu, code expiré, et arrondi au millime ». Puis lisez les tests avant le code : un test qui ne vérifie rien (« assert result is not None ») ne protège rien. Un bon test vérifie un résultat précis.",
+        "Le TDD avec l’IA : l’ordre qui fonctionne bien. (1) Vous (ou l’agent) écrivez des tests qui disent ce que vous voulez. (2) Vous les lancez et les voyez échouer : s’ils n’échouent pas, le test ne vérifie rien ou la fonctionnalité existe déjà. (3) Commit des tests. (4) Vous dites à l’agent : « implémente pour que les tests passent, sans modifier les tests ». Ainsi, les tests deviennent la spécification, et l’agent a un critère clair pour savoir qu’il a terminé.",
+        "Ne laissez pas l’agent « corriger » un test en modifiant le test. C’est l’une des erreurs les plus courantes : un test échoue, l’agent change l’assertion ou ajoute un skip, et tout passe au vert. En relisant le diff, toute modification d’un test existant doit avoir une raison claire. Autre point : les tests que l’agent écrit pour son propre code peuvent reproduire le même malentendu. Écrivez donc vous-même au moins un test pour le cas important, ou vérifiez-le attentivement.",
+        "La CI (GitHub Actions ou autre) complète le dispositif : chaque pull request lance les tests, et on ne merge jamais du code IA qui ne les a pas passés. Et dans les applications d’IA (prompts, modèles), les tests s’appellent des evals : c’est le sujet du cours sur l’évaluation (ai-evals)."
+      ],
+      "points": [
+        "Les tests sont la preuve, pas votre impression à la lecture du code.",
+        "Demandez des cas précis, et lisez les tests avant le code.",
+        "TDD : tests qui échouent, commit, puis implémentation sans modifier les tests.",
+        "Un test modifié ou passé en skip dans un diff = alerte."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# tests/test_discount.py - written and committed BEFORE asking the agent for the code\nimport pytest\n\nfrom shop.pricing import apply_discount\n\n\ndef test_percentage_discount():\n    assert apply_discount(total_millimes=50_000, code=\"PROMO10\") == 45_000\n\n\ndef test_unknown_code_keeps_price():\n    assert apply_discount(total_millimes=50_000, code=\"NOPE\") == 50_000\n\n\ndef test_expired_code_is_rejected():\n    with pytest.raises(ValueError, match=\"expired\"):\n        apply_discount(total_millimes=50_000, code=\"SUMMER2023\")\n\n\ndef test_result_is_rounded_to_whole_millimes():\n    # 10% of 12,345 millimes is 1,234.5: the customer pays 11,111 (rounded half up)\n    assert apply_discount(total_millimes=12_345, code=\"PROMO10\") == 11_111",
+        "note": "Après le commit, le prompt : « Implement apply_discount so these tests pass. Do not modify the tests. »"
+      }
+    },
+    {
+      "title": "Relire du code IA : que chercher",
+      "text": [
+        "Le code IA sort propre, bien rangé, commenté… et c’est justement ce qui vous pousse à lui faire plus confiance qu’il ne le mérite. Relisez le code IA avec le même sérieux (voire plus) que celui d’un collègue. Il y a 4 points à toujours vérifier.",
+        "Premièrement, la sécurité. Une requête SQL construite avec une f-string (injection SQL), une saisie utilisateur non validée, un fichier ouvert à partir d’un chemin fourni par l’utilisateur, un secret écrit dans le code, un CORS ouvert à tous, un verify=False sur une requête HTTPS « pour que ça marche ». Le modèle a appris sur du code public, et le code public regorge de ces erreurs. Chaque endpoint, chaque requête, tout ce qui touche à l’authentification : lisez-le vous-même.",
+        "Deuxièmement, les API qui n’existent pas (hallucinated APIs). Le modèle peut utiliser une fonction absente de la bibliothèque, un paramètre d’une autre version, ou un package dont le nom ressemble à un vrai. Ce dernier cas est dangereux : si un package de ce nom existe sur PyPI ou npm et qu’il a été publié avec de mauvaises intentions, vous l’installez de vos propres mains. Avant d’ajouter une dépendance, vérifiez que le package existe, qu’il est connu, et que c’est bien celui que vous voulez. Les tests et le linter attrapent beaucoup de fonctions erronées ; les packages, eux, demandent votre œil.",
+        "Troisièmement, les licences. Un long morceau de code peut être très proche d’un code existant sous licence (GPL, par exemple). Certains outils ont un filtre pour ce cas, et les entreprises ont des politiques. Règle pratique : n’acceptez pas un long morceau de code que vous ne comprenez pas et dont vous ignorez l’origine, et quand vous ajoutez une bibliothèque, vérifiez sa licence au regard de la politique de l’entreprise.",
+        "Quatrièmement, la sur-ingénierie. Vous avez demandé une fonction et vous recevez un module avec 3 classes, une interface, une factory et une config. Ou l’agent a ajouté gestion d’erreurs, retries et logs partout. Plus de code = plus de bugs et moins de revue. Demandez : « quelle est la plus petite version qui passe les tests ? » Et supprimez le code mort, les fichiers sans rapport et les commentaires qui répètent le code. La règle générale : si vous ne pouvez pas expliquer chaque ligne du diff, ne le mergez pas."
+      ],
+      "points": [
+        "Sécurité : SQL, saisies, authentification, secrets, TLS : lisez-le vous-même.",
+        "Vérifiez les fonctions et les packages avant d’installer.",
+        "Licences : un long morceau que vous ne comprenez pas = non.",
+        "La plus petite solution qui passe les tests ; ne mergez aucune ligne que vous ne savez pas expliquer."
+      ],
+      "example": {
+        "lang": "diff",
+        "code": "--- a/api/orders.py\n+++ b/api/orders.py\n@@ -12,2 +12,3 @@ def search_orders(db, customer_name):\n-    query = f\"SELECT * FROM orders WHERE customer_name = '{customer_name}'\"\n-    return db.execute(query).fetchall()\n+    # Parameterized query: the driver escapes the value (no SQL injection)\n+    query = \"SELECT id, total_millimes, status FROM orders WHERE customer_name = %s\"\n+    return db.execute(query, (customer_name,)).fetchall()",
+        "note": "La première version (écrite par l’IA) fonctionne en démo et ouvre une injection SQL ; la revue l’a repérée."
+      }
+    },
+    {
+      "title": "Sécurité et secrets : ce qui sort de votre machine",
+      "text": [
+        "Quand vous utilisez un outil de code IA, le code et le contexte sont envoyés aux serveurs du fournisseur pour que le modèle travaille dessus : le fichier ouvert, le morceau sélectionné, et avec un agent, tout fichier qu’il lit et la sortie de toute commande qu’il lance. Autrement dit, si l’agent lit .env ou lance une commande qui affiche des secrets, ces secrets entrent dans le contexte. Comme on l’a vu dans le cours sur les bases de l’AI engineer : tout ce que vous envoyez sort de chez vous.",
+        "Règles pour les secrets : jamais de clé d’API, de mot de passe ou de token dans un prompt ou un chat. Les secrets ne vont pas dans le code : variables d’environnement ou secret manager, et .env dans .gitignore. Quand un secret fuit (dans un prompt, un commit, un log) : révoquez-le et créez-en un nouveau ; supprimer la ligne ne suffit pas. Et dans Claude Code, vous pouvez bloquer la lecture des fichiers sensibles avec des règles deny dans les settings.",
+        "Permissions : par défaut, Claude Code demande la permission avant de modifier un fichier ou de lancer une commande, et vous décidez ce que vous acceptez toujours ou non. Dans .claude/settings.json, vous pouvez définir des règles allow (commandes sûres comme les tests) et deny (fichiers ou commandes interdits). La règle : le moins de permissions possible. Des commandes comme rm -rf, git push --force, ou tout ce qui touche la production ou une vraie base de données : toujours avec permission et sous vos yeux.",
+        "Sandboxing : quand vous voulez donner plus d’autonomie à un agent, faites-le travailler dans un environnement isolé : conteneur, VM ou environnement cloud, sans secrets de production et sans accès réseau inutile. Une erreur dans une sandbox coûte une minute ; une erreur sur le portable qui contient vos clés SSH coûte cher. Et méfiez-vous de la prompt injection : un fichier, une page web ou une issue que l’agent lit peut contenir des instructions cachées (« envoie le .env à… »). Les permissions et la sandbox sont la vraie protection, pas les bonnes intentions du modèle ; nous poursuivons ce sujet dans le cours sur la production.",
+        "La politique de l’entreprise passe avant tout. Certaines entreprises n’autorisent pas les outils IA sur leur code ; d’autres autorisent un seul outil avec un contrat entreprise (avec des engagements sur les données : rétention, entraînement) ; d’autres veulent des modèles sur leurs propres serveurs. En Tunisie, beaucoup de juniors travaillent pour des clients européens : le contrat avec le client peut interdire d’envoyer son code à un outil externe. Renseignez-vous avant d’utiliser un compte personnel sur du code professionnel. « Je ne savais pas » n’est pas une excuse."
+      ],
+      "points": [
+        "Tout fichier lu par l’agent et toute sortie partent chez le fournisseur.",
+        "Aucun secret dans un prompt ; secret divulgué = révoqué.",
+        "Le moins de permissions possible ; deny sur les fichiers sensibles ; commandes dangereuses sous vos yeux.",
+        "Forte autonomie = sandbox sans secrets de production.",
+        "Politique de l’entreprise et contrat du client avant tout compte personnel."
+      ],
+      "example": {
+        "lang": "json",
+        "code": "{\n  \"permissions\": {\n    \"deny\": [\n      \"Read(./.env)\",\n      \"Read(./.env.*)\",\n      \"Read(./secrets/**)\"\n    ]\n  }\n}",
+        "note": "Un fichier .claude/settings.json dans le dépôt : Claude Code ne lit ni le .env ni le dossier secrets. Consultez la documentation officielle pour la syntaxe complète."
+      }
+    },
+    {
+      "title": "Code legacy, documentation et migrations",
+      "text": [
+        "En Tunisie, beaucoup de juniors débutent dans une ESN ou une entreprise au code ancien : une application PHP de 10 ans, des procédures stockées, un module Java dont personne ne sait qui l’a écrit. C’est là que les outils IA aident beaucoup, car l’essentiel du travail est de lire, pas d’écrire. Un agent peut parcourir tout le dépôt, suivre les appels, et vous expliquer ce qui se passe quand un client passe commande.",
+        "Commencez en lecture seule. Demandez : « Explique-moi le flux de paiement, du controller à la base de données, avec les noms des fichiers et des fonctions. » Puis vérifiez : ouvrez les fichiers indiqués. L’agent peut se tromper dans l’analyse comme dans le code : une fonction du même nom à deux endroits, une config qui change le comportement… L’explication de l’agent est une hypothèse, pas une vérité.",
+        "Documentation : l’IA est douée pour écrire des docstrings, des README, des schémas d’architecture (en texte ou en Mermaid) et des notes d’onboarding. Mais une documentation fausse est pire que pas de documentation. Vérifiez tout, en particulier le « pourquoi » (pourquoi le code est écrit ainsi) : le modèle ne peut pas le savoir s’il n’est écrit nulle part. Demandez à l’équipe et ajoutez le pourquoi vous-même.",
+        "Migrations (Python 2 vers 3, AngularJS vers Angular, Java 8 vers 17, montée de version d’un framework) : la méthode qui fonctionne : (1) des tests sur le comportement actuel avant toute modification (characterization tests : ils vérifient ce que fait le code aujourd’hui, même s’il a un bug) ; (2) un plan en petites étapes ; (3) une migration module par module, chaque étape avec des tests au vert et un commit ; (4) une revue attentive quand l’agent utilise une nouvelle API : c’est là que se cachent les hallucinations, car le modèle peut confondre les versions.",
+        "Cela paraît long, mais ça se passe bien avec un agent : l’agent peut écrire les characterization tests, et vous vérifiez qu’ils reflètent le comportement réel. Et à chaque étape, le diff reste petit et lisible. Ainsi, la migration qui était « un projet de 6 mois que personne ne veut toucher » devient de petites étapes que vous pouvez livrer dans le sprint."
+      ],
+      "points": [
+        "Legacy : l’IA aide surtout à lire et à comprendre.",
+        "Commencez en lecture seule ; l’explication de l’agent est une hypothèse à vérifier.",
+        "Une doc fausse est pire que pas de doc ; le « pourquoi » vient d’un humain.",
+        "Migration : characterization tests, plan, module par module, un commit par étape."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Read-only task: do not edit any file.\n\nExplain how an order is paid in this repository:\n1. Entry point (route or controller) and the main functions called, in order.\n2. Where the payment status is written to the database.\n3. Anything surprising: duplicated logic, dead code, hard-coded values.\n\nFor each point, give the file path and function name so I can check it myself.\nIf you are not sure about something, say so instead of guessing.",
+        "note": "Un nom de fichier et de fonction pour chaque affirmation : vous pouvez vérifier vous-même."
+      }
+    },
+    {
+      "title": "Votre carrière : apprendre avec l’IA, pas seulement copier",
+      "text": [
+        "Le grand risque pour un junior n’est pas que l’IA prenne sa place : c’est de ne plus savoir travailler sans elle, et de ne pas comprendre le code qu’il merge. En entretien, en débogage quand la production tombe, ou quand l’outil se trompe, c’est votre compréhension qui fait la différence. Un recruteur peut vous interroger sur n’importe quelle ligne d’un projet de votre portfolio : si vous ne pouvez pas l’expliquer, le projet joue contre vous.",
+        "Comment apprendre avec : demandez « pourquoi », pas seulement « comment ». Quand l’agent corrige un bug, demandez-lui d’expliquer la cause. Essayez d’abord vous-même (15 à 20 minutes), puis comparez avec la solution de l’IA. Demandez-lui de relire votre code plutôt que de l’écrire. Écrivez parfois seul (katas, exercices) sans IA, comme le sportif qui s’entraîne sans machine. Et quand elle utilise quelque chose que vous ne connaissez pas (décorateur, générateur, index SQL), lisez la documentation officielle.",
+        "Tenez un petit journal : chaque semaine, 3 choses apprises lors de vos sessions avec l’IA (un bug, un pattern, une commande). Cela vous aide à comprendre, et aussi en entretien. Et dans vos projets ou en open source, les commits et les descriptions de PR doivent être rédigés en connaissance de cause : ce que vous avez changé et pourquoi, pas un résumé générique écrit par l’IA.",
+        "En entretien : soyez honnête. Beaucoup d’entreprises demandent maintenant « utilisez-vous des outils IA ? comment ? ». La bonne réponse n’est ni « non, jamais » ni « l’IA écrit tout ». La bonne réponse : une méthode claire (contexte et CLAUDE.md, plan, petites étapes, tests, revue, sécurité) et un exemple réel : « l’agent a proposé un package qui n’existe pas, je l’ai repéré en revue ». Certaines entreprises font des exercices en direct sans IA, d’autres avec : préparez-vous aux deux.",
+        "Sur le marché, le télétravail avec des entreprises européennes et le freelance exigent de la productivité, mais aussi de la qualité et de la confiance. Un développeur qui sait travailler avec un agent de façon sûre (tests, revue, secrets) est bien plus fort que celui qui travaille sans IA, et que celui qui utilise l’IA à l’aveugle. C’est cette compétence qu’il faut mettre sur le CV : « AI-assisted development with tests and code review », pas seulement un nom d’outil."
+      ],
+      "points": [
+        "La compréhension fait la différence : ne mergez aucune ligne que vous ne savez pas expliquer.",
+        "Essayer d’abord, comparer ensuite ; demander revues et explications.",
+        "Un petit journal : 3 choses apprises chaque semaine.",
+        "En entretien : une méthode claire + un exemple réel."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Learning log - week 12\n\n1. Bug: duplicate orders on double click.\n   The agent's first fix added a sleep(); I rejected it.\n   Real cause: no unique constraint. Fix: unique (customer_id, cart_id) + a test.\n2. Learned: pytest fixtures with yield (setup + teardown).\n3. Caught in review: the agent imported a package that does not exist on PyPI.\n\nInterview version (30 seconds):\n\"I use an agent for multi-file changes, but I plan first, keep diffs small,\nrun the tests and review every line before I merge.\"",
+        "note": "Ce journal vous aide à apprendre et vous donne des exemples réels pour l’entretien."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Familles d’outils",
+      "items": [
+        [
+          "Autocomplétion",
+          "Propose la ligne ou la fonction suivante ; vous appuyez sur Tab"
+        ],
+        [
+          "Chat dans l’IDE",
+          "Question sur le code sélectionné ; vous copiez et exécutez"
+        ],
+        [
+          "Agent (agentic coding tool)",
+          "Lit le dépôt, modifie des fichiers et lance des commandes en boucle"
+        ],
+        [
+          "GitHub Copilot",
+          "L’assistant de GitHub dans l’IDE : complétion, chat et mode agent"
+        ],
+        [
+          "Cursor",
+          "Éditeur construit sur VS Code avec l’IA au cœur : chat, complétion, agent"
+        ]
+      ]
+    },
+    {
+      "group": "Claude Code",
+      "items": [
+        [
+          "Claude Code",
+          "L’agent d’Anthropic : CLI, application desktop, web et extensions d’IDE"
+        ],
+        [
+          "CLAUDE.md",
+          "Les instructions du projet, lues à chaque session"
+        ],
+        [
+          "/init",
+          "Prépare un premier CLAUDE.md à partir du dépôt"
+        ],
+        [
+          "Plan mode",
+          "L’agent lit et propose un plan sans rien modifier"
+        ],
+        [
+          "MCP",
+          "Protocole qui relie l’agent à d’autres tools et sources de données"
+        ],
+        [
+          "Subagents, hooks, skills",
+          "Agents spécialisés, commandes automatiques sur des événements, workflows appelés par /nom"
+        ]
+      ]
+    },
+    {
+      "group": "Travailler avec un agent",
+      "items": [
+        [
+          "Contexte",
+          "L’objectif, les fichiers, les contraintes et un critère de « terminé »"
+        ],
+        [
+          "Un plan avant le code",
+          "Un plan faux se corrige en une minute, du code faux en une heure"
+        ],
+        [
+          "Petites étapes",
+          "Petit diff, revue facile, un commit par étape"
+        ],
+        [
+          "Relire chaque diff",
+          "Jamais de « yes » à l’aveugle"
+        ],
+        [
+          "Nouvelle session",
+          "Quand l’agent s’embrouille : contexte propre et résumé"
+        ]
+      ]
+    },
+    {
+      "group": "Tests",
+      "items": [
+        [
+          "TDD avec l’IA",
+          "Tests qui échouent, commit, puis implémentation"
+        ],
+        [
+          "'Do not modify the tests'",
+          "L’agent corrige le code, pas l’assertion"
+        ],
+        [
+          "Characterization test",
+          "Vérifie ce que fait l’ancien code aujourd’hui, avant toute migration"
+        ],
+        [
+          "CI",
+          "Chaque pull request lance les tests avant le merge"
+        ]
+      ]
+    },
+    {
+      "group": "Relire du code IA",
+      "items": [
+        [
+          "f-string dans une requête SQL",
+          "Injection SQL : utilisez des paramètres"
+        ],
+        [
+          "Hallucinated API",
+          "Fonction ou paramètre qui n’existe pas dans votre version"
+        ],
+        [
+          "Package inconnu",
+          "Vérifiez sur PyPI/npm avant d’installer"
+        ],
+        [
+          "Sur-ingénierie",
+          "Demandez la plus petite version qui passe les tests"
+        ]
+      ]
+    },
+    {
+      "group": "Sécurité et secrets",
+      "items": [
+        [
+          "Secret dans un prompt ou un commit",
+          "Révoquez-le immédiatement et créez-en un nouveau"
+        ],
+        [
+          "Règles deny dans .claude/settings.json",
+          "Bloquent des fichiers comme .env et les commandes dangereuses"
+        ],
+        [
+          "Sandbox",
+          "Conteneur ou VM sans secrets de production pour un agent autonome"
+        ],
+        [
+          "Politique de l’entreprise",
+          "Quel outil est autorisé et quel code peut sortir, avant tout le reste"
+        ]
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "q": "Quel outil (autocomplétion, chat dans l’IDE, agent, ou pas d’IA) utilisez-vous, et pourquoi : (a) écrire 15 champs de mapping DTO similaires, (b) un bug qui fait échouer un test dans un module que vous ne connaissez pas, (c) renommer une variable dans un seul fichier, (d) monter de version une bibliothèque dans 20 fichiers, avec des tests ?",
+      "hint": "Pensez au nombre de fichiers, aux commandes à lancer et au risque.",
+      "answer": "(a) Autocomplétion : du code répétitif que vous connaissez, vous complétez avec Tab et vous relisez. (b) Chat ou agent, d’abord en lecture seule : il vous explique le module et la cause, puis vous corrigez avec un petit diff et un test. (c) Pas d’IA : le renommage de l’IDE est déterministe. (d) Agent : beaucoup de fichiers et les tests doivent tourner ; d’abord un plan, module par module, un commit par étape et une revue de chaque diff."
+    },
+    {
+      "q": "Ce prompt d’agent n’est pas bon : « ajoute un login à l’app ». Réécrivez-le avec du contexte, des contraintes et un critère de « terminé ».",
+      "hint": "L’objectif, les fichiers, pas de nouvelle dépendance, quels tests, et un plan avant toute modification.",
+      "code": "text",
+      "answer": "Goal: users of our Flask app must log in with e-mail and password\nbefore they can see /dashboard.\n\nContext: users are in the users table (models/user.py); passwords are not stored yet.\nConstraints:\n- Hash passwords with werkzeug.security (already installed); no new dependencies.\n- Do not change existing routes other than /dashboard.\n- Never log passwords.\n\nDone when: pytest passes, with new tests for a correct login, a wrong password\nand /dashboard without login (redirect to /login).\n\nFirst read the code and propose a plan. Do not edit files until I approve it."
+    },
+    {
+      "q": "Écrivez un CLAUDE.md court pour un projet FastAPI : Python 3.12, tests pytest dans tests/, lint avec ruff, migrations avec Alembic (ne pas toucher aux anciennes migrations), dates toujours en UTC, et l’agent ne doit pas lire .env.",
+      "hint": "3 sections : Commands, Conventions, Rules. Court et précis.",
+      "code": "markdown",
+      "answer": "# CLAUDE.md\n\n## Commands\n- Run tests: pytest -q\n- Lint and format: ruff check . && ruff format .\n- New migration: alembic revision --autogenerate -m \"<message>\"\n\n## Conventions\n- Python 3.12, FastAPI.\n- Store and compare dates in UTC; convert only for display.\n- Tests live in tests/, one file per router.\n\n## Rules\n- Never edit existing files in alembic/versions/; always create a new migration.\n- Never read or print .env files.\n- Run pytest and ruff before saying a task is done."
+    },
+    {
+      "q": "Pour faire du TDD avec un agent, écrivez les tests avant le code d’une fonction normalize_phone(text) qui renvoie un numéro tunisien au format +216XXXXXXXX : '22 123 456', '+216 98 765 432', '00216 55 000 111', et un numéro trop court doit lever ValueError.",
+      "hint": "Un test par cas, et pytest.raises pour le cas invalide.",
+      "code": "python",
+      "answer": "# tests/test_phone.py - commit these tests first, then ask:\n# \"Implement normalize_phone so these tests pass. Do not modify the tests.\"\nimport pytest\n\nfrom app.phone import normalize_phone\n\n\ndef test_local_number_with_spaces():\n    assert normalize_phone(\"22 123 456\") == \"+21622123456\"\n\n\ndef test_number_with_country_code():\n    assert normalize_phone(\"+216 98 765 432\") == \"+21698765432\"\n\n\ndef test_number_with_00_prefix():\n    assert normalize_phone(\"00216 55 000 111\") == \"+21655000111\"\n\n\ndef test_too_short_number_is_rejected():\n    with pytest.raises(ValueError):\n        normalize_phone(\"22 123\")"
+    },
+    {
+      "q": "L’agent vous a donné du code avec : requests.get(url, verify=False), un import de 'fastjsonx' (une bibliothèque dont vous n’avez jamais entendu parler), et une classe ConfigFactory pour une fonction qui lit une seule variable. Que dites-vous en revue ?",
+      "hint": "Sécurité, package, sur-ingénierie.",
+      "answer": "1) verify=False désactive la vérification du certificat TLS : quelqu’un pourrait lire ou modifier le trafic. Supprimez-le ; si le certificat est interne, utilisez son CA. 2) fastjsonx : vérifiez que le package existe, qu’il est connu et que c’est bien celui que vous voulez ; c’est souvent un nom deviné ou proche d’un vrai package, et quelqu’un a pu publier un package malveillant sous ce nom. Si le json de Python suffit, utilisez-le. 3) ConfigFactory : sur-ingénierie ; un os.environ.get dans une seule fonction suffit. Demandez la plus petite version qui passe les tests."
+    },
+    {
+      "q": "Un ancien test échoue après une modification faite par l’agent. Dans le diff, vous voyez que l’agent a changé l’assertion de == 45_000 en == 44_999. Que faites-vous ?",
+      "answer": "Vous refusez la modification. Le test passait avant : c’est donc le nouveau code qui a changé le comportement, pas le test qui est faux. Remettez le test tel qu’il était, et dites à l’agent : « This test was passing before your change. Fix the code, do not modify the test, and explain what changed the result. » Si, après analyse, le test est réellement faux (une règle métier a changé), vous le modifiez vous-même avec la raison écrite dans le commit, après avoir vérifié avec l’équipe."
+    },
+    {
+      "q": "Par erreur, vous avez collé une clé d’API de production dans un chat avec un outil de code IA pour qu’il vous « explique une erreur ». Quelles sont les étapes ?",
+      "answer": "1) Révoquez immédiatement la clé dans la console du fournisseur et créez-en une nouvelle ; la supprimer du chat ne suffit pas, car la clé est déjà sortie de votre machine. 2) Remplacez la clé partout où vous l’utilisez (secret manager, variables d’environnement). 3) Consultez les logs d’utilisation pour repérer tout usage suspect. 4) Prévenez votre responsable ou l’équipe sécurité, comme le demande la politique. 5) Ensuite, ajoutez une règle deny pour .env et utilisez des placeholders comme <API_KEY> quand vous collez une erreur dans le chat."
+    }
+  ],
+  "pitfalls": [
+    "Accepter chaque diff par « yes » sans le lire : l’agent peut supprimer un test, avaler une erreur ou modifier un fichier sans aucun rapport.",
+    "Confier une grosse mission floue en une phrase : l’agent comble les vides avec des hypothèses et construit quelque chose de gros et de faux. Contexte, plan et petites étapes.",
+    "Laisser l’agent « corriger » un test en changeant l’assertion ou en ajoutant un skip : la CI passe au vert et le bug reste.",
+    "Installer un package proposé par l’IA sans vérifier qu’il existe et qu’il est connu : il peut être inventé ou malveillant.",
+    "Mettre une clé d’API, un mot de passe ou des données client dans un prompt, ou laisser l’agent lire .env : tout ce qui est dans le contexte part chez le fournisseur.",
+    "Utiliser un compte IA personnel sur le code de l’entreprise ou du client sans vous renseigner sur la politique et le contrat.",
+    "Merger du code que vous ne savez pas expliquer : en entretien ou lors d’un incident, c’est lui qui vous trahira."
+  ],
+  "interview": [
+    {
+      "q": "Comment utilisez-vous les outils de code IA dans votre travail ?",
+      "a": "L’autocomplétion pour le code répétitif, le chat pour comprendre du code ou une erreur, et un agent comme Claude Code pour les modifications qui touchent plusieurs fichiers. Avec l’agent : un contexte clair et un CLAUDE.md, un plan avant le code, de petites étapes avec des commits, des tests, et une revue de chaque diff avant le merge. Et j’ai un exemple réel : en revue, j’ai repéré un package inexistant que l’agent avait proposé."
+    },
+    {
+      "q": "Quelle est la différence entre autocomplétion, chat et agent ?",
+      "a": "L’autocomplétion propose la ligne suivante avec peu de contexte, et vous complétez. Le chat répond à une question sur du code sélectionné, et vous copiez et exécutez. L’agent prend une mission, lit le dépôt, modifie plusieurs fichiers et lance des commandes en boucle jusqu’à avoir terminé. Plus l’autonomie augmente, plus il faut de contexte, de tests et de revue."
+    },
+    {
+      "q": "Que mettez-vous dans un CLAUDE.md ou un fichier d’instructions de projet ?",
+      "a": "Ce que l’agent ne peut pas deviner : les commandes (installation, tests, lint, build), les conventions (structure, bibliothèques, nommage) et les règles (ne pas toucher aux anciennes migrations, un test par endpoint). Court et précis, car il est lu à chaque session et prend de la place dans le contexte. Commité dans le dépôt, relu comme du code, et sans aucun secret."
+    },
+    {
+      "q": "Comment savez-vous que du code écrit par l’IA est correct ?",
+      "a": "Pas à l’impression. Des tests avant le code (TDD), ou au moins des tests sur les cas importants, une CI qui les lance sur chaque PR, et une revue de mes propres yeux : sécurité, API et packages qui existent vraiment, licences, et sur-ingénierie. Et je surveille si l’agent a modifié ou passé en skip un test : c’est une alerte."
+    },
+    {
+      "q": "Quels sont les risques de sécurité quand on utilise un agent sur le dépôt ?",
+      "a": "Le code, tout fichier qu’il lit et toute sortie partent chez le fournisseur, donc des secrets peuvent entrer dans le contexte. L’agent peut lancer des commandes dangereuses, et il peut lire un contenu qui contient une prompt injection. La protection : secrets dans des variables d’environnement, deny sur .env, le moins de permissions possible, commandes dangereuses sous mes yeux, sandbox pour une forte autonomie, et la politique de l’entreprise."
+    },
+    {
+      "q": "Comment utilisez-vous l’IA sur du code legacy ou une migration ?",
+      "a": "Je commence en lecture seule : je demande une explication du flux avec les noms des fichiers et des fonctions, et je vérifie moi-même. Ensuite, des characterization tests sur le comportement actuel, un plan par étapes, une migration module par module avec un commit et des tests à chaque étape, et une revue attentive des nouvelles API, car le modèle peut confondre les versions."
+    },
+    {
+      "q": "Les outils IA ne réduisent-ils pas le besoin de juniors ? Comment apprenez-vous avec eux ?",
+      "a": "Ils changent ce qu’on attend d’un junior : plus de revue, de tests et de compréhension, moins d’écriture à la main. Je les utilise pour apprendre : j’essaie d’abord puis je compare, je demande des explications et des revues, je lis la documentation quand une notion nouvelle apparaît, et je tiens un journal de ce que j’ai appris. Et je ne merge jamais une ligne que je ne sais pas expliquer."
+    }
+  ]
+}

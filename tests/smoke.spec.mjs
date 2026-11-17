@@ -175,7 +175,7 @@ test("portfolio projects: every path has projects and a project page works", asy
   }
 });
 
-test("AI track in Tunisian: both scripts match, the page and a course work", async ({ page }) => {
+test("AI Engineer track: the 4 languages match, the page and a course work", async ({ page }) => {
   await open(page, "#/ai");
   const problems = await page.evaluate(async () => {
     const { courseTime } = await import("/js/coursetime.js");
@@ -185,8 +185,12 @@ test("AI track in Tunisian: both scripts match, the page and a course work", asy
       const [ar, lat] = await Promise.all([get(`/content/ai/ar/${c.id}.json`), get(`/content/ai/lat/${c.id}.json`)]);
       if (!ar || !lat) { out.push(`${c.id}: a script file is missing`); continue; }
       if (c.minutes !== courseTime(ar).total || c.lessonCount !== ar.lessons.length) out.push(`${c.id}: index minutes / lessonCount out of date`);
-      for (const k of ["lessons", "cheatsheet", "exercises", "pitfalls", "interview"]) if (len(ar[k]) !== len(lat[k])) out.push(`${c.id}: ${k} count differs`);
-      ar.lessons.forEach((l, i) => { if ((l.example?.code || "") !== (lat.lessons[i]?.example?.code || "")) out.push(`${c.id}: lesson ${i} code differs`); });
+      const [en, fr] = await Promise.all([get(`/content/ai/en/${c.id}.json`), get(`/content/ai/fr/${c.id}.json`)]);
+      if (!en || !fr) { out.push(`${c.id}: the English or French file is missing`); continue; }
+      for (const x of [lat, en, fr]) {
+        for (const k of ["lessons", "cheatsheet", "exercises", "pitfalls", "interview"]) if (len(ar[k]) !== len(x[k])) out.push(`${c.id}: ${k} count differs`);
+        ar.lessons.forEach((l, i) => { if ((l.example?.code || "") !== (x.lessons[i]?.example?.code || "")) out.push(`${c.id}: lesson ${i} code differs`); });
+      }
       if (/[؀-ۿ]/.test(JSON.stringify(lat))) out.push(`${c.id}: Arabic letters in the 3arbizi file`);
     }
     return out;
@@ -196,8 +200,10 @@ test("AI track in Tunisian: both scripts match, the page and a course work", asy
   await expect(first).toBeVisible();
   await first.click();
   const panel = page.locator('#courseBody [role=tabpanel]');
-  await expect(panel).toHaveAttribute("dir", "rtl");
+  await expect(panel).toHaveAttribute("lang", "en"); // follows the interface language until the visitor picks one
   await expect(panel.locator("article")).not.toBeEmpty();
+  await page.locator("#courseBody").getByRole("tab", { name: "عربي" }).click();
+  await expect(page.locator('#courseBody [role=tabpanel]')).toHaveAttribute("dir", "rtl");
   await page.locator("#courseBody").getByRole("tab", { name: "3arbizi" }).click();
   await expect(page.locator('#courseBody [role=tabpanel]')).toHaveAttribute("dir", "ltr");
 });
@@ -262,20 +268,22 @@ test("CV for an offer: an AI CV fills the CV maker with its notes and saves as a
   await expect(page.locator("#cvVersions")).toContainText("CV · Support Engineer · LSEG");
 });
 
-test("AI track projects: both scripts match and a project page works", async ({ page }) => {
+test("AI track projects: the 4 languages match and a project page works", async ({ page }) => {
   await open(page, "#/ai");
   const problems = await page.evaluate(async () => {
     const get = (u) => fetch(u).then((r) => (r.ok ? r.json() : null));
-    const [ar, lat] = await Promise.all([get("/content/ai/ar/projects.json"), get("/content/ai/lat/projects.json")]);
-    if (!ar || !lat) return ["a projects file is missing"];
+    const [ar, lat, en, fr] = await Promise.all(["ar", "lat", "en", "fr"].map((s) => get(`/content/ai/${s}/projects.json`)));
+    if (!ar || !lat || !en || !fr) return ["a projects file is missing"];
     const out = [], len = (x) => (x ? x.length : 0);
-    if (ar.projects.length < 3 || ar.projects.length !== lat.projects.length) out.push("project count");
-    ar.projects.forEach((p, i) => {
-      const q = lat.projects[i] || {};
-      if (p.id !== q.id || !p.id.startsWith("ai-")) out.push(`project ${i} id`);
-      for (const k of ["data", "steps", "deliverables", "checklist", "stretch"]) if (len(p[k]) !== len(q[k])) out.push(`${p.id}: ${k} count differs`);
-      p.data.forEach((d, j) => { if (d.url !== q.data?.[j]?.url) out.push(`${p.id}: link ${j} differs`); });
-    });
+    for (const x of [lat, en, fr]) {
+      if (ar.projects.length < 3 || ar.projects.length !== x.projects.length) out.push("project count");
+      ar.projects.forEach((p, i) => {
+        const q = x.projects[i] || {};
+        if (p.id !== q.id || !p.id.startsWith("ai-")) out.push(`project ${i} id`);
+        for (const k of ["data", "steps", "deliverables", "checklist", "stretch"]) if (len(p[k]) !== len(q[k])) out.push(`${p.id}: ${k} count differs`);
+        p.data.forEach((d, j) => { if (d.url !== q.data?.[j]?.url) out.push(`${p.id}: link ${j} differs`); });
+      });
+    }
     if (/[؀-ۿ]/.test(JSON.stringify(lat))) out.push("Arabic letters in the 3arbizi projects");
     return out;
   });
@@ -284,12 +292,12 @@ test("AI track projects: both scripts match and a project page works", async ({ 
   await expect(card).toBeVisible();
   await card.click();
   const project = page.locator('section[data-page="project"]');
-  await expect(project.locator("h1")).toHaveAttribute("dir", "rtl");
+  await expect(project.locator("h1")).toHaveAttribute("lang", "en");
   await project.locator("ol input[type=checkbox]").first().check();
   await expect(project).toContainText("1/");
-  await project.getByRole("tab", { name: "3arbizi" }).click();
-  await expect(page.locator('section[data-page="project"] h1')).toHaveAttribute("dir", "ltr");
-  await expect(page.locator('section[data-page="project"]')).toContainText("1/"); // progress is shared by both scripts
+  await project.getByRole("tab", { name: "عربي" }).click();
+  await expect(page.locator('section[data-page="project"] h1')).toHaveAttribute("dir", "rtl");
+  await expect(page.locator('section[data-page="project"]')).toContainText("1/"); // progress is shared by all languages
 });
 
 test("account: CV sync needs an account, anonymous statistics can be turned on and off", async ({ page }) => {
@@ -519,11 +527,15 @@ test("French interface and back to English", async ({ page }) => {
   await expect(page.locator('#nav a[data-route="home"]')).toContainText("Home", { timeout: 15_000 });
 });
 
-test("phone width: no page scrolls sideways", async ({ page }) => {
+test("phone width: no page scrolls sideways (English and French)", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
-  for (const route of ["", "offers", "training", "cv", "interview", "applications"]) {
-    await open(page, `#/${route}`);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow, `#/${route} is wider than the screen`).toBeLessThanOrEqual(0);
+  // French labels are longer ("Connexion", "Analyser mon CV"…): both languages are checked (2026-11-17).
+  for (const lang of ["en", "fr"]) {
+    await page.addInitScript((l) => localStorage.setItem("hk.lang", l), lang);
+    for (const route of ["", "offers", "training", "cv", "interview", "applications", "ai"]) {
+      await open(page, `#/${route}`);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, `#/${route} (${lang}) is wider than the screen`).toBeLessThanOrEqual(0);
+    }
   }
 });

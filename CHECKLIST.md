@@ -1,6 +1,11 @@
 # HelloKhedma: launch checklist
 
-## 👉 Next session (written 2026-11-06)
+## 👉 Next session (written 2026-11-08)
+- **Remind the owner (asked 2026-11-08):** the job sources plan in ROADMAP "Phase 3b" is waiting: La bonne alternance
+  (needs O32 token), Recruitee + Personio career pages, Adzuna top companies / offer volume, Arbeitnow, Himalayas +
+  Remote OK, search quality (synonyms, more pages). Ask which to do next.
+- **AI Engineer path (2026-11-08):** 6th job path + its track in English, French, Tunisian Arabic and 3arbizi. Needs O33
+  (run seed.sql). The English / French course text was translated by Claude from the 3arbizi files: part of O11 / O18.
 - **Start here:** ROADMAP "Phase 4b: training plan". Steps 1 to 2e are done (see the Done log). Next: 3 (spaced repetition + placement test), 4 (AI "explain my mistake", Sonnet 5.5),
   5 (Python / Excel), 6 (project repos + public portfolio), 7 (content from data, expert review).
 - **New exercise content is part of O11:** the 70 auto-graded exercises and the 28 step-2e exercises (EN + FR) were written by Claude; answers of the
@@ -72,6 +77,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 | O29 | Supabase → Authentication → URL Configuration, then the live site | Reset e-mail template pasted by the owner (2026-11-08). Still: check Site URL `https://hellokhedma.io` and `https://hellokhedma.io/**` in Redirect URLs, then try "Mot de passe oublié ?" once with your own address on hellokhedma.io | The reset link must come back to the site to open "Choose a new password" | supabase/templates/reset-password.html |
 | O31 | GitHub → Actions → "Deploy Supabase function" | Run it for **job-search** (branch main) after the next publish | Offers filters go to the sources, smarter duplicates, Adzuna salary statistics on Home (the site part is live without it, the salary block stays hidden until then) | supabase/functions/job-search/index.ts |
 | O32 | api.apprentissage.beta.gouv.fr | Optional, for ROADMAP 3b priority 1: create an account and an API token for La bonne alternance, add it as Supabase secret `LBA_API_TOKEN`, tell Claude | Work-study offers in the search | ROADMAP Phase 3b |
+| O33 | Supabase SQL editor | Run **supabase/seed.sql** (commit-pinned link in the chat; safe to run again): it adds the AI Engineer path (6th card on Home), its tools, tips, keywords and 3 learning tracks, in English and French | Until then the AI track works (#/ai) but the AI Engineer path card does not appear | supabase/seed.sql |
 | O24 | Live site: #/course/dax → Practice | Press one "▶ Run on DAX.do" button, paste (Ctrl/Cmd + V) and run on dax.do: say if it returns a table or an error. Claude could not reach dax.do (blocked by this environment's network) | The 6 DAX.do exercises (Power BI & DAX, DAX in depth) were written but not run | — |
 | O7 | sentry.io (optional) | Create a project, add **`SENTRY_DSN`** as a GitHub variable | Error monitoring | — |
 | O21 | When HelloKhedma becomes a business | Owner said (2026-11-06) it is personal for now and will become more professional. On the switch (micro-entreprise, SASU…): legal notice with the company name, legal form, address, SIREN / RCS, VAT number if any and a phone number; the company becomes the data controller in the privacy policy; terms of use (CGU), and sales terms (CGV) if anything is paid; sign the processors' data processing agreements (Supabase, Resend, Anthropic, Cloudflare) as the company; any analytics or ads would need a consent banner. Also the opt-in recruiter profile, ROADMAP 6.5. Tell Claude: it updates both languages | Required by LCEN / GDPR once it is a professional activity | index.html (#/legal, #/privacy) |
@@ -84,6 +90,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-08 | AI Engineer becomes a job path ("ai": job titles, tools, tips, keywords, 3 learning tracks, 8 interview questions, path card art, title terms for company / remote offers; EN + FR) and its course track exists in English and French as well as Tunisian Arabic and 3arbizi (9 courses + 3 projects translated, checked by check-content and the smoke tests). The track follows the interface language until the visitor picks one. supabase/setup-all.sql regenerated (it was missing the 2026-11-06 migrations). Needs O33 |
 | 2026-11-08 | Offers filters (contract, remote, posted within) sent to Adzuna / JSearch / France Travail, a change searches again; smarter duplicates across sources; Adzuna salary statistics on Home (median, middle half, 12-month trend, distribution; cached 24 h; privacy policy FR + EN); ROADMAP Phase 3b: prioritised job sources plan. Needs O31 |
 | 2026-11-08 | O30 done: JOOBLE_API_KEY set, job-search redeployed, Jooble returns offers on hellokhedma.io. JOOBLE_HOST must stay unset (fr.jooble.org answers 403 to this key) |
 | 2026-11-08 | Jooble added as a job source (job-search function, Offers source list, credits, privacy policy + legal notice FR + EN): key in Supabase secrets, optional JOOBLE_HOST. Needs O30 |

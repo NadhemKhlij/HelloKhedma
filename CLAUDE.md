@@ -24,6 +24,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Run SQL on the live database: GitHub → Actions → "Run SQL on Supabase" (.github/workflows/run-sql.yml; file =
   supabase/seed.sql or supabase/migrations/<name>.sql, same SUPABASE_ACCESS_TOKEN secret), or Claude starts it with the
   owner's go. It prints the career paths after the run.
+- SQL for the owner to paste from a phone: a copy of a raw page can lose its last lines (the last statement then fails
+  with "unterminated quoted string"). Give a short file with only the new part, ending with a check query and a few
+  comment lines of padding (as supabase/seed-financial-analyst.sql did).
 - When the owner deploys a function or runs SQL from the dashboard, give commit-pinned raw links
   (raw.githubusercontent.com/<owner>/<repo>/<commit>/…): the branch link is cached for ~5 minutes.
 - Supabase CLI (or the dashboard equivalents):

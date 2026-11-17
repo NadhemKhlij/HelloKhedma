@@ -367,7 +367,7 @@ select pg_temp.track('fa','fa-foundations','Finance foundations: accounting and 
  'Read an income statement, a balance sheet and a cash flow statement, explain how they link, and compute the ratios a manager asks for.',1,'[
  ["Principles of Financial Accounting","Free open textbook: the accounting cycle, the three statements, receivables, inventory and long-term assets.","learn","OpenStax","https://openstax.org/details/books/principles-financial-accounting",15],
  ["Finance and capital markets","Free video lessons on accounting, the financial statements, interest and valuation.","learn","Khan Academy","https://www.khanacademy.org/economics-finance-domain/core-finance",8],
- ["Excel essentials for analysts","Formulas, lookups, pivot tables and charts: the tool every finance team works in.","learn","Microsoft","https://support.microsoft.com/en-us/training",4],
+ ["Excel essentials for analysts","Formulas, lookups, pivot tables and charts: the tool every finance team works in.","learn","Microsoft Support","https://support.microsoft.com/en-us/office/excel-video-training-9bc05390-e94c-46af-a5b3-d7c22f6990bb",4],
  ["Practice: read a real annual report","Download the latest annual report (a 10-K on EDGAR, or a European company’s universal registration document) of a company you know and write one page: growth, margins, cash flow and debt.","practice","SEC EDGAR","https://www.sec.gov/edgar/search/",3]]'::jsonb);
 select pg_temp.track('fa','fa-modeling','Financial modelling and valuation','intermediate',
  'The technical core of analyst roles: models that forecast a business and the methods that value it.',

@@ -186,3 +186,15 @@ select pg_temp.track_fr('fa-fpa','FP&A, reporting et business partnering',
  ["Power BI financial sample","L’exemple financier de Power BI","Un classeur d’exemple de ventes, coûts et marges par segment et par pays, pour construire un tableau de bord financier."],
  ["FRED economic data","Les données économiques FRED","Taux d’intérêt, inflation et croissance, pour appuyer les hypothèses d’une prévision."],
  ["Project: a budget vs actual pack","Projet : un reporting budget contre réel","Un reporting mensuel sous Power BI ou Excel : compte de résultat contre budget et année précédente, un pont des écarts, une prévision glissante et trois commentaires écrits."]]'::jsonb);
+
+-- Check: should list 8 paths with fa last, and 3 tracks for fa.
+select string_agg(id, ', ' order by sort_order) as paths,
+       (select count(*) from public.training_tracks where path_id = 'fa') as fa_tracks
+from public.career_paths;
+
+-- End of file. The lines below are padding: a phone copy sometimes loses the last lines of a page.
+--
+--
+--
+--
+--

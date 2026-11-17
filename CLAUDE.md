@@ -21,6 +21,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
 - Course times: `powershell -File scripts/course-times.ps1 -Root .` writes `minutes` and `lessonCount` into
   content/courses/index.json (same formula as js/coursetime.js). Run it after adding or extending a course.
 - Windows: deep checkout paths need `git config core.longpaths true`.
+- Run SQL on the live database: GitHub → Actions → "Run SQL on Supabase" (.github/workflows/run-sql.yml; file =
+  supabase/seed.sql or supabase/migrations/<name>.sql, same SUPABASE_ACCESS_TOKEN secret), or Claude starts it with the
+  owner's go. It prints the career paths after the run.
 - When the owner deploys a function or runs SQL from the dashboard, give commit-pinned raw links
   (raw.githubusercontent.com/<owner>/<repo>/<commit>/…): the branch link is cached for ~5 minutes.
 - Supabase CLI (or the dashboard equivalents):

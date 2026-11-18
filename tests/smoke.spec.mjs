@@ -431,27 +431,42 @@ test("usage counters are not sent by test runs", async ({ page }) => {
   expect(calls).toEqual([]);
 });
 
-// Location suggestions (places.js): the country's main cities in a <datalist>, following the country menu; a place
-// searched before comes first for that country only. Nothing is fetched while typing (built-in list).
+// Location suggestions (places.js + offers.js initPlaceSuggest): our own list under the box (a <datalist> barely shows on
+// iPhone), the country's cities, accents ignored, places searched before first for that country only; boards per country.
 test("job search: the location box suggests the country's cities and places searched before", async ({ page }) => {
   const sent = [];
   await page.route("**/functions/v1/job-search", async (route) => { sent.push(route.request().postDataJSON()); await route.fulfill(fake({ warnings: [], jobs: [] })); });
   await open(page, "#/offers");
   const country = (c) => page.evaluate((v) => { const el = document.querySelector("#country"); el.value = v; el.dispatchEvent(new Event("change")); }, c);
-  await expect(page.locator("#loc")).toHaveAttribute("list", "locList");
+  const options = page.locator("#locList [role=option]");
   await country("fr");
-  await expect(page.locator('#locList option[value="Lille"]')).toHaveCount(1);
-  await country("gb");
-  await expect(page.locator('#locList option[value="Manchester"]')).toHaveCount(1);
-  await expect(page.locator('#locList option[value="Lille"]')).toHaveCount(0);
+  await page.locator("#loc").fill("lil");
+  await expect(options.first()).toHaveText("Lille");
+  await expect(page.locator("#loc")).toHaveAttribute("aria-expanded", "true");
+  await options.first().click();
+  await expect(page.locator("#loc")).toHaveValue("Lille");
+  await expect(page.locator("#locList")).toBeHidden();
+  // Spain: its cities, accents ignored ("mala" → Málaga), and its job boards.
+  await country("es");
+  await page.locator("#loc").fill("mala");
+  await expect(options.first()).toHaveText("Málaga");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#loc")).toHaveValue("Málaga");
+  await expect(page.locator("#boards")).toContainText("InfoJobs");
+  await expect(page.locator("#boards a", { hasText: "Indeed" })).toHaveAttribute("href", /^https:\/\/es\.indeed\.com\//);
+  // A place searched before comes first for that country only.
   await country("fr");
   await page.locator("#loc").fill("Roubaix");
   await page.locator("#searchForm").evaluate((f) => f.requestSubmit());
   await expect.poll(() => sent.length).toBe(1);
   expect(sent[0]).toMatchObject({ location: "Roubaix", country: "fr" });
-  await expect(page.locator("#locList option").first()).toHaveAttribute("value", "Roubaix");
+  await page.locator("#loc").fill("");
+  await page.locator("#loc").focus();
+  await expect(options.first()).toHaveText("Roubaix");
   await country("gb");
-  await expect(page.locator('#locList option[value="Roubaix"]')).toHaveCount(0);
+  await page.locator("#loc").fill("rou");
+  await expect(page.locator("#locList [role=option]", { hasText: "Roubaix" })).toHaveCount(0);
 });
 
 test("remote jobs: Remote OK offers are listed, credited by name and linked with the referrer kept", async ({ page }) => {

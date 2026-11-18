@@ -1,4 +1,4 @@
-// Place suggestions for the Offers search box (#loc + <datalist id="locList">, offers.js): the main job-market cities
+// Place suggestions for the Offers search box (#loc + the #locList listbox, offers.js initPlaceSuggest): the main job-market cities
 // of each country of the Offers country menu, with the places this browser already searched in that country first.
 // Built in on purpose: nothing is sent anywhere while typing (no geocoding service, no privacy policy change), and any
 // other place can still be typed (France: also a postcode or a département number).

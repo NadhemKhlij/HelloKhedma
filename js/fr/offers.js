@@ -358,4 +358,5 @@ export default {
   "Live search is unavailable right now. Use the job board links below.": "La recherche en direct est indisponible pour le moment. Utilisez les liens vers les sites d’emploi ci-dessous.",
   "Remote job boards are unavailable right now. Try again in a few minutes.": "Les sites d’emploi à distance sont indisponibles pour le moment. Réessayez dans quelques minutes.",
   "Too many searches in the last hour. Please try again later.": "Trop de recherches au cours de la dernière heure. Réessayez plus tard.",
+  "Suggested places": "Lieux suggérés",
 };

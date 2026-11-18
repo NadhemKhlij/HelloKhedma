@@ -1,5 +1,6 @@
 // Usage: node scripts/check-links.mjs [filter]   (Node 18+)
-// Checks every https URL in supabase/seed.sql and in the portfolio projects (content/projects/*.json, content/ai/en/projects.json).
+// Checks every https URL in supabase/seed.sql and in the portfolio projects (content/projects/*.json, content/ai/en/projects.json),
+// and one sample search per country on the Offers page's job boards (js/boards.js).
 // With a filter, only the URLs containing it (e.g. "sec.gov"). Some sites block scripts and return 403/429;
 // open those by hand before treating them as broken. CI runs it as a report only (deploy.yml "Check links"): a broken
 // link shows as a warning on the run and never stops the deploy.
@@ -11,7 +12,11 @@ const files = ["supabase/seed.sql",
   "content/ai/en/projects.json"].filter((f) => existsSync(new URL(f, root)));
 const text = files.map((f) => readFileSync(new URL(f, root), "utf8")).join("\n");
 const filter = process.argv[2] || "";
-const urls = [...new Set(text.match(/https?:\/\/[^\s"'\\\]]+/g) || [])]
+// Job board search links of the Offers page (js/boards.js), one sample search per country.
+const { boardLinks } = await import(new URL("js/boards.js", root));
+const boards = ["fr", "gb", "us", "de", "nl", "ca", "au", "be", "ch", "es", "it"].flatMap((c) => boardLinks("data analyst", { fr: "Paris", gb: "London",
+  us: "Austin, TX", de: "Berlin", nl: "Amsterdam", ca: "Toronto", au: "Sydney", be: "Bruxelles", ch: "Zürich", es: "Madrid", it: "Milano" }[c], c).map(([, u]) => u));
+const urls = [...new Set([...(text.match(/https?:\/\/[^\s"'\\\]]+/g) || []), ...boards])]
   .filter((u) => !u.includes("google.com/search") && u.includes(filter));
 const ci = !!process.env.GITHUB_ACTIONS;
 

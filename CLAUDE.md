@@ -282,9 +282,12 @@ Read the header comment of any file before modifying it; update the header if be
 - js/pulse.js — path market pulse on Home, from the offers seen on the Offers page (local only, "hk.pulse.<path>"), and
   Adzuna's statistics for the path's main title (advertised salaries; who's hiring: top companies, regions, offers of the
   last 7 days; job-search kind "salary", cached 24 h); marketSkills() also feeds "The market" on #/cv
-- js/places.js — location suggestions on the Offers search (<datalist>): main cities per country of the Offers menu (local
-  spelling, cities only: the Geo API knows towns, not regions) + places searched before in that country ("hk.places");
-  built in, nothing sent while typing
+- js/places.js — location suggestions on the Offers search (our own list under the box, offers.js initPlaceSuggest: a
+  <datalist> barely shows on iPhone): main cities per country of the Offers menu (local spelling, cities only: the Geo API
+  knows towns, not regions) + places searched before in that country ("hk.places"); built in, nothing sent while typing
+- js/boards.js — "open the same search on a job board" links per country (LinkedIn, the country's Indeed, local boards:
+  InfoJobs + Tecnoempleo for Spain, Reed, Dice, StepStone, jobs.ch, Job Bank, SEEK…, Google Jobs); no DOM, so
+  scripts/check-links.mjs checks a sample search per country from CI
 - js/cvparse.js — "📄 Fill the form from my CV" in the CV maker: parseCv(text) splits a CV's plain text into the CV maker's
   fields in the browser (contact by pattern, sections by EN / FR headings, jobs by date ranges), no AI, no DOM
 - js/offerpick.js — "Choose an offer" on #/cv (match without pasting): offers seen on the Offers page ("hk.recentOffers.<path>",

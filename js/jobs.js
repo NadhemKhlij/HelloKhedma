@@ -6,7 +6,7 @@
 // The Offers filters (contract, remote, posted within) go with the search so the sources return matching offers
 // (the page filters the results again). salaryStats(): Adzuna's statistics for a job title (Home): advertised salaries,
 // top companies, regions and the offers of the last 7 days.
-// boardLinks() builds direct links to job boards as a fallback when the function is unavailable.
+// boardLinks(q, loc, country) builds direct links to the country's job boards (also a fallback when the function is unavailable).
 import { sb } from "./supabase.js";
 
 // Calls the job-search Edge Function. Keys stay server-side.
@@ -32,13 +32,4 @@ export async function salaryStats({ query, country }) {
 }
 
 // Fallback when the function is not deployed or quota is exhausted.
-export function boardLinks(q, loc) {
-  const e = encodeURIComponent;
-  return [
-    ["LinkedIn", `https://www.linkedin.com/jobs/search/?keywords=${e(q)}&location=${e(loc)}`],
-    ["Indeed", `https://fr.indeed.com/jobs?q=${e(q)}&l=${e(loc)}`],
-    ["Welcome to the Jungle", `https://www.welcometothejungle.com/fr/jobs?query=${e(q)}`],
-    ["France Travail", `https://candidat.francetravail.fr/offres/recherche?motsCles=${e(q)}&lieux=${e(loc)}`],
-    ["Google Jobs", `https://www.google.com/search?q=${e(`${q} jobs ${loc}`)}&ibp=htl;jobs`],
-  ];
-}
+export { boardLinks } from "./boards.js"; // job boards by country (pure module, checked by scripts/check-links.mjs)

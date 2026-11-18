@@ -15,8 +15,8 @@
 // "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent); "✉ Cover letter" opens
 // letters.js (prompt to copy).
 // Saved searches can get an e-mail alert (🔔, alerts.js: signed-in users, saved to the account, search-alerts function).
-// Location box: suggestions of the country's main cities and the places already searched there (places.js, built in:
-// nothing is sent while typing), refreshed when the country changes and after each search.
+// Location box: a suggestion list under it (initPlaceSuggest) with the places already searched in the country and its
+// main cities (places.js, built in: nothing is sent while typing). Job board links follow the country (boards.js).
 // Kept in this browser: hidden and seen offers, saved searches, last location ("hk.location"), last tab ("hk.offerMode"),
 // when each search was last run ("hk.searchRuns", newest 30): offers posted since then get the "New" badge.
 // "More offers" asks every source for the next page and adds the offers not shown yet (job search tab only).
@@ -85,12 +85,40 @@ export function renderSearchControls() {
     $("#country").replaceChildren(...COUNTRIES.map((c) => h("option", { value: c, selected: c === (CONFIG.DEFAULT_COUNTRY || "fr") }, c.toUpperCase())));
   }
   $("#role").replaceChildren(...titleOptions(p));
-  renderBoards(); fillPlaces();
+  renderBoards();
 }
-// The location suggestions follow the country (places.js).
-const fillPlaces = () => $("#locList").replaceChildren(...placeOptions($("#country").value).map((v) => h("option", { value: v })));
+// Place suggestions under the location box (places.js): our own list (an ARIA combobox) rather than a <datalist>, which
+// Safari on iPhone shows unreliably. The places searched before in the country first, then its main cities; typing
+// filters them (start of the name or of a word, accents ignored); tap / Enter picks one, Escape closes.
+function initPlaceSuggest() {
+  const input = $("#loc"), box = $("#locList");
+  let items = [], active = -1;
+  const fold = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const close = () => { box.hidden = true; box.replaceChildren(); active = -1; input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant"); };
+  const pick = (v) => { input.value = v; close(); renderBoards(); };
+  const draw = () => {
+    const q = fold(input.value.trim());
+    items = placeOptions($("#country").value).filter((p) => !q || fold(p).startsWith(q) || fold(p).includes(` ${q}`) || fold(p).includes(`-${q}`))
+      .filter((p) => fold(p) !== q).slice(0, 6);
+    if (!items.length || document.activeElement !== input) { close(); return; }
+    box.replaceChildren(...items.map((p, i) => h("li", { id: `locOpt${i}`, role: "option", "aria-selected": String(i === active),
+      class: "rounded-lg px-3 py-2 text-sm cursor-pointer hover:bg-[var(--soft)]", style: i === active ? "background:var(--soft)" : "",
+      onMousedown: (e) => { e.preventDefault(); pick(p); } }, p)));
+    box.hidden = false; input.setAttribute("aria-expanded", "true");
+    if (active >= 0) input.setAttribute("aria-activedescendant", `locOpt${active}`); else input.removeAttribute("aria-activedescendant");
+  };
+  input.addEventListener("input", () => { active = -1; draw(); });
+  input.addEventListener("focus", draw);
+  input.addEventListener("blur", () => setTimeout(close, 120));
+  input.addEventListener("keydown", (e) => {
+    if (box.hidden) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); active = (active + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length; draw(); }
+    else if (e.key === "Enter" && active >= 0) { e.preventDefault(); pick(items[active]); }
+    else if (e.key === "Escape") close();
+  });
+}
 function renderBoards() {
-  $("#boards").replaceChildren(...boardLinks($("#role").value, $("#loc").value.trim()).map(([name, href]) =>
+  $("#boards").replaceChildren(...boardLinks($("#role").value, $("#loc").value.trim(), $("#country").value).map(([name, href]) =>
     h("a", { href, target: "_blank", rel: "noopener noreferrer", class: "btn-ghost" }, name)));
 }
 
@@ -375,7 +403,7 @@ async function onSearch(e) {
   const params = currentSearch();
   ls.set(LOC_KEY, params.location);
   countFeature("job_search_page");
-  rememberPlace(params.country, params.location); fillPlaces();
+  rememberPlace(params.country, params.location);
   btn.disabled = true; msg.textContent = t("Searching…");
   state.jobs = []; state.skillFilter = null; renderOffers();
   try {
@@ -552,7 +580,8 @@ export function initOffers() {
   $("#searchForm").addEventListener("submit", onSearch);
   $("#moreBtn").addEventListener("click", onMore);
   for (const id of ["#sortBy", "#fFit", "#fSalary", "#fLevel", "#fTrust", "#fHidden", "#fTitle"]) $(id).addEventListener("change", renderOffers);
-  $("#country").addEventListener("change", () => { $("#role").replaceChildren(...titleOptions(path())); renderBoards(); fillPlaces(); });
+  $("#country").addEventListener("change", () => { $("#role").replaceChildren(...titleOptions(path())); renderBoards(); });
+  initPlaceSuggest();
   // Contract, remote and date also go to the sources: after a search, changing one searches again (cached server-side).
   for (const id of ["#fContract", "#fRemote", "#fDate"]) $(id).addEventListener("change", () => {
     if (state.offerMode === "search" && state.searchMsg && !$("#searchBtn").disabled) $("#searchForm").requestSubmit();

@@ -13,7 +13,9 @@
 // Request  (POST JSON, user session in Authorization): { cv, offer: { title, company, text }, matched[], missing[], role, lang, mode }
 // Response (JSON): mode "rewrite" (default) → { text, model }; mode "cv" → { cv, model }: the whole CV corrected and
 // tailored to this offer, as structured output in the CV maker's format (js/cvmaker.js), with changes (what was corrected
-// and tailored) and notes (gaps, numbers to add) for the user.
+// and tailored) and notes (gaps, numbers to add) for the user. Mode "improve" (2026-11-18, "Improve my CV with AI" on the
+// CV page) → { cv, model } as "cv", with no offer: the CV corrected and improved for the target role (the career path),
+// matched / missing = the path's keywords found in / missing from the CV. Same daily limit for every mode.
 // Errors: 401 not signed in · 429 daily limit (shared by both modes) · 503 not configured · 4xx/5xx { error, code }
 // The daily limit reuses job_search_hit() and job_search_hits (migration 20261028000200), bucket "tailor:<user id>".
 // Each allowed call bumps the anonymous daily counter usage_daily (count_usage(), migration 20261106000200), and each
@@ -76,6 +78,25 @@ Rules:
 - changes: short notes for the job seeker, in the language given in the request, listing what you corrected (e.g. "Fixed 3 spelling mistakes", "Put every date as Mon. YYYY") and the main ways you tailored the CV to the offer (bullets moved up, wording aligned, bullets dropped).
 - notes: short notes for the job seeker, in the language given in the request: each requirement of the offer the CV does not show (with an honest way to address it) and each [number?] to fill in.`;
 
+// Mode "improve": the same CV rebuilt in the CV maker's fields, with no job offer: corrected and improved for a target role.
+const SYSTEM_IMPROVE = `You are an experienced recruiter and CV writer. You correct a job seeker's CV and improve it for a target role (no specific job offer), turning it into a complete, ATS-friendly CV, honestly.
+
+Rules:
+- Never invent experience, employers, dates, degrees, schools, skills, tools, certifications, languages, links or numbers. Use only what the CV says; leave a field empty when the CV does not give it.
+- Correct the CV: spelling, grammar, punctuation, typos, verb tense (past for past jobs, present for the current one), consistent date format, consistent capitalisation of tools and companies, vague or repeated wording, and anything that hurts ATS parsing (symbols, text in odd places).
+- Keep every job and degree of the CV with its real dates. Rewrite each bullet as an achievement: a strong action verb first, what was done, and the result or scale when the CV gives it; put the bullets that matter most for the target role first; drop bullets that add nothing.
+- Length: the CV must fit on 2 A4 pages at most (1 page when the CV shows less than 5 years of experience). Bullets: 4 at most for the two most recent jobs, 3 for the next ones, 1-2 for jobs older than 8 years or unrelated to the target role. One line per bullet when possible (about 20 words at most). Summary: 3 lines at most.
+- When a bullet would be stronger with a number the CV does not give, do not make one up: write [number?] in the bullet and add a note asking for it.
+- Headline: the target role if the CV supports it, otherwise the closest honest title.
+- Summary: 2-3 lines aimed at the target role. Skills: the skills the CV really shows, those that matter for the target role first, using the usual market names (the role's keywords are given) when they mean the same thing.
+- Keep the CV's own language (lang "fr" if the CV is in French, "en" otherwise).
+- context: an optional one-line description of the team, product or scope of a job, taken from the CV; when the CV lists the tools of a job, end the context with them ("… Tools: Snowflake, SQL, Git") instead of making a bullet of them; empty if the CV has none of this.
+- skills: always grouped, one group per line ("Databases: SQL, Oracle"), 4 to 7 lines, the groups the target role cares about first; each skill once.
+- involvement: volunteering, associations and events from the CV (organisation, role, dates); empty if none. Never put a paid job here.
+- Bullets, details, links and certifications: one per line, with no leading dash. Certifications: "Name (Issuer), YYYY", most recent first. Dates as MM/YYYY, or YYYY alone when the CV gives only the year; end is empty for a current job.
+- changes: short notes for the job seeker, in the language given in the request, listing what you corrected and improved (e.g. "Fixed 3 spelling mistakes", "Rewrote 6 bullets as achievements", "Moved the SQL work first").
+- notes: short notes for the job seeker, in the language given in the request: the role's keywords the CV does not show (with an honest way to address each: a course, a project, or how to talk about it) and each [number?] to fill in.`;
+
 const STR = { type: "string" } as const;
 const obj = (props: Record<string, unknown>) =>
   ({ type: "object", properties: props, required: Object.keys(props), additionalProperties: false });
@@ -108,7 +129,8 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json({ error: "Invalid request.", code: "bad_request" }, 400); }
   const offer = (body.offer ?? {}) as Record<string, unknown>;
   const cv = str(body.cv, MAX_CV).trim(), offerText = str(offer.text, MAX_OFFER).trim();
-  if (!cv || !offerText) return json({ error: "The CV and the offer are both needed.", code: "bad_request" }, 400);
+  const improve = body.mode === "improve"; // no offer: the CV improved for the target role
+  if (!cv || (!improve && !offerText)) return json({ error: improve ? "The CV is needed." : "The CV and the offer are both needed.", code: "bad_request" }, 400);
   if (cv.length > MAX_CV || offerText.length > MAX_OFFER) {
     return json({ error: "The CV or the offer is too long for AI rewriting.", code: "too_long" }, 413);
   }
@@ -126,7 +148,16 @@ Deno.serve(async (req) => {
   if (countErr) console.error("usage count failed:", countErr.message);
 
   const language = body.lang === "fr" ? "French" : "English";
-  const prompt = [
+  const prompt = improve ? [
+    `Write the changes and notes in ${language}.`,
+    `Target role: ${str(body.role, 80)}`,
+    `Keywords of this role found in the CV: ${list(body.matched) || "none detected"}`,
+    `Keywords of this role missing from the CV: ${list(body.missing) || "none detected"}`,
+    "",
+    "<cv>",
+    cv,
+    "</cv>",
+  ].join("\n") : [
     `Write the section titles and explanations in ${language}.`,
     `Target role: ${str(body.role, 80)}`,
     `Skills from the offer found in the CV: ${list(body.matched) || "none detected"}`,
@@ -141,7 +172,7 @@ Deno.serve(async (req) => {
     "</cv>",
   ].join("\n");
 
-  const asCv = body.mode === "cv";
+  const asCv = body.mode === "cv" || improve;
   try {
     const response = await claude.beta.messages.create({
       model: MODEL,
@@ -149,7 +180,7 @@ Deno.serve(async (req) => {
       output_config: asCv ? { effort: "medium", format: { type: "json_schema", schema: CV_SCHEMA } } : { effort: "medium" },
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default", // a declined request is retried on Anthropic's recommended model
-      system: asCv ? SYSTEM_CV : SYSTEM,
+      system: improve ? SYSTEM_IMPROVE : asCv ? SYSTEM_CV : SYSTEM,
       messages: [{ role: "user", content: prompt }],
     });
     // Token counts for the admin page's cost estimate (numbers only; migration 20261106000300). Recorded before the

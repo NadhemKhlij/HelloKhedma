@@ -271,7 +271,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/sqlrun.js + js/sqlgrade.js — runnable SQL exercises: SQLite (sql.js, js/vendor) in a Web Worker with a 5 s limit on
   a fresh copy of content/sql/<db>.sql; the grader compares the learner's result with the course answer's result
 - js/ats.js — skills dictionary, extraction, CV/offer matching, CV file reading
-- js/atsscore.js — ATS score /100 (skills, job title, sections, contact, impact, length, layout) with fixes, EN + FR CVs
+- js/atsscore.js — ATS score /100 (skills, job title, sections, contact, impact, length, layout) with fixes, EN + FR CVs, and
+  "Lines to strengthen" (the achievement lines with no number or no action verb)
 - js/cvmaker.js — CV maker: form, one layout model (cvModel) for the preview, the PDF and the ATS text (centered header;
   Summary, Skills, Experience…; bold title + dates on the right, bold company + place), live ATS score, CV version ("hk.cvmaker")
 - js/cvpdf.js — "Download PDF": real text PDF built in the browser with pdf-lib (js/vendor/, self-hosted, loaded on
@@ -284,11 +285,14 @@ Read the header comment of any file before modifying it; update the header if be
 - js/places.js — location suggestions on the Offers search (<datalist>): main cities per country of the Offers menu (local
   spelling, cities only: the Geo API knows towns, not regions) + places searched before in that country ("hk.places");
   built in, nothing sent while typing
+- js/cvparse.js — "📄 Fill the form from my CV" in the CV maker: parseCv(text) splits a CV's plain text into the CV maker's
+  fields in the browser (contact by pattern, sections by EN / FR headings, jobs by date ranges), no AI, no DOM
 - js/offerpick.js — "Choose an offer" on #/cv (match without pasting): offers seen on the Offers page ("hk.recentOffers.<path>",
   newest 60, 30 days) and the text of tracked offers ("hk.trackedOffers"), this browser only
 - js/tailor.js — "Tailor my CV" dialog: honest gap analysis, prompt to copy for the user's own AI, "Correct, tailor and
   create my CV" (one AI call: corrected + tailored CV opens in the CV maker with the changes and gaps) and "Rewrite
-  only" (text) (cv-tailor function, signed-in users, after a notice)
+  only" (text) (cv-tailor function, signed-in users, after a notice); improveBox(): "✨ Improve my CV with AI" under the CV
+  score, no offer needed (cv-tailor mode "improve": corrected and improved for the path, opens in the CV maker)
 - js/offercoach.js — offer coach: offered salary vs the path's market (pulse.js marketPay), verdict, tips, prompt
 - js/reminders.js — "E-mail reminders" switch on the Account page (profiles.email_reminders) and the test e-mail; the account's
   offer alerts and "Send me today's offers now"

@@ -9,6 +9,8 @@
 // - The draft is kept in this browser ("hk.cvmaker"), like every CV text; copied to the account only if the user turned
 //   on "Save my CVs to my account" (cvsync.js).
 // - CV language (EN / FR) is separate from the interface language: it sets the headings and date words.
+// - "📄 Fill the form from my CV" (fillFromCv): the active CV version's text is split into the form's fields by cvparse.js,
+//   in the browser (no AI); the form is then linked to that version, so "Use as a CV version" updates it.
 // - "Download PDF" builds the PDF in the browser (cvpdf.js; falls back to printing the page if it cannot load).
 //   "Use as a CV version" saves the plain text as a CV version (cvs.js), linked to the draft so later saves update it;
 //   it then scores offers like any CV. "Download .txt" gives the same plain text.
@@ -17,7 +19,8 @@
 //   above the form until hidden, and "Use as a CV version" then saves it as a new version named after the offer.
 import { $, h, ls, toast, download } from "./lib.js";
 import { t } from "./i18n.js";
-import { path, byKind } from "./state.js";
+import { state, path, byKind } from "./state.js";
+import { parseCv } from "./cvparse.js";
 import { extractSkills } from "./ats.js";
 import { atsReport, atsView } from "./atsscore.js";
 import { loadCvs, addCv, updateCv, setActiveCv } from "./cvs.js";
@@ -66,12 +69,36 @@ const certLine = (l) => {
   return m ? { text: m[1].trim(), right: m[2] } : l;
 };
 
+// "📄 Fill the form from my CV" (2026-11-18): the active CV version's text, read by cvparse.js (in the browser, no AI),
+// fills the form; the user checks each field. Asks first when the form holds a CV that is not saved as a version.
+function fillFromCv() {
+  const text = state.cv.text.trim();
+  if (!text) return;
+  const hasDraft = cv.name.trim() || cv.experience.some((e) => e.role || e.company);
+  const saved = cv.cvId && loadCvs().some((c) => c.id === cv.cvId);
+  if (hasDraft && !saved && !confirm(t("Replace the CV maker form with your CV? The current form is not saved as a CV version."))) return;
+  const p = parseCv(text);
+  const next = { ...blank(), ...p, aiFor: "", aiChanges: [], aiNotes: [] };
+  if (!next.experience.length) next.experience = [{ ...EMPTY.experience }];
+  if (!next.education.length) next.education = [{ ...EMPTY.education }];
+  next.cvId = state.cv.id || null; // "Use as a CV version" then updates this version
+  cv = next; save(); drawForm(); redraw();
+  toast(t("Form filled from your CV. Check each field: jobs, dates and companies are split automatically."));
+}
+// The bar above the form: shown when a CV version exists.
+function fillBar() {
+  if (!state.cv.text.trim()) return null;
+  return h("div", { class: "rounded-xl p-3 flex flex-wrap items-center gap-2 text-sm", style: "background:var(--soft)", "data-fill-cv": "" },
+    h("span", { class: "flex-1 min-w-[12rem]" }, t("Already have a CV? Fill this form from \"{name}\" and only fix what needs fixing.", { name: state.cv.name || t("My CV") })),
+    h("button", { type: "button", class: "btn !py-1.5", onClick: fillFromCv }, t("📄 Fill the form from my CV")));
+}
+
 // Fills the form with a CV from the cv-tailor function (mode "cv"). Only known fields are kept, as plain strings.
 // Asks first when the form holds a CV that is not saved as a version. Returns false if the user cancels.
 export function loadAiCv(data, forOffer) {
   const hasDraft = cv.name.trim() || cv.experience.some((e) => e.role || e.company);
   const saved = cv.cvId && loadCvs().some((c) => c.id === cv.cvId);
-  if (hasDraft && !saved && !confirm(t("Replace the CV maker form with the CV for this offer? The current form is not saved as a CV version."))) return false;
+  if (hasDraft && !saved && !confirm(t("Replace the CV maker form with the CV written by AI? The current form is not saved as a CV version."))) return false;
   const text = (v, max = 4000) => String(v ?? "").slice(0, max);
   const pick = (kind, arr) => (Array.isArray(arr) ? arr.slice(0, 20) : [])
     .map((x) => Object.fromEntries(Object.keys(EMPTY[kind]).map((k) => [k, text(x?.[k])])));
@@ -199,6 +226,7 @@ function skillSuggestions() {
 function drawForm() {
   const bulletHint = t("One achievement per line. Start with a verb, add a number: \"Automated the monthly report, from 2 days to 2 hours\".");
   $("#cvmForm").replaceChildren(...[ // filter: replaceChildren() would print null as text
+    fillBar(),
     aiPanel(),
     h("div", { class: "flex flex-wrap items-center gap-2" },
       h("label", { class: "text-sm mute flex items-center gap-2" }, t("CV language"),

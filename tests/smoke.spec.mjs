@@ -155,6 +155,8 @@ test("CV: scored without an offer, then matched with an offer, and the cover let
   await expect(score).toContainText("ATS score");
   await expect(score).toContainText("Missing sections");
   await expect(score.locator(".badge", { hasText: /^\+\d+ pts$/ }).first()).toBeVisible();
+  // The lines to rewrite are named, with what each one lacks.
+  await expect(score.locator("[data-weak-lines]")).toContainText("Lines to strengthen");
   await expect(page.locator("#cvSkills")).toContainText("Python");
   // Fixing a point and saving again shows the gain.
   await page.fill("#cv", "Data Engineer\nlea@example.com · +33 6 12 34 56 78 · linkedin.com/in/lea\nSummary\nData engineer, 3 years.\nExperience\n- Built 12 Python and SQL pipelines on Airflow (2022-2025)\nSkills\nDocker, Git\nEducation\nMSc Data, 2022");
@@ -636,6 +638,65 @@ test("CV maker: the form fills the preview, saves a CV version, and the ATS scor
   const gaps = page.locator("#atsOut [data-gaps]");
   await expect(gaps.locator('a[href="#/course/airflow"]')).toBeVisible();
   await expect(gaps.locator('a[href="#/course/dbt"]')).toBeVisible();
+});
+
+// "Fill the form from my CV" (cvparse.js, 2026-11-18): a saved CV fills the CV maker in the browser (no AI): name, contact,
+// jobs with their dates and bullets, education, skill groups and languages.
+test("CV maker: fill the form from my CV", async ({ page }) => {
+  await open(page, "#/cv");
+  await page.fill("#cv", ["Lea Martin", "Data Engineer", "lea.martin@example.com | +33 6 12 34 56 78 | Paris, France | linkedin.com/in/leamartin",
+    "SUMMARY", "Data engineer with 3 years of experience building pipelines.", "EXPERIENCE",
+    "Data Engineer — Acme, Paris        03/2022 – Present", "- Built 12 Python and SQL pipelines on Airflow",
+    "Junior Data Analyst", "Globex | Lyon | Sep 2020 - Feb 2022", "• Automated weekly KPI reports in Power BI",
+    "EDUCATION", "MSc Data Science, Université Paris-Saclay, 2018 – 2020", "SKILLS", "Languages: Python, SQL", "Cloud: AWS, Snowflake",
+    "LANGUAGES", "French (native), English (C1)"].join("\n"));
+  await page.click("#cvSave");
+  await page.goto("/index.html#/cv/maker");
+  await page.locator("[data-fill-cv]").getByRole("button", { name: "📄 Fill the form from my CV" }).click();
+  const preview = page.locator("#cvPreview");
+  await expect(preview).toContainText("Lea Martin");
+  await expect(preview).toContainText("lea.martin@example.com");
+  await expect(preview).toContainText("Acme");
+  await expect(preview).toContainText("Globex");
+  await expect(preview).toContainText("09/2020");
+  await expect(preview).toContainText("Built 12 Python and SQL pipelines on Airflow");
+  await expect(preview).toContainText("Université Paris-Saclay");
+  await expect(preview).toContainText("Cloud:");
+  await expect(preview).toContainText("English (C1)");
+});
+
+// "Improve my CV with AI" (tailor.js improveBox, 2026-11-18): under the CV score, no offer needed. A guest is asked to sign
+// in; a signed-in learner (simulated; the function is answered by the test, nothing reaches Claude) sees the notice, then
+// the improved CV opens in the CV maker. The request carries the CV, the path keywords and mode "improve", no offer.
+test("improve my CV with AI: sign-in for guests, the improved CV opens in the CV maker", async ({ page }) => {
+  const calls = [];
+  await page.route("**/functions/v1/cv-tailor", async (route) => {
+    calls.push(route.request().postDataJSON());
+    await route.fulfill(fake({ model: "test", cv: { lang: "en", name: "Lea Martin", headline: "Data Engineer", email: "lea@example.com", phone: "",
+      location: "Paris", links: "", summary: "Data engineer, 3 years.", skills: "Languages: Python, SQL",
+      experience: [{ role: "Data Engineer", company: "Acme", location: "Paris", start: "2022", end: "", context: "", bullets: "Built 12 pipelines on Airflow" }],
+      education: [], projects: [], involvement: [], certifications: "", languages: "",
+      changes: ["Rewrote 3 bullets as achievements"], notes: ["Spark: not shown in your CV."] } }));
+  });
+  await open(page, "#/cv");
+  await page.fill("#cv", "Data Engineer\nlea@example.com\nExperience\n- Built 12 Python and SQL pipelines on Airflow (2022-2025)");
+  await page.click("#cvSave");
+  const box = page.locator("[data-improve]");
+  await expect(box).toContainText("Improve my CV with AI");
+  await expect(box.getByRole("button", { name: "Sign in to use it" })).toBeVisible();
+  // Signed in (simulated): the box is drawn again with the AI button.
+  await page.evaluate(async () => { (await import("/js/state.js")).state.user = { id: "test-user" }; });
+  await page.click("#cvSave");
+  await box.getByRole("button", { name: "✨ Improve my CV" }).click();
+  await expect(box).toContainText("Your CV will be sent to Claude");
+  expect(calls).toHaveLength(0); // nothing sent before the second click
+  await box.getByRole("button", { name: "Send and improve my CV" }).click();
+  await expect(page).toHaveURL(/#\/cv\/maker$/);
+  await expect(page.locator("#cvmForm")).toContainText("Spark: not shown in your CV.");
+  await expect(page.locator("#cvmForm")).toContainText("Rewrote 3 bullets as achievements");
+  expect(calls[0]).toMatchObject({ mode: "improve", lang: "en" });
+  expect(calls[0].offer).toBeUndefined();
+  expect(calls[0].cv).toContain("Built 12 Python and SQL pipelines");
 });
 
 // "Correct, tailor and create my CV" needs sign-in and the Claude API, so the function's answer is fed to the CV maker directly.

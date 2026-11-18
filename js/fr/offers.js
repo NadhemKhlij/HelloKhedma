@@ -154,7 +154,6 @@ export default {
   "Update the cv-tailor function to use this.": "Mettez à jour la fonction cv-tailor pour utiliser ceci.",
   "The CV was too long to finish. Try again.": "Le CV était trop long pour être terminé. Réessayez.",
   "This needs the latest cv-tailor function: it is not deployed yet.": "Il faut la dernière version de la fonction cv-tailor : elle n’est pas encore déployée.",
-  "Replace the CV maker form with the CV for this offer? The current form is not saved as a CV version.": "Remplacer le formulaire du créateur de CV par le CV pour cette offre ? Le formulaire actuel n’est pas enregistré comme version de CV.",
   "✨ Written by AI for: {offer}": "✨ Rédigé par l’IA pour : {offer}",
   "this offer": "cette offre",
   "Replace each [number?] with a real number, or delete it, before printing.": "Remplacez chaque [number?] par un vrai chiffre, ou supprimez-le, avant d’imprimer.",

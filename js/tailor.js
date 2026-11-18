@@ -9,6 +9,7 @@
 //   go to the cv-tailor Edge Function (Claude API, daily limit per account), which stores nothing. This is the only
 //   place where the CV text leaves the browser, and only on that explicit click. "Create my CV for this offer" (same
 //   notice, same limit) gets the whole CV back as structured data and opens it in the CV maker (cvmaker.js).
+// - improveBox(): "✨ Improve my CV with AI" under the CV score on #/cv, with no offer (mode "improve", same notice and limit).
 import { $, h, copyText, toast } from "./lib.js";
 import { t, lang } from "./i18n.js";
 import { sb } from "./supabase.js";
@@ -98,6 +99,60 @@ const AI_ERRORS = {
 //   the user checks it there and prints it or saves it as a CV version;
 // - "Rewrite with AI": rewritten bullet points, gaps and questions as text only, with a copy button.
 // The CV and the offer go to the cv-tailor function (Claude API) only when the user confirms the notice.
+// One call to the cv-tailor function; throws an Error with a code (AI_ERRORS) on failure.
+async function callCvTailor(body) {
+  const { data, error } = await sb.functions.invoke("cv-tailor", { body });
+  if (error) {
+    let msg = error.message, code;
+    try { const j = await error.context.json(); msg = j.error || msg; code = j.code; } catch { /* keep message */ }
+    if (error.context?.status === 404) code = "not_configured"; // function not deployed yet
+    if (error.name === "FunctionsFetchError") code = "unreachable"; // no connection, or not deployed (no CORS answer)
+    throw Object.assign(new Error(msg), { code });
+  }
+  return data;
+}
+
+// "✨ Improve my CV with AI" under the CV score (cvpage.js), no job offer needed (2026-11-18): the active CV is corrected
+// and improved for the selected path by the cv-tailor function (mode "improve"), then opens in the CV maker with what was
+// changed and the notes. Same rules as the Tailor dialog: signed-in users, a notice before every send, 5 a day in all.
+// found / missing: the path keywords found in / missing from the CV (cvpage.js pathReport).
+export function improveBox({ found = [], missing = [] } = {}) {
+  const role = path()?.name || "";
+  const box = h("div", { class: "grid gap-2 mt-4 rounded-xl p-4", style: "background:var(--soft)", "data-improve": "" },
+    h("p", { class: "font-semibold" }, t("✨ Improve my CV with AI")),
+    h("p", { class: "text-sm mute" }, t("Claude corrects your CV and rewrites it for the {path} path: achievements first, clear wording, the right keywords, nothing invented. It opens in the CV maker with the list of changes.", { path: role })));
+  if (!state.user) {
+    box.append(h("p", { class: "text-xs mute" }, t("Free with an account: up to 5 AI rewrites a day.")),
+      h("button", { type: "button", class: "btn justify-self-start", onClick: () => { countFeature("tailor_signin"); $("#authOpen").click(); } }, t("Sign in to use it")));
+    return box;
+  }
+  const out = h("div", { class: "grid gap-2", "aria-live": "polite" });
+  const go = h("button", { type: "button", class: "btn justify-self-start", onClick: () => {
+    out.replaceChildren(h("div", { class: "rounded-lg p-3 text-sm grid gap-2", style: "background:var(--bg);border:1px solid var(--accent)" },
+      h("p", {}, t("Your CV will be sent to Claude, Anthropic's AI, to improve it. HelloKhedma does not store it. Up to 5 AI rewrites a day.")),
+      h("p", { class: "mute text-xs" }, t("The CV is opened in the CV maker, in place of the form's current content. Your saved CV versions are kept.")),
+      h("div", { class: "flex flex-wrap gap-2" },
+        h("button", { type: "button", class: "btn", onClick: run }, t("Send and improve my CV")),
+        h("button", { type: "button", class: "btn-ghost", onClick: () => out.replaceChildren() }, t("Cancel")))));
+  } }, t("✨ Improve my CV"));
+  async function run() {
+    go.disabled = true;
+    out.replaceChildren(h("p", { class: "mute text-sm" }, t("Improving your CV… this can take up to two minutes.")));
+    try {
+      const data = await callCvTailor({ cv: state.cv.text.slice(0, 12000), matched: found, missing, role, lang, mode: "improve" });
+      if (!data?.cv) throw Object.assign(new Error(t("Update the cv-tailor function to use this.")), { code: "outdated" });
+      if (!loadAiCv(data.cv, t("the {path} path", { path: role }))) { out.replaceChildren(); return; }
+      if (location.hash === "#/cv/maker") renderCvMaker(); else location.hash = "#/cv/maker";
+      toast(t("Your improved CV is in the CV maker, with what was changed. Check every line before using it."));
+    } catch (e) {
+      out.replaceChildren(h("p", { class: "text-sm", style: "color:var(--bad)" },
+        AI_ERRORS[e.code] ? t(AI_ERRORS[e.code]) : t("AI rewriting failed: {msg}", { msg: e.message })));
+    } finally { go.disabled = false; }
+  }
+  box.append(go, out);
+  return box;
+}
+
 function aiSection({ offer, r }) {
   const box = h("div", { class: "grid gap-2 pt-3", style: "border-top:1px solid var(--line)" },
     h("p", { class: "text-sm font-medium" }, t("✨ Rewrite with AI in HelloKhedma")));
@@ -125,17 +180,10 @@ function aiSection({ offer, r }) {
     out.replaceChildren(h("p", { class: "mute text-sm" }, mode === "cv"
       ? t("Correcting and tailoring your CV for this offer… this can take up to two minutes.") : t("Rewriting… this can take up to a minute.")));
     try {
-      const { data, error } = await sb.functions.invoke("cv-tailor", { body: {
+      const data = await callCvTailor({
         cv: state.cv.text.slice(0, 12000), offer: { title: offer.title, company: offer.company, text: String(offer.text || "").slice(0, 6000) },
         matched: r.matched, missing: r.missing, role: path()?.name || offer.title, lang, mode,
-      } });
-      if (error) {
-        let msg = error.message, code;
-        try { const j = await error.context.json(); msg = j.error || msg; code = j.code; } catch { /* keep message */ }
-        if (error.context?.status === 404) code = "not_configured"; // function not deployed yet
-        if (error.name === "FunctionsFetchError") code = "unreachable"; // no connection, or not deployed (no CORS answer)
-        throw Object.assign(new Error(msg), { code });
-      }
+      });
       if (mode === "cv") {
         // An older cv-tailor (deployed before this feature) ignores mode and answers with text.
         if (!data?.cv) throw Object.assign(new Error(t("Update the cv-tailor function to use this.")), { code: "outdated" });

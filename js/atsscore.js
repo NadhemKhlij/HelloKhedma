@@ -6,6 +6,8 @@
 //   checks: [{ ok, text, fix, gain }], match } · required: canonical skill names (offer or path keywords, from ats.js)
 //   · jobTitles: titles to look for · source: "offer" (default) or "path" (wording of the skills and title checks)
 //   · gain: points out of 100 the score would gain once that check is fixed (fixes are listed biggest gain first).
+//   · weak: [{ line, number, verb }] the achievement lines with no number or no action verb at the start, shown by atsView
+//     under "Lines to strengthen" (2026-11-18).
 // Weights: skills 40, job title 5, sections 15, contact 10, impact 15, length 10, layout 5; skills and title only count
 // when there is something to compare with. Section names, action verbs and dates are recognised in English and French.
 import { h } from "./lib.js";
@@ -72,8 +74,12 @@ export function atsReport(text, { required = [], jobTitles = [], source = "offer
   // 5. Impact (15): achievement lines with numbers (10) and starting with an action verb (5).
   let bullets = lines.filter((l) => BULLET.test(l)).map((l) => l.replace(BULLET, ""));
   if (bullets.length < 3) bullets = lines.filter((l) => { const w = l.split(/\s+/).length; return w >= 6 && w <= 45; });
-  const withNum = bullets.filter((b) => /\d/.test(b)).length;
-  const withVerb = bullets.filter((b) => VERBS.includes(norm(b).split(/[\s,]+/)[0])).length;
+  const hasNum = (b) => /\d/.test(b), hasVerb = (b) => VERBS.includes(norm(b).split(/[\s,]+/)[0]);
+  const withNum = bullets.filter(hasNum).length;
+  const withVerb = bullets.filter(hasVerb).length;
+  // The lines to strengthen, in CV order: { line, number: false when it has no number, verb: false when it does not
+  // start with an action verb }. Shown under the fixes (atsView), so the user knows exactly which lines to rewrite.
+  const weak = bullets.map((b) => ({ line: b, number: hasNum(b), verb: hasVerb(b) })).filter((x) => !x.number || !x.verb);
   const share = (x) => (bullets.length ? Math.min(1, x / bullets.length / 0.6) : 0); // 60% of the lines is full marks
   part("impact", t("Impact"), 10 * share(withNum) + 5 * share(withVerb), 15);
   check(bullets.length && withNum / bullets.length >= 0.4, t("{n} of {all} achievement lines have a number", { n: withNum, all: bullets.length }),
@@ -101,7 +107,23 @@ export function atsReport(text, { required = [], jobTitles = [], source = "offer
   const max = parts.reduce((a, p) => a + p.max, 0);
   const score = Math.round((100 * parts.reduce((a, p) => a + p.got, 0)) / max);
   for (const c of checks) { c.gain = c.ok ? 0 : Math.max(0, Math.round((100 * c.lost) / max)); delete c.lost; }
-  return { score, parts, checks, match };
+  return { score, parts, checks, match, weak };
+}
+
+// "Lines to strengthen": the achievement lines with no number or no action verb at the start, 5 shown, the rest folded.
+function weakLines(weak = []) {
+  if (!weak.length) return null;
+  const row = (w) => h("li", { class: "rounded-lg p-2 text-sm grid gap-1", style: "background:var(--bg);border:1px solid var(--line)" },
+    h("span", { class: "[overflow-wrap:anywhere]" }, w.line.length > 160 ? `${w.line.slice(0, 160)}…` : w.line),
+    h("span", { class: "flex flex-wrap gap-1" },
+      w.verb ? null : h("span", { class: "chip !text-xs" }, t("↳ start with a verb")),
+      w.number ? null : h("span", { class: "chip !text-xs" }, t("↳ add a number"))));
+  return h("div", { class: "grid gap-2", "data-weak-lines": "" },
+    h("p", { class: "font-semibold text-sm" }, t("Lines to strengthen ({n})", { n: weak.length })),
+    h("p", { class: "mute text-xs" }, t("Rewrite each one as an achievement: a verb first, then what you did and the result (\"Automated the monthly report, from 2 days to 2 hours\").")),
+    h("ul", { class: "grid gap-2" }, weak.slice(0, 5).map(row)),
+    weak.length > 5 ? h("details", {}, h("summary", { class: "cursor-pointer mute text-sm" }, t("Show {n} more", { n: weak.length - 5 })),
+      h("ul", { class: "grid gap-2 mt-2" }, weak.slice(5).map(row))) : null);
 }
 
 // Score ring + parts + checks. compact (CV maker sidebar): no bars, only the 3 first fixes.
@@ -124,6 +146,7 @@ export function atsView(r, { compact = false } = {}) {
         h("div", { class: "h-1.5 rounded-full", style: `width:${Math.round((100 * p.got) / p.max)}%;background:${fitColor((100 * p.got) / p.max)}` }))))),
     todo.length ? h("ul", { class: "grid gap-2" }, (compact ? todo.slice(0, 3) : todo).map(item))
       : h("p", { class: "text-sm", style: "color:var(--ok)" }, t("✓ Nothing to fix.")),
+    compact ? null : weakLines(r.weak),
     compact || !done.length ? null : h("details", {}, h("summary", { class: "cursor-pointer mute text-sm" }, t("Passed checks ({n})", { n: done.length })),
       h("ul", { class: "grid gap-1 mt-2" }, done.map(item))));
 }

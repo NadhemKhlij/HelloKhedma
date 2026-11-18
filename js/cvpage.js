@@ -3,7 +3,8 @@
 //    upload / paste, "Save and score my CV" (an "unsaved changes" hint while the text differs from the saved one);
 // 2. "Your CV score": computed as soon as a CV is saved, no offer needed: ATS score (atsscore.js) against the path's
 //    keywords and job titles, fixes sorted by the points they add, the change since the last score of this version
-//    for this path ("hk.cvscore", this browser only), path keywords found / missing + "Close the gaps", skills found;
+//    for this path ("hk.cvscore", this browser only), "✨ Improve my CV with AI" (tailor.js improveBox, no offer needed),
+//    path keywords found / missing + "Close the gaps", skills found;
 // 3. "Match with a job offer" (optional): the offer compared with every version; runs when an offer is pasted, or
 //    chosen in "Choose an offer" (no pasting): offers seen on the Offers page (best fit first) and tracker cards whose
 //    text was kept when tracked (offerpick.js, this browser only), or "The market": the CV against the skills asked
@@ -21,7 +22,7 @@ import { extractSkills, matchSkills, readCvFile } from "./ats.js";
 import { loadCvs, activeCv, setActiveCv, addCv, updateCv, removeCv, linkCvToPath, cvForPath } from "./cvs.js";
 import { renderOffers } from "./offers.js";
 import { renderStudyPlan } from "./training.js";
-import { openTailor } from "./tailor.js";
+import { openTailor, improveBox } from "./tailor.js";
 import { openCoverLetter } from "./letters.js";
 import { atsReport, atsView } from "./atsscore.js";
 import { initCvMaker, renderCvMaker } from "./cvmaker.js";
@@ -135,6 +136,7 @@ function renderCvScore() {
     change ? h("p", { class: "text-sm font-medium mb-2", style: `color:${change > 0 ? "var(--ok)" : "var(--bad)"}` },
       change > 0 ? t("↑ +{n} points since your last save", { n: change }) : t("↓ {n} points since your last save", { n: change })) : null,
     atsView(r),
+    improveBox({ found: m.matched, missing: m.missing }), // "Improve my CV with AI", no offer needed (tailor.js)
     m.total ? h("div", { class: "mt-4 grid gap-2" },
       h("p", { class: "font-semibold text-sm" }, t("Keywords of your path: {matched} of {total} in your CV", { matched: m.matched.length, total: m.total })),
       h("div", { class: "flex flex-wrap gap-2" }, m.matched.map((n) => skillChip(n, true)), m.missing.map((n) => skillChip(n, false))),

@@ -282,8 +282,9 @@ Corporate Finance). Reuses the Excel, SQL, Power BI, Python and statistics cours
   certifications; own GRC courses (foundations, risk management, ISO 27001, GDPR) are the next step if the path is used.
 - 2026-11-19: Sales path ("sales", owner: "add a sales path"): B2B sales (SDR / business developer, account executive, key
   account manager), not retail. Roadmap on existing courses (marketing foundations, CRM, Excel) + HubSpot Academy, Trailhead,
-  a negotiation course and practice; own sales courses (prospecting, discovery and MEDDIC, negotiation, pipeline and
-  forecast) are the next step if the path is used.
+  a negotiation course and practice. Same day (owner: "write the sales courses"): four courses EN + FR, Prospecting and
+  outbound sales, Discovery qualification and demos, Negotiation and closing, Pipeline forecast and key accounts; the
+  roadmap steps open them first (seed course_id rows).
 
 - 2026-11-12: Owner approved anonymous feature counters for every visitor, guests included (feature_daily: day +
   feature + count, no account, no IP, no identifier; once per feature per day per browser). They are audience

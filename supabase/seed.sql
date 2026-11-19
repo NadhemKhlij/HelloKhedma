@@ -207,7 +207,7 @@ select pg_temp.seed('grc','tip','[
 select pg_temp.seed('grc','keyword','["GRC","Information security","ISO 27001","NIST CSF","IT risk management","Risk management","Compliance","GDPR","NIS2","DORA","SOC 2","Internal controls","IT audit","Security policies","Third-party risk","Business continuity","Vulnerability management","Security awareness","CISA","CRISC","Excel"]'::jsonb);
 
 -- Sales (B2B: SDR / business developer, account executive, key account manager) -----------
--- Courses: marketing-foundations, email-crm, excel.
+-- Courses: sales-prospecting, sales-discovery, sales-negotiation, sales-pipeline, plus marketing-foundations, email-crm, excel.
 select pg_temp.seed('sales','tool','[
  ["Salesforce or HubSpot CRM","Where every lead, deal and call is logged: the pipeline and the forecast come from it"],
  ["LinkedIn Sales Navigator","Find the right accounts and people, follow their news, and reach them"],
@@ -616,7 +616,14 @@ update public.training_steps s set course_id = v.c from (values
   ('grc-standards','BPMN & process mapping','bpmn'), ('grc-standards','SQL for data jobs','sql'),
   ('grc-audit','Cloud fundamentals with AWS','cloud-aws'), ('grc-audit','Power BI & DAX','power-bi'),
   ('sales-foundations','Digital marketing foundations','marketing-foundations'),
-  ('sales-foundations','E-mail marketing, CRM and automation','email-crm'), ('sales-pipeline','Excel for analysis','excel')
+  ('sales-foundations','E-mail marketing, CRM and automation','email-crm'), ('sales-pipeline','Excel for analysis','excel'),
+  ('sales-foundations','HubSpot Academy sales courses','sales-prospecting'),
+  ('sales-foundations','Practice: an ideal customer profile and 30 target accounts','sales-prospecting'),
+  ('sales-deals','Practice: a recorded mock discovery call','sales-discovery'),
+  ('sales-deals','Successful Negotiation: Essential Strategies and Skills','sales-negotiation'),
+  ('sales-deals','Program on Negotiation: free articles','sales-negotiation'),
+  ('sales-deals','Practice: answer the ten classic objections','sales-negotiation'),
+  ('sales-pipeline','Salesforce Trailhead','sales-pipeline'), ('sales-pipeline','HubSpot free CRM','sales-pipeline')
 ) as v(tid, title, c)
 where s.id = md5(v.tid || ':' || v.title)::uuid;
 

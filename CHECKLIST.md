@@ -82,7 +82,6 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | # | Where | Task | Why it matters | Links / details |
 |---|---|---|---|---|
-| O55 | Supabase → SQL Editor (after the Product Owner, Project Manager and GRC courses are published) | Run **supabase/seed-po-pm-grc-courses.sql** (short; Claude gives a commit-pinned link) or the full seed.sql | The three roadmaps then show a step for each new course, which opens it | The check query shows 12 and 12 |
 | O49 | Supabase → Account → Access Tokens, then GitHub → Settings → Secrets and variables → Actions (optional) | Create a token that can read and write the database (and deploy functions) and paste it into **SUPABASE_ACCESS_TOKEN** in place of the current one (never in a chat) | The current token can only deploy functions: the "Run SQL on Supabase" workflow got "Missing required permission(s): database_read". With the new token Claude runs seed.sql and migrations itself, no copying on the phone | .github/workflows/run-sql.yml |
 | O47 | Careerjet partner account, then Supabase → Edge Functions → Secrets | Copy the **API key** (not the affiliate ID) from your Careerjet partner account and paste it into **CAREERJET_API_KEY** (never in a chat). No redeploy needed | Careerjet answers "401 Invalid API key provided": its offers are missing from every search | Tell Claude: it runs a test search |
 | O29 | Supabase → Authentication → URL Configuration, then the live site | Reset e-mail template pasted by the owner (2026-11-08). Still: check Site URL `https://hellokhedma.io` and `https://hellokhedma.io/**` in Redirect URLs, then try "Mot de passe oublié ?" once with your own address on hellokhedma.io | The reset link must come back to the site to open "Choose a new password" | supabase/templates/reset-password.html |
@@ -98,6 +97,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-19 | O55 done by the owner: supabase/seed-po-pm-grc-courses.sql run; the Product Owner, Project Manager and GRC roadmaps show a step for each new course (published in commit 9311374) |
 | 2026-11-19 | Own courses for the Product Owner, Project Manager and GRC Analyst paths (owner: "do all three"), EN + FR, 8 lessons each: po-discovery, po-backlog, po-metrics, po-roadmap; pm-planning, pm-budget (earned value), pm-risks, pm-stakeholders; grc-basics, grc-risk, grc-iso27001, grc-regulations (GDPR, NIS2, DORA). A roadmap step per course (O55). Written by Claude, unreviewed (part of O11) |
 | 2026-11-19 | O54 done by the owner: supabase/seed-sales-courses.sql run; the Sales roadmap steps open the four sales courses (published in commit 2cfaee8) |
 | 2026-11-19 | Four sales courses (owner: "write the sales courses"), EN + FR, 8 lessons each: Prospecting and outbound sales, Discovery qualification and demos, Negotiation and closing, Pipeline forecast and key accounts (50 exercises, 46 auto-graded incl. 20 Excel formulas). Roadmap steps open them (O54). Written by Claude, unreviewed (part of O11) |

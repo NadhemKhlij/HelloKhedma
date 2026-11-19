@@ -50,6 +50,9 @@ const PATH_TITLE_TERMS = {
     "product lead", "head of product"],
   pm: ["project manager", "project management", "project coordinator", "program manager", "programme manager", "pmo",
     "chef de projet", "delivery manager", "coordinateur de projet", "directeur de projet"],
+  grc: ["grc", "governance, risk", "risk and compliance", "it risk", "cyber risk", "compliance analyst", "compliance officer",
+    "information security analyst", "security compliance", "it auditor", "it audit", "conformite", "risques it", "auditeur it",
+    "auditeur si", "auditeur des systemes d'information"],
 };
 export function titleMatcher(path) {
   const terms = [...(path?.job_titles || []), ...(path?.job_titles_fr || [])].map(norm).concat(PATH_TITLE_TERMS[path?.id] || []);

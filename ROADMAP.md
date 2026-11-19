@@ -277,6 +277,9 @@ Corporate Finance). Reuses the Excel, SQL, Power BI, Python and statistics cours
   fields"): a new field is a new career path (seed, skills in js/ats.js, interview questions, 3 projects), its roadmap
   pointing first to the existing HelloKhedma courses and to free outside training and certifications; new full courses
   only for the most-used paths. First: Product Owner ("po") and Project Manager ("pm").
+- 2026-11-19: GRC Analyst path ("grc", owner: "governance risk and conformity"): IT and cyber GRC (ISO 27001, NIST CSF,
+  GDPR, NIS2, DORA, audits), not financial compliance (AML / KYC). Roadmap on existing courses + outside resources and
+  certifications; own GRC courses (foundations, risk management, ISO 27001, GDPR) are the next step if the path is used.
 
 - 2026-11-12: Owner approved anonymous feature counters for every visitor, guests included (feature_daily: day +
   feature + count, no account, no IP, no identifier; once per feature per day per browser). They are audience

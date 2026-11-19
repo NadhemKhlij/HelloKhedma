@@ -50,6 +50,10 @@ const DRAW = {
   pm: () => [
     line("M10 12v44h58"), line("M16 20h20"), line("M26 30h22"), line("M40 40h18"), line("M18 50h0"),
     line("M58 46l4 4 4-4-4-4z"), line("M30 16v-4"), line("M48 26v-4"), ring(20, 50, 3), line("M17 50l2 2 3-4")],
+  // GRC Analyst: a shield with a check, beside a checklist
+  grc: () => [
+    line("M28 10l16 6v14c0 11-7 19-16 23-9-4-16-12-16-23V16z"), line("M21 31l5 5 9-10"),
+    line("M52 18h18v34H52z"), line("M56 26h10"), line("M56 34h10"), line("M56 42h6"), dot(54, 26, 1.4), dot(54, 34, 1.4), dot(54, 42, 1.4)],
 };
 const GENERIC = () => [line("M40 14v40M20 24l40 20M60 24L20 44"), ring(40, 14), ring(20, 24), dot(60, 44), ring(40, 54), dot(60, 24), ring(20, 44)];
 

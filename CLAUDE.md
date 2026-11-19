@@ -6,7 +6,9 @@ AI Engineers and Digital Marketing (path id "mk", 2026-11-09: seed, skills, inte
   email-crm, marketing-analytics) and Financial Analyst (path id "fa", 2026-11-17: seed, 14 finance skills, interview, projects
   and four courses: finance-foundations, financial-modeling, fpa, valuation), Product Owner (path id "po") and Project Manager
   (path id "pm", 2026-11-19: seed, product & project skills, interview, projects; their roadmaps use the existing agile-scrum,
-  requirements, bpmn, sql, statistics, excel and power-bi courses).
+  requirements, bpmn, sql, statistics, excel and power-bi courses) and GRC Analyst (path id "grc", IT and cyber governance, risk
+  and compliance, 2026-11-19: seed, "Security & compliance" skills, interview, projects; roadmap uses the itil-incidents, excel,
+  bpmn, sql, cloud-aws and power-bi courses, no GRC course of its own yet).
 The selected path adapts the job search, trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 
 ## Commands

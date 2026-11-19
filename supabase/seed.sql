@@ -39,7 +39,9 @@ insert into public.career_paths (id, name, blurb, color, job_titles, sort_order)
  ('po','Product Owner','Backlog, discovery, roadmap, delivery','#e11d48',
    array['Product Owner','Product Manager','Associate Product Manager','Digital Product Owner','Technical Product Owner'],9),
  ('pm','Project Manager','Planning, risks, budget, stakeholders','#4f46e5',
-   array['Project Manager','IT Project Manager','Project Coordinator','PMO Analyst','Program Manager'],10)
+   array['Project Manager','IT Project Manager','Project Coordinator','PMO Analyst','Program Manager'],10),
+ ('grc','GRC Analyst','Cyber risk, ISO 27001, GDPR, audits','#9333ea',
+   array['GRC Analyst','GRC Consultant','IT Risk Analyst','Compliance Analyst','IT Auditor'],11)
 on conflict (id) do update set
   name = excluded.name, blurb = excluded.blurb, color = excluded.color,
   job_titles = excluded.job_titles, sort_order = excluded.sort_order;
@@ -57,7 +59,8 @@ update public.career_paths set job_titles_fr = v.t from (values
   ('mk', array['Chargé de Marketing Digital','Chargé d’Études Marketing','Growth Marketer','Chargé de Référencement','Traffic Manager']),
   ('fa', array['Analyste Financier','Analyste FP&A','Contrôleur de Gestion','Business Partner Finance','Analyste Corporate Finance']),
   ('po', array['Product Owner','Chef de Produit Digital','Product Manager Junior','Product Owner Digital','Product Owner Technique']),
-  ('pm', array['Chef de Projet','Chef de Projet IT','Coordinateur de Projet','Analyste PMO','Directeur de Programme'])
+  ('pm', array['Chef de Projet','Chef de Projet IT','Coordinateur de Projet','Analyste PMO','Directeur de Programme']),
+  ('grc', array['Analyste GRC','Consultant GRC','Analyste Risques IT','Chargé de Conformité','Auditeur IT'])
 ) as v(id, t) where public.career_paths.id = v.id;
 
 -- Data Engineer ---------------------------------------------------------------
@@ -185,6 +188,20 @@ select pg_temp.seed('pm','tip','[
  "Recruiters ask for a certification more and more: CAPM or PSM I are within reach without experience, PMP or PRINCE2 later.",
  "Talk about trade-offs, not tools: what you cut, delayed or escalated when time, budget or scope moved, and how you told the sponsor."]'::jsonb);
 select pg_temp.seed('pm','keyword','["Project management","Project planning","Risk management","Stakeholder management","Change management","Budgeting","Agile","Scrum","Waterfall","PMP","PRINCE2","MS Project","Jira","Confluence","Excel","Power BI","KPI","Process mapping"]'::jsonb);
+
+-- GRC Analyst (IT and cyber governance, risk and compliance) ------------------------------
+-- Courses: itil-incidents, excel, bpmn, sql, cloud-aws, power-bi.
+select pg_temp.seed('grc','tool','[
+ ["Excel","Risk registers, control matrices and audit trackers: still where most GRC work starts"],
+ ["ServiceNow GRC, Archer or OneTrust","GRC platforms: risks, controls, policies, audits and vendor assessments in one place"],
+ ["Vanta or Drata","Compliance automation for start-ups: SOC 2 and ISO 27001 evidence collected from the cloud and HR tools"],
+ ["Microsoft Purview","Data protection and compliance in Microsoft 365: data classification, retention, audit logs"],
+ ["Power BI","Risk and compliance dashboards for the management committee"]]'::jsonb);
+select pg_temp.seed('grc','tip','[
+ "GRC hires people from many backgrounds (IT support, audit, law, project management): say what you bring and show one GRC deliverable, such as a risk register or an ISO 27001 gap assessment.",
+ "Learn the vocabulary of one framework well (ISO 27001 and its Annex A, or NIST CSF) rather than a little of everything: interviews go into the details.",
+ "European rules (GDPR, NIS2, DORA) create many offers in France and Europe: name the ones you know on your CV, with what you did with them."]'::jsonb);
+select pg_temp.seed('grc','keyword','["GRC","Information security","ISO 27001","NIST CSF","IT risk management","Risk management","Compliance","GDPR","NIS2","DORA","SOC 2","Internal controls","IT audit","Security policies","Third-party risk","Business continuity","Vulnerability management","Security awareness","CISA","CRISC","Excel"]'::jsonb);
 
 -- =====================================================================================
 -- Learning tracks. Step = [title, description, kind, provider, url, est_hours, is_free?]
@@ -470,6 +487,35 @@ select pg_temp.track('pm','pm-certification','Certifications and larger projects
  ["PRINCE2 Foundation","The process-based method common in the UK, Europe and public projects.","certification","PeopleCert","https://www.peoplecert.org/",30,false],
  ["Project: a full plan for a real initiative","A charter, plan, budget, risk log, RACI and communication plan for a real initiative of an association or company you know (see the portfolio projects below).","project","Your plan","",15]]'::jsonb);
 
+-- GRC Analyst -------------------------------------------------------------------------
+select pg_temp.track('grc','grc-foundations','GRC foundations: security basics, risks and controls','beginner',
+ 'What every GRC interview checks first: the basics of information security, how a risk is assessed and how a control reduces it.',
+ 'Explain confidentiality, integrity and availability, assess a risk (likelihood × impact), link it to controls and keep a risk register.',1,'[
+ ["NIST Cybersecurity Framework 2.0","The free framework most GRC teams map to: Govern, Identify, Protect, Detect, Respond, Recover.","learn","NIST","https://www.nist.gov/cyberframework",4],
+ ["SecNumacadémie","The free online course of the French national cybersecurity agency (ANSSI): the basics of security, with a certificate.","learn","ANSSI","https://secnumacademie.gouv.fr/",20],
+ ["Incident management & ITIL","HelloKhedma course: incidents, problems, changes and SLAs: the IT processes that security controls rely on.","learn","HelloKhedma","",6],
+ ["Excel for analysis","HelloKhedma course: lookups, conditional formatting and pivot tables, for risk registers and control matrices.","learn","HelloKhedma","",6],
+ ["Practice: a risk register for a small company","For a small company you know (a shop, an agency): list 10 assets, 10 risks with likelihood and impact, and one control for each.","practice","Your register","",4],
+ ["CompTIA Security+","The best-known entry-level security certification: threats, controls, risk and compliance.","certification","CompTIA","https://www.comptia.org/certifications/security",60,false]]'::jsonb);
+select pg_temp.track('grc','grc-standards','Standards and regulations: ISO 27001, GDPR, NIS2 and DORA','intermediate',
+ 'The texts GRC offers name: the ISO 27001 management system, personal data protection and the new European rules for critical sectors and finance.',
+ 'Explain the ISO 27001 clauses and Annex A, keep a GDPR record of processing, and say which obligations NIS2 and DORA add.',2,'[
+ ["ISO/IEC 27001","The official page of the standard: what an information security management system (ISMS) is and how certification works.","learn","ISO","https://www.iso.org/standard/27001",2],
+ ["GDPR text, article by article","The regulation with its recitals, easy to search: principles, rights, records, data protection impact assessments.","learn","Intersoft Consulting","https://gdpr-info.eu/",4],
+ ["NIS2 directive","The European Commission’s page on NIS2: which organisations it covers and what it requires.","learn","European Commission","https://digital-strategy.ec.europa.eu/en/policies/nis2-directive",2],
+ ["BPMN & process mapping","HelloKhedma course: map a process to see where a control belongs and who performs it.","learn","HelloKhedma","",5],
+ ["SQL for data jobs","HelloKhedma course: query user lists, access rights and logs yourself to gather audit evidence.","learn","HelloKhedma","",6],
+ ["Project: an ISO 27001 gap assessment","Compare a real or sample organisation with the ISO 27001 controls and write the action plan (see the portfolio projects below).","project","Your assessment","",15]]'::jsonb);
+select pg_temp.track('grc','grc-audit','Audits, third parties and certifications','advanced',
+ 'What senior GRC offers ask for: running audits, assessing suppliers and the cloud, reporting to management, and a recognised certification.',
+ 'Plan and run an IT audit, assess a supplier and a cloud service, report risks with a dashboard, and prepare CISA, CRISC or ISO 27001 Lead Implementer.',3,'[
+ ["Cloud fundamentals with AWS","HelloKhedma course: shared responsibility, identities and access, logs: what an auditor checks in the cloud.","learn","HelloKhedma","",8],
+ ["Power BI & DAX","HelloKhedma course: build the risk and compliance dashboard a management committee reads.","learn","HelloKhedma","",8],
+ ["Practice: a supplier security questionnaire","Write 20 questions to assess a SaaS supplier (access, encryption, backups, incidents, certifications), then answer them for a service you use from its public trust page.","practice","Your questionnaire","",3],
+ ["ISO/IEC 27001 Lead Implementer","The certification to run an ISO 27001 project: five days of training and an exam, common in GRC consulting offers.","certification","PECB","https://pecb.com/",40,false],
+ ["Certified Information Systems Auditor (CISA)","The reference certification for IT auditors; experience is needed for the title, not for the exam.","certification","ISACA","https://www.isaca.org/credentialing/cisa",120,false],
+ ["Certified in Risk and Information Systems Control (CRISC)","ISACA’s certification for IT risk managers.","certification","ISACA","https://www.isaca.org/credentialing/crisc",100,false]]'::jsonb);
+
 -- =====================================================================================
 -- HelloKhedma courses on the roadmaps (needs migration 20261109000600_step_course.sql). A step with a course opens our
 -- course first (its outside resource stays as an extra). Matched on (track id, English step title), like the step ids.
@@ -524,7 +570,10 @@ update public.training_steps s set course_id = v.c from (values
   ('pm-foundations','Excel for analysis','excel'), ('pm-foundations','BPMN & process mapping','bpmn'),
   ('pm-agile','Agile & Scrum','agile-scrum'), ('pm-agile','The Kanban Guide','agile-scrum'),
   ('pm-agile','Requirements & user stories','requirements'), ('pm-agile','Power BI & DAX','power-bi'),
-  ('pm-certification','Professional Scrum Master I (PSM I)','agile-scrum')
+  ('pm-certification','Professional Scrum Master I (PSM I)','agile-scrum'),
+  ('grc-foundations','Incident management & ITIL','itil-incidents'), ('grc-foundations','Excel for analysis','excel'),
+  ('grc-standards','BPMN & process mapping','bpmn'), ('grc-standards','SQL for data jobs','sql'),
+  ('grc-audit','Cloud fundamentals with AWS','cloud-aws'), ('grc-audit','Power BI & DAX','power-bi')
 ) as v(tid, title, c)
 where s.id = md5(v.tid || ':' || v.title)::uuid;
 
@@ -546,7 +595,8 @@ from (values
   ('mk', 'Marketing digital', 'SEO, publicité, analytics, campagnes'),
   ('fa', 'Analyste financier', 'Modélisation, FP&A, reporting, valorisation'),
   ('po', 'Product Owner', 'Backlog, découverte, roadmap, livraison'),
-  ('pm', 'Chef de projet', 'Planning, risques, budget, parties prenantes')
+  ('pm', 'Chef de projet', 'Planning, risques, budget, parties prenantes'),
+  ('grc', 'Analyste GRC', 'Risques cyber, ISO 27001, RGPD, audits')
 ) as v(id, n, b)
 where p.id = v.id;
 
@@ -934,3 +984,44 @@ select pg_temp.track_fr('pm-certification','Certifications et projets plus impor
  ["Project Management Professional (PMP)","Project Management Professional (PMP)","La certification de référence mondiale : 3 à 5 ans de pilotage de projets et 35 heures de formation exigés."],
  ["PRINCE2 Foundation","PRINCE2 Foundation","La méthode par processus répandue au Royaume-Uni, en Europe et dans les projets publics."],
  ["Project: a full plan for a real initiative","Projet : un plan complet pour une initiative réelle","Une charte, un planning, un budget, un registre des risques, une matrice RACI et un plan de communication pour l’initiative réelle d’une association ou d’une entreprise que vous connaissez (voir les projets de portfolio plus bas)."]]'::jsonb);
+
+-- GRC Analyst -------------------------------------------------------------------------
+select pg_temp.res_fr('grc','tool','[
+ ["Excel","Excel","Registres des risques, matrices de contrôles et suivis d’audit : c’est encore là que commence l’essentiel du travail GRC"],
+ ["ServiceNow GRC, Archer or OneTrust","ServiceNow GRC, Archer ou OneTrust","Les plateformes GRC : risques, contrôles, politiques, audits et évaluations des fournisseurs au même endroit"],
+ ["Vanta or Drata","Vanta ou Drata","L’automatisation de la conformité pour les start-ups : les preuves SOC 2 et ISO 27001 collectées dans le cloud et les outils RH"],
+ ["Microsoft Purview","Microsoft Purview","Protection des données et conformité dans Microsoft 365 : classification, conservation, journaux d’audit"],
+ ["Power BI","Power BI","Les tableaux de bord des risques et de la conformité pour le comité de direction"]]'::jsonb);
+select pg_temp.res_fr('grc','tip','[
+ ["GRC hires people from many backgrounds (IT support, audit, law, project management): say what you bring and show one GRC deliverable, such as a risk register or an ISO 27001 gap assessment.","La GRC recrute des profils très variés (support IT, audit, droit, gestion de projet) : dites ce que vous apportez et montrez un livrable GRC, par exemple un registre des risques ou un état des lieux ISO 27001."],
+ ["Learn the vocabulary of one framework well (ISO 27001 and its Annex A, or NIST CSF) rather than a little of everything: interviews go into the details.","Maîtrisez bien le vocabulaire d’un référentiel (ISO 27001 et son annexe A, ou le NIST CSF) plutôt qu’un peu de tout : les entretiens entrent dans le détail."],
+ ["European rules (GDPR, NIS2, DORA) create many offers in France and Europe: name the ones you know on your CV, with what you did with them.","Les règles européennes (RGPD, NIS2, DORA) créent beaucoup d’offres en France et en Europe : citez celles que vous connaissez sur votre CV, avec ce que vous en avez fait."]]'::jsonb);
+
+-- Learning tracks: GRC Analyst ----------------------------------------------------------
+select pg_temp.track_fr('grc-foundations','Les bases de la GRC : sécurité, risques et contrôles',
+ 'Ce que vérifie d’abord tout entretien GRC : les bases de la sécurité de l’information, comment on évalue un risque et comment un contrôle le réduit.',
+ 'Expliquer confidentialité, intégrité et disponibilité, évaluer un risque (probabilité × impact), le relier à des contrôles et tenir un registre des risques.','[
+ ["NIST Cybersecurity Framework 2.0","Le NIST Cybersecurity Framework 2.0","Le référentiel gratuit sur lequel s’appuient la plupart des équipes GRC : Gouverner, Identifier, Protéger, Détecter, Répondre, Rétablir (en anglais)."],
+ ["SecNumacadémie","SecNumacadémie","Le MOOC gratuit de l’ANSSI : les bases de la cybersécurité, en français, avec une attestation."],
+ ["Incident management & ITIL","Gestion des incidents et ITIL","Cours HelloKhedma : incidents, problèmes, changements et SLA : les processus IT sur lesquels reposent les contrôles de sécurité."],
+ ["Excel for analysis","Excel pour l’analyse","Cours HelloKhedma : recherches, mise en forme conditionnelle et tableaux croisés dynamiques, pour les registres des risques et les matrices de contrôles."],
+ ["Practice: a risk register for a small company","Pratique : un registre des risques pour une petite entreprise","Pour une petite entreprise que vous connaissez (un commerce, une agence) : listez 10 actifs, 10 risques avec probabilité et impact, et un contrôle pour chacun."],
+ ["CompTIA Security+","CompTIA Security+","La certification d’entrée en sécurité la plus connue : menaces, contrôles, risques et conformité (examen en anglais)."]]'::jsonb);
+select pg_temp.track_fr('grc-standards','Normes et réglementations : ISO 27001, RGPD, NIS2 et DORA',
+ 'Les textes que citent les offres GRC : le système de management ISO 27001, la protection des données personnelles et les nouvelles règles européennes des secteurs critiques et de la finance.',
+ 'Expliquer les clauses et l’annexe A de l’ISO 27001, tenir un registre des traitements RGPD, et dire ce qu’ajoutent NIS2 et DORA.','[
+ ["ISO/IEC 27001","ISO/IEC 27001","La page officielle de la norme : ce qu’est un système de management de la sécurité de l’information (SMSI) et comment se passe la certification."],
+ ["GDPR text, article by article","Le texte du RGPD, article par article","Le règlement avec ses considérants, facile à parcourir : principes, droits, registre, analyses d’impact (en anglais ; le texte français est sur le site de la CNIL)."],
+ ["NIS2 directive","La directive NIS2","La page de la Commission européenne sur NIS2 : quelles organisations sont concernées et ce qui est exigé."],
+ ["BPMN & process mapping","BPMN et cartographie des processus","Cours HelloKhedma : cartographier un processus pour voir où placer un contrôle et qui l’exécute."],
+ ["SQL for data jobs","SQL pour les métiers de la data","Cours HelloKhedma : interroger vous-même les listes d’utilisateurs, les droits d’accès et les journaux pour réunir des preuves d’audit."],
+ ["Project: an ISO 27001 gap assessment","Projet : un état des lieux ISO 27001","Comparer une organisation réelle ou fictive aux contrôles de l’ISO 27001 et écrire le plan d’action (voir les projets de portfolio plus bas)."]]'::jsonb);
+select pg_temp.track_fr('grc-audit','Audits, tiers et certifications',
+ 'Ce que demandent les offres GRC confirmées : mener des audits, évaluer les fournisseurs et le cloud, rendre compte à la direction, et une certification reconnue.',
+ 'Planifier et mener un audit IT, évaluer un fournisseur et un service cloud, présenter les risques dans un tableau de bord, et préparer CISA, CRISC ou ISO 27001 Lead Implementer.','[
+ ["Cloud fundamentals with AWS","Les fondamentaux du cloud avec AWS","Cours HelloKhedma : responsabilité partagée, identités et accès, journaux : ce qu’un auditeur vérifie dans le cloud."],
+ ["Power BI & DAX","Power BI et DAX","Cours HelloKhedma : construire le tableau de bord des risques et de la conformité que lit un comité de direction."],
+ ["Practice: a supplier security questionnaire","Pratique : un questionnaire de sécurité fournisseur","Écrivez 20 questions pour évaluer un fournisseur SaaS (accès, chiffrement, sauvegardes, incidents, certifications), puis répondez-y pour un service que vous utilisez à partir de sa page de confiance publique."],
+ ["ISO/IEC 27001 Lead Implementer","ISO/IEC 27001 Lead Implementer","La certification pour mener un projet ISO 27001 : cinq jours de formation et un examen, fréquente dans les offres de conseil GRC."],
+ ["Certified Information Systems Auditor (CISA)","Certified Information Systems Auditor (CISA)","La certification de référence des auditeurs IT ; l’expérience est exigée pour le titre, pas pour l’examen."],
+ ["Certified in Risk and Information Systems Control (CRISC)","Certified in Risk and Information Systems Control (CRISC)","La certification de l’ISACA pour les responsables des risques IT."]]'::jsonb);

@@ -54,6 +54,7 @@ export default {
   "Marketing": "Marketing",
   "Finance": "Finance",
   "Product & project": "Produit et projet",
+  "Security & compliance": "Sécurité et conformité",
   "Tools": "Outils",
   "Path keywords": "Mots-clés du parcours",
 

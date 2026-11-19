@@ -280,6 +280,10 @@ Corporate Finance). Reuses the Excel, SQL, Power BI, Python and statistics cours
 - 2026-11-19: GRC Analyst path ("grc", owner: "governance risk and conformity"): IT and cyber GRC (ISO 27001, NIST CSF,
   GDPR, NIS2, DORA, audits), not financial compliance (AML / KYC). Roadmap on existing courses + outside resources and
   certifications; own GRC courses (foundations, risk management, ISO 27001, GDPR) are the next step if the path is used.
+- 2026-11-19: own courses for the Product Owner, Project Manager and GRC paths (owner: "do all three"), EN + FR, 8 lessons
+  each: po-discovery, po-backlog, po-metrics, po-roadmap; pm-planning, pm-budget (earned value), pm-risks, pm-stakeholders;
+  grc-basics, grc-risk, grc-iso27001, grc-regulations (GDPR, NIS2, DORA). Each gets a "HelloKhedma course" step on its
+  path's roadmap (seed; supabase/seed-po-pm-grc-courses.sql for a phone paste).
 - 2026-11-19: Sales path ("sales", owner: "add a sales path"): B2B sales (SDR / business developer, account executive, key
   account manager), not retail. Roadmap on existing courses (marketing foundations, CRM, Excel) + HubSpot Academy, Trailhead,
   a negotiation course and practice. Same day (owner: "write the sales courses"): four courses EN + FR, Prospecting and

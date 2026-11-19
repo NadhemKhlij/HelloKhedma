@@ -5,10 +5,11 @@ A multi-path job hunting web app targeting Data Engineers, Business Analysts, Ap
 AI Engineers and Digital Marketing (path id "mk", 2026-11-09: seed, skills, interview, projects and six courses: marketing-foundations, seo, paid-ads, ga4,
   email-crm, marketing-analytics) and Financial Analyst (path id "fa", 2026-11-17: seed, 14 finance skills, interview, projects
   and four courses: finance-foundations, financial-modeling, fpa, valuation), Product Owner (path id "po") and Project Manager
-  (path id "pm", 2026-11-19: seed, product & project skills, interview, projects; their roadmaps use the existing agile-scrum,
-  requirements, bpmn, sql, statistics, excel and power-bi courses) and GRC Analyst (path id "grc", IT and cyber governance, risk
+  (path id "pm", 2026-11-19: seed, product & project skills, interview, projects, four courses each: po-discovery, po-backlog,
+  po-metrics, po-roadmap / pm-planning, pm-budget, pm-risks, pm-stakeholders; their roadmaps also use agile-scrum,
+  requirements, bpmn, sql, statistics, excel and power-bi) and GRC Analyst (path id "grc", IT and cyber governance, risk
   and compliance, 2026-11-19: seed, "Security & compliance" skills, interview, projects; roadmap uses the itil-incidents, excel,
-  bpmn, sql, cloud-aws and power-bi courses, no GRC course of its own yet) and Sales (path id "sales", B2B sales: SDR /
+  bpmn, sql, cloud-aws and power-bi courses, and four GRC courses: grc-basics, grc-risk, grc-iso27001, grc-regulations) and Sales (path id "sales", B2B sales: SDR /
   business developer, account executive, key account manager, 2026-11-19: seed, "Sales" skills, interview, projects and four courses:
   sales-prospecting, sales-discovery, sales-negotiation, sales-pipeline; roadmap also uses marketing-foundations, email-crm
   and excel; La bonne alternance ROME codes D1402, D1407, D1406).

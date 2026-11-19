@@ -1,0 +1,452 @@
+{
+  "why": "Every company that handles customer data, payments or critical services must show regulators, auditors and customers that its security is governed, its risks are known and its controls work. GRC analysts are hired to do exactly that, and the job needs method and clear writing more than deep hacking skills.",
+  "outcome": "explain what GRC is and who does what, describe threats with the CIA triad, classify controls, run an access review, place security roles in the three lines model, map work to the six NIST CSF 2.0 functions, read and write a security policy, and organise a GRC analyst’s week with simple Excel indicators.",
+  "lessons": [
+    {
+      "title": "What GRC is and what a GRC analyst does",
+      "text": [
+        "GRC stands for governance, risk and compliance. Governance is how decisions about security are made: who sets the direction, who approves the budget, who is accountable when something goes wrong. Risk management is how the company finds what could hurt it, judges how likely and how serious it is, and decides what to do about it. Compliance is proving that the company follows the laws, contracts and standards it has committed to, such as the GDPR, ISO/IEC 27001 or a customer’s security clauses. The three only work together: you cannot prove compliance with controls nobody owns, and you cannot choose controls without knowing the risks.",
+        "A GRC analyst (also called IT risk analyst, compliance analyst or security governance analyst) keeps that system running. In a typical week you update the risk register with risk owners, check that key controls were performed and collect the evidence, answer security questionnaires from customers, prepare audits, follow up on findings and policy exceptions, and turn all this into a short report for management. Most of the work is in Excel, a GRC platform, e-mails and meetings, not in a terminal.",
+        "The neighbours of the role are easy to confuse in interviews. A SOC analyst (security operations centre) watches alerts and handles incidents in real time; the GRC analyst checks that monitoring exists and works. An auditor, internal or external, gives an independent opinion on whether controls work; the GRC analyst prepares the evidence and fixes the gaps, and does not audit their own work. The DPO (data protection officer) oversees GDPR compliance for personal data. The CISO, called RSSI in France (responsable de la sécurité des systèmes d’information), leads security and usually manages the GRC team.",
+        "In France and Europe, demand comes from regulation as much as from attacks: the GDPR since 2018, the NIS2 directive for essential and important entities, DORA for the financial sector (applicable since January 2025), plus customer requirements for ISO/IEC 27001 certification or SOC 2 reports. Banks, insurers, consulting firms (risk advisory, cyber consulting), software vendors and large groups all hire juniors for these roles, often after a master’s in cybersecurity, audit or IT management.",
+        "Interviewers test three things: that you understand the vocabulary (risk, control, evidence, finding), that you can explain a technical subject to a non-technical manager, and that you are rigorous with documents and deadlines. Saying “I check that controls are designed well and performed as described, and I can show the evidence” is a better answer than listing security tools."
+      ],
+      "points": [
+        "Governance = who decides and who is accountable; risk = what could hurt us and what we do about it; compliance = proving we follow our commitments.",
+        "The GRC analyst runs the system: risk register, control checks, evidence, questionnaires, audits, reporting.",
+        "SOC analyst handles alerts; auditor gives an independent opinion; DPO covers personal data; CISO/RSSI leads security.",
+        "Regulation (GDPR, NIS2, DORA) and customer demands (ISO/IEC 27001, SOC 2) drive hiring in Europe.",
+        "Rigour with evidence and clear writing matter more than tool knowledge for a junior."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Question from management               Who answers it\n\"Are we being attacked right now?\"      SOC analyst\n\"Which risks matter most this year?\"    GRC analyst with the risk owners\n\"Do our controls really work?\"          Auditor (independent opinion)\n\"Are we allowed to keep this data?\"     DPO\n\"What is our security strategy?\"        CISO / RSSI\n\"Can we prove it to the regulator?\"     GRC analyst (evidence, reports)",
+        "note": "Knowing who answers what helps you route a request on your first day and answer the classic interview question about the role."
+      }
+    },
+    {
+      "title": "The CIA triad and common threats",
+      "text": [
+        "Security protects three properties of information, the CIA triad. Confidentiality: only authorised people can read it (a stolen laptop with an unencrypted customer file breaks it). Integrity: it is accurate and has not been changed without authorisation (a fraudster changing a supplier’s bank details breaks it). Availability: it can be used when needed (a ransomware attack that stops the order system breaks it). French teams often use DICT or DICP: disponibilité, intégrité, confidentialité, plus traçabilité or preuve (being able to prove who did what).",
+        "A threat is something that could cause harm; a vulnerability is a weakness it can exploit; a risk is the combination, judged by likelihood and impact on the business. A missing patch is a vulnerability, a criminal group scanning the internet is a threat, and the risk is “our customer portal is compromised and customer data leaks”. Keep the three words apart: interviewers notice when candidates mix them.",
+        "Four threats come up in almost every risk assessment. Phishing: fake e-mails, texts or calls that steal passwords or push someone to pay a fake invoice (in France the “fraude au président”, a business e-mail compromise where a fake executive orders an urgent transfer). Ransomware: criminals encrypt systems and often steal data first, then demand payment twice, to unlock and to stay silent. Insider threat: an employee or contractor who misuses access, on purpose or by mistake, such as sending a file to the wrong person. Supplier or supply chain attacks: an attacker goes through a provider, as in the SolarWinds compromise discovered in 2020, where a software update carried a backdoor to thousands of customers.",
+        "For each threat, ask which CIA property it hits and which business process suffers. Ransomware hits availability first (factories stop, invoices are not sent) and confidentiality when data is stolen. Phishing usually starts with confidentiality (credentials) and ends with integrity (fraudulent payment) or a full intrusion. This link to business impact is what makes management listen: “three days without invoicing” is clearer than “encryption of file servers”."
+      ],
+      "points": [
+        "Confidentiality: only the right people can read. Integrity: accurate and unchanged. Availability: usable when needed.",
+        "French practice adds traceability or proof: DICT / DICP.",
+        "Threat (what could harm) + vulnerability (the weakness) = risk, judged by likelihood and impact.",
+        "Phishing, ransomware, insider threat and supplier attacks appear in almost every risk register.",
+        "Always translate a threat into its business impact."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Threat               Main CIA impact                Business impact example\nPhishing             Confidentiality, then Integrity Stolen e-mail account, fake supplier bank details paid\nRansomware           Availability (+ Confidentiality if data stolen) Orders and invoicing stopped for days\nInsider (mistake)    Confidentiality                Payroll file sent to the wrong distribution list\nSupplier attack      All three                      Compromised IT provider reaches our network",
+        "note": "A table like this is the start of a risk register: one line per scenario, then likelihood, impact, owner and controls."
+      }
+    },
+    {
+      "title": "Controls: types, categories and defence in depth",
+      "text": [
+        "A control is any measure that reduces a risk: a rule, a process, a tool or a lock. Controls are classified in two ways that interviewers love to test. By function: preventive controls stop the event (MFA, firewall rules, approval before a payment change), detective controls find it when it happens or afterwards (log monitoring, alerts on admin logins, a monthly access review), corrective controls limit damage and restore (restoring from backup, reimaging an infected laptop, disabling a compromised account). Some frameworks add deterrent, recovery and compensating controls.",
+        "By nature: administrative controls (also called organisational or managerial) are policies, procedures, training and reviews; technical controls (logical) are enforced by systems, such as encryption, MFA or endpoint protection; physical controls protect places and hardware, such as badges, locked server rooms, CCTV and shredders. ISO/IEC 27001:2022 groups its 93 Annex A controls into four themes that follow the same idea: organisational, people, physical and technological.",
+        "A compensating control replaces a control that cannot be applied. An old machine in a factory cannot run endpoint protection, so it is isolated on its own network segment, its connections are monitored and its USB ports are blocked. The compensating control must be documented, approved by the risk owner and reviewed, otherwise it is just an excuse.",
+        "Defence in depth means layering controls so that one failure does not lead to a breach. Against phishing: an e-mail filter blocks most messages (preventive, technical), training helps people spot the rest (preventive, administrative), MFA stops a stolen password from being enough (preventive, technical), monitoring flags an unusual login (detective), and an incident procedure disables the account and resets sessions (corrective). No single control is perfect, so you ask: if this one fails, what catches it next?",
+        "For each key control, a GRC analyst checks two things: design (if performed as described, does it really reduce the risk?) and operating effectiveness (was it actually performed, every time, over the period?). A beautiful access review procedure that nobody ran last quarter is well designed but not effective."
+      ],
+      "points": [
+        "Preventive stops, detective finds, corrective repairs and restores.",
+        "Administrative (policies, training, reviews), technical (systems), physical (places and hardware).",
+        "A compensating control replaces one that cannot be applied, and must be documented and approved.",
+        "Defence in depth: several layers so one failure is not a breach.",
+        "Test design and operating effectiveness separately."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Defence in depth against phishing\nLayer                        Function     Nature\nE-mail filtering             Preventive   Technical\nAwareness training           Preventive   Administrative\nMFA on all accounts          Preventive   Technical\nAlert on unusual login       Detective    Technical\nUsers report suspect mails   Detective    Administrative\nAccount disable + reset      Corrective   Technical\nIncident procedure           Corrective   Administrative",
+        "note": "Each control can be described by its function and its nature: this is how controls are tagged in a control library."
+      }
+    },
+    {
+      "title": "Identity and access basics",
+      "text": [
+        "Most incidents involve an account: a stolen password, an old account nobody closed, or a user with far more rights than needed. That is why identity and access management (IAM) controls are the first ones auditors test. Least privilege means each person gets only the access needed for their job, for as long as needed. Need to know applies the same idea to information. Segregation of duties (SoD) splits sensitive tasks so one person cannot both create a supplier and approve its payment, or both write and deploy code to production without review.",
+        "Multi-factor authentication (MFA) asks for two or more different factors: something you know (password), something you have (phone, security key), something you are (fingerprint). It blocks most attacks that rely on stolen passwords. Not all MFA is equal: codes sent by SMS can be intercepted, and push approvals can be abused by flooding a user with requests until they accept (MFA fatigue). Phishing-resistant methods such as FIDO2 security keys or passkeys are preferred for administrators and remote access.",
+        "The joiners-movers-leavers (JML) process manages accounts through a person’s life in the company. Joiners get access based on their role, approved by their manager. Movers must lose the rights of their old job when they get the new ones; when they keep them, rights accumulate, which is called privilege creep. Leavers must have their accounts disabled on their last day. The trigger should come from HR data, not from a manager remembering to send an e-mail.",
+        "An access review (also called recertification) asks each manager or application owner to confirm, at a set frequency, that the people with access still need it. A good review compares the account list with the HR list, flags leavers whose accounts are still enabled, orphan accounts with no owner, and privileged accounts, then sends each reviewer a short list to approve or revoke. The GRC analyst follows up until every line has a decision, checks that revocations were really done, and keeps the evidence: the extract, the reviewer’s decisions with dates, and the tickets for removals.",
+        "A classic audit finding reads: “Three of the 25 leavers sampled still had an active account 30 days after their departure.” The fix is rarely another reminder; it is linking account disabling to the HR exit date and adding a monthly detective check."
+      ],
+      "points": [
+        "Least privilege and need to know: only the access the job requires.",
+        "Segregation of duties: no single person controls a sensitive process end to end.",
+        "MFA blocks most stolen-password attacks; prefer phishing-resistant methods for admins.",
+        "Joiners-movers-leavers: movers lose old rights (privilege creep), leavers are disabled on their last day.",
+        "Access review: compare with HR data, get a decision per line, check the removals, keep the evidence."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Quarterly access review: ERP finance module (extract of 15 March)\nUser       HR status   Account   Role               Reviewer decision\nj.morel    Employee    Enabled   AP clerk           Keep\nl.roux     Leaver      Enabled   AP clerk           Revoke (left 28 Feb)\ns.fabre    Mover       Enabled   AP clerk + Sales   Revoke AP clerk role\nadmin_tmp  No owner    Enabled   Administrator      Revoke (orphan account)\nk.garnier  Employee    Enabled   Create + approve supplier  SoD conflict: remove one",
+        "note": "Each line needs a decision, a date and a ticket for every removal: that set is the evidence an auditor will ask for."
+      }
+    },
+    {
+      "title": "Governance: roles and the three lines model",
+      "text": [
+        "Governance answers “who decides, who does, who checks”. The board (conseil d’administration) or the executive committee sets the risk appetite, approves the main policies and receives regular reports; under NIS2, management bodies must approve cybersecurity risk measures and can be held liable. The CISO/RSSI builds the security strategy and programme, proposes policies, and reports on risks and incidents. The CIO (DSI in France) runs IT and owns many technical controls. Business leaders own their processes and the risks in them.",
+        "Risk owners are managers who are accountable for a risk and decide how it is treated: reduce, accept, transfer or avoid. Control owners perform or supervise a control (the IT operations manager for backups, the HR manager for the leaver process). The GRC analyst does not own the risks; they facilitate, document and challenge. A frequent beginner mistake is to accept a risk on behalf of the business: only the risk owner, at the right level of authority, can do that.",
+        "The DPO (délégué à la protection des données) is required by GDPR Article 37 for public bodies and for organisations whose core activities involve large-scale monitoring of people or large-scale processing of sensitive data; many others appoint one anyway. The DPO informs and advises, monitors compliance, advises on data protection impact assessments and is the contact for the supervisory authority (the CNIL in France). Article 38 requires that the DPO acts independently and reports to the highest management level.",
+        "The Institute of Internal Auditors (IIA) describes the Three Lines Model, updated in 2020 from the older “three lines of defence”. The governing body is accountable to stakeholders and oversees. First line: management and operational teams who deliver the business and own and manage risks and controls day to day. Second line: functions that bring expertise, support, monitoring and challenge on risk, such as risk management, compliance and often the security governance team. Third line: internal audit, which gives independent and objective assurance to the governing body. External auditors and regulators sit outside the organisation.",
+        "Where GRC sits varies: often in the second line under the CISO or the risk function, sometimes inside IT (closer to the first line). In interviews, explain the principle rather than defend one chart: those who run the controls should not be the only ones checking them, and internal audit must stay independent from both."
+      ],
+      "points": [
+        "Board or executive committee: risk appetite, main policies, oversight; under NIS2 management is accountable.",
+        "Risk owners decide treatment; control owners run controls; the GRC analyst facilitates and challenges.",
+        "DPO: GDPR Articles 37 to 39, independent, reports to the highest management level.",
+        "Three Lines Model (IIA, 2020): first line owns and manages risk, second line supports and challenges, third line (internal audit) gives independent assurance.",
+        "Never accept a risk on behalf of the business."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "                 Governing body (board, audit committee)\n                 accountable to stakeholders, oversight\n                        |\n        Management                               Internal audit\n  First line                 Second line           Third line\n  IT ops, business teams     Risk, compliance,     Independent assurance\n  run and own controls       security governance   on all of the above\n                             support + challenge\n\n  External assurance: statutory auditors, certification bodies, regulators",
+        "note": "The model describes roles, not boxes in an organisation chart: one person can have first-line and second-line tasks, internal audit must stay independent."
+      }
+    },
+    {
+      "title": "The NIST Cybersecurity Framework 2.0",
+      "text": [
+        "The NIST Cybersecurity Framework (CSF) is a free, voluntary framework from the US National Institute of Standards and Technology. Version 2.0, published in February 2024, was written for organisations of every size and sector, not only critical infrastructure, and is widely used in Europe as a common language with management, even where ISO/IEC 27001 is the certification standard. It describes outcomes to achieve, not specific products or a single way to reach them.",
+        "The CSF Core has six functions. Govern (GV), new in 2.0: the organisation’s context, risk management strategy, roles and responsibilities, policy, oversight and cybersecurity supply chain risk management. Identify (ID): know your assets, risks and improvement needs. Protect (PR): safeguards such as identity management, authentication and access control, awareness and training, data security and platform security. Detect (DE): find attacks and anomalies through continuous monitoring and analysis of adverse events. Respond (RS): manage, analyse, contain and report incidents. Recover (RC): restore assets and operations, and communicate during recovery.",
+        "Each function is divided into categories and subcategories, the specific outcomes (for example, PR.AA covers identity management, authentication and access control). NIST publishes implementation examples and informative references that map subcategories to other standards such as ISO/IEC 27001 or NIST SP 800-53, which helps when a company must answer several frameworks at once.",
+        "Organisational Profiles describe the current state (Current Profile) and the desired state (Target Profile) against the CSF outcomes; the gap between them becomes the action plan. Tiers describe how rigorous and integrated the organisation’s cybersecurity risk practices are, from Tier 1 Partial to Tier 2 Risk Informed, Tier 3 Repeatable and Tier 4 Adaptive. Tiers are not a maturity score to maximise for every function; the target tier is chosen according to the risks and resources.",
+        "A typical junior task is a CSF gap assessment: interview control owners, rate each relevant subcategory for the current and target profile, note the evidence, and summarise the gaps per function on one page for management. Keep claims tied to evidence: “Detect is weak” is an opinion; “admin logins are not monitored on 4 of 6 critical systems” is a finding."
+      ],
+      "points": [
+        "CSF 2.0 (February 2024): voluntary, outcome-based, for every kind of organisation.",
+        "Six functions: Govern, Identify, Protect, Detect, Respond, Recover; Govern is new in 2.0.",
+        "Functions split into categories and subcategories, with informative references to other standards.",
+        "Current Profile vs Target Profile = the gap and the action plan.",
+        "Tiers 1 to 4 (Partial, Risk Informed, Repeatable, Adaptive) describe rigour, not a score to maximise."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Function   Example outcome checked              Current  Target  Evidence\nGovern     Security policy approved by management  2        3       Policy v1.2, signed 2024\nIdentify   Inventory of critical applications      1        3       Spreadsheet, 60 % complete\nProtect    MFA for all remote access               2        4       VPN config, MFA report\nDetect     Admin logins monitored                  1        3       2 of 6 systems in the SIEM\nRespond    Incident response plan tested           1        3       Plan exists, never exercised\nRecover    Backups restored and tested             2        3       Last restore test: March",
+        "note": "Scores here use a simple internal scale (1 to 4) for each outcome; many teams do this, but CSF tiers themselves describe the whole organisation’s practices."
+      }
+    },
+    {
+      "title": "Security policies, standards and procedures",
+      "text": [
+        "Security documents form a hierarchy. The policy states management’s intent and the rules at a high level (“all access to company systems requires authentication proportional to risk”); it is short, approved by top management and rarely changes. Standards make it measurable and mandatory (“passwords of at least 12 characters; MFA for remote access and administrators”). Procedures describe step by step how to do a task (“how to create an account in the ERP”). Guidelines are recommendations, useful but not mandatory. In France the overall information security policy is often called the PSSI (politique de sécurité des systèmes d’information).",
+        "A good policy states its purpose, its scope (which entities, people, systems and data), the roles and responsibilities, the rules themselves, how compliance is checked, the consequences of breaking it, how exceptions are handled, the owner, the approval date and the review cycle (usually yearly). It is written so that the people concerned can understand it, without tool names that will change next year: those belong in standards and procedures.",
+        "The acceptable use policy tells users what they may and may not do with company equipment, accounts, e-mail, internet, personal devices and AI tools. In France it is usually the charte informatique, often annexed to the internal rules (règlement intérieur) so that it can be enforced, and it must respect employees’ rights and the GDPR when it allows monitoring. Users should acknowledge it when they join and when it changes.",
+        "Exceptions are normal: a legacy system cannot meet the password standard, a business partner cannot use MFA. A good exception process records the rule concerned, the reason, the risk, the compensating controls, the risk owner’s approval and an expiry date. The GRC analyst keeps the exception register and chases expired exceptions; an exception without an end date silently becomes the new rule.",
+        "Policies fail most often for three reasons: they are copied from a template and describe controls the company does not have, nobody reads them, or nobody checks them. Auditors compare the policy with reality: if the policy says reviews are quarterly, they will ask for four reviews."
+      ],
+      "points": [
+        "Policy (intent, approved by top management) → standards (mandatory, measurable) → procedures (step by step); guidelines are optional advice.",
+        "A good policy: purpose, scope, roles, rules, compliance checks, sanctions, exceptions, owner, approval date, review cycle.",
+        "Acceptable use policy = charte informatique in France, acknowledged by users.",
+        "Exceptions: reason, risk, compensating controls, risk owner approval, expiry date.",
+        "Never write in a policy a control you do not perform: auditors will test it."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Information security policy (PSSI)       approved by executive committee\n└─ Access control standard                 mandatory, measurable\n   ├─ Passwords: 12+ characters, MFA for remote and admin access\n   ├─ Access reviews: quarterly for critical applications\n   └─ Procedure: leaver account disabling (HR exit date → ticket → disable)\n\nException EX-2024-07\nRule: MFA for remote access | System: plant maintenance laptop\nReason: vendor tool incompatible | Compensating: fixed IP, session monitoring\nApproved by: plant director (risk owner) | Expires: 31/12/2025",
+        "note": "Each level has its own owner and review cycle; the exception record keeps the risk visible until it expires."
+      }
+    },
+    {
+      "title": "The GRC analyst’s week: registers, testing, evidence and reporting",
+      "text": [
+        "A GRC analyst’s week follows a rhythm. Monday: review open items (risks without owners, findings past their due date, exceptions expiring). During the week: meet risk and control owners, test a few controls, collect evidence, answer a customer security questionnaire, prepare an awareness campaign. End of the month or quarter: produce indicators and a short report for the CISO/RSSI or the risk committee.",
+        "The risk register lists each risk with its description, owner, likelihood, impact, existing controls, treatment decision and actions with dates. Control testing follows a method: read the control description, take a sample (for example 25 leavers out of the quarter), check each item against the description, and record the result. Evidence must be complete, dated and traceable: system extracts with the date of extraction, tickets, signed reviews, screenshots showing the parameter and the system name. “The administrator told me” is not evidence.",
+        "Awareness is part of the job: phishing simulations, short training modules, messages before holiday periods when fraud attempts rise. Measure what matters: the report rate of suspect e-mails is often more useful than the click rate, because it shows that people act.",
+        "Reporting turns all this into decisions. A good monthly dashboard has a few indicators with a target and a trend: share of key controls tested this quarter, MFA coverage, leavers whose accounts are still active, critical findings overdue, exceptions expired. Each one is simple to compute in Excel, with COUNTIFS on an extract or a ratio of two sums, and each has a one-line comment: what changed, why, what we do.",
+        "Tools: Excel remains everywhere, especially in smaller companies and for one-off analyses. Larger organisations use GRC platforms such as ServiceNow GRC (IRM), RSA Archer, OneTrust or MetricStream, and compliance automation tools like Vanta or Drata in software companies. The logic is the same: registers of risks, controls, evidence, findings and exceptions linked together. If you master the logic in Excel, any platform will feel familiar."
+      ],
+      "points": [
+        "Risk register: risk, owner, likelihood, impact, controls, treatment, actions with dates.",
+        "Control testing: description, sample, check each item, record the result.",
+        "Evidence is complete, dated and traceable; a verbal statement is not evidence.",
+        "Indicators with targets and trends: % of controls tested, MFA coverage, leavers still active, overdue findings.",
+        "Excel first, then GRC platforms (ServiceNow GRC, Archer, OneTrust, MetricStream) or Vanta / Drata."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "=COUNTIFS(B2:B500,\"Leaver\",C2:C500,\"Enabled\")\n=COUNTIF(D2:D60,\"Yes\")/COUNTA(A2:A60)\n=SUM(C2:C9)/SUM(B2:B9)\n=COUNTIFS(E2:E120,\"Open\",F2:F120,\"<\"&TODAY())",
+        "note": "Leavers whose account is still enabled; share of controls tested; MFA coverage (users with MFA / active users); open findings past their due date."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Basics",
+      "items": [
+        ["GRC", "Governance, risk and compliance"],
+        ["CIA triad", "Confidentiality, integrity, availability"],
+        ["Confidentiality", "Only authorised people can read the information"],
+        ["Integrity", "Information is accurate and not changed without authorisation"],
+        ["Availability", "Information and systems are usable when needed"],
+        ["DICT / DICP", "French variant: adds traceability or proof"],
+        ["Threat", "Something that could cause harm"],
+        ["Vulnerability", "A weakness a threat can exploit"]
+      ]
+    },
+    {
+      "group": "Controls",
+      "items": [
+        ["Preventive control", "Stops the event (MFA, approval before a payment change)"],
+        ["Detective control", "Finds the event (monitoring, access review)"],
+        ["Corrective control", "Limits damage and restores (restore from backup)"],
+        ["Administrative control", "Policies, procedures, training, reviews"],
+        ["Technical control", "Enforced by systems (encryption, MFA)"],
+        ["Physical control", "Badges, locked rooms, CCTV"],
+        ["Compensating control", "Replaces a control that cannot be applied"],
+        ["Defence in depth", "Several layers so one failure is not a breach"]
+      ]
+    },
+    {
+      "group": "Identity and access",
+      "items": [
+        ["Least privilege", "Only the access the job requires"],
+        ["Segregation of duties", "No one person controls a sensitive process end to end"],
+        ["MFA", "Two or more different authentication factors"],
+        ["Joiners-movers-leavers", "Account lifecycle driven by HR events"],
+        ["Privilege creep", "Rights piling up when movers keep old access"],
+        ["Access review", "Owners confirm or revoke each access, with evidence"]
+      ]
+    },
+    {
+      "group": "Governance and roles",
+      "items": [
+        ["CISO / RSSI", "Leads the security strategy and programme"],
+        ["DPO", "Oversees GDPR compliance, independent (Articles 37 to 39)"],
+        ["Risk owner", "Accountable for a risk, decides its treatment"],
+        ["Control owner", "Performs or supervises a control"],
+        ["Three Lines Model", "IIA 2020: first line owns risk, second supports and challenges, third (internal audit) assures"],
+        ["Internal audit", "Third line: independent assurance to the governing body"]
+      ]
+    },
+    {
+      "group": "NIST CSF 2.0",
+      "items": [
+        ["Govern", "Context, strategy, roles, policy, oversight, supply chain risk"],
+        ["Identify", "Assets, risk assessment, improvement"],
+        ["Protect", "Access control, awareness, data and platform security"],
+        ["Detect", "Continuous monitoring, analysis of adverse events"],
+        ["Respond", "Manage, analyse, contain and report incidents"],
+        ["Recover", "Restore operations and communicate"],
+        ["Current Profile / Target Profile", "Where we are vs where we want to be"],
+        ["Tiers", "1 Partial, 2 Risk Informed, 3 Repeatable, 4 Adaptive"]
+      ]
+    },
+    {
+      "group": "Policies and daily work",
+      "items": [
+        ["Policy", "Management intent, high level, approved by top management"],
+        ["Standard", "Mandatory, measurable rule"],
+        ["Procedure", "Step-by-step instructions for a task"],
+        ["Guideline", "Recommended practice, not mandatory"],
+        ["Policy exception", "Approved deviation with compensating controls and an expiry date"],
+        ["Risk register", "List of risks with owner, rating, treatment and actions"],
+        ["Evidence", "Complete, dated, traceable proof that a control was performed"]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Accepting a risk yourself instead of getting the decision from the risk owner at the right level.",
+    "Writing controls into a policy that the company does not perform: the first audit will find the gap.",
+    "Taking “yes, we do it” as evidence instead of a dated extract, ticket or signed review.",
+    "Granting exceptions with no expiry date, which quietly become the new rule.",
+    "Running access reviews without checking that the revocations were actually done.",
+    "Confusing threat, vulnerability and risk, or reporting technical findings without their business impact.",
+    "Treating NIST CSF tiers or maturity scores as a target to maximise everywhere instead of matching them to the risks."
+  ],
+  "exercises": [
+    {
+      "q": "Sort these controls by function.",
+      "type": "groups",
+      "groups": [
+        { "name": "Preventive", "items": ["MFA on remote access", "Manager approval before changing a supplier’s bank details", "Firewall rule blocking unused ports"] },
+        { "name": "Detective", "items": ["Alert on administrator logins at night", "Quarterly access review", "Monthly reconciliation of payments"] },
+        { "name": "Corrective", "items": ["Restoring a server from backup", "Reimaging an infected laptop", "Disabling a compromised account"] }
+      ],
+      "answer": "Preventive controls stop the event, detective controls find it, corrective controls limit the damage and restore. An access review is detective: it finds access that should no longer exist; the removals that follow are corrective."
+    },
+    {
+      "q": "Match each NIST CSF 2.0 function with an activity.",
+      "type": "match",
+      "pairs": [
+        ["Govern", "The executive committee approves the security policy and roles"],
+        ["Identify", "Build the inventory of critical applications and their owners"],
+        ["Protect", "Roll out MFA and security awareness training"],
+        ["Detect", "Monitor administrator logins and analyse alerts"],
+        ["Respond", "Contain an incident and notify the authorities when required"],
+        ["Recover", "Restore systems from backup and communicate on the return to normal"]
+      ],
+      "answer": "Govern sets the direction and oversight (new in CSF 2.0), Identify knows assets and risks, Protect puts safeguards in place, Detect finds events, Respond handles incidents, Recover restores operations."
+    },
+    {
+      "q": "Put the steps of a quarterly access review in order.",
+      "type": "order",
+      "steps": [
+        "Extract the list of accounts and rights from the application, with the extraction date",
+        "Compare it with the HR list to flag leavers, movers and orphan accounts",
+        "Send each reviewer the list of accesses they must confirm or revoke",
+        "Follow up until every line has a dated decision",
+        "Check in the application that the revocations were done",
+        "File the evidence and report the results and exceptions"
+      ],
+      "answer": "Extract → compare with HR → review by owners → decisions → check the removals → evidence and report. Skipping the check of removals is the most common gap auditors find."
+    },
+    {
+      "q": "The sales director asks you to remove MFA for a top salesperson who “loses too much time” with it. What do you do?",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "First reaction?",
+          "choices": [
+            { "label": "Understand the real problem: which device, how often, what blocks them", "best": true, "feedback": "Often the issue is practical (a lost phone, prompts at every login) and has a fix that keeps MFA." },
+            { "label": "Disable MFA for this account: it is a VIP request", "feedback": "Senior people are prime targets for phishing and fraud; removing MFA for them raises the risk where it is highest." },
+            { "label": "Refuse flatly and close the request", "feedback": "The rule stands, but a flat refusal pushes people to workarounds. Solve the usability problem." }
+          ]
+        },
+        {
+          "text": "The salesperson travels a lot and gets MFA prompts on every login. What do you propose?",
+          "choices": [
+            { "label": "A smoother method (passkey or security key, remembered trusted device) that keeps MFA", "best": true, "feedback": "Usability improves and the control stays; this is the best outcome for both sides." },
+            { "label": "A permanent exception with no end date", "feedback": "An exception without expiry quietly becomes the new rule, and here no real constraint justifies it." }
+          ]
+        },
+        {
+          "text": "The director still insists on removing MFA. Next step?",
+          "choices": [
+            { "label": "Use the exception process: written risk, compensating controls, decision by the risk owner at the right level, expiry date", "best": true, "feedback": "You do not decide alone and you do not hide the risk: the accountable person decides, in writing, for a limited time." },
+            { "label": "Accept it yourself to keep a good relationship", "feedback": "A GRC analyst never accepts a risk on behalf of the business." }
+          ]
+        }
+      ],
+      "answer": "Listen, fix the usability problem while keeping MFA, and if the request remains, go through the formal exception process where the accountable risk owner decides in writing with an expiry date. VIP accounts are the most targeted."
+    },
+    {
+      "q": "A fraudster gets into a supplier’s mailbox and asks your accounts payable team to change the supplier’s bank details. Which CIA property is mainly hit when the change is made?",
+      "type": "choice",
+      "options": ["Confidentiality", "Integrity", "Availability", "None: it is a fraud, not a security issue"],
+      "correct": 1,
+      "answer": "The supplier master data is changed without valid authorisation, so integrity is hit (and money is lost). The preventive control is a call-back to a known number before any change of bank details."
+    },
+    {
+      "q": "In the IIA Three Lines Model, which function provides independent assurance to the governing body?",
+      "type": "choice",
+      "options": ["IT operations", "The compliance team", "Internal audit", "The CISO/RSSI"],
+      "correct": 2,
+      "answer": "Internal audit is the third line: independent and objective assurance. Compliance and security governance support and challenge as the second line; IT operations run controls as the first line."
+    },
+    {
+      "q": "Which function was added to the NIST Cybersecurity Framework in version 2.0?",
+      "type": "fill",
+      "blanks": [["Govern", "GV", "Govern (GV)", "the Govern function", "Gouverner", "Gouvernance", "Gouverner (GV)"]],
+      "answer": "Govern (GV) was added in CSF 2.0 (February 2024), next to Identify, Protect, Detect, Respond and Recover. It covers context, strategy, roles, policy, oversight and supply chain risk."
+    },
+    {
+      "q": "“Passwords must contain at least 12 characters and MFA is required for all administrator accounts.” In the document hierarchy, this mandatory and measurable rule is a…",
+      "type": "fill",
+      "blanks": [["standard", "a standard", "security standard", "un standard", "norme", "une norme", "standard de sécurité"]],
+      "answer": "A standard: it makes the policy’s intent mandatory and measurable. The policy states the principle, procedures describe how to apply it, guidelines only recommend."
+    },
+    {
+      "q": "In B10, count the leavers whose account is still enabled.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["User", "HR status", "Account", "Days since last login"],
+        ["a.martin", "Employee", "Enabled", 1],
+        ["b.dupont", "Leaver", "Disabled", 40],
+        ["c.bernard", "Leaver", "Enabled", 3],
+        ["d.petit", "Employee", "Enabled", 2],
+        ["e.durand", "Leaver", "Enabled", 25],
+        ["f.leroy", "Mover", "Enabled", 1],
+        ["g.moreau", "Leaver", "Disabled", 60],
+        ["h.simon", "Leaver", "Enabled", 90],
+        ["Leavers still enabled", "", "", ""]
+      ],
+      "cell": "B10",
+      "answer": "=COUNTIFS(B2:B9,\"Leaver\",C2:C9,\"Enabled\")",
+      "explain": "COUNTIFS counts the rows that meet both conditions: HR status Leaver and account Enabled. Here c.bernard, e.durand and h.simon: 3 accounts to disable now, and a finding on the leaver process. c.bernard logged in 3 days ago: check whether the account was used after the departure."
+    },
+    {
+      "q": "In C10, compute the share of key controls tested this quarter.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["Control", "Owner", "Tested this quarter"],
+        ["AC-01 Access review", "IT", "Yes"],
+        ["AC-02 MFA on remote access", "IT", "Yes"],
+        ["BK-01 Backup restore test", "IT Ops", "No"],
+        ["CH-01 Change approval", "IT Ops", "Yes"],
+        ["HR-01 Leaver process", "HR", "No"],
+        ["PH-01 Badge access review", "Facilities", "Yes"],
+        ["AW-01 Phishing simulation", "Security", "Yes"],
+        ["VM-01 Critical patches within 15 days", "IT Ops", "No"],
+        ["% tested", "", ""]
+      ],
+      "cell": "C10",
+      "answer": "=COUNTIF(C2:C9,\"Yes\")/COUNTA(A2:A9)",
+      "explain": "5 controls tested out of 8 = 62.5 %. COUNTA counts the controls listed, so the formula stays right when a control is added. Format the cell as a percentage."
+    },
+    {
+      "q": "In C6, compute the MFA coverage for the whole company (users with MFA divided by active users).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["Department", "Active users", "Users with MFA"],
+        ["Finance", 120, 114],
+        ["Sales", 260, 195],
+        ["IT", 80, 80],
+        ["Operations", 340, 221],
+        ["MFA coverage", "", ""]
+      ],
+      "cell": "C6",
+      "answer": "=SUM(C2:C5)/SUM(B2:B5)",
+      "explain": "(114 + 195 + 80 + 221) / (120 + 260 + 80 + 340) = 610 / 800 = 76.25 %. Averaging the four department rates (95 %, 75 %, 100 %, 65 %) would give 83.75 %, which overweights the small departments: divide the totals."
+    },
+    {
+      "q": "Write the outline of an acceptable use policy (charte informatique) for a company of 300 people: the sections and one or two lines on what each contains.",
+      "answer": "1) Purpose: protect the company’s information and systems and set clear rules for users. 2) Scope: all employees, interns, contractors and temporary staff; company devices, accounts, e-mail, internet, cloud services, personal devices used for work. 3) Roles: users, managers, IT, CISO/RSSI, DPO. 4) Accounts and passwords: personal accounts, no sharing, password standard, MFA. 5) Use of equipment: care, locking the screen, no unapproved software, reporting a loss or theft at once. 6) E-mail, internet and messaging: professional use, limited personal use allowed, phishing vigilance and how to report a suspect message. 7) Data: classification, no company data on personal storage or unapproved cloud or AI tools, sending data outside, printing and disposal. 8) Remote work and personal devices: VPN, public Wi-Fi, conditions for BYOD. 9) Monitoring: what is logged and why, in line with the GDPR and employees’ rights, how long logs are kept. 10) Incidents: report any suspected incident to the service desk without delay. 11) Sanctions: breaches may lead to disciplinary measures under the internal rules. 12) Exceptions: request process. 13) Owner, approval, effective date, yearly review and user acknowledgement on joining and after each change."
+    }
+  ],
+  "interview": [
+    {
+      "q": "What is GRC and how is a GRC analyst different from a SOC analyst?",
+      "a": "GRC is governance (who decides and is accountable), risk management (what could hurt us and how we treat it) and compliance (proving we meet laws, standards and contracts). A SOC analyst monitors alerts and handles incidents in real time. A GRC analyst makes sure the risks are known and owned, the controls exist and work, and the company can prove it: risk register, control testing, evidence, audits, policies and reporting. We work together: for example I check that the SOC’s monitoring covers the critical systems in our risk register."
+    },
+    {
+      "q": "Explain the difference between a threat, a vulnerability and a risk.",
+      "a": "A threat is what could cause harm, such as a ransomware group. A vulnerability is a weakness it could exploit, such as an unpatched VPN server. The risk is the business scenario that combines them, “ransomware enters through the VPN and stops production”, rated by likelihood and impact. We usually cannot remove threats, so we reduce vulnerabilities and impact with controls, and the risk owner decides on the residual risk."
+    },
+    {
+      "q": "Give examples of preventive, detective and corrective controls for the same risk.",
+      "a": "Take fraud on supplier bank details. Preventive: changes require a call-back to a known contact and approval by a second person (segregation of duties). Detective: a weekly report of master data changes reviewed by the finance manager, and an alert when a payment goes to a recently changed account. Corrective: a procedure to recall the transfer with the bank immediately and block the supplier record. Layering them is defence in depth."
+    },
+    {
+      "q": "How would you run an access review on a critical application?",
+      "a": "I extract the accounts and rights with the date of extraction, compare them with the HR list to flag leavers, movers and orphan accounts, and highlight privileged and SoD-conflicting rights. Each owner gets a short list to keep or revoke with a deadline, and I follow up until every line has a dated decision. Then I check in the application that revocations were done, keep the evidence (extract, decisions, tickets), and report the results with the root causes, such as a leaver process not linked to HR data."
+    },
+    {
+      "q": "What are the functions of the NIST CSF 2.0 and what changed from version 1.1?",
+      "a": "Govern, Identify, Protect, Detect, Respond and Recover. Version 2.0, published in February 2024, added Govern, which brings strategy, roles, policy, oversight and supply chain risk into the core, and widened the scope to all organisations, not only critical infrastructure. Organisations use Current and Target Profiles to find their gaps, and the tiers describe how rigorous their practices are. I would use it as a common language with management, mapped to ISO/IEC 27001 if the company is certified."
+    },
+    {
+      "q": "A manager asks for an exception to a security policy. How do you handle it?",
+      "a": "First I understand the need: often there is a way to comply that I can help with. If an exception is really needed, I document the rule concerned, the reason, the risk, the compensating controls and an expiry date, and the risk owner at the right level approves it in writing; I do not accept the risk myself. The exception goes into the register, and I follow it up before it expires. Many exceptions on the same rule are a signal that the standard itself needs reviewing."
+    },
+    {
+      "q": "Explain the three lines model.",
+      "a": "In the IIA’s Three Lines Model, updated in 2020, the governing body oversees and is accountable. The first line is management and operations: they run the business and own and manage risks and controls. The second line brings expertise, monitoring and challenge on risk: risk management, compliance and often security governance. The third line is internal audit, which gives independent assurance to the governing body. The point is that those who run controls are not the only ones checking them, and internal audit stays independent."
+    },
+    {
+      "q": "What would you put on a monthly security dashboard for management?",
+      "a": "A few indicators with targets, trends and a one-line comment each: share of key controls tested and passed, MFA coverage, leavers with active accounts, critical vulnerabilities past their deadline, overdue audit findings, expired policy exceptions, phishing simulation report rate, and the top risks with their status. Each figure comes from a dated extract, so I can show the evidence behind it, and the comments say what we do next, not just what the number is."
+    }
+  ]
+}

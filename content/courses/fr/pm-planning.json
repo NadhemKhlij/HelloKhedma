@@ -1,0 +1,420 @@
+{
+  "why": "Chaque chef de projet, chef de projet IT ou analyste PMO est d’abord jugé sur son planning : ce qui sera livré, pour quand, et de quoi dépend la date. Les entretiens le testent directement (« expliquez-moi comment vous construisez un planning », « qu’est-ce que le chemin critique ? »), et sur le terrain un planning fragile se voit en quelques semaines, par des retards que personne n’avait anticipés.",
+  "outcome": "rédiger une note de cadrage, définir le périmètre avec un WBS, estimer par analogie, de façon paramétrique et à trois points (PERT), relier les tâches avec les quatre types de dépendances, trouver le chemin critique et les marges par la passe avant et la passe arrière, construire un Gantt avec jalons et ressources lissées, et suivre l’avancement par rapport à une baseline.",
+  "lessons": [
+    {
+      "title": "Le rôle du chef de projet et le choix du cycle de vie",
+      "text": [
+        "Le PMI définit un projet comme une entreprise temporaire, menée pour créer un produit, un service ou un résultat unique. Temporaire : il a un début et une fin ; unique : il n’a jamais été réalisé exactement de cette façon. Le run (les opérations) est l’inverse : le travail récurrent qui fait tourner l’entreprise, comme lancer la paie chaque mois ou traiter les tickets du support. Migrer la paie vers un nouveau logiciel est un projet ; faire tourner cette paie ensuite relève du run.",
+        "Le chef de projet est responsable de livrer le résultat convenu dans les contraintes convenues : périmètre, délai et coût (le « triangle d’or » ou triple contrainte), avec autour la qualité, les risques et les personnes impliquées. Si un côté bouge, les autres aussi : ajouter du périmètre sans délai ni budget supplémentaire met en danger la date ou la qualité. Le chef de projet ne fait pas tout le travail ; il le planifie, organise qui le fait, le suit, lève les blocages, gère les risques et les changements, et tient informés le sponsor et les parties prenantes.",
+        "Un cycle de vie prédictif, souvent appelé cycle en cascade (waterfall), planifie tout le projet en amont et le déroule par phases : expression du besoin, conception, réalisation, tests, déploiement. Chaque phase se termine par un livrable et souvent par un jalon de décision (phase gate), un go / no-go formel. En France on parle beaucoup du cycle en V, où chaque phase de conception, à gauche, a sa phase de test correspondante, à droite. Le prédictif fonctionne bien quand le besoin est stable et bien compris, quand le travail est difficile à modifier tard (construction, matériel, migration réglementaire) ou quand un contrat fixe le périmètre et le prix (forfait).",
+        "Un cycle de vie agile, par exemple Scrum, livre par itérations courtes (sprints d’une à quatre semaines) et replanifie après chacune avec les retours des utilisateurs. Il convient quand le besoin se précise à mesure que les gens utilisent les premières versions, comme pour une nouvelle application. La plupart des entreprises mènent en réalité des projets hybrides : un cadre prédictif avec des jalons fixes, un budget et une date de mise en production, et une réalisation agile dans certaines phases, par exemple le développement logiciel en sprints tandis que la reprise de données et la formation suivent un planning classique.",
+        "En entretien, évitez de présenter une méthode comme toujours meilleure. Les recruteurs veulent entendre que vous choisissez le cycle de vie selon le projet : stabilité du besoin, coût d’un changement tardif, contenu du contrat, habitudes de l’organisation. Ce cours se concentre sur les outils de planification prédictive (cadrage, WBS, planning, chemin critique, baseline), qui servent aussi dans les projets hybrides pour planifier les jalons et les dépendances."
+      ],
+      "points": [
+        "Projet : temporaire et unique ; run : récurrent et répété.",
+        "Triple contrainte : périmètre, délai et coût bougent ensemble ; la qualité dépend des trois.",
+        "Prédictif (cascade, cycle en V) : tout planifier en amont, phases et jalons de décision, pour un besoin stable.",
+        "Agile : itérations courtes et replanification, pour un besoin qui se précise à l’usage.",
+        "Hybride : un cadre prédictif avec des jalons, une réalisation agile dans certaines phases."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Project: replace the payroll software (go-live 1 January)\n\nLife cycle: hybrid\n  Predictive frame : charter -> scope -> plan -> build -> parallel run -> go-live\n  Phase gates      : G1 scope signed | G2 data migrated | G3 parallel run OK\n  Agile inside     : HR portal screens built in 2-week sprints\n\nOperations after go-live: monthly payroll run (not part of the project)",
+        "note": "Une date fixe et une échéance légale plaident pour un cadre prédictif ; la partie où les utilisateurs doivent réagir aux écrans est livrée en sprints."
+      }
+    },
+    {
+      "title": "La note de cadrage et le business case",
+      "text": [
+        "Le business case (dossier d’opportunité) répond à la question « pourquoi dépenser de l’argent pour ça ? ». Il décrit le problème ou l’opportunité, les options étudiées (y compris ne rien faire), les coûts, bénéfices et risques attendus de chacune, et l’option recommandée. Un bon business case donne des bénéfices mesurables, par exemple « réduire le traitement manuel des factures de 6 à 2 jours » ou « économiser 120 000 € par an de licences », pour pouvoir ensuite vérifier le projet par rapport à eux. PRINCE2 fait de la « justification continue pour l’entreprise » l’un de ses principes : si le business case ne tient plus en cours de route, le projet doit être modifié ou arrêté.",
+        "La note de cadrage (project charter, ou charte projet) est le document qui autorise formellement le projet et donne au chef de projet l’autorité d’utiliser des ressources. Elle est courte, souvent une à trois pages, et signée par le sponsor, la personne de haut niveau qui porte le business case, finance le projet et prend les grandes décisions. Elle contient en général l’objet et les objectifs, le périmètre macro, les principaux livrables, les jalons clés, le budget global, les principaux risques et hypothèses, les critères de succès, le sponsor et le chef de projet, et les parties prenantes clés.",
+        "Les objectifs d’une note de cadrage doivent être SMART : spécifiques, mesurables, atteignables, réalistes et temporellement définis. « Améliorer le site » n’est pas un objectif ; « mettre en ligne le nouveau tunnel de paiement d’ici le 30 juin, avec un taux de conversion mesuré à 3,0 % ou plus sur le mois suivant » en est un. Les critères de succès disent comment le sponsor jugera que le projet a réussi, et ils doivent être validés avant de commencer, pas débattus à la fin.",
+        "La note de cadrage n’est pas le planning détaillé. Elle ne contient ni la liste des tâches, ni le planning complet, ni les affectations de chacun ; tout cela vient ensuite dans le plan de management du projet. Une erreur courante est de démarrer sans note de cadrage signée parce que « tout le monde est d’accord » : quand un désaccord apparaît trois mois plus tard sur le périmètre ou le budget, personne ne peut montrer ce qui avait été convenu. Une autre est une note si vague que chaque partie prenante y lit son propre projet.",
+        "Hypothèses et contraintes méritent chacune une ligne. Une hypothèse est un élément tenu pour vrai sans preuve (« l’API du fournisseur sera disponible en recette le 1er mars ») ; une contrainte est une limite à respecter (« budget plafonné à 250 000 € », « mise en production avant l’échéance légale »). Écrire les hypothèses les transforme en points à vérifier, et une hypothèse fausse devient souvent un risque ou un problème plus tard."
+      ],
+      "points": [
+        "Business case : pourquoi, options, coûts, bénéfices, risques et une recommandation.",
+        "Note de cadrage : autorise le projet et nomme le chef de projet ; signée par le sponsor.",
+        "Objectifs SMART et critères de succès validés avant de commencer.",
+        "La note de cadrage reste macro ; les tâches et le planning détaillé vont dans le plan.",
+        "Listez les hypothèses (à vérifier) et les contraintes (à respecter)."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "PROJECT CHARTER - New customer portal\nSponsor          : Head of Customer Service\nProject manager  : (named here, with authority over the project budget)\nPurpose          : let customers download invoices and open tickets online\nObjectives       : portal live by 30 June; 40% of invoice requests self-served by 30 Sept\nIn scope         : invoices, tickets, password reset, FR and EN\nOut of scope     : online payment (phase 2), mobile app\nMilestones       : design signed 15 Feb | UAT start 2 May | go-live 30 June\nBudget           : 180,000 EUR (incl. 10% contingency)\nAssumptions      : billing system API available in test by 1 March\nConstraints      : GDPR; no change freeze breach in December\nMain risks       : API delay; low adoption\nSigned           : sponsor, date",
+        "note": "Une page que le sponsor signe : assez pour autoriser le travail, pas le planning détaillé."
+      }
+    },
+    {
+      "title": "Le périmètre : exigences, inclus et exclus, le WBS",
+      "text": [
+        "Le périmètre, c’est tout ce que le projet livrera, et rien d’autre. Il part des exigences recueillies auprès des parties prenantes par entretiens, ateliers, documents existants et observation, puis traduites en énoncé du périmètre : les livrables, les critères d’acceptation de chacun, ce qui est explicitement hors périmètre, et les hypothèses. En France, les exigences arrivent souvent sous forme de cahier des charges ou d’expression de besoin.",
+        "La liste du hors périmètre est aussi importante que celle de l’inclus. Écrire noir sur blanc « le paiement en ligne est hors périmètre (lot 2) » évite des mois de « je pensais que c’était compris ». La dérive du périmètre (scope creep) est la croissance lente du périmètre sans ajustement du délai, du budget ou des ressources, souvent une petite demande à la fois. La réponse n’est pas de tout refuser mais de faire passer chaque changement par la gestion des changements : évaluer l’impact sur le délai et le coût, puis laisser le sponsor décider.",
+        "Le WBS (work breakdown structure, ou organigramme des tâches, OT) décompose le périmètre total en éléments plus petits et gérables, organisés par livrable. Le niveau 1 est le projet, le niveau 2 les principaux livrables ou phases, et ainsi de suite jusqu’aux lots de travail (work packages), le niveau le plus bas, que l’on peut estimer, confier à un responsable et suivre. La règle des 100 % dit que le WBS contient tout le travail du projet et rien de plus : les enfants de chaque élément représentent exactement 100 % de leur parent. Le pilotage de projet lui-même est en général une branche du WBS.",
+        "Un WBS est une liste de livrables (des noms), pas un planning : il n’a ni dates ni dépendances. Les activités (des verbes) qui produisent chaque lot de travail viennent ensuite et vont dans le planning. Une règle empirique utilisée par beaucoup de chefs de projet, la règle 8/80, dit qu’un lot de travail devrait représenter entre environ 8 et 80 heures de charge, ou tenir dans une période de reporting ; trop gros, on ne peut pas le suivre, trop petit, on se noie dans le détail. Chaque lot peut être décrit dans un dictionnaire du WBS : description, responsable, critères d’acceptation, estimation.",
+        "En entretien, un exercice classique est « dessinez le WBS d’un petit événement ou d’une application ». Partez des livrables, gardez des niveaux cohérents, incluez le pilotage, les tests et la formation (les branches les plus souvent oubliées), et vérifiez la règle des 100 % en vous demandant : « si tous ces éléments sont faits, le projet est-il terminé ? »."
+      ],
+      "points": [
+        "Énoncé du périmètre : livrables, critères d’acceptation, hors périmètre, hypothèses.",
+        "Écrivez explicitement le hors périmètre ; faites passer chaque changement par la gestion des changements.",
+        "WBS : décomposition orientée livrables jusqu’aux lots de travail.",
+        "Règle des 100 % : tout le travail, rien de plus ; le pilotage de projet est aussi une branche.",
+        "Lot de travail : estimable, un responsable, suivi possible (règle 8/80 comme repère)."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "1 Customer portal\n  1.1 Project management\n      1.1.1 Charter and plan\n      1.1.2 Status reporting and steering\n  1.2 Design\n      1.2.1 Requirements and user stories\n      1.2.2 UX mock-ups\n  1.3 Portal software\n      1.3.1 Invoices module\n      1.3.2 Tickets module\n      1.3.3 Login and password reset\n  1.4 Integration with billing API\n  1.5 Testing\n      1.5.1 System tests\n      1.5.2 User acceptance tests (UAT)\n  1.6 Deployment and training\n      1.6.1 Go-live\n      1.6.2 User guides and training",
+        "note": "Des noms, pas des verbes ; pas de dates. Chaque ligne du niveau le plus bas est un lot de travail avec un responsable."
+      }
+    },
+    {
+      "title": "Estimer : par analogie, paramétrique et à trois points (PERT)",
+      "text": [
+        "Les estimations répondent à deux questions : quelle charge (jours-homme de travail) et quelle durée (temps calendaire). Ce n’est pas pareil : 10 jours-homme réalisés par deux personnes à mi-temps sur la tâche prennent environ 10 jours ouvrés de durée. Estimez avec les personnes qui feront le travail, au niveau du lot de travail, et notez les hypothèses derrière chaque chiffre.",
+        "L’estimation par analogie s’appuie sur un projet passé similaire : « le portail de l’an dernier a pris 40 jours de développement ; celui-ci a environ 25 % d’écrans en plus, donc environ 50 jours ». Elle est rapide et utile en début de projet, quand on sait peu de choses, mais ne vaut que ce que vaut la comparaison. L’estimation paramétrique multiplie un ratio unitaire par une quantité : 120 cas de test à 0,25 jour chacun donnent 30 jours ; 2 000 m² de bureaux à un coût connu au m². Elle est plus précise quand le ratio vient de données réelles et que le travail est à peu près proportionnel.",
+        "L’estimation à trois points demande trois valeurs : optimiste (O), la plus probable (M) et pessimiste (P). La moyenne triangulaire vaut (O + M + P) / 3. L’estimation PERT (loi bêta) pondère la valeur la plus probable : (O + 4M + P) / 6. Avec O = 10, M = 15 et P = 26 jours, PERT donne (10 + 60 + 26) / 6 = 16 jours, plus que les 15 jours les plus probables, car la queue pessimiste est plus longue. Une mesure courante de l’incertitude est l’écart-type (P − O) / 6, ici 16 / 6 ≈ 2,7 jours.",
+        "Le « gras » (padding) consiste à ajouter une marge cachée à chaque tâche (« dire 15 quand on pense 10 »). C’est une mauvaise habitude : les marges sont invisibles, elles sont consommées de toute façon (le travail a tendance à occuper tout le temps disponible, ce qu’on appelle souvent la loi de Parkinson) et le planning perd sa crédibilité. La bonne pratique : des estimations honnêtes par tâche, plus une réserve pour aléas (contingency reserve) explicite, tenue au niveau du projet, dimensionnée à partir des risques identifiés, visible du sponsor et consommée de façon contrôlée. Une réserve de management, pour les risques inconnus, est en général tenue par le sponsor en dehors de la baseline du chef de projet.",
+        "Les estimations deviennent plus précises à mesure que le projet avance : donnez des fourchettes au début (« 8 à 12 semaines ») et affinez-les. Les recruteurs demandent souvent comment vous gérez un sponsor qui veut une date ferme dès le premier jour : donnez une fourchette avec les hypothèses, expliquez ce qui permettrait de la resserrer, et engagez-vous sur une réestimation à un moment précis, par exemple après la phase de conception."
+      ],
+      "points": [
+        "La charge (jours-homme) n’est pas la durée (jours calendaires).",
+        "Par analogie : à partir d’un projet passé similaire ; paramétrique : ratio unitaire × quantité.",
+        "PERT : (O + 4M + P) / 6 ; écart-type (P − O) / 6.",
+        "Pas de marge cachée : des estimations honnêtes plus une réserve pour aléas visible.",
+        "Donnez des fourchettes au début et affinez-les à mesure que vous apprenez."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "     A                 B (O)  C (M)  D (P)  E (PERT)\n1    Task              Opt    Likely Pess   PERT\n2    Billing API link  10     15     26     =(B2+4*C2+D2)/6   -> 16\n3    Std deviation                          =(D2-B2)/6        -> 2.67\n4    Parametric tests  120 cases x 0.25 day = 30 days",
+        "note": "PERT penche vers la valeur la plus probable mais est tiré vers le haut par une longue queue pessimiste."
+      }
+    },
+    {
+      "title": "Les dépendances et le réseau logique",
+      "text": [
+        "Un planning n’est pas une liste de tâches avec des dates saisies à la main : c’est un réseau d’activités reliées par des dépendances, de sorte que lorsqu’une tâche bouge, tout ce qui suit bouge aussi. La méthode des antécédents (PDM, precedence diagramming method), aussi appelée méthode des potentiels ou activités sur les nœuds, dessine chaque activité comme une case et chaque dépendance comme une flèche du prédécesseur vers le successeur.",
+        "Il existe quatre types de dépendances. Fin-début (FS, finish-to-start), de loin la plus courante : B ne peut commencer que quand A est terminée (les tests commencent quand le développement est fini). Début-début (SS, start-to-start) : B ne peut commencer que quand A a commencé (la rédaction du guide utilisateur peut démarrer une fois le développement démarré). Fin-fin (FF, finish-to-finish) : B ne peut se terminer que quand A est terminée (le rapport de test ne peut être finalisé qu’après la fin des tests). Début-fin (SF, start-to-finish), rare : B ne peut se terminer que quand A a commencé (le support de l’ancien système ne peut s’arrêter qu’une fois le support du nouveau démarré).",
+        "Les décalages ajustent une dépendance. Un délai (lag) est une attente ajoutée après le prédécesseur : « FS + 2 jours » après un coulage de béton pour le laisser sécher ; « attendre 5 jours ouvrés après l’envoi du contrat à la signature ». Une avance (lead) permet au successeur de commencer avant la fin du prédécesseur : « FS − 3 jours » signifie que les tests démarrent 3 jours avant la fin du développement. Les avances sont un moyen de compresser le planning, mais elles ajoutent du risque, car le successeur travaille sur des éléments non terminés.",
+        "Les dépendances diffèrent aussi par leur origine. Les dépendances obligatoires viennent de la nature du travail (on ne peut pas tester un code qui n’existe pas). Les dépendances discrétionnaires sont des choix de l’équipe ou des bonnes pratiques (on préfère finir la conception avant de développer) : ce sont les premières à remettre en question quand le planning est trop long. Les dépendances externes sont hors du projet : une livraison fournisseur, une validation réglementaire, la mise en production d’un autre projet. Les externes méritent un contact nommé et une place dans le registre des risques.",
+        "Un bon réseau n’a pas de tâches « orphelines » : chaque activité, sauf le début, a un prédécesseur, et chaque activité, sauf la fin, a un successeur. Une tâche sans successeur se termine dans le vide : si elle glisse, le planning ne montrera aucun effet sur la date de fin. Les dates imposées (contraintes du type « doit commencer le 3 mars ») doivent rester rares, car elles empêchent le planning de réagir aux vrais changements."
+      ],
+      "points": [
+        "FS : fin-début, la dépendance par défaut ; SS : début-début ; FF : fin-fin ; SF : début-fin (rare).",
+        "Délai (lag) = attente après le prédécesseur ; avance (lead) = chevauchement, le successeur démarre plus tôt.",
+        "Dépendances obligatoires, discrétionnaires et externes : remettez d’abord en question les discrétionnaires.",
+        "Chaque tâche, sauf le début et la fin, a besoin d’un prédécesseur et d’un successeur.",
+        "Évitez les dates imposées : laissez les dépendances piloter le planning."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "ID  Activity           Duration  Predecessors\nA   Requirements        5 d       -\nB   Design             10 d       A (FS)\nC   Build backend      15 d       B (FS)\nD   Build frontend     12 d       B (FS)\nE   Data migration      6 d       A (FS)\nF   Testing             8 d       C, D, E (FS)\nG   Go-live             1 d       F (FS)\n\n        +--> E ---------------------+\n        |                           v\nStart-> A --> B --> C ------------> F --> G -> End\n              |                     ^\n              +---> D --------------+",
+        "note": "Le réseau utilisé dans la leçon suivante pour trouver le chemin critique."
+      }
+    },
+    {
+      "title": "Le chemin critique, les marges, la passe avant et la passe arrière",
+      "text": [
+        "Le chemin critique est le chemin le plus long du réseau, du début à la fin. Sa longueur est la durée la plus courte possible du projet : tout retard sur une activité critique retarde la date de fin d’autant, sauf action corrective. Les activités hors du chemin critique ont de la marge (float ou slack) : du temps dont elles peuvent glisser sans déplacer la date de fin.",
+        "La passe avant (forward pass) calcule, depuis le début, la date de début au plus tôt (ES) et la date de fin au plus tôt (EF) de chaque activité. En numérotant les jours avec un démarrage au jour 0 : EF = ES + durée, et l’ES d’une activité est le plus grand EF de ses prédécesseurs. Dans le réseau de la leçon précédente : A 0–5, B 5–15, C 15–30, D 15–27, E 5–11 ; F attend C, D et E, donc ES = MAX(30, 27, 11) = 30 et EF = 38 ; G va de 38 à 39. Le projet dure 39 jours.",
+        "La passe arrière (backward pass) part de la fin et calcule la date de fin au plus tard (LF) et la date de début au plus tard (LS) de chaque activité : LS = LF − durée, et le LF d’une activité est le plus petit LS de ses successeurs. G : LF 39, LS 38. F : 30–38. C : LS 15. D : LF 30, LS 18. E : LF 30, LS 24. B : LF = MIN(15, 18) = 15, LS 5. A : LF = MIN(5, 24) = 5, LS 0.",
+        "Marge totale = LS − ES (ou LF − EF). A, B, C, F et G ont 0 : ils forment le chemin critique A–B–C–F–G, 5 + 10 + 15 + 8 + 1 = 39 jours. D a 3 jours de marge totale, E en a 19. La marge libre est le temps dont une activité peut glisser sans retarder le début au plus tôt d’aucun successeur ; ici la marge libre de D vaut aussi 3 (l’ES de F est 30, D finit à 27). Un chemin à faible marge, comme A–B–D–F–G avec 3 jours, est quasi critique et doit être surveillé : un glissement de 4 jours sur D crée un nouveau chemin critique.",
+        "Pour raccourcir le chemin critique, il existe deux techniques classiques de compression du planning. Le crashing ajoute des ressources aux activités critiques (heures supplémentaires, un développeur de plus) et coûte de l’argent ; il ne marche que si le travail peut vraiment être partagé. Le fast-tracking (chevauchement) exécute en parallèle des activités prévues en séquence (démarrer le développement avant que la conception soit totalement validée) : il coûte peu mais ajoute un risque de reprise. Raccourcir une activité non critique ne change rien à la date de fin, un point que les recruteurs aiment tester."
+      ],
+      "points": [
+        "Chemin critique : le chemin le plus long ; sa longueur est la durée du projet.",
+        "Passe avant : ES = plus grand EF des prédécesseurs ; EF = ES + durée.",
+        "Passe arrière : LF = plus petit LS des successeurs ; LS = LF − durée.",
+        "Marge totale = LS − ES ; marge nulle = activité critique. Surveillez les chemins quasi critiques.",
+        "Compression : crashing (ajouter des ressources, coûte de l’argent), fast-tracking (chevauchement, ajoute du risque)."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Act  Dur  ES  EF  LS  LF  Total float\nA     5    0   5   0   5   0   critical\nB    10    5  15   5  15   0   critical\nC    15   15  30  15  30   0   critical\nD    12   15  27  18  30   3\nE     6    5  11  24  30  19\nF     8   30  38  30  38   0   critical\nG     1   38  39  38  39   0   critical\n\nCritical path: A-B-C-F-G = 5+10+15+8+1 = 39 days",
+        "note": "La passe avant remplit ES et EF depuis le haut ; la passe arrière remplit LF et LS depuis la fin ; marge = LS − ES."
+      }
+    },
+    {
+      "title": "Le diagramme de Gantt, les jalons et le lissage des ressources",
+      "text": [
+        "Un diagramme de Gantt représente chaque activité par une barre horizontale sur un calendrier, avec les dépendances en flèches entre les barres. C’est la façon la plus courante de montrer un planning, car tout le monde sait le lire : ce qui se passe quand, ce qui se chevauche, ce qui est en retard. La plupart des outils affichent le chemin critique en rouge. Pour un comité de pilotage (COPIL), un Gantt synthétique avec les phases et les jalons sur une page est bien plus utile que 400 lignes de tâches.",
+        "Un jalon est un point ou un événement important de durée nulle, dessiné comme un losange : « conception validée », « début de la recette », « mise en production ». Les jalons sont ce que suivent les sponsors et ce sur quoi les contrats prévoient souvent les paiements. Un bon jalon est vérifiable (un document signé, un système en production), pas flou (« conception presque finie »). Beaucoup d’équipes gardent une courte liste de jalons dans le rapport d’avancement, avec la date de référence, la date prévisionnelle et le statut.",
+        "Les ressources transforment un planning logique en planning réaliste. Affectez des personnes (ou des équipements) à chaque activité, puis vérifiez la charge : si le même développeur est prévu à 100 % sur C et D les mêmes jours, le planning est impossible. Le nivellement des ressources (resource levelling) résout ces surcharges en déplaçant des activités, d’abord dans leur marge ; quand la marge ne suffit pas, le nivellement repousse la date de fin. Le lissage des ressources (resource smoothing), lui, ne déplace les activités que dans leur marge et ne change jamais la date de fin, si bien qu’il peut ne pas supprimer toutes les surcharges.",
+        "Les jours ouvrés comptent : les outils planifient sur un calendrier avec week-ends, jours fériés et congés. Une tâche de 10 jours ouvrés qui démarre un lundi se termine le vendredi de la semaine suivante. En France, les congés d’août et les ponts de mai sont des pièges classiques pour un planning construit sur le calendrier par défaut.",
+        "Les outils : Microsoft Project reste la référence dans beaucoup de grandes entreprises pour les plannings prédictifs avec dépendances, calendriers et ressources. Excel suffit pour les petits projets et pour l’analyse, mais il ne calcule pas les dépendances tout seul, sauf si vous construisez les formules. Les outils en ligne comme Smartsheet, monday.com, Asana, Wrike ou les vues chronologiques de Jira sont courants dans les équipes hybrides. L’outil compte moins que la logique : des dépendances reliées, pas de dates imposées, une baseline enregistrée."
+      ],
+      "points": [
+        "Diagramme de Gantt : des barres sur un calendrier, les dépendances en flèches, le chemin critique en évidence.",
+        "Jalon : durée nulle, vérifiable, suivi par le sponsor.",
+        "Le nivellement des ressources peut déplacer la date de fin ; le lissage reste dans la marge.",
+        "Planifiez en jours ouvrés, avec les jours fériés et les congés.",
+        "MS Project, Excel ou outils en ligne : la logique compte plus que l’outil."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Week:            1  2  3  4  5  6  7  8\nA Requirements   ■\nB Design            ■  ■\nC Build backend           ■  ■  ■          critical\nD Build frontend          ■  ■  ■·         3 d float\nE Data migration    ■  ■· ·  ·  ·          19 d float\nF Testing                          ■  ■    critical\nG Go-live                              ◆   milestone\n(■ work, · float, ◆ milestone)\n\nOver-allocation: same developer on C and D in weeks 4-5\nLevelling: start D later, inside its 3 days of float first",
+        "note": "Le nivellement utilise d’abord la marge ; une fois la marge épuisée, la date de fin bouge."
+      }
+    },
+    {
+      "title": "La baseline et le suivi de l’avancement",
+      "text": [
+        "La baseline (planning de référence) est la version approuvée du plan (périmètre, planning et coût) par rapport à laquelle on mesure l’avancement. Enregistrez-la dans l’outil une fois le planning validé avec le sponsor, avant le début des travaux. Sans baseline, le planning est mis à jour chaque semaine et le projet est toujours « à l’heure », car personne ne voit de combien les dates ont bougé.",
+        "Suivez l’avancement régulièrement, en général chaque semaine : dates réelles de début et de fin, reste à faire des activités en cours et date de fin prévisionnelle. Le pourcentage d’avancement est une mesure courante, mais facile à détourner : une tâche « finie à 90 % » pendant trois semaines est un signal d’alerte bien connu. Demandez plutôt le reste à faire, ou utilisez des règles simples comme 0/100 (rien tant que ce n’est pas fini) ou 50/50 (la moitié au début, la moitié à la fin) pour les tâches courtes. Pour un ensemble de tâches, pondérez l’avancement par la durée ou la charge : SUMPRODUCT(durées, pourcentages) / SUM(durées).",
+        "L’écart de planning en jours compare dates prévisionnelles et dates de référence : mise en production prévue au jour 39 dans la baseline, prévision au jour 43, le projet a 4 jours de retard. Présentez-le sur les jalons et sur la date de fin, avec la cause et l’action. La méthode de la valeur acquise (earned value) mesure ensemble la performance délai et coût (SPI, CPI) ; elle est traitée dans le cours sur le budget projet, mais attendez-vous à ce qu’on vous demande ce que signifie un SPI inférieur à 1 : moins de travail réalisé que prévu à cette date.",
+        "Quand une tâche critique glisse, agissez dans cet ordre : confirmez la nouvelle prévision avec la personne qui fait le travail, vérifiez l’impact sur le chemin critique et les jalons, étudiez les options (utiliser une marge ailleurs, réordonner, fast-tracking, crashing, réduire le périmètre via la gestion des changements), puis informez le sponsor avec les options et votre recommandation. Un glissement sur une tâche qui a assez de marge est noté mais ne nécessite pas d’escalade.",
+        "Replanifier est normal ; rebaseliner ne se fait pas à la légère. Vous mettez à jour la prévision chaque semaine, mais vous ne changez la baseline qu’après une demande de changement approuvée (nouveau périmètre, nouveau budget, décision de décaler la mise en production), pour que l’historique des écarts reste honnête. Gardez l’ancienne baseline dans l’outil pour comparaison, et notez la raison dans le journal des changements."
+      ],
+      "points": [
+        "Baseline : le plan approuvé, enregistré avant le début des travaux.",
+        "Suivez chaque semaine les dates réelles, le reste à faire et la date de fin prévisionnelle.",
+        "Méfiez-vous du « fini à 90 % » ; pondérez l’avancement par la durée ou la charge.",
+        "Écart de planning en jours = date prévisionnelle − date de référence, sur les jalons.",
+        "Replanifiez chaque semaine ; rebaselinez seulement après un changement approuvé."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "     A               B (Duration)  C (% complete)\n1    Task            Duration      Complete\n2    Requirements    10            100%\n3    Design          5             60%\n4    Build           8             25%\n5    Testing         2             0%\n6    Weighted        =SUMPRODUCT(B2:B5,C2:C5)/SUM(B2:B5)   -> 60%\n\nMilestone   Baseline  Forecast  Variance (days)\nGo-live     day 39    day 43    =43-39 -> 4 days late",
+        "note": "Pondérer par la durée évite qu’une petite tâche terminée fasse paraître le projet plus avancé qu’il ne l’est."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Bases du projet",
+      "items": [
+        ["Projet", "Entreprise temporaire qui crée un produit, un service ou un résultat unique"],
+        ["Run (opérations)", "Travail récurrent qui fait tourner l’entreprise"],
+        ["Triple contrainte", "Périmètre, délai et coût bougent ensemble"],
+        ["Prédictif (cascade)", "Tout planifier en amont, dérouler par phases avec jalons de décision"],
+        ["Hybride", "Cadre prédictif avec une réalisation agile dans certaines phases"],
+        ["Jalon de décision (phase gate)", "Go / no-go formel à la fin d’une phase"]
+      ]
+    },
+    {
+      "group": "Cadrage et périmètre",
+      "items": [
+        ["Business case", "Le pourquoi : options, coûts, bénéfices, risques, recommandation"],
+        ["Note de cadrage", "Autorise le projet et nomme le chef de projet ; signée par le sponsor"],
+        ["Sponsor", "Porte le business case, finance le projet, prend les grandes décisions"],
+        ["Dérive du périmètre (scope creep)", "Croissance non maîtrisée du périmètre sans délai ni budget en plus"],
+        ["WBS", "Décomposition orientée livrables de tout le travail du projet"],
+        ["Règle des 100 %", "Le WBS contient tout le travail et rien de plus"],
+        ["Lot de travail", "Niveau le plus bas du WBS : estimable, un responsable, suivi"]
+      ]
+    },
+    {
+      "group": "Estimation",
+      "items": [
+        ["Estimation par analogie", "Estimer à partir d’un projet passé similaire"],
+        ["Estimation paramétrique", "Ratio unitaire × quantité"],
+        ["PERT", "(O + 4M + P) / 6"],
+        ["Écart-type (PERT)", "(P − O) / 6"],
+        ["Réserve pour aléas", "Réserve visible au niveau du projet pour les risques identifiés"],
+        ["Gras (padding)", "Marge cachée ajoutée à chaque estimation de tâche"]
+      ]
+    },
+    {
+      "group": "Dépendances",
+      "items": [
+        ["FS", "Fin-début : B démarre après la fin de A"],
+        ["SS", "Début-début : B démarre après le début de A"],
+        ["FF", "Fin-fin : B se termine après la fin de A"],
+        ["SF", "Début-fin : B se termine après le début de A (rare)"],
+        ["Délai (lag)", "Attente ajoutée après le prédécesseur"],
+        ["Avance (lead)", "Chevauchement : le successeur démarre avant la fin du prédécesseur"]
+      ]
+    },
+    {
+      "group": "Chemin critique",
+      "items": [
+        ["Chemin critique", "Chemin le plus long du réseau ; fixe la durée du projet"],
+        ["Passe avant", "Calcule le début au plus tôt et la fin au plus tôt"],
+        ["Passe arrière", "Calcule la fin au plus tard et le début au plus tard"],
+        ["Marge totale", "LS − ES : glissement possible sans déplacer la date de fin"],
+        ["Marge libre", "Glissement possible sans retarder aucun successeur"],
+        ["Crashing", "Ajouter des ressources aux activités critiques (coûte de l’argent)"],
+        ["Fast-tracking", "Mener en parallèle des activités prévues en séquence (ajoute du risque)"]
+      ]
+    },
+    {
+      "group": "Planning et suivi",
+      "items": [
+        ["Diagramme de Gantt", "Les activités en barres sur un calendrier"],
+        ["Jalon", "Événement important de durée nulle"],
+        ["Nivellement des ressources", "Supprime les surcharges ; peut déplacer la date de fin"],
+        ["Lissage des ressources", "Déplace les activités dans leur marge seulement"],
+        ["Baseline", "Plan approuvé par rapport auquel on mesure l’avancement"],
+        ["Écart de planning en jours", "Date prévisionnelle − date de référence"]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Démarrer les travaux sans note de cadrage signée : quand le périmètre ou le budget est contesté plus tard, rien ne montre ce qui avait été convenu.",
+    "Oublier le hors périmètre, le pilotage, les tests ou la formation dans le périmètre et le WBS.",
+    "Saisir des dates dans le planning au lieu de relier les tâches par des dépendances : un glissement ne montre jamais son vrai impact.",
+    "Cacher du gras dans chaque estimation au lieu de garder des estimations honnêtes et une réserve pour aléas visible.",
+    "Vouloir accélérer le projet en raccourcissant des tâches non critiques, ce qui ne change rien à la date de fin.",
+    "Croire au « fini à 90 % » pendant des semaines au lieu de demander le reste à faire.",
+    "Mettre à jour la baseline chaque semaine : tous les projets paraissent à l’heure et l’écart réel disparaît."
+  ],
+  "exercises": [
+    {
+      "q": "Excel : en E2, calculez l’estimation PERT (en jours) de la tâche à partir de ses durées optimiste, la plus probable et pessimiste.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Task", "Optimistic", "Most likely", "Pessimistic", "PERT"], ["Build the billing API", 4, 6, 14, ""]],
+      "cell": "E2",
+      "answer": "=(B2+4*C2+D2)/6",
+      "hint": "PERT compte quatre fois la valeur la plus probable et divise par 6.",
+      "explain": "(4 + 4 × 6 + 14) / 6 = 42 / 6 = 7 jours. L’estimation dépasse les 6 jours les plus probables car la queue pessimiste (14) est longue."
+    },
+    {
+      "q": "Excel, passe avant : D démarre après la fin de B et de C (fin-début). En D5, calculez la fin au plus tôt de D (numéro de jour).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Task", "Duration", "Predecessors", "Earliest finish"], ["A", 3, "-", 3], ["B", 5, "A", 8], ["C", 4, "A", 7], ["D", 2, "B, C", ""]],
+      "cell": "D5",
+      "answer": "=MAX(D3,D4)+B5",
+      "hint": "Une activité démarre quand son dernier prédécesseur se termine : prenez la plus grande fin au plus tôt, puis ajoutez la durée.",
+      "explain": "Le début au plus tôt de D vaut MAX(8, 7) = 8, donc sa fin au plus tôt vaut 8 + 2 = 10. Avec MAX, la formule suit le prédécesseur qui finit en dernier, quel qu’il soit."
+    },
+    {
+      "q": "Excel : en E4, calculez la marge totale de la tâche C, en jours, à partir de son début au plus tard et de son début au plus tôt.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Task", "Duration", "Early start", "Late start", "Total float"], ["A", 5, 0, 0, ""], ["B", 10, 5, 5, ""], ["C", 12, 15, 18, ""], ["D", 6, 5, 24, ""]],
+      "cell": "E4",
+      "answer": "=D4-C4",
+      "hint": "Marge totale = LS − ES.",
+      "explain": "18 − 15 = 3 jours : C peut démarrer jusqu’à 3 jours en retard sans déplacer la date de fin. A et B ont une marge nulle : elles sont sur le chemin critique."
+    },
+    {
+      "q": "Excel : le réseau a deux chemins, A–B–D et A–C–D. En D2, calculez la longueur du chemin critique en jours (le plus long des deux).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Task", "Duration", "", "Critical path (days)"], ["A", 5, "", ""], ["B", 10, "", ""], ["C", 7, "", ""], ["D", 4, "", ""]],
+      "cell": "D2",
+      "answer": "=MAX(B2+B3+B5,B2+B4+B5)",
+      "hint": "Additionnez les durées de chaque chemin, puis gardez le plus long.",
+      "explain": "A–B–D = 5 + 10 + 4 = 19 jours ; A–C–D = 5 + 7 + 4 = 16 jours. Le chemin critique est A–B–D, 19 jours, et C a 3 jours de marge."
+    },
+    {
+      "q": "Excel : en C6, calculez l’avancement de l’ensemble du projet, pondéré par la durée (en décimal, par ex. 0.6).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Task", "Duration", "Complete"], ["Requirements", 10, 1], ["Design", 5, 0.6], ["Build", 8, 0.25], ["Testing", 2, 0], ["Project", "", ""]],
+      "cell": "C6",
+      "answer": "=SUMPRODUCT(B2:B5,C2:C5)/SUM(B2:B5)",
+      "hint": "SUMPRODUCT multiplie chaque durée par son pourcentage et additionne ; divisez par la durée totale.",
+      "explain": "(10 × 1 + 5 × 0,6 + 8 × 0,25 + 2 × 0) / 25 = 15 / 25 = 0,6, soit 60 %. Une simple moyenne des quatre pourcentages donnerait 46 %, car elle donne autant de poids à la tâche de 2 jours qu’à celle de 10 jours."
+    },
+    {
+      "q": "Remettez dans l’ordre les étapes de planification d’un projet prédictif.",
+      "type": "order",
+      "steps": ["Rédiger le business case et faire signer la note de cadrage", "Recueillir les exigences et rédiger l’énoncé du périmètre", "Décomposer le périmètre en WBS", "Estimer les lots de travail et leurs activités", "Relier les activités par des dépendances et trouver le chemin critique", "Affecter et niveler les ressources", "Valider le planning avec le sponsor et enregistrer la baseline"],
+      "answer": "D’abord le pourquoi et l’autorité (business case, note de cadrage), puis le quoi (périmètre, WBS), puis combien de temps (estimations), puis dans quel ordre (dépendances, chemin critique), puis qui (ressources), et enfin la baseline approuvée par rapport à laquelle on mesure l’avancement."
+    },
+    {
+      "q": "Classez ces éléments : lesquels vont dans la note de cadrage, lesquels dans le plan de projet détaillé ?",
+      "type": "groups",
+      "groups": [
+        { "name": "Note de cadrage", "items": ["Objet et objectifs SMART", "Sponsor et chef de projet nommés", "Budget global", "Jalons clés", "Principaux risques et hypothèses"] },
+        { "name": "Plan de projet détaillé", "items": ["WBS jusqu’aux lots de travail", "Dépendances entre activités", "Affectation des ressources par tâche", "Chemin critique et marges", "Suivi hebdomadaire par rapport à la baseline"] }
+      ],
+      "answer": "La note de cadrage autorise le projet à un niveau macro et est signée par le sponsor ; le plan détaillé (WBS, planning, ressources, baseline) est construit ensuite par le chef de projet et l’équipe."
+    },
+    {
+      "q": "Associez chaque type de dépendance à un exemple.",
+      "type": "match",
+      "pairs": [
+        ["Fin-début (FS)", "La recette utilisateur démarre quand les tests système sont terminés"],
+        ["Début-début (SS)", "La rédaction du guide utilisateur peut démarrer une fois le développement démarré"],
+        ["Fin-fin (FF)", "Le rapport de test ne peut être finalisé qu’après la fin des tests"],
+        ["Début-fin (SF)", "Le support de l’ancien système ne peut s’arrêter qu’une fois le support du nouveau démarré"]
+      ],
+      "answer": "FS est la dépendance par défaut et de loin la plus utilisée ; SS et FF permettent de faire chevaucher le travail ; SF est rare, surtout pour les passations entre un ancien et un nouveau service."
+    },
+    {
+      "q": "Semaine 5 : le développeur vous annonce que l’intégration de l’API de facturation, une activité du chemin critique, prendra 6 jours de plus que prévu. La mise en production est dans 7 semaines.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Que faites-vous d’abord ?",
+          "choices": [
+            { "label": "Confirmer la nouvelle estimation et sa cause, puis mettre à jour le planning pour voir l’impact sur les jalons et la date de fin", "best": true, "feedback": "Il faut une prévision fiable avant de décider quoi que ce soit : sur le chemin critique, 6 jours de retard signifient une mise en production décalée de 6 jours, sauf action." },
+            { "label": "Demander au développeur de travailler le week-end pour ne pas changer le planning", "feedback": "Imposer des heures supplémentaires avant de comprendre la cause marche rarement, épuise l’équipe et cache le problème au sponsor." },
+            { "label": "Décaler de 6 jours la mise en production dans la baseline", "feedback": "La baseline ne change qu’après un changement approuvé. Mettez à jour la prévision, pas la baseline." }
+          ]
+        },
+        {
+          "text": "La prévision montre une mise en production avec 6 jours de retard. Quelles options préparez-vous ?",
+          "choices": [
+            { "label": "Préparer la recette en parallèle (fast-tracking), ajouter un second développeur sur l’intégration (crashing) ou reporter une fonction peu prioritaire au lot 2, chacune avec son coût et son risque", "best": true, "feedback": "Des options sur le chemin critique, avec leur coût et leur risque, permettent au sponsor de décider en connaissance de cause." },
+            { "label": "Raccourcir la tâche de formation, qui a 15 jours de marge", "feedback": "Raccourcir une tâche non critique ne change rien à la date de fin." },
+            { "label": "Réduire les tests de 6 jours pour tenir la date", "feedback": "Couper des tests en silence déplace le risque en production ; au mieux, c’est une option à présenter ouvertement, avec son risque." }
+          ]
+        },
+        {
+          "text": "Comment informez-vous le sponsor ?",
+          "choices": [
+            { "label": "Maintenant, avec l’écart, la cause, les options et votre recommandation", "best": true, "feedback": "Une mauvaise nouvelle annoncée tôt avec des options préserve la confiance ; le sponsor décide, et un changement approuvé est tracé et, si besoin, rebaseliné." },
+            { "label": "Attendre le prochain COPIL mensuel, dans trois semaines", "feedback": "Trois semaines perdues : d’ici là, certaines options (fast-tracking, renfort) ne seront peut-être plus possibles." }
+          ]
+        }
+      ],
+      "answer": "Confirmez la prévision, mesurez l’impact sur le chemin critique, préparez des options (fast-tracking, crashing, périmètre via la gestion des changements) avec leurs coûts et leurs risques, et escaladez tôt avec une recommandation. Ne changez la baseline qu’après un changement approuvé."
+    },
+    {
+      "q": "Le sponsor veut finir le projet deux semaines plus tôt. Quelle action peut réellement raccourcir le projet ?",
+      "type": "choice",
+      "options": ["Affecter un développeur de plus à une tâche qui a 12 jours de marge", "Faire chevaucher deux activités critiques prévues en séquence (fast-tracking)", "Ajouter 10 % de gras à chaque estimation", "Avancer un jalon non critique"],
+      "correct": 1,
+      "answer": "Seul le travail sur le chemin critique change la date de fin. Le fast-tracking de deux activités critiques le raccourcit, au prix d’un risque de reprise plus élevé ; un renfort sur une tâche qui a de la marge ne change rien."
+    },
+    {
+      "q": "La tâche X a : début au plus tôt jour 12, fin au plus tôt jour 20, début au plus tard jour 16, fin au plus tard jour 24. Quelle est sa marge totale, en jours ?",
+      "type": "fill",
+      "blanks": [["4", "4 jours", "4 j", "4j", "4 jour", "4 days", "4 d", "4d"]],
+      "answer": "Marge totale = LS − ES = 16 − 12 = 4 jours (ou LF − EF = 24 − 20 = 4). X n’est pas critique : elle peut glisser de 4 jours sans déplacer la date de fin."
+    },
+    {
+      "q": "Rédigez un WBS (trois niveaux) pour organiser une convention d’entreprise d’une journée pour 150 personnes. Citez ensuite deux éléments que vous mettriez hors périmètre.",
+      "answer": "1 Convention d’entreprise. 1.1 Pilotage du projet (planning, budget, points d’avancement, contrats fournisseurs). 1.2 Programme (ordre du jour ; intervenants confirmés et briefés ; présentations collectées). 1.3 Lieu (salle réservée ; aménagement et matériel audiovisuel ; vérification accessibilité et sécurité). 1.4 Restauration (menu choisi avec les régimes particuliers ; pauses café ; déjeuner). 1.5 Participants (invitation ; site d’inscription ; badges ; relances). 1.6 Communication (annonce interne ; page de l’événement ; photos après l’événement). 1.7 Logistique du jour J (déroulé minute par minute, équipe et accueil, installation et démontage). 1.8 Clôture (questionnaire de satisfaction, factures fournisseurs, retour d’expérience). Chaque élément de niveau 3 est un lot de travail avec un responsable. Hors périmètre, par exemple : réservation des trajets et hôtels des participants, soirée festive, retransmission en direct. Vérification des 100 % : si tout cela est fait, la convention a eu lieu et a été clôturée."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Expliquez-moi comment vous construisez un planning de projet.",
+      "a": "Je pars de la note de cadrage signée et du périmètre, que je décompose en WBS jusqu’aux lots de travail, chacun avec un responsable. Avec les personnes qui font le travail, je liste les activités, je les estime (par analogie au début, à trois points pour les tâches incertaines) et je les relie par des dépendances, surtout fin-début. Ensuite je trouve le chemin critique et les marges, j’affecte les ressources et je les nivelle sur un vrai calendrier avec les jours fériés, et j’ajoute les jalons. Je le revois avec l’équipe et le sponsor, j’ajoute une réserve pour aléas visible, et j’enregistre la baseline avant le démarrage."
+    },
+    {
+      "q": "Qu’est-ce que le chemin critique, et pourquoi est-ce important ?",
+      "a": "C’est la plus longue suite d’activités dépendantes du début à la fin : il fixe la durée la plus courte possible du projet. Tout retard dessus décale la date de fin si on n’agit pas, donc c’est là que je concentre le suivi et là que doit se faire toute compression du planning. Je surveille aussi les chemins quasi critiques, avec peu de marge, car un petit glissement peut y créer un nouveau chemin critique."
+    },
+    {
+      "q": "Une partie prenante demande « une petite fonctionnalité en plus » à mi-projet. Que faites-vous ?",
+      "a": "Je ne dis ni oui ni non sur le moment. Je l’enregistre comme demande de changement, j’évalue avec l’équipe l’impact sur le périmètre, le planning, le coût et les risques, et je la présente au sponsor ou au comité de changement avec des options : l’ajouter avec plus de délai ou de budget, l’échanger contre un élément de taille équivalente, ou la prévoir dans un lot ultérieur. Accepter les petits changements de façon informelle, c’est ainsi que commence la dérive du périmètre."
+    },
+    {
+      "q": "Comment estimez-vous une tâche que vous n’avez jamais faite ?",
+      "a": "Je demande aux personnes qui vont la réaliser, je cherche un travail analogue, et j’utilise une estimation à trois points : optimiste, la plus probable et pessimiste, combinées avec PERT (O + 4M + P) / 6. Je note les hypothèses, je donne une fourchette plutôt qu’un seul chiffre, je garde l’incertitude visible dans une réserve pour aléas au lieu de gonfler chaque tâche, et je prévois une réestimation quand on en saura plus, par exemple après un prototype ou un spike."
+    },
+    {
+      "q": "Quelle est la différence entre marge totale et marge libre ?",
+      "a": "La marge totale est le temps dont une activité peut glisser sans retarder la date de fin du projet : début au plus tard moins début au plus tôt. La marge libre est le temps dont elle peut glisser sans retarder le début au plus tôt d’aucun successeur. Une activité peut avoir de la marge totale mais pas de marge libre, si son successeur partage la même marge : l’utiliser grignote alors la marge du successeur."
+    },
+    {
+      "q": "Votre projet a deux semaines de retard. Comment le rattrapez-vous ?",
+      "a": "D’abord je confirme la vraie prévision et la cause. Ensuite je ne regarde que le chemin critique : fast-tracking des activités qui peuvent se chevaucher, crashing là où des renforts accélèrent vraiment le travail, suppression de dépendances discrétionnaires, utilisation des marges ailleurs pour libérer des ressources, ou réduction du périmètre via la gestion des changements. Je présente les options avec coût et risque au sponsor, avec une recommandation, et je ne change la baseline que si un changement est approuvé."
+    },
+    {
+      "q": "Cycle en V ou agile : que préférez-vous ?",
+      "a": "Cela dépend du projet. Avec un besoin stable, des dépendances fortes, un contrat au forfait ou des échéances réglementaires, un planning prédictif avec des jalons de décision fonctionne bien. Quand les utilisateurs doivent réagir à des premières versions, les itérations agiles réduisent le risque de construire la mauvaise chose. Beaucoup de mes projets sont hybrides : jalons et budget fixes, avec des sprints pour la partie logicielle. L’important est de choisir de façon délibérée et d’être transparent sur le planning."
+    },
+    {
+      "q": "Qu’est-ce qu’une baseline et quand la changeriez-vous ?",
+      "a": "C’est le périmètre, le planning et le coût approuvés par rapport auxquels je mesure l’avancement, enregistrés avant le démarrage de la réalisation. Je mets à jour la prévision chaque semaine, mais je ne rebaseline qu’après une demande de changement approuvée, comme un nouveau périmètre ou une décision du sponsor de décaler la mise en production, et je garde l’ancienne baseline et la raison, pour que l’historique des écarts reste honnête."
+    }
+  ]
+}

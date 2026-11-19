@@ -1,0 +1,513 @@
+{
+  "why": "Le backlog produit est l’endroit où les décisions d’un Product Owner deviennent visibles : ce que l’équipe construit ensuite, ce qui attend et ce qui ne sera jamais construit. Les recruteurs le testent directement, avec un backlog à ordonner, une epic à découper ou une partie prenante qui veut sa fonctionnalité en premier, car un PO qui ne sait ni découper, ni prioriser, ni dire non fait perdre des Sprints entiers à son équipe.",
+  "outcome": "gérer un backlog produit comme le décrit le Scrum Guide, découper des epics en user stories verticales et fines, écrire des critères d’acceptation et une Definition of Done solides, animer l’affinage avec les Developers, comparer des éléments avec le coût du retard, le WSJF, RICE et ICE dans un tableur, utiliser MoSCoW et Kano là où ils sont utiles, et garder un backlog court, honnête et visible.",
+  "lessons": [
+    {
+      "title": "Le backlog produit dans Scrum",
+      "text": [
+        "Le Scrum Guide 2020 définit le Product Backlog comme une liste émergente et ordonnée de ce qui est nécessaire pour améliorer le produit, et comme l’unique source du travail entrepris par la Scrum Team. Émergente signifie qu’elle n’est jamais terminée : elle évolue à mesure que l’équipe apprend des utilisateurs, du marché et de chaque Incrément. Unique source signifie qu’il n’existe pas de liste parallèle dans la boîte mail d’un manager : si un travail n’est pas dans le backlog, l’équipe ne devrait pas le faire.",
+        "Chaque artefact Scrum a un engagement, et celui du backlog est l’objectif de produit (Product Goal) : l’état futur du produit vers lequel l’équipe travaille, par exemple « les petites boutiques gèrent tout leur processus de retours dans notre application d’ici la fin de l’année ». La Scrum Team doit atteindre (ou abandonner) un objectif de produit avant de passer au suivant. Chaque élément du backlog doit aider à l’atteindre ; un élément qu’on ne peut pas y relier est un candidat à la suppression, ou le signe que l’objectif n’est pas clair.",
+        "Le Product Owner est responsable de maximiser la valeur du produit issue du travail de la Scrum Team, et d’une gestion efficace du Product Backlog : élaborer et communiquer explicitement l’objectif de produit, créer et communiquer clairement les éléments du backlog, les ordonner, et s’assurer que le backlog est transparent, visible et compris. Le PO peut déléguer une partie de ce travail, par exemple laisser un Developer rédiger un élément technique, mais il en reste responsable. Le PO est une personne, pas un comité, et ceux qui veulent modifier le backlog le font en convainquant le PO.",
+        "Le Scrum Guide dit « ordonné », pas « priorisé », et la nuance compte. Des étiquettes de priorité (« Haute » sur 140 tickets) permettent que tout soit important ; un ordre impose une seule séquence sans ex æquo, et la question devient « ceci avant cela ? ». L’ordre tient compte de la valeur, du coût du retard, des risques, des dépendances et de ce que l’équipe doit apprendre. Un backlog sain ressemble à un iceberg, souvent résumé par DEEP (Roman Pichler et Mike Cohn) : Detailed appropriately, Estimated, Emergent, Prioritised. Les éléments du haut sont petits, clairs et estimés ; ceux du bas restent grossiers jusqu’à ce qu’ils remontent.",
+        "Ne confondez pas le Product Backlog et le Sprint Backlog. Le Sprint Backlog appartient aux Developers : l’objectif de Sprint (pourquoi), les éléments sélectionnés pour le Sprint (quoi) et leur plan pour les livrer (comment). Le PO ordonne le Product Backlog et convient de l’objectif de Sprint avec l’équipe au Sprint Planning, mais il n’assigne pas de tâches et n’ajoute pas de travail au Sprint dans le dos des Developers. En entretien, on demande souvent « de quoi le PO est-il exactement responsable ? » ; la réponse ci-dessus, avec les mots du Scrum Guide, marque des points."
+      ],
+      "points": [
+        "Product Backlog : émergent, ordonné, unique source de travail de la Scrum Team.",
+        "Son engagement est l’objectif de produit ; chaque élément doit le servir.",
+        "Le PO est responsable de la gestion du backlog, même quand quelqu’un d’autre rédige des éléments.",
+        "Ordonné, pas priorisé : une seule séquence, sans ex æquo.",
+        "Le Sprint Backlog appartient aux Developers ; le PO n’assigne pas de tâches."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "PRODUCT GOAL: small shops run their whole returns process in our app by December\n\n#  Item                                         Size  State\n1  Customer starts a return from the order page   5    Ready (AC + sized)\n2  Shop approves or refuses a return              3    Ready\n3  Prepaid return label (one carrier)             8    Ready\n4  Refund to the original card                    5    Being refined\n5  Return reasons report for the shop            ~13   Needs splitting\n6  Exchanges instead of refunds                  L     Idea (epic)\n7  Second and third carriers                     L     Idea (epic)\n----------------------------------------------------------------\nTop: small, detailed, sized.  Bottom: coarse, cheap to change.",
+        "note": "Un objectif, un ordre, un niveau de détail qui augmente quand les éléments remontent : l’iceberg en pratique."
+      }
+    },
+    {
+      "title": "Epics, features, user stories et découpage",
+      "text": [
+        "Le Scrum Guide ne parle que d’éléments du Product Backlog ; epics, features et user stories sont des conventions venues des outils et des frameworks. Dans Jira, une epic regroupe des stories ; SAFe utilise epic → capability → feature → story. Utilisez le vocabulaire de l’organisation, mais gardez l’idée : les gros éléments ont leur place en bas du backlog, et on les découpe en stories assez petites pour être terminées en un Sprint avant que l’équipe les sélectionne. Les bases du format (« En tant que…, je veux…, afin de… ») et le Given/When/Then sont dans le cours Requirements & user stories ; cette leçon porte sur le bon découpage.",
+        "Découpez verticalement, pas horizontalement. Une tranche verticale traverse toutes les couches dont la fonctionnalité a besoin (écran, API, base de données, tests) et donne à un utilisateur quelque chose qu’il peut utiliser, et à l’équipe quelque chose qu’elle peut démontrer et mesurer. Une tranche horizontale (« créer les tables », « faire l’API », « faire l’interface ») ne livre rien seule et cache les risques jusqu’à l’assemblage final. Une tranche verticale fine avec un écran peu soigné vaut mieux que trois couches finies qui ne fonctionnent pas ensemble.",
+        "INVEST, de Bill Wake (2003), est la vérification classique d’une bonne story : Independent (constructible et livrable dans n’importe quel ordre, autant que possible), Negotiable (les détails se discutent, ce n’est pas un contrat), Valuable (pour un utilisateur ou un client), Estimable (l’équipe la comprend assez pour l’estimer), Small (tient largement dans un Sprint, idéalement quelques jours), Testable (on sait dire quand elle est terminée). Les trois C de Ron Jeffries rappellent que la carte n’est qu’un aide-mémoire : Card, Conversation, Confirmation.",
+        "Les patterns de découpage donnent des coupes toutes prêtes. Étapes du parcours : une story par étape, ou le chemin complet le plus simple d’abord. Variantes de règles métier : une règle par story (livraison standard d’abord, express ensuite). Chemin nominal d’abord, puis les cas d’erreur et les exceptions. Variantes de données : un pays, une devise ou un format de fichier d’abord. Interfaces : web d’abord, application mobile ensuite. Opérations : créer et consulter avant modifier et supprimer. Performance différée : faire fonctionner, puis rendre rapide. Quand l’équipe ne sait tout simplement pas assez, un spike limité dans le temps répond d’abord à la question. SPIDR de Mike Cohn regroupe les mêmes idées : Spike, Paths, Interfaces, Data, Rules.",
+        "Dans les vrais backlogs, les échecs courants sont les stories découpées par équipe ou par composant (« story front », « story back »), les stories qui sont des tâches déguisées, et les epics jamais découpées parce que personne ne porte la conversation. Un bon test : après le découpage, peut-on livrer la première story seule et apprendre quelque chose ? Si non, recoupez. Les recruteurs adorent « découpez-moi cette epic » : nommez l’utilisateur, le résultat attendu, la première tranche fine de bout en bout, et ce que vous laissez volontairement pour plus tard."
+      ],
+      "points": [
+        "Les tranches verticales traversent toutes les couches et se démontrent ; les horizontales non.",
+        "INVEST : Independent, Negotiable, Valuable, Estimable, Small, Testable.",
+        "Card, Conversation, Confirmation : la carte rappelle une conversation.",
+        "Découpez par étape, règle, chemin nominal, données, interface ou opération ; faites un spike sur l’inconnu.",
+        "Après un découpage, la première story doit pouvoir être livrée seule."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EPIC: Online returns for a shoe shop\n\nHorizontal (avoid)            Vertical slices (prefer)\n- Returns database tables     1. Customer requests a return for one item,\n- Returns API                     shop gets an e-mail          (happy path)\n- Returns screens             2. Shop approves or refuses in the back office\n- Carrier integration         3. Customer downloads a prepaid label, one carrier\n                              4. Refund to the original card after approval\n                              5. Return of several items in one request  (data)\n                              6. Returns outside the 30-day window refused (rule)\n                              7. Same flow in the mobile app        (interface)",
+        "note": "La tranche 1 est rudimentaire mais réelle : un client peut retourner une paire de chaussures et la boutique apprend à quelle fréquence cela arrive."
+      }
+    },
+    {
+      "title": "Critères d’acceptation, Definition of Ready et Definition of Done",
+      "text": [
+        "Les critères d’acceptation sont les conditions qu’un élément précis doit remplir pour être accepté : ils appartiennent à la story. Écrivez-les sous forme de courte liste de règles (« le remboursement va sur la carte d’origine », « un retour après 30 jours est refusé avec un message ») ou en scénarios Given/When/Then quand le comportement dépend du contexte (voir le cours Requirements & user stories). De bons critères sont testables, couvrent au moins un cas négatif, décrivent un comportement plutôt qu’une implémentation, et sont convenus avec les Developers et les testeurs pendant l’affinage, pas remis au Sprint Planning.",
+        "La Definition of Done est autre chose : c’est une description formelle de l’état de l’Incrément lorsqu’il atteint les mesures de qualité requises pour le produit (Scrum Guide 2020). Elle s’applique à chaque élément, c’est l’engagement de l’Incrément, et elle liste typiquement : code relu, tests automatisés au vert, déployé en recette, accessibilité vérifiée, documentation à jour. Si l’organisation a une Definition of Done standard, chaque Scrum Team la suit au minimum ; sinon, la Scrum Team en crée une pour le produit.",
+        "La conséquence est stricte : si un élément ne respecte pas la Definition of Done, il ne peut pas être livré ni même présenté à la Sprint Review ; il retourne dans le Product Backlog pour être reconsidéré. « Terminé sauf les tests » n’est pas terminé. Cela protège la transparence : les parties prenantes ne voient que du travail réellement utilisable, et l’équipe n’accumule pas de travail caché pour plus tard. Un PO qui accepte du travail à moitié fini pour que la review ait bonne allure crée de la dette technique et de fausses prévisions.",
+        "La Definition of Ready n’est pas dans le Scrum Guide. Beaucoup d’équipes en utilisent une comme accord de travail sur ce dont un élément a besoin avant le Sprint Planning : un utilisateur et un résultat clairs, des critères d’acceptation, une estimation par les Developers, une taille qui tient dans un Sprint, des dépendances connues. Le Scrum Guide dit seulement que les éléments qui peuvent être terminés en un Sprint sont jugés prêts pour la sélection. Gardez une DoR légère : quand elle devient un long portail avec des validations, elle transforme l’affinage en mini cycle en V et empêche des conversations utiles pendant le Sprint.",
+        "En entretien, le piège classique est « quelle différence entre critères d’acceptation et Definition of Done ? ». Réponse : les critères d’acceptation sont propres à un élément et disent ce qu’il doit faire ; la Definition of Done est commune à tous les éléments et dit quel niveau de qualité tout doit atteindre. Un élément est terminé quand les deux sont remplis."
+      ],
+      "points": [
+        "Critères d’acceptation : par élément, testables, avec au moins un cas négatif.",
+        "Definition of Done : pour chaque élément, le niveau de qualité de l’Incrément.",
+        "Pas Done signifie ni livré ni montré à la Sprint Review : retour au backlog.",
+        "Definition of Ready : une convention d’équipe, pas Scrum ; gardez-la courte.",
+        "Terminé = critères d’acceptation remplis ET Definition of Done respectée."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "STORY: Refund to the original card after approval\nAcceptance criteria (this story only)\n  - Refund is sent within 1 hour of the shop's approval\n  - Amount = item price; shipping is refunded only if the whole order is returned\n  - If the card has expired, the shop sees \"refund failed\" and a manual option\n  - Customer gets an e-mail with the amount and the expected delay\n\nDEFINITION OF DONE (every item)\n  [ ] Code reviewed by another Developer\n  [ ] Unit and API tests pass in the pipeline\n  [ ] Deployed to staging and checked against the acceptance criteria\n  [ ] No new critical accessibility issue\n  [ ] Monitoring and help text updated",
+        "note": "Le bloc du haut change à chaque story ; celui du bas est le même pour toutes."
+      }
+    },
+    {
+      "title": "Affinage et estimation",
+      "text": [
+        "L’affinage du Product Backlog (refinement) est, selon le Scrum Guide, le fait de décomposer et de préciser les éléments en éléments plus petits et plus précis : une activité continue qui ajoute des détails comme une description, un ordre et une taille. Ce n’est pas l’un des cinq événements Scrum, donc les équipes l’organisent comme elles veulent, souvent une ou deux sessions par semaine. Les anciennes versions du Scrum Guide indiquaient qu’il prend généralement au plus 10 % de la capacité des Developers ; la version 2020 ne donne aucun chiffre. Le PO apporte le pourquoi et le contexte, les Developers le comment et les risques, et les meilleures sessions se terminent avec moins de questions et des éléments plus petits.",
+        "Les Developers qui feront le travail sont responsables de l’estimation. Le PO peut les aider à comprendre un élément et à choisir des compromis (« et si on remplaçait le PDF par un e-mail ? »), mais il n’estime pas à leur place, un manager non plus. Les estimations sont une prévision de l’équipe, pas une promesse, et elles incluent tout ce qu’il faut pour respecter la Definition of Done.",
+        "Les story points sont une mesure relative de taille : effort, complexité et incertitude ensemble, comparés à une story de référence que toute l’équipe connaît (« la réinitialisation du mot de passe était un 3 »). Les équipes utilisent une suite de Fibonacci modifiée (1, 2, 3, 5, 8, 13, 20, 40, 100) parce que les écarts grandissent avec la taille : personne ne distingue un 14 d’un 15. Au Planning Poker, chaque Developer choisit une carte en secret, tout le monde révèle en même temps, le plus haut et le plus bas expliquent leurs raisons, et l’équipe revote. La discussion est la vraie valeur : un 2 et un 13 sur la même story signifient que quelqu’un sait quelque chose que les autres ignorent. Pour les epics, des tailles de T-shirt (S, M, L, XL) suffisent.",
+        "La vélocité est le nombre de points de travail Done par Sprint. Utilisez-la comme une fourchette pour prévoir, pas comme un objectif : si les trois derniers Sprints ont livré 34, 28 et 31 points, planifiez autour de 31 et dites « entre 28 et 34 ». Les points ne sont pas comparables entre équipes, et faire de la vélocité un objectif de performance fait gonfler les points (loi de Goodhart : une mesure qui devient un objectif cesse de mesurer). Certaines équipes abandonnent les points et comptent les éléments, ce qui marche une fois les stories découpées à des tailles proches.",
+        "Ce qui dérape en entreprise : affiner des éléments qui ne seront pas construits avant des mois, estimer en heures puis être jugé dessus, le PO qui négocie une estimation à la baisse, et un Sprint Planning transformé en affinage parce que rien n’était prêt. Une règle simple aide : garder environ deux Sprints d’éléments affinés et estimés, et n’affiner davantage que ce qui a des chances d’être construit."
+      ],
+      "points": [
+        "Affinage : continu, ajoute description, ordre et taille ; ce n’est pas un événement Scrum.",
+        "Les Developers estiment le travail ; le PO explique et propose des compromis.",
+        "Les story points sont relatifs, sur une suite de Fibonacci modifiée, face à une story de référence.",
+        "Planning Poker : vote secret, révélation, les extrêmes expliquent, nouveau vote.",
+        "La vélocité prévoit une fourchette ; ce n’est jamais un objectif ni une comparaison entre équipes."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "     A          B             C   D                        E\n1    Sprint     Points done       Planned item             Points\n2    Sprint 21  34                Login with SSO           8\n3    Sprint 22  28                Saved searches           5\n4    Sprint 23  31                Bulk import, CSV only    13\n5                                 Fix export timeout       3\n\nForecast  =AVERAGE(B2:B4)              -> 31\nRange     =MIN(B2:B4)  to  =MAX(B2:B4) -> 28 to 34\nPlanned   =SUM(E2:E5)                  -> 29\nRoom left =AVERAGE(B2:B4)-SUM(E2:E5)   -> 2",
+        "note": "Avec 2 points de marge, une story de 3 points ne tient pas en moyenne ; dites-le avant le Sprint, pas après. Dans Excel en français : MOYENNE, MIN, MAX et SOMME."
+      }
+    },
+    {
+      "title": "Valeur contre effort et coût du retard",
+      "text": [
+        "L’outil de priorisation le plus simple est la matrice valeur / effort : placez chaque élément sur deux axes et vous obtenez quatre cases. Les quick wins (forte valeur, faible effort) passent en premier ; les gros paris (forte valeur, fort effort) sont planifiés et découpés ; les bouche-trous (faible valeur, faible effort) attendent de la capacité libre ; les gouffres (faible valeur, fort effort) sont en général abandonnés. C’est grossier et relatif, et c’est justement pour cela que ça marche en atelier de 30 minutes avec les parties prenantes, et pour cela que ce ne doit pas être le seul outil pour un gros backlog.",
+        "La valeur doit être définie avant d’être comparée. Ce peut être du chiffre d’affaires, des coûts évités, un risque réduit (sécurité, conformité, un système fragile), de l’apprentissage (une expérimentation qui dit si un plus gros pari vaut le coup) ou la satisfaction client. Demandez toujours « de la valeur pour qui, et comment le saurons-nous ? » : un élément avec un indicateur à suivre après la mise en production se défend mieux qu’un élément « stratégique ».",
+        "Le coût du retard (cost of delay), popularisé par Don Reinertsen (The Principles of Product Development Flow, 2009), demande combien coûte chaque semaine sans l’élément. Il transforme « urgent » en un chiffre comparable. Quand deux éléments se disputent la même équipe, divisez le coût du retard par la durée (CD3) et faites le plus élevé d’abord. Exemple : A coûte 10 k par semaine de retard et prend 4 semaines ; B coûte 6 k par semaine et prend 1 semaine. A d’abord : B attend 4 semaines, 4 × 6 k = 24 k perdus. B d’abord : A attend 1 semaine, 10 k perdus. Le CD3 dit la même chose : A = 10 / 4 = 2,5, B = 6 / 1 = 6, donc B passe en premier même si A vaut plus par semaine.",
+        "Le WSJF (Weighted Shortest Job First) est la version SAFe de la même idée. Le coût du retard est la somme de trois scores relatifs : valeur utilisateur et métier, criticité temporelle, et réduction des risques / ouverture d’opportunités. WSJF = coût du retard / taille du travail. Les équipes notent chaque colonne sur la suite de Fibonacci modifiée, une colonne à la fois pour tous les éléments, en donnant 1 au plus petit élément de chaque colonne. Un correctif réglementaire avec une échéance ferme et une petite taille peut alors passer devant une grosse fonctionnalité à forte valeur, ce qui est en général le bon choix.",
+        "Les limites sont humaines, pas mathématiques. Les scores sont des estimations relatives ; les gens apprennent à gonfler les colonnes qui favorisent leur élément ; la taille du travail est parfois confondue avec un effort en jours. Traitez le résultat comme une base de discussion, montrez les scores ouvertement, et revoyez-les quand quelque chose change (une échéance bouge, un concurrent lance un produit). Les recruteurs aiment entendre que vous utilisez ces outils pour rendre les arbitrages explicites, pas pour vous cacher derrière un chiffre."
+      ],
+      "points": [
+        "Valeur / effort : quick wins, gros paris, bouche-trous, gouffres ; bien pour un premier tri.",
+        "Définissez la valeur : chiffre d’affaires, coûts, risque, apprentissage ou satisfaction, avec un indicateur.",
+        "Coût du retard = ce que coûte chaque semaine sans l’élément.",
+        "CD3 = coût du retard / durée : les éléments courts et urgents d’abord.",
+        "WSJF = (valeur utilisateur et métier + criticité temporelle + réduction des risques / opportunités) / taille du travail."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "     A                      B      C      D       E               F          G\n1    Feature                Value  Time   Risk    Cost of delay   Job size   WSJF\n2    Consent banner fix     5      13     8       =B2+C2+D2       3          =E2/F2\n3    Self-service refunds   13     5      3       =B3+C3+D3       8          =E3/F3\n4    Partner API            8      3      13      =B4+C4+D4       13         =E4/F4\n\nResults: consent fix 26/3 = 8.67, refunds 21/8 = 2.63, partner API 24/13 = 1.85",
+        "note": "Le petit correctif avec une échéance passe en premier, même si les remboursements en libre-service ont la plus forte valeur métier."
+      }
+    },
+    {
+      "title": "Scores RICE et ICE",
+      "text": [
+        "RICE a été publié par Intercom pour comparer des idées produit sur la même échelle. Reach (portée) : combien de personnes ou d’événements l’élément touche sur une période (clients par trimestre, transactions par mois). Impact : à quel point il fait avancer l’objectif pour chaque personne, sur une échelle fixe : 3 massif, 2 fort, 1 moyen, 0,5 faible, 0,25 minime. Confidence (confiance) : à quel point vous êtes sûr des autres chiffres : 100 % forte, 80 % moyenne, 50 % faible. Effort : en mois-personne de travail de toutes les personnes impliquées. Score RICE = Reach × Impact × Confidence / Effort.",
+        "Un exemple chiffré. L’import en masse touche 800 clients par trimestre, impact 2, confiance 80 %, effort 2 mois-personne : 800 × 2 × 0,8 / 2 = 640. De meilleurs filtres de recherche touchent 5 000 clients, impact 0,5, confiance 100 %, effort 1 : 2 500. Un nouvel onboarding touche 3 000 clients, impact 1, confiance 50 %, effort 3 : 500. La fonctionnalité modeste utilisée par beaucoup gagne, ce qui est souvent la surprise utile de RICE ; l’onboarding a un score bas surtout parce que personne n’a encore de preuve, donc une petite expérimentation pour augmenter la confiance est peut-être la vraie prochaine étape.",
+        "Dans un tableur, calculez le score dans une colonne (=B2*C2*D2/E2), puis trouvez le meilleur élément avec =INDEX(A2:A4,MATCH(MAX(F2:F4),F2:F4,0)) : MAX trouve le meilleur score, MATCH trouve sa ligne, INDEX renvoie le nom (dans Excel en français : INDEX, EQUIV et MAX). Laissez les données d’entrée visibles pour que chacun puisse contester un chiffre, et notez d’où vient la portée (analytics, tickets du support, pipeline commercial).",
+        "ICE, associé à Sean Ellis et aux équipes growth, est plus léger : Impact, Confidence et Ease (facilité), chacun noté de 1 à 10. La plupart des équipes les multiplient (8 × 5 × 6 = 240), certaines en font la moyenne (6,3) ; choisissez une méthode et tenez-vous-y. La facilité est l’inverse de l’effort, donc plus c’est haut, mieux c’est. ICE convient à un flux de petites expérimentations (e-mails d’onboarding, tests de landing page) où la vitesse de décision compte plus que la précision ; RICE convient aux fonctionnalités produit dont on peut mesurer la portée.",
+        "Les deux ont les mêmes faiblesses : une seule personne optimiste qui note seule, un impact choisi pour obtenir la réponse voulue, et des éléments obligatoires (une obligation légale, un correctif de sécurité) passés dans une notation dont ils n’ont pas besoin. Notez ensemble, calibrez avec des éléments déjà livrés (« quel impact avions-nous prévu pour les recherches sauvegardées, et que s’est-il passé ? »), et traitez le travail obligatoire à part."
+      ],
+      "points": [
+        "RICE = Reach × Impact × Confidence / Effort.",
+        "Échelle d’impact 3 / 2 / 1 / 0,5 / 0,25 ; confiance 100 / 80 / 50 % ; effort en mois-personne.",
+        "Meilleur élément dans un tableur : INDEX / MATCH du MAX.",
+        "ICE = Impact, Confidence, Ease de 1 à 10, pour des expérimentations rapides.",
+        "Une confiance faible invite à apprendre d’abord, pas seulement à attendre."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "     A                B      C       D           E        F\n1    Item             Reach  Impact  Confidence  Effort   RICE\n2    Bulk import      800    2       0.8         2        =B2*C2*D2/E2   -> 640\n3    Search filters   5000   0.5     1           1        =B3*C3*D3/E3   -> 2500\n4    New onboarding   3000   1       0.5         3        =B4*C4*D4/E4   -> 500\n\nTop item: =INDEX(A2:A4,MATCH(MAX(F2:F4),F2:F4,0))   -> Search filters\nICE:      =8*5*6 -> 240   (Impact 8, Confidence 5, Ease 6)",
+        "note": "La même formule sur chaque ligne ; le meilleur élément suit les scores quand une donnée change."
+      }
+    },
+    {
+      "title": "MoSCoW, Kano et quand utiliser chacun",
+      "text": [
+        "MoSCoW a été créé par Dai Clegg chez Oracle en 1994 et intégré à DSDM (aujourd’hui la méthode de l’Agile Business Consortium). Must have : sans lui, la version est inutile, illégale ou dangereuse ; demandez « que se passe-t-il s’il n’y est pas ? », et si la réponse est « on livrerait quand même avec un contournement », ce n’est pas un Must. Should have : important, pénible à retirer, mais il existe un contournement. Could have : souhaitable, le premier abandonné quand le temps manque. Won’t have this time : hors périmètre pour cette version, d’un commun accord, ce qui est aussi utile que les Must car cela arrête le même débat chaque semaine.",
+        "Les recommandations DSDM sont de limiter les Must have à environ 60 % de l’effort d’une timebox, avec environ 20 % de Could have comme marge. Quand tout est Must, MoSCoW ne sert à rien : résistez avec la question « que se passe-t-il sinon ? » et avec des dates. MoSCoW convient à une version à date ou budget fixe où la discussion porte sur le périmètre avec les parties prenantes ; il n’ordonne pas les éléments au sein d’une catégorie, donc associez-le à un score ou à un simple classement.",
+        "Le modèle de Kano, de Noriaki Kano (1984), regarde les fonctionnalités du point de vue de la satisfaction client. Les fonctionnalités obligatoires (must-be, basiques) provoquent la colère quand elles manquent et aucun enthousiasme quand elles sont là : une application bancaire qui affiche le bon solde. Les fonctionnalités proportionnelles (one-dimensional, de performance) satisfont d’autant plus qu’elles sont bonnes : virements plus rapides, frais plus bas. Les fonctionnalités attractives (délices, delighters) ne sont pas attendues, leur absence ne coûte rien mais leur présence enchante : une analyse des dépenses que personne n’avait demandée. Les fonctionnalités neutres (indifferent) n’intéressent personne, et les fonctionnalités inverses (reverse) agacent certains utilisateurs (plus de notifications).",
+        "Kano se mesure avec des questions en paires posées aux utilisateurs : « Que ressentiriez-vous si l’application avait cela ? » et « Que ressentiriez-vous si elle ne l’avait pas ? », chacune avec les réponses J’aime, Je m’y attends, Neutre, Je peux m’en accommoder, Je n’aime pas. La combinaison classe la fonctionnalité. Les catégories évoluent : le délice d’hier (paiement sans contact, suivi en direct d’une livraison) devient l’attente de base d’aujourd’hui, donc revérifiez le classement tous les un ou deux ans.",
+        "Quand utiliser chacun : Kano pour comprendre ce que les clients valorisent et éviter de surinvestir dans les basiques ; RICE ou WSJF pour classer une longue liste avec des chiffres ; le coût du retard quand le calendrier compte ; MoSCoW pour négocier le périmètre d’une version fixe ; valeur / effort pour un premier tri en atelier. Les PO expérimentés les combinent, par exemple Kano pour repérer les basiques qui doivent être solides, puis RICE pour classer les idées de performance et attractives. Le cours Requirements & user stories donne les définitions de base ; ici, l’enjeu est de choisir le bon outil pour la décision à prendre."
+      ],
+      "points": [
+        "MoSCoW : Must, Should, Could, Won’t have this time ; testez un Must avec « que se passe-t-il sinon ? ».",
+        "DSDM : Must au plus environ 60 % de l’effort, Could environ 20 % comme marge.",
+        "Kano : obligatoire (must-be), proportionnel (performance), attractif, neutre, inverse.",
+        "Les délices deviennent des attentes de base avec le temps.",
+        "Choisissez l’outil selon la décision : comprendre (Kano), classer (RICE, WSJF), négocier le périmètre (MoSCoW)."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "KANO QUESTION PAIR (banking app, feature: instant transfer to a friend)\n  If the app HAS it:      I like it / I expect it / neutral / I can tolerate it / I dislike it\n  If the app DOES NOT:    I like it / I expect it / neutral / I can tolerate it / I dislike it\n\n  Has = \"I like it\"   + Does not = \"I dislike it\"  -> one-dimensional (performance)\n  Has = \"I like it\"   + Does not = \"neutral\"       -> attractive (delighter)\n  Has = \"I expect it\" + Does not = \"I dislike it\"  -> must-be (basic)\n  Has = \"neutral\"     + Does not = \"neutral\"       -> indifferent\n\nMOSCOW (release on 1 March, fixed date)\n  Must:   login, balance, transfer to saved payee\n  Should: transfer to a new payee with confirmation code\n  Could:  spending categories\n  Won't (this time): savings goals",
+        "note": "Kano dit ce que les clients ressentent face à une fonctionnalité ; MoSCoW décide de ce que contient cette version."
+      }
+    },
+    {
+      "title": "Garder un backlog sain",
+      "text": [
+        "Un backlog de 800 éléments n’est pas transparent : personne ne le lit, et l’ordre au-delà des 50 premiers ne veut rien dire. Élaguez régulièrement. Une règle d’équipe courante consiste à archiver, avec une note, les éléments que personne n’a touchés depuis six mois ; s’ils comptent, ils reviendront. Gardez environ deux Sprints d’éléments prêts en haut, les prochains mois sous forme de features, et tout le reste sous forme d’une courte liste d’epics ou de thèmes reliés à l’objectif de produit. Dire « c’est dans le backlog » à une partie prenante quand l’élément ne sera jamais construit est un mensonge poli.",
+        "La dette technique (une métaphore de Ward Cunningham, 1992) et les bugs vont dans le même backlog, ordonnés face aux fonctionnalités, car ils mobilisent la même équipe. Rendez la dette visible avec des éléments qui en disent l’effet métier (« les évolutions du tunnel de paiement prennent trois fois plus de temps à cause de l’ancien module de paiement »), pas seulement « refactorer X ». Certaines équipes conviennent aussi d’une part régulière de capacité pour la maintenance ; dans tous les cas, le PO décide avec les Developers, qui savent où est le risque. La Definition of Done est la meilleure prévention : un travail qui la respecte ne crée pas de nouvelle dette cachée.",
+        "Les bugs demandent une règle simple convenue avec l’équipe : un bug critique en production (on ne peut plus payer, les données sont fausses) se corrige tout de suite, même en cours de Sprint ; les autres bugs deviennent des éléments du backlog, ordonnés comme le reste ; un bug trouvé dans une story du Sprint en cours fait simplement partie de la fin de cette story. Sans cette règle, chaque bug devient une urgence et l’objectif de Sprint est perdu.",
+        "Dire non fait partie du métier. Un bon non explique la raison en lien avec l’objectif de produit, propose ce qui est possible (une version plus petite, un contournement, une date pour en reparler) et est consigné pour que la même demande ne revienne pas chaque semaine. « Pas maintenant, car ce trimestre nous sommes concentrés sur les retours ; l’export peut se faire à la main avec ce rapport ; j’en reparle en juin » préserve la relation et le cap. Un journal de décisions avec la date, la demande, la décision et la raison ne coûte presque rien et protège le PO plus tard.",
+        "La transparence boucle la boucle. Gardez le backlog lisible par les parties prenantes (titres clairs, sans jargon interne), montrez l’ordre et ses raisons à la Sprint Review, et prévenez les gens quand leur élément descend, avant qu’ils ne le découvrent. Une revue mensuelle de la santé du backlog prend 30 minutes et évite la plupart des problèmes ci-dessus."
+      ],
+      "points": [
+        "Élaguez : archivez les éléments non touchés ; environ deux Sprints prêts, le reste grossier.",
+        "Dette technique et bugs sont ordonnés dans le même backlog que les fonctionnalités.",
+        "Exprimez la dette en termes métier ; la Definition of Done évite d’en créer.",
+        "Un bon non donne la raison, une alternative et une date de revue, et il est consigné.",
+        "Prévenez les parties prenantes quand leur élément descend, avant qu’elles ne le découvrent."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "MONTHLY BACKLOG HEALTH CHECK (30 min)\n[ ] Product Goal still true? Every top-20 item linked to it\n[ ] Top 2 Sprints: items ready (AC, sized, fit in a Sprint)\n[ ] Items untouched for 6 months: archived with a note\n[ ] Duplicates merged; vague titles rewritten\n[ ] Technical debt and bugs visible, stated in business terms\n[ ] Stakeholders told about items that moved down\n[ ] Decision log updated (request, decision, reason, review date)\n\nBacklog size: 412 -> 138 items after pruning",
+        "note": "Un backlog court et ordonné est plus facile à expliquer, à défendre et à faire évoluer."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Le backlog dans Scrum",
+      "items": [
+        ["Product Backlog", "Liste émergente et ordonnée de ce qui est nécessaire pour améliorer le produit"],
+        ["Product Goal", "Objectif de produit : engagement du Product Backlog, l’état futur du produit"],
+        ["Product Owner", "Responsable de maximiser la valeur et de la gestion du backlog"],
+        ["Sprint Backlog", "Objectif de Sprint + éléments sélectionnés + plan, propriété des Developers"],
+        ["Ordonné", "Une seule séquence sans ex æquo, pas des étiquettes de priorité"],
+        ["DEEP", "Detailed appropriately, Estimated, Emergent, Prioritised"]
+      ]
+    },
+    {
+      "group": "Stories et découpage",
+      "items": [
+        ["Epic", "Gros élément découpé en stories avant sélection"],
+        ["Tranche verticale", "Traverse toutes les couches et se démontre"],
+        ["Tranche horizontale", "Une seule couche (tables, API) : aucune valeur seule"],
+        ["INVEST", "Independent, Negotiable, Valuable, Estimable, Small, Testable"],
+        ["SPIDR", "Spike, Paths, Interfaces, Data, Rules : façons de découper"],
+        ["Spike", "Recherche limitée dans le temps pour lever une inconnue"]
+      ]
+    },
+    {
+      "group": "Prêt et terminé",
+      "items": [
+        ["Critères d’acceptation", "Conditions qu’un élément précis doit remplir"],
+        ["Definition of Done", "Niveau de qualité de l’Incrément, pour chaque élément"],
+        ["Definition of Ready", "Convention d’équipe avant sélection ; absente du Scrum Guide"],
+        ["Pas Done", "Ni livré, ni montré à la Sprint Review, retour au backlog"]
+      ]
+    },
+    {
+      "group": "Affinage et estimation",
+      "items": [
+        ["Affinage", "Continu : ajoute description, ordre et taille"],
+        ["Story points", "Taille relative : effort, complexité, incertitude"],
+        ["Planning Poker", "Vote secret, révélation, les extrêmes expliquent, nouveau vote"],
+        ["Vélocité", "Points de travail Done par Sprint : une fourchette de prévision"],
+        ["Qui estime", "Les Developers qui feront le travail"]
+      ]
+    },
+    {
+      "group": "Scores",
+      "items": [
+        ["Coût du retard", "Ce que coûte chaque semaine sans l’élément"],
+        ["CD3", "Coût du retard / durée : le plus élevé d’abord"],
+        ["WSJF", "(Valeur + criticité temporelle + réduction des risques) / taille du travail"],
+        ["RICE", "Reach × Impact × Confidence / Effort"],
+        ["ICE", "Impact, Confidence, Ease de 1 à 10"],
+        ["=INDEX(A2:A4,MATCH(MAX(F2:F4),F2:F4,0))", "Nom de l’élément au meilleur score"]
+      ]
+    },
+    {
+      "group": "Catégories",
+      "items": [
+        ["MoSCoW", "Must, Should, Could, Won’t have this time"],
+        ["Must have", "Sans lui, la version est inutile, illégale ou dangereuse"],
+        ["Kano obligatoire", "Attendu : son absence fâche, sa présence n’enthousiasme pas"],
+        ["Kano proportionnel", "Performance : meilleur il est, plus il satisfait"],
+        ["Kano attractif", "Délice : inattendu, il enchante quand il est là"],
+        ["Matrice valeur / effort", "Quick wins, gros paris, bouche-trous, gouffres"]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Étiqueter la moitié du backlog « Priorité haute » au lieu de l’ordonner en une seule séquence.",
+    "Découper le travail par couche ou par équipe (story front, story back) au lieu de tranches verticales.",
+    "Accepter « terminé sauf les tests » à la Sprint Review : ce n’est pas Done et cela cache du travail.",
+    "Estimer à la place des Developers, ou faire de la vélocité un objectif pour comparer les équipes.",
+    "Se cacher derrière un score RICE ou WSJF au lieu de s’en servir pour expliquer un arbitrage.",
+    "Tout classer en Must, si bien que MoSCoW n’aide plus à rien décider.",
+    "Laisser le backlog grossir jusqu’à des centaines d’éléments qui ne seront jamais construits."
+  ],
+  "exercises": [
+    {
+      "q": "Excel sur une vraie feuille : en F2, calculez le score RICE de « Saved searches » à partir de sa portée (Reach), son impact, sa confiance et son effort.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["Item", "Reach", "Impact", "Confidence", "Effort", "RICE"],
+        ["Saved searches", 4000, 2, 0.8, 2, ""],
+        ["Dark mode", 9000, 0.25, 1, 1, ""],
+        ["CSV export", 1200, 1, 0.5, 0.5, ""]
+      ],
+      "cell": "F2",
+      "answer": "=B2*C2*D2/E2",
+      "hint": "RICE = Reach × Impact × Confidence / Effort, le tout sur la ligne 2.",
+      "explain": "=B2*C2*D2/E2 donne 4000 × 2 × 0,8 / 2 = 3200. Recopiée vers le bas, la même formule note chaque élément, et le score suit quand quelqu’un corrige une donnée."
+    },
+    {
+      "q": "Excel sur une vraie feuille : en H2, renvoyez le nom de l’élément au meilleur score RICE (INDEX / MATCH du MAX ; INDEX / EQUIV dans Excel en français).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["Item", "Reach", "Impact", "Confidence", "Effort", "RICE", "", "Top item"],
+        ["Saved searches", 4000, 2, 0.8, 2, 3200],
+        ["Dark mode", 9000, 0.25, 1, 1, 2250],
+        ["CSV export", 1200, 1, 0.5, 0.5, 1200],
+        ["Onboarding checklist", 2500, 3, 0.8, 3, 2000],
+        ["SSO login", 600, 2, 1, 1.5, 800]
+      ],
+      "cell": "H2",
+      "answer": "=INDEX(A2:A6,MATCH(MAX(F2:F6),F2:F6,0))",
+      "hint": "MAX(F2:F6) trouve le meilleur score, MATCH(…,F2:F6,0) sa position, INDEX(A2:A6,…) renvoie le nom.",
+      "explain": "=INDEX(A2:A6,MATCH(MAX(F2:F6),F2:F6,0)) renvoie Saved searches (3200). Le 0 de MATCH demande une correspondance exacte ; le résultat change tout seul quand les scores changent."
+    },
+    {
+      "q": "Excel sur une vraie feuille : en F2, calculez le WSJF de « Payment retry » (coût du retard = valeur métier + criticité temporelle + réduction des risques, divisé par la taille du travail).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["Feature", "Business value", "Time criticality", "Risk reduction", "Job size", "WSJF"],
+        ["Payment retry", 8, 13, 5, 8, ""],
+        ["Invoice PDF", 5, 3, 2, 3, ""],
+        ["Partner API", 13, 2, 8, 13, ""]
+      ],
+      "cell": "F2",
+      "answer": "=(B2+C2+D2)/E2",
+      "hint": "Additionnez d’abord les trois colonnes du coût du retard (parenthèses), puis divisez par la taille du travail.",
+      "explain": "=(B2+C2+D2)/E2 donne (8 + 13 + 5) / 8 = 3,25. Sans les parenthèses, Excel ne diviserait que D2 par E2. Invoice PDF obtient 10 / 3 = 3,33 et Partner API 23 / 13 = 1,77 : le petit élément de facturation passe juste devant."
+    },
+    {
+      "q": "Excel sur une vraie feuille : en G2, combien de points de marge reste-t-il pour le prochain Sprint si la prévision est la vélocité moyenne des trois derniers Sprints et que les éléments de E2:E5 sont déjà prévus ?",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["Sprint", "Points done", "", "Planned item", "Points", "", "Room left"],
+        ["Sprint 21", 34, "", "Login with SSO", 8, "", ""],
+        ["Sprint 22", 28, "", "Saved searches", 5, "", ""],
+        ["Sprint 23", 31, "", "Bulk import, CSV only", 13, "", ""],
+        ["", "", "", "Fix export timeout", 3, "", ""]
+      ],
+      "cell": "G2",
+      "answer": "=AVERAGE(B2:B4)-SUM(E2:E5)",
+      "hint": "Prévision = AVERAGE (MOYENNE) des trois vélocités ; retirez la SUM (SOMME) des points prévus.",
+      "explain": "=AVERAGE(B2:B4)-SUM(E2:E5) donne 31 − 29 = 2 points. Une story de 3 points ne tient pas en moyenne ; les Developers décident au Sprint Planning, et le PO sait d’avance quel compromis proposer."
+    },
+    {
+      "q": "Un gros élément arrive : « Les clients peuvent payer en plusieurs fois ». Mettez les étapes d’affinage dans l’ordre.",
+      "type": "order",
+      "steps": [
+        "Reformuler le problème, l’utilisateur et le lien avec l’objectif de produit",
+        "Cartographier les étapes du parcours client",
+        "Découper en stories verticales fines, le chemin complet le plus simple d’abord",
+        "Écrire les critères d’acceptation des premières tranches",
+        "Les Developers estiment les tranches et redécoupent ce qui est trop gros pour un Sprint",
+        "Réordonner le backlog avec les nouvelles tranches"
+      ],
+      "answer": "D’abord le pourquoi et pour qui, puis le parcours, puis les tranches verticales, puis les critères des tranches proches, puis l’estimation par les Developers (qui peut entraîner un nouveau découpage), et enfin l’ordre. Estimer avant de découper revient à estimer une epic ; ordonner avant d’estimer ignore l’effort."
+    },
+    {
+      "q": "Triez ces éléments du backlog : lesquels sont de bonnes user stories, et lesquels sont à retravailler avant l’affinage ?",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Bonne story",
+          "items": [
+            "En tant que client régulier, je veux recommander une commande passée en un geste afin que mes courses de la semaine soient plus rapides",
+            "En tant qu’agent du support, je veux voir les cinq dernières commandes d’un client sur le ticket afin de répondre sans changer d’outil",
+            "En tant que commerçant, je veux exporter les ventes du mois en CSV afin que mon comptable puisse les importer"
+          ]
+        },
+        {
+          "name": "À retravailler",
+          "items": [
+            "Créer la table des commandes dans la base de données",
+            "En tant qu’utilisateur, je veux que l’application soit meilleure",
+            "Construire tout le programme de fidélité"
+          ]
+        }
+      ],
+      "answer": "Les bonnes stories nomment un utilisateur, une action et un bénéfice, et sont petites et testables. La table des commandes est une tranche horizontale sans valeur seule ; « meilleure » ne peut être ni testé ni estimé ; le programme de fidélité est une epic à découper."
+    },
+    {
+      "q": "Application de livraison de repas : classez ces fonctionnalités dans les catégories de Kano, telles que la plupart des clients les perçoivent aujourd’hui.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Obligatoire (basique)",
+          "items": [
+            "Le paiement est sécurisé",
+            "La commande correspond à ce qui a été commandé",
+            "Le prix total est affiché avant de payer"
+          ]
+        },
+        {
+          "name": "Proportionnelle (performance)",
+          "items": [
+            "Le délai de livraison (plus c’est rapide, mieux c’est)",
+            "Les frais de livraison (plus c’est bas, mieux c’est)",
+            "Le nombre de restaurants au choix"
+          ]
+        },
+        {
+          "name": "Attractive (délice)",
+          "items": [
+            "Un dessert offert par surprise le jour de votre anniversaire",
+            "Des suggestions de plats adaptées à vos commandes passées"
+          ]
+        }
+      ],
+      "answer": "Les basiques ne provoquent que de la colère quand ils manquent ; les fonctionnalités de performance satisfont d’autant plus qu’elles sont bonnes ; les délices plaisent parce que personne ne les attend. Les catégories évoluent : le suivi du livreur en direct était un délice et il est désormais attendu, d’où l’intérêt de refaire une vraie enquête Kano."
+    },
+    {
+      "q": "Associez chaque technique à la situation où elle convient le mieux.",
+      "type": "match",
+      "pairs": [
+        ["RICE", "Classer de nombreuses idées de fonctionnalités quand on peut mesurer combien d’utilisateurs chacune touche"],
+        ["WSJF", "Séquencer de grosses fonctionnalités quand les échéances et les risques comptent"],
+        ["MoSCoW", "Convenir du périmètre d’une version à date fixe avec les parties prenantes"],
+        ["Kano", "Repérer les fonctionnalités que les clients attendent et celles qui les enchanteraient"],
+        ["ICE", "Classer vite un flux de petites expérimentations growth"],
+        ["Matrice valeur / effort", "Un premier tri grossier d’idées en atelier court"]
+      ],
+      "answer": "Chaque outil répond à une question différente ; les PO expérimentés les combinent, par exemple Kano pour comprendre, RICE ou WSJF pour classer, MoSCoW pour négocier le périmètre de la version."
+    },
+    {
+      "q": "Sprint Review. Le directeur commercial dit : « Notre plus gros client ne renouvelle le mois prochain que s’il a l’import en masse. Promettez-le-moi pour la fin du prochain Sprint. » Que faites-vous ?",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Votre première réponse en réunion ?",
+          "choices": [
+            {
+              "label": "Le remercier, demander ce que le client a vraiment besoin de faire et ce qui est en jeu, et dire que vous l’évaluerez avec l’équipe avant le Sprint Planning",
+              "best": true,
+              "feedback": "Vous prenez la demande au sérieux et découvrez le vrai problème (peut-être un CSV ponctuel de 2 000 produits) sans promettre ce que les Developers n’ont pas prévu."
+            },
+            {
+              "label": "Le promettre : le client est trop important pour refuser",
+              "feedback": "Seuls les Developers peuvent prévoir ce qui tient dans un Sprint. Une promesse publique que vous ne tiendrez peut-être pas nuit à l’équipe et au client."
+            },
+            {
+              "label": "Refuser : l’ordre du backlog est déjà décidé",
+              "feedback": "Le backlog est émergent. Un renouvellement en jeu est une information nouvelle à évaluer ; un non sec abîme la relation."
+            }
+          ]
+        },
+        {
+          "text": "Le renouvellement vaut bien plus par semaine de retard que l’élément actuellement en tête. La fonctionnalité complète fait environ 40 points. Ensuite ?",
+          "choices": [
+            {
+              "label": "La découper : une première story qui couvre seulement le modèle CSV du client, affinée avec les Developers et placée en tête",
+              "best": true,
+              "feedback": "Le coût du retard justifie de la remonter, et une tranche fine peut réalistement être Done en un Sprint."
+            },
+            {
+              "label": "Mettre toute la fonctionnalité de 40 points en tête du prochain Sprint",
+              "feedback": "Bien au-delà de la vélocité de l’équipe : l’objectif de Sprint échouerait et rien ne serait Done."
+            },
+            {
+              "label": "Annuler le Sprint en cours pour commencer tout de suite",
+              "feedback": "Un Sprint n’est annulé que si son objectif devient obsolète ; cette demande peut attendre le prochain Sprint Planning."
+            }
+          ]
+        },
+        {
+          "text": "Au Sprint Planning, les Developers disent que la tranche ne tient que si la story « recherches sauvegardées » attend un Sprint. Alors ?",
+          "choices": [
+            {
+              "label": "Accepter le compromis, mettre à jour le backlog et expliquer aux demandeurs des recherches sauvegardées pourquoi elle a reculé, avant qu’ils ne le découvrent",
+              "best": true,
+              "feedback": "L’ordre est la décision du PO, prise ouvertement ; ceux dont l’élément recule l’apprennent de vous, avec la raison."
+            },
+            {
+              "label": "Demander aux Developers de caser les deux",
+              "feedback": "Surcharger le Sprint remplace une décision claire par des heures supplémentaires et un probable échec sur les deux."
+            }
+          ]
+        }
+      ],
+      "answer": "Écouter et trouver le vrai besoin, le peser avec le coût du retard, le découper à ce qui peut être Done en un Sprint, laisser les Developers prévoir, et rendre l’arbitrage visible pour toutes les personnes concernées."
+    },
+    {
+      "q": "Une idée touche 2 000 clients par trimestre, impact 1 (moyen), confiance 50 %, effort 4 mois-personne. Quel est son score RICE ?",
+      "type": "fill",
+      "blanks": [["250", "250.0", "250,0"]],
+      "answer": "2 000 × 1 × 0,5 / 4 = 250. Une confiance faible divise le score par deux : un test rapide pour augmenter la confiance peut valoir plus que la construire."
+    },
+    {
+      "q": "En fin de Sprint, une story fonctionne en recette et remplit ses critères d’acceptation, mais les tests de performance exigés par la Definition of Done n’ont pas été faits. Selon le Scrum Guide 2020, que se passe-t-il ?",
+      "type": "choice",
+      "options": [
+        "On la montre comme terminée à la Sprint Review et on fait les tests au prochain Sprint",
+        "Elle ne fait pas partie de l’Incrément : elle n’est pas présentée comme terminée et retourne dans le Product Backlog",
+        "Le Product Owner peut l’accepter car les critères d’acceptation sont remplis",
+        "On prolonge le Sprint de deux jours pour finir les tests"
+      ],
+      "correct": 1,
+      "answer": "Un élément qui ne respecte pas la Definition of Done ne peut être ni livré ni même présenté à la Sprint Review ; il retourne dans le Product Backlog. Les critères d’acceptation seuls ne suffisent pas, et les Sprints ont une durée fixe."
+    },
+    {
+      "q": "Découpez l’epic « Les clients gèrent leur abonnement en ligne » (aujourd’hui ils doivent appeler le support) en 5 à 7 stories verticales, dans l’ordre, et dites laquelle vous livreriez en premier et pourquoi.",
+      "answer": "1) En tant qu’abonné, je veux voir mon offre actuelle, son prix et la prochaine date de prélèvement, afin de ne plus appeler le support pour le demander (lecture seule, la plus petite, supprime beaucoup d’appels). 2) En tant qu’abonné, je veux mettre à jour ma carte, afin que mon abonnement ne s’arrête pas quand elle expire (les échecs de paiement coûtent du chiffre d’affaires). 3) En tant qu’abonné, je veux passer à une offre supérieure, effective tout de suite avec un montant au prorata (chiffre d’affaires, chemin nominal). 4) En tant qu’abonné, je veux passer à une offre inférieure à la prochaine date de prélèvement (variante de règle métier). 5) En tant qu’abonné, je veux suspendre jusqu’à deux mois au lieu de résilier (fidélisation). 6) En tant qu’abonné, je veux résilier en ligne et recevoir un e-mail de confirmation (légal et confiance ; en France, la résiliation en ligne doit être simple). 7) Les mêmes parcours dans l’application mobile (interface). Première livraison : la story 1, car elle est fine, traverse toutes les couches, peut sortir en quelques jours et réduit des appels au support que l’on peut mesurer ; la story 2 suit car les échecs de paiement ont un coût du retard clair. Chaque story reçoit des critères d’acceptation, par exemple le prix affiché correspond à la facture et une offre résiliée reste active jusqu’à la fin de la période payée."
+    }
+  ],
+  "interview": [
+    {
+      "q": "De quoi le Product Owner est-il responsable ?",
+      "a": "Selon le Scrum Guide 2020, de maximiser la valeur du produit issue du travail de la Scrum Team, et d’une gestion efficace du Product Backlog : élaborer et communiquer l’objectif de produit, créer et communiquer clairement les éléments du backlog, les ordonner, et garder le backlog transparent, visible et compris. Je peux déléguer la rédaction d’éléments, mais la responsabilité reste la mienne, et je ne pilote pas les tâches des Developers."
+    },
+    {
+      "q": "Comment découpez-vous une grosse epic ?",
+      "a": "Je pars de l’utilisateur et du résultat attendu, je cartographie le parcours, et je cherche la tranche de bout en bout la plus fine qu’un utilisateur peut utiliser et que nous pouvons mesurer. Ensuite je découpe par étape, par règle métier, chemin nominal puis exceptions, variante de données ou interface, et je fais un spike limité dans le temps quand nous ne savons pas assez. Je vérifie chaque story avec INVEST et j’évite les stories couche par couche, qui ne livrent rien tant que la dernière n’est pas finie."
+    },
+    {
+      "q": "Quelle différence entre critères d’acceptation et Definition of Done ?",
+      "a": "Les critères d’acceptation appartiennent à un élément et disent ce qu’il doit faire, cas négatifs compris. La Definition of Done s’applique à chaque élément et décrit la qualité de l’Incrément : relu, testé, déployé en recette, documenté. Un élément n’est terminé que quand les deux sont remplis ; s’il ne respecte pas la DoD, il n’est pas montré à la Sprint Review et retourne au backlog."
+    },
+    {
+      "q": "Comment priorisez-vous le backlog ?",
+      "a": "Je l’ordonne au regard de l’objectif de produit. Pour une longue liste de fonctionnalités, j’utilise RICE ou le WSJF pour comparer valeur, urgence et taille, le coût du retard quand le calendrier compte, Kano pour comprendre ce que les clients attendent, et MoSCoW quand on négocie le périmètre d’une version à date fixe. Les scores sont des données d’entrée : je les partage ouvertement, je les vérifie avec des données, et je traite à part les éléments obligatoires comme un correctif légal."
+    },
+    {
+      "q": "Une partie prenante exige que sa fonctionnalité passe en premier. Que faites-vous ?",
+      "a": "J’écoute pour trouver le vrai problème et le coût de l’attente, je le compare à ce qui est au-dessus avec les mêmes critères que tout le reste, et je cherche une tranche plus petite qui répond à la partie urgente. Ensuite je décide, j’explique la raison en lien avec l’objectif de produit, et si la réponse est « pas maintenant », je propose un contournement et une date de revue, et je consigne la décision. Les personnes dont l’élément recule l’apprennent de moi."
+    },
+    {
+      "q": "Estimez-vous les stories ? Comment utilisez-vous la vélocité ?",
+      "a": "Non, ce sont les Developers qui feront le travail qui l’estiment, en général en story points avec le Planning Poker ; j’explique le besoin et je propose des compromis pour réduire la taille. J’utilise la vélocité comme une fourchette de prévision, par exemple 28 à 34 points, jamais comme un objectif ni pour comparer des équipes, car les points gonfleraient et ne voudraient plus rien dire."
+    },
+    {
+      "q": "Comment gérez-vous la dette technique et les bugs ?",
+      "a": "Ils vont dans le même backlog que les fonctionnalités, ordonnés avec la même logique, car ils mobilisent la même équipe. Je demande aux Developers d’exprimer la dette en termes métier, par exemple des évolutions plus lentes du tunnel de paiement, pour la comparer équitablement, et nous comptons sur la Definition of Done pour ne pas en créer. Les bugs critiques en production sont corrigés tout de suite ; les autres sont ordonnés comme n’importe quel élément."
+    },
+    {
+      "q": "Comment gardez-vous un backlog sain ?",
+      "a": "Court et honnête : environ deux Sprints d’éléments prêts en haut, des features pour les prochains mois, des epics au-delà. J’archive les éléments non touchés depuis des mois, je fusionne les doublons, je garde des titres lisibles pour les parties prenantes, et je fais une courte revue de santé chaque mois. Je préfère dire non clairement que garder dans le backlog une demande qui ne sera jamais construite."
+    }
+  ]
+}

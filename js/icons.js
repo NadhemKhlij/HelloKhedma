@@ -54,6 +54,10 @@ const DRAW = {
   grc: () => [
     line("M28 10l16 6v14c0 11-7 19-16 23-9-4-16-12-16-23V16z"), line("M21 31l5 5 9-10"),
     line("M52 18h18v34H52z"), line("M56 26h10"), line("M56 34h10"), line("M56 42h6"), dot(54, 26, 1.4), dot(54, 34, 1.4), dot(54, 42, 1.4)],
+  // Sales: a handshake under a rising arrow
+  sales: () => [
+    line("M8 40l10-8h10l8 6 8-6h10l10 8"), line("M28 32l10 10c2 2 5 2 7 0l-9-9"), line("M18 32l-4 12"), line("M64 32l4 12"),
+    line("M24 22l10-8 8 6 14-12"), line("M50 8h6v6"), dot(24, 22, 2.2)],
 };
 const GENERIC = () => [line("M40 14v40M20 24l40 20M60 24L20 44"), ring(40, 14), ring(20, 24), dot(60, 44), ring(40, 54), dot(60, 24), ring(20, 44)];
 

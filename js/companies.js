@@ -53,6 +53,9 @@ const PATH_TITLE_TERMS = {
   grc: ["grc", "governance, risk", "risk and compliance", "it risk", "cyber risk", "compliance analyst", "compliance officer",
     "information security analyst", "security compliance", "it auditor", "it audit", "conformite", "risques it", "auditeur it",
     "auditeur si", "auditeur des systemes d'information"],
+  sales: ["sales", "account executive", "business developer", "business development", "sales development", "sdr", "bdr",
+    "key account", "account manager", "commercial", "ingenieur commercial", "ingenieur d'affaires", "charge d'affaires",
+    "grands comptes", "inside sales", "technico-commercial", "developpement commercial"],
 };
 export function titleMatcher(path) {
   const terms = [...(path?.job_titles || []), ...(path?.job_titles_fr || [])].map(norm).concat(PATH_TITLE_TERMS[path?.id] || []);

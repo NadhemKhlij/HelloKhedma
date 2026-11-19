@@ -202,6 +202,21 @@ export const SKILLS = [
   ["Corporate finance", "Finance", ["corporate finance", "finance d'entreprise", "m&a", "mergers and acquisitions", "wacc", "capital budgeting"]],
   ["IFRS", "Finance", ["ifrs", "us gaap", "gaap", "normes ifrs"]],
   ["EPM tools", "Finance", ["epm", "anaplan", "hyperion", "oracle epm", "tagetik", "adaptive insights", "workday adaptive planning", "pigment", "board international"]],
+  // Sales (Sales path "sales", 2026-11-19). No bare "closing" (month-end close in finance) or "quota" alone.
+  ["Sales prospecting", "Sales", ["prospecting", "prospection", "prospection commerciale", "lead generation", "generation de leads", "cold calling", "cold call", "phoning", "outbound sales"]],
+  ["Business development", "Sales", ["business development", "developpement commercial", "business developer", "new business", "biz dev", "bizdev"]],
+  ["Account management", "Sales", ["account management", "key account management", "key account manager", "gestion de comptes", "grands comptes", "comptes cles"]],
+  ["Customer success", "Sales", ["customer success", "customer success manager", "fidelisation client", "retention client", "upsell", "upselling", "cross-sell", "cross-selling"]],
+  ["Negotiation", "Sales", ["negotiation", "negotiating", "negociation", "negociations commerciales"]],
+  ["Sales pipeline management", "Sales", ["pipeline management", "sales pipeline", "pipe commercial", "gestion du pipeline", "sales forecast", "sales forecasting", "previsions commerciales"]],
+  ["B2B sales", "Sales", ["b2b sales", "vente b2b", "b2b", "btob", "business to business"]],
+  ["SaaS sales", "Sales", ["saas sales", "vente saas", "software sales", "vente de logiciels"]],
+  ["Solution selling", "Sales", ["solution selling", "consultative selling", "vente consultative", "value selling", "vente de solutions", "vente complexe"]],
+  ["Sales methodologies", "Sales", ["meddic", "meddpicc", "bant", "spin selling", "challenger sale", "sandler"]],
+  ["Sales engagement tools", "Sales", ["sales navigator", "linkedin sales navigator", "salesloft", "outreach.io", "lemlist", "apollo.io", "la growth machine", "gong.io", "modjo"]],
+  ["Social selling", "Sales", ["social selling"]],
+  ["Closing", "Sales", ["deal closing", "closing deals", "close deals", "closer", "conclure des ventes", "signature de contrats"]],
+  ["Sales targets", "Sales", ["sales targets", "sales quota", "quota attainment", "objectifs commerciaux", "objectifs de vente", "chiffre d'affaires objectif"]],
   ["Salesforce", "Tools", ["salesforce"]],
 ];
 

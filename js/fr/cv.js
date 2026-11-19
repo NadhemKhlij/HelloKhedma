@@ -53,6 +53,7 @@ export default {
   "Support & IT": "Support et IT",
   "Marketing": "Marketing",
   "Finance": "Finance",
+  "Sales": "Vente",
   "Product & project": "Produit et projet",
   "Security & compliance": "Sécurité et conformité",
   "Tools": "Outils",

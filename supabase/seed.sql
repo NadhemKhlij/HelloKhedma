@@ -41,7 +41,9 @@ insert into public.career_paths (id, name, blurb, color, job_titles, sort_order)
  ('pm','Project Manager','Planning, risks, budget, stakeholders','#4f46e5',
    array['Project Manager','IT Project Manager','Project Coordinator','PMO Analyst','Program Manager'],10),
  ('grc','GRC Analyst','Cyber risk, ISO 27001, GDPR, audits','#9333ea',
-   array['GRC Analyst','GRC Consultant','IT Risk Analyst','Compliance Analyst','IT Auditor'],11)
+   array['GRC Analyst','GRC Consultant','IT Risk Analyst','Compliance Analyst','IT Auditor'],11),
+ ('sales','Sales','Prospecting, B2B deals, accounts, CRM','#65a30d',
+   array['Sales Representative','Account Executive','Business Developer','Sales Development Representative','Key Account Manager'],12)
 on conflict (id) do update set
   name = excluded.name, blurb = excluded.blurb, color = excluded.color,
   job_titles = excluded.job_titles, sort_order = excluded.sort_order;
@@ -60,7 +62,8 @@ update public.career_paths set job_titles_fr = v.t from (values
   ('fa', array['Analyste Financier','Analyste FP&A','Contrôleur de Gestion','Business Partner Finance','Analyste Corporate Finance']),
   ('po', array['Product Owner','Chef de Produit Digital','Product Manager Junior','Product Owner Digital','Product Owner Technique']),
   ('pm', array['Chef de Projet','Chef de Projet IT','Coordinateur de Projet','Analyste PMO','Directeur de Programme']),
-  ('grc', array['Analyste GRC','Consultant GRC','Analyste Risques IT','Chargé de Conformité','Auditeur IT'])
+  ('grc', array['Analyste GRC','Consultant GRC','Analyste Risques IT','Chargé de Conformité','Auditeur IT']),
+  ('sales', array['Commercial','Ingénieur Commercial','Business Developer','Chargé de Développement Commercial','Responsable Grands Comptes'])
 ) as v(id, t) where public.career_paths.id = v.id;
 
 -- Data Engineer ---------------------------------------------------------------
@@ -202,6 +205,20 @@ select pg_temp.seed('grc','tip','[
  "Learn the vocabulary of one framework well (ISO 27001 and its Annex A, or NIST CSF) rather than a little of everything: interviews go into the details.",
  "European rules (GDPR, NIS2, DORA) create many offers in France and Europe: name the ones you know on your CV, with what you did with them."]'::jsonb);
 select pg_temp.seed('grc','keyword','["GRC","Information security","ISO 27001","NIST CSF","IT risk management","Risk management","Compliance","GDPR","NIS2","DORA","SOC 2","Internal controls","IT audit","Security policies","Third-party risk","Business continuity","Vulnerability management","Security awareness","CISA","CRISC","Excel"]'::jsonb);
+
+-- Sales (B2B: SDR / business developer, account executive, key account manager) -----------
+-- Courses: marketing-foundations, email-crm, excel.
+select pg_temp.seed('sales','tool','[
+ ["Salesforce or HubSpot CRM","Where every lead, deal and call is logged: the pipeline and the forecast come from it"],
+ ["LinkedIn Sales Navigator","Find the right accounts and people, follow their news, and reach them"],
+ ["Lemlist, Apollo or La Growth Machine","Prospecting sequences: e-mails, calls and LinkedIn steps, with reply rates"],
+ ["Gong or Modjo","Call recording and coaching: listen to your discovery calls and demos again"],
+ ["Excel or Google Sheets","Account lists, territory plans and the pipeline report your manager asks for"]]'::jsonb);
+select pg_temp.seed('sales','tip','[
+ "Sales hires on proof of results: put numbers on your CV (quota reached, deals signed, meetings booked, revenue), even from an internship, a summer job or a student association.",
+ "Many careers start as SDR or business developer: show you can prospect with a short outreach sequence you wrote and the reply rate it got.",
+ "Learn one qualification method (BANT or MEDDIC) and one CRM well: interviews include a role play, and managers ask how you keep your pipeline clean."]'::jsonb);
+select pg_temp.seed('sales','keyword','["Sales prospecting","Business development","B2B sales","Account management","Negotiation","Closing","Sales pipeline management","Sales targets","Solution selling","Sales methodologies","SaaS sales","Customer success","Social selling","CRM","Salesforce","Sales engagement tools","Stakeholder management","Excel","KPI"]'::jsonb);
 
 -- =====================================================================================
 -- Learning tracks. Step = [title, description, kind, provider, url, est_hours, is_free?]
@@ -516,6 +533,30 @@ select pg_temp.track('grc','grc-audit','Audits, third parties and certifications
  ["Certified Information Systems Auditor (CISA)","The reference certification for IT auditors; experience is needed for the title, not for the exam.","certification","ISACA","https://www.isaca.org/credentialing/cisa",120,false],
  ["Certified in Risk and Information Systems Control (CRISC)","ISACA’s certification for IT risk managers.","certification","ISACA","https://www.isaca.org/credentialing/crisc",100,false]]'::jsonb);
 
+-- Sales ---------------------------------------------------------------------------------
+select pg_temp.track('sales','sales-foundations','Sales foundations: customers, prospecting and the CRM','beginner',
+ 'The base of every sales job: who buys, why, and how to start conversations with the right people.',
+ 'Describe an ideal customer and its buyers, build a list of target accounts, write a prospecting sequence and log it all in a CRM.',1,'[
+ ["Digital marketing foundations","HelloKhedma course: the funnel, customers and positioning, where every sale starts.","learn","HelloKhedma","",2],
+ ["HubSpot Academy sales courses","Free courses on inbound sales, prospecting and sales enablement, with certificates.","learn","HubSpot Academy","https://academy.hubspot.com/courses",6],
+ ["E-mail marketing, CRM and automation","HelloKhedma course: the CRM, lifecycle stages and lead scoring that sales teams work with every day.","learn","HelloKhedma","",2],
+ ["Practice: an ideal customer profile and 30 target accounts","Pick a product you know, write its ideal customer profile and buyer personas, then list 30 real target companies and why each one fits.","practice","Your sheet","",4]]'::jsonb);
+select pg_temp.track('sales','sales-deals','Discovery, negotiation and closing','intermediate',
+ 'What turns a meeting into a signed deal: questions, a clear value story, objections and negotiation.',
+ 'Run a discovery call that qualifies a deal (BANT or MEDDIC), answer the classic objections and negotiate without giving the price away.',2,'[
+ ["Successful Negotiation: Essential Strategies and Skills","Course from the University of Michigan, free to audit: preparation, anchoring, concessions and closing.","learn","Coursera","https://www.coursera.org/learn/negotiation-skills",10],
+ ["Program on Negotiation: free articles","Articles from Harvard Law School’s negotiation programme on price, objections and agreements that last.","learn","Harvard PON","https://www.pon.harvard.edu/blog/",3],
+ ["Practice: a recorded mock discovery call","Record a 20-minute discovery call with a friend playing the buyer: open questions, pain, impact, budget, decision process; then score yourself.","practice","Your recording","",3],
+ ["Practice: answer the ten classic objections","Write your answer to too expensive, no time, we already have a supplier, send me an e-mail and six more, then rehearse them out loud.","practice","Your document","",2]]'::jsonb);
+select pg_temp.track('sales','sales-pipeline','Pipeline, forecast and key accounts','advanced',
+ 'What account executives and key account managers are judged on: a clean pipeline, a reliable forecast and growing accounts.',
+ 'Manage a pipeline in a CRM, forecast the quarter from it, and write a plan to grow a key account.',3,'[
+ ["Salesforce Trailhead","Free modules on Sales Cloud: leads, opportunities, pipeline and reports, with badges recruiters recognise.","learn","Salesforce Trailhead","https://trailhead.salesforce.com/",8],
+ ["HubSpot free CRM","Run a real pipeline: deals, stages, tasks and sequences, for free.","practice","HubSpot","https://www.hubspot.com/products/crm",3],
+ ["Excel for analysis","HelloKhedma course: pivot tables and lookups for pipeline reports and forecasts.","learn","HelloKhedma","",4],
+ ["Project: a pipeline analysis and next-quarter forecast","Win rates, sales cycle and a forecast from a real CRM dataset (see the portfolio projects below).","project","Your report","",10],
+ ["Project: a key account plan","Priorities, buying committee, MEDDIC and a 90-day plan for a real company (see the portfolio projects below).","project","Your plan","",8]]'::jsonb);
+
 -- =====================================================================================
 -- HelloKhedma courses on the roadmaps (needs migration 20261109000600_step_course.sql). A step with a course opens our
 -- course first (its outside resource stays as an extra). Matched on (track id, English step title), like the step ids.
@@ -573,7 +614,9 @@ update public.training_steps s set course_id = v.c from (values
   ('pm-certification','Professional Scrum Master I (PSM I)','agile-scrum'),
   ('grc-foundations','Incident management & ITIL','itil-incidents'), ('grc-foundations','Excel for analysis','excel'),
   ('grc-standards','BPMN & process mapping','bpmn'), ('grc-standards','SQL for data jobs','sql'),
-  ('grc-audit','Cloud fundamentals with AWS','cloud-aws'), ('grc-audit','Power BI & DAX','power-bi')
+  ('grc-audit','Cloud fundamentals with AWS','cloud-aws'), ('grc-audit','Power BI & DAX','power-bi'),
+  ('sales-foundations','Digital marketing foundations','marketing-foundations'),
+  ('sales-foundations','E-mail marketing, CRM and automation','email-crm'), ('sales-pipeline','Excel for analysis','excel')
 ) as v(tid, title, c)
 where s.id = md5(v.tid || ':' || v.title)::uuid;
 
@@ -596,7 +639,8 @@ from (values
   ('fa', 'Analyste financier', 'Modélisation, FP&A, reporting, valorisation'),
   ('po', 'Product Owner', 'Backlog, découverte, roadmap, livraison'),
   ('pm', 'Chef de projet', 'Planning, risques, budget, parties prenantes'),
-  ('grc', 'Analyste GRC', 'Risques cyber, ISO 27001, RGPD, audits')
+  ('grc', 'Analyste GRC', 'Risques cyber, ISO 27001, RGPD, audits'),
+  ('sales', 'Commercial', 'Prospection, ventes B2B, grands comptes, CRM')
 ) as v(id, n, b)
 where p.id = v.id;
 
@@ -1025,3 +1069,39 @@ select pg_temp.track_fr('grc-audit','Audits, tiers et certifications',
  ["ISO/IEC 27001 Lead Implementer","ISO/IEC 27001 Lead Implementer","La certification pour mener un projet ISO 27001 : cinq jours de formation et un examen, fréquente dans les offres de conseil GRC."],
  ["Certified Information Systems Auditor (CISA)","Certified Information Systems Auditor (CISA)","La certification de référence des auditeurs IT ; l’expérience est exigée pour le titre, pas pour l’examen."],
  ["Certified in Risk and Information Systems Control (CRISC)","Certified in Risk and Information Systems Control (CRISC)","La certification de l’ISACA pour les responsables des risques IT."]]'::jsonb);
+
+-- Sales ---------------------------------------------------------------------------------
+select pg_temp.res_fr('sales','tool','[
+ ["Salesforce or HubSpot CRM","Salesforce ou le CRM HubSpot","Là où chaque lead, opportunité et appel est noté : le pipeline et les prévisions en sortent"],
+ ["LinkedIn Sales Navigator","LinkedIn Sales Navigator","Trouver les bons comptes et les bonnes personnes, suivre leur actualité et les contacter"],
+ ["Lemlist, Apollo or La Growth Machine","Lemlist, Apollo ou La Growth Machine","Des séquences de prospection : e-mails, appels et étapes LinkedIn, avec les taux de réponse"],
+ ["Gong or Modjo","Gong ou Modjo","Enregistrement et coaching des appels : réécouter ses rendez-vous de découverte et ses démos"],
+ ["Excel or Google Sheets","Excel ou Google Sheets","Listes de comptes, plans de territoire et le reporting de pipeline que demande votre manager"]]'::jsonb);
+select pg_temp.res_fr('sales','tip','[
+ ["Sales hires on proof of results: put numbers on your CV (quota reached, deals signed, meetings booked, revenue), even from an internship, a summer job or a student association.","La vente recrute sur des résultats : mettez des chiffres sur votre CV (objectifs atteints, contrats signés, rendez-vous obtenus, chiffre d’affaires), même d’un stage, d’un job d’été ou d’une association étudiante."],
+ ["Many careers start as SDR or business developer: show you can prospect with a short outreach sequence you wrote and the reply rate it got.","Beaucoup de carrières commencent comme SDR ou business developer : montrez que vous savez prospecter avec une courte séquence que vous avez écrite et le taux de réponse obtenu."],
+ ["Learn one qualification method (BANT or MEDDIC) and one CRM well: interviews include a role play, and managers ask how you keep your pipeline clean.","Maîtrisez une méthode de qualification (BANT ou MEDDIC) et un CRM : les entretiens comportent une mise en situation, et les managers demandent comment vous tenez votre pipeline à jour."]]'::jsonb);
+
+-- Learning tracks: Sales -----------------------------------------------------------------
+select pg_temp.track_fr('sales-foundations','Les bases de la vente : clients, prospection et CRM',
+ 'La base de tout métier commercial : qui achète, pourquoi, et comment engager la conversation avec les bonnes personnes.',
+ 'Décrire un client idéal et ses acheteurs, construire une liste de comptes cibles, écrire une séquence de prospection et tout suivre dans un CRM.','[
+ ["Digital marketing foundations","Les bases du marketing digital","Cours HelloKhedma : le tunnel, les clients et le positionnement, là où commence toute vente."],
+ ["HubSpot Academy sales courses","Les cours de vente de HubSpot Academy","Des cours gratuits, en anglais, sur la vente inbound, la prospection et l’enablement commercial, avec certificats."],
+ ["E-mail marketing, CRM and automation","E-mailing, CRM et marketing automation","Cours HelloKhedma : le CRM, les étapes du cycle de vie et le lead scoring avec lesquels les équipes commerciales travaillent chaque jour."],
+ ["Practice: an ideal customer profile and 30 target accounts","Pratique : un profil client idéal et 30 comptes cibles","Choisissez un produit que vous connaissez, écrivez son profil client idéal et ses personas acheteurs, puis listez 30 vraies entreprises cibles et pourquoi chacune correspond."]]'::jsonb);
+select pg_temp.track_fr('sales-deals','Découverte, négociation et closing',
+ 'Ce qui transforme un rendez-vous en contrat signé : les questions, une proposition de valeur claire, les objections et la négociation.',
+ 'Mener un rendez-vous de découverte qui qualifie une affaire (BANT ou MEDDIC), répondre aux objections classiques et négocier sans brader le prix.','[
+ ["Successful Negotiation: Essential Strategies and Skills","Successful Negotiation (Université du Michigan)","Un cours en anglais, gratuit en audit : préparation, ancrage, concessions et conclusion."],
+ ["Program on Negotiation: free articles","Les articles gratuits du Program on Negotiation","Des articles du programme de négociation de la Harvard Law School, en anglais, sur le prix, les objections et les accords qui durent."],
+ ["Practice: a recorded mock discovery call","Pratique : un rendez-vous de découverte enregistré","Enregistrez un rendez-vous de découverte de 20 minutes avec un proche dans le rôle de l’acheteur : questions ouvertes, problème, impact, budget, processus de décision ; puis notez-vous."],
+ ["Practice: answer the ten classic objections","Pratique : répondre aux dix objections classiques","Écrivez votre réponse à « c’est trop cher », « pas le temps », « nous avons déjà un fournisseur », « envoyez-moi un e-mail » et six autres, puis entraînez-vous à voix haute."]]'::jsonb);
+select pg_temp.track_fr('sales-pipeline','Pipeline, prévisions et grands comptes',
+ 'Ce sur quoi sont jugés les account executives et les responsables grands comptes : un pipeline propre, des prévisions fiables et des comptes qui grandissent.',
+ 'Gérer un pipeline dans un CRM, en tirer la prévision du trimestre, et écrire un plan de développement d’un grand compte.','[
+ ["Salesforce Trailhead","Salesforce Trailhead","Des modules gratuits sur Sales Cloud : leads, opportunités, pipeline et rapports, avec des badges reconnus par les recruteurs."],
+ ["HubSpot free CRM","Le CRM gratuit de HubSpot","Gérer un vrai pipeline : affaires, étapes, tâches et séquences, gratuitement."],
+ ["Excel for analysis","Excel pour l’analyse","Cours HelloKhedma : tableaux croisés dynamiques et recherches pour les reportings de pipeline et les prévisions."],
+ ["Project: a pipeline analysis and next-quarter forecast","Projet : une analyse de pipeline et la prévision du trimestre suivant","Taux de transformation, cycle de vente et prévision à partir d’un vrai jeu de données CRM (voir les projets de portfolio plus bas)."],
+ ["Project: a key account plan","Projet : un plan de compte stratégique","Priorités, comité d’achat, MEDDIC et plan à 90 jours pour une vraie entreprise (voir les projets de portfolio plus bas)."]]'::jsonb);

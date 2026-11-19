@@ -8,7 +8,10 @@ AI Engineers and Digital Marketing (path id "mk", 2026-11-09: seed, skills, inte
   (path id "pm", 2026-11-19: seed, product & project skills, interview, projects; their roadmaps use the existing agile-scrum,
   requirements, bpmn, sql, statistics, excel and power-bi courses) and GRC Analyst (path id "grc", IT and cyber governance, risk
   and compliance, 2026-11-19: seed, "Security & compliance" skills, interview, projects; roadmap uses the itil-incidents, excel,
-  bpmn, sql, cloud-aws and power-bi courses, no GRC course of its own yet).
+  bpmn, sql, cloud-aws and power-bi courses, no GRC course of its own yet) and Sales (path id "sales", B2B sales: SDR /
+  business developer, account executive, key account manager, 2026-11-19: seed, "Sales" skills, interview, projects; roadmap
+  uses the marketing-foundations, email-crm and excel courses, no sales course of its own yet; La bonne alternance ROME
+  codes D1402, D1407, D1406).
 The selected path adapts the job search, trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 
 ## Commands

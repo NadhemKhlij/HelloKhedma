@@ -487,6 +487,7 @@ async function arbeitnow(q: string, where: string, country: string, _page: numbe
 // ROME codes (France Travail's job directory) per career path.
 const LBA_ROMES: Record<string, string> = {
   de: "M1805,M1810", da: "M1403,M1805", ba: "M1806", as: "M1810,M1802", do: "M1801,M1810", ai: "M1805,M1403",
+  sales: "D1402,D1407,D1406",
 };
 async function lba(q: string, where: string, country: string, page: number, f: Filters, alt = "", ctx?: Ctx): Promise<Job[]> {
   const token = Deno.env.get("LBA_API_TOKEN");

@@ -114,8 +114,8 @@
       ],
       "example": {
         "lang": "sql",
-        "code": "-- Customer acquisition cost by channel, Q3 2026\nSELECT c.channel,\n       SUM(c.spend)                         AS spend,\n       COUNT(DISTINCT n.customer_id)        AS new_customers,\n       ROUND(SUM(c.spend) * 1.0 / NULLIF(COUNT(DISTINCT n.customer_id), 0), 2) AS cac\nFROM marketing_costs c\nLEFT JOIN new_customers n\n  ON n.channel = c.channel AND n.first_order_date = c.day\nWHERE c.day BETWEEN '2026-07-01' AND '2026-09-30'\nGROUP BY c.channel\nORDER BY cac;",
-        "note": "Costs and new customers joined on channel and day; customers must be counted once."
+        "code": "-- Customer acquisition cost by channel, Q3 2026\n-- Aggregate each side to one row per channel first:\n-- joining day-level costs to customers would repeat a day's spend once per customer.\nWITH spend AS (\n  SELECT channel, SUM(spend) AS spend\n  FROM marketing_costs\n  WHERE day BETWEEN '2026-07-01' AND '2026-09-30'\n  GROUP BY channel\n), acquired AS (\n  SELECT channel, COUNT(DISTINCT customer_id) AS new_customers\n  FROM new_customers\n  WHERE first_order_date BETWEEN '2026-07-01' AND '2026-09-30'\n  GROUP BY channel\n)\nSELECT s.channel,\n       s.spend,\n       COALESCE(a.new_customers, 0)                          AS new_customers,\n       ROUND(s.spend * 1.0 / NULLIF(a.new_customers, 0), 2) AS cac\nFROM spend s\nLEFT JOIN acquired a ON a.channel = s.channel\nORDER BY cac;",
+        "note": "Spend and new customers are each summed per channel before the join, so a day’s spend is never counted twice; a channel with spend but no customer shows a CAC of NULL."
       }
     }
   ],

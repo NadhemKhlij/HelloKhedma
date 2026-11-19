@@ -46,7 +46,7 @@
       "title": "الـ context window، الـ tokens والـ cost",
       "text": [
         "الـ context window هي أكبر كمّية tokens اللي الـ model ينجم يشوفها في requête وحدة: الـ system prompt، الـ historique متاع الـ conversation، الـ documents اللي حطّيتهم، والجواب اللي باش يكتبو. في Claude Opus 5.5 و Sonnet 5.5 و Haiku 5.5، الـ context window هي 1M (مليون) token، والـ output يوصل لـ 128K token. أما \"ينجم\" موش معناها \"لازم\": كل token تبعثو تخلّصو.",
-        "الـ API ما تتفكّرش: كل requête لازم تبعث فيها الـ conversation الكل من الأوّل. يعني في chatbot، كل ما تزيد message، الـ input يكبر والـ cost يكبر معاه. الـ facturation بزوز أرقام: input tokens (شنوّة تبعث) و output tokens (شنوّة يخرّج الـ model)، والـ output ديما أغلى. السعر بالدولار لكل مليون token (input / output): Opus 5.5 4$ / 20$، Sonnet 5.5 2$ / 10$، Haiku 5.5 0.10$ / 0.50$ (كان الـ prompt ما يفوتش 100K token؛ فوق هكّا 0.50$ / 2.50$)، و Fable 5.1، الأقوى، 10$ / 50$.",
+        "الـ API ما تتفكّرش: كل requête لازم تبعث فيها الـ conversation الكل من الأوّل. يعني في chatbot، كل ما تزيد message، الـ input يكبر والـ cost يكبر معاه. الـ facturation بزوز أرقام: input tokens (شنوّة تبعث) و output tokens (شنوّة يخرّج الـ model)، والـ output ديما أغلى. السعر بالدولار لكل مليون token (input / output): Opus 5.5 4$ / 20$، Sonnet 5.5 2$ / 10$، Haiku 5.5 0.10$ / 0.50$ (كان الـ prompt ما يفوتش 100K token؛ فوق هكّا 0.50$ / 2.50$)، و Fable 5.2، الأقوى، 8$ / 40$.",
         "الحساب بسيط: cost = input_tokens × prix_input / 1 000 000 + output_tokens × prix_output / 1 000 000. مثال: requête فيها 2 000 token input و 500 token output على Opus 5.5: 2 000 × 4 / 1M = 0.008$، و 500 × 20 / 1M = 0.010$، المجموع 0.018$. يبان شي؟ أما كان عندك 10 000 requête في النهار، راهي 180$ في النهار. نفس الخدمة على Haiku 5.5 تخرج 4.50$ في النهار. هذا علاش الاختيار متاع الـ model وطول الـ prompt مهمّين برشة.",
         "باش تعرف العدد بالضبط، ما تخمّنش: الـ response فيها response.usage.input_tokens و response.usage.output_tokens، وقبل ما تبعث تنجم تستعمل client.messages.count_tokens. ما تستعملش tiktoken: هذا tokenizer متاع OpenAI ويعطيك عدد غالط لـ Claude. زيد اعرف اللي الـ thinking متاع الـ model (التفكير قبل الجواب) جزء من الـ output ويتحسب في max_tokens، وتنجم تكونترولِيه بـ output_config effort. في الـ cours الجايين باش نشوفو prompt caching و Batches API (50% أرخص) باش تنقّص الـ facture."
       ],
@@ -65,13 +65,13 @@
     {
       "title": "عائلات الـ models: كيفاش تختار model",
       "text": [
-        "Anthropic تعمل Claude على niveaux. Opus 5.5 (claude-opus-5-5) هو الـ model الـ par défaut: قوي برشة في الـ code والـ raisonnement والخدمة الطويلة. Sonnet 5.5 (claude-sonnet-5-5) qualité مليحة بنصّ السوم. Haiku 5.5 (claude-haiku-5-5) الأسرع والأرخص، مريڨل لـ volume كبير: classification، extraction، routage. و Fable 5.1 (claude-fable-5-1) هو الأقوى، لأكثر المهمّات صعوبية، أما أغلى. استعمل الـ ids هاذوما كيف ما هوما، بلا date في الآخر.",
+        "Anthropic تعمل Claude على niveaux. Opus 5.5 (claude-opus-5-5) هو الـ model الـ par défaut: قوي برشة في الـ code والـ raisonnement والخدمة الطويلة. Sonnet 5.5 (claude-sonnet-5-5) qualité مليحة بنصّ السوم. Haiku 5.5 (claude-haiku-5-5) الأسرع والأرخص، مريڨل لـ volume كبير: classification، extraction، routage. و Fable 5.2 (claude-fable-5-2) هو الأقوى، لأكثر المهمّات صعوبية، أما أغلى. استعمل الـ ids هاذوما كيف ما هوما، بلا date في الآخر.",
         "فمّا fournisseurs أخرين: OpenAI (GPT)، Google (Gemini)، Mistral (شركة فرنسية)، و models \"open weights\" كيما Llama ولّا Mistral تنجم تحطّها على machine متاعك ولّا serveur متاعك، مثلاً بـ Ollama. الـ open models ينفعوا كي الـ data ما لازمهاش تخرج من عندك ولّا كي تحبّ تكونترولي كل شي، أما يلزمك GPU وخدمة في الـ hébergement، وغالب الوقت الـ qualité أقلّ من الـ models الكبار.",
         "الاختيار ديما compromis بين 5 حاجات: qualité (يفهم ويـ raisonni مليح؟)، vitesse (latence، مهمّة لـ chatbot)، cost (سعر الـ token وقدّاش من token يستعمل)، privacy (وين تمشي الـ data وشكون ينجم يشوفها)، و hébergement (API cloud ولّا serveur متاعك). ما فمّاش \"أحسن model\" في المطلق: فمّا أحسن model لمهمّة معيّنة بـ budget معيّن.",
         "طريقة عملية: ابدا بـ model قوي (Opus 5.5) باش تشوف الـ plafond متاع الـ qualité. بعد اعمل jeu de tests صغير من أمثلة صحاح (20 ولّا 50 cas) وجرّب عليهم Sonnet 5.5 و Haiku 5.5. كان الـ model الرخيص يجيب نفس النتيجة على الـ cas متاعك، خوذ الرخيص. وتنجم تخلّط: Haiku يـ classi الـ tickets و Opus يجاوب على الصعاب. فكّر زادة اللي الـ cost الصحيح هو cost المهمّة الكاملة: model رخيص يغلط وتعاود 3 مرّات ينجم يكون أغلى."
       ],
       "points": [
-        "Opus 5.5 = الـ par défaut؛ Sonnet 5.5 = الوسط؛ Haiku 5.5 = رخيص وسريع؛ Fable 5.1 = الأقوى.",
+        "Opus 5.5 = الـ par défaut؛ Sonnet 5.5 = الوسط؛ Haiku 5.5 = رخيص وسريع؛ Fable 5.2 = الأقوى.",
         "Open models = كونترول و privacy، أما GPU و maintenance.",
         "جرّب على أمثلة متاعك، موش على classements متاع الـ internet.",
         "قيس cost المهمّة الكاملة، موش سعر الـ token وحدو."
@@ -199,7 +199,7 @@
         ["claude-opus-5-5", "Opus 5.5، الـ par défaut: 4$ / 20$"],
         ["claude-sonnet-5-5", "Sonnet 5.5، الوسط: 2$ / 10$"],
         ["claude-haiku-5-5", "Haiku 5.5، رخيص وسريع: 0.10$ / 0.50$ (prompt ≤ 100K)"],
-        ["claude-fable-5-1", "Fable 5.1، الأقوى: 10$ / 50$"]
+        ["claude-fable-5-2", "Fable 5.2، الأقوى: 8$ / 40$"]
       ]
     },
     {
@@ -242,7 +242,7 @@
     {
       "q": "اختار model لكل cas وعلّل: (a) classification متاع 200 000 email في النهار، (b) assistant يراجع contrats طوال، (c) chatbot support عادي.",
       "hint": "فكّر في الـ volume، في الصعوبية وفي الـ cost.",
-      "answer": "(a) claude-haiku-5-5: volume كبير ومهمّة بسيطة، الـ cost والـ vitesse هوما المهمّين. (b) claude-opus-5-5: documents طوال و raisonnement صعيب؛ claude-fable-5-1 كان الـ qualité ما كفاتش. (c) claude-sonnet-5-5 كبداية، بعد تجرّب Haiku 5.5 على أمثلة متاعك. في كل cas، احكم بـ tests على الـ data متاعك موش بالحسّ."
+      "answer": "(a) claude-haiku-5-5: volume كبير ومهمّة بسيطة، الـ cost والـ vitesse هوما المهمّين. (b) claude-opus-5-5: documents طوال و raisonnement صعيب؛ claude-fable-5-2 كان الـ qualité ما كفاتش. (c) claude-sonnet-5-5 كبداية، بعد تجرّب Haiku 5.5 على أمثلة متاعك. في كل cas، احكم بـ tests على الـ data متاعك موش بالحسّ."
     },
     {
       "q": "الـ prompt هذا يخرّج hallucinations: \"اعطيني السعر متاع الـ abonnement Pro متاع شركتنا.\" عاود اكتب الـ prompt باش تنقّص الـ risque.",

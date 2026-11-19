@@ -46,7 +46,7 @@
       "title": "Fenêtre de contexte, tokens et coût",
       "text": [
         "La fenêtre de contexte est le plus grand nombre de tokens que le modèle peut voir dans une requête : le system prompt, l’historique de la conversation, les documents que vous avez ajoutés, et la réponse qu’il va écrire. Dans Claude Opus 5.5, Sonnet 5.5 et Haiku 5.5, la fenêtre de contexte est de 1M (un million) de tokens, et la sortie peut aller jusqu’à 128K tokens. Mais « pouvoir » ne veut pas dire « devoir » : vous payez chaque token envoyé.",
-        "L’API ne se souvient de rien : chaque requête doit renvoyer toute la conversation depuis le début. Donc, dans un chatbot, chaque nouveau message fait grossir l’entrée, et le coût augmente avec. La facturation repose sur deux nombres : les tokens d’entrée (ce que vous envoyez) et les tokens de sortie (ce que le modèle produit), et la sortie coûte toujours plus cher. Les prix sont en dollars par million de tokens (entrée / sortie) : Opus 5.5 4 $ / 20 $, Sonnet 5.5 2 $ / 10 $, Haiku 5.5 0,10 $ / 0,50 $ (pour des prompts jusqu’à 100K tokens ; au-delà 0,50 $ / 2,50 $), et Fable 5.1, le plus puissant, 10 $ / 50 $.",
+        "L’API ne se souvient de rien : chaque requête doit renvoyer toute la conversation depuis le début. Donc, dans un chatbot, chaque nouveau message fait grossir l’entrée, et le coût augmente avec. La facturation repose sur deux nombres : les tokens d’entrée (ce que vous envoyez) et les tokens de sortie (ce que le modèle produit), et la sortie coûte toujours plus cher. Les prix sont en dollars par million de tokens (entrée / sortie) : Opus 5.5 4 $ / 20 $, Sonnet 5.5 2 $ / 10 $, Haiku 5.5 0,10 $ / 0,50 $ (pour des prompts jusqu’à 100K tokens ; au-delà 0,50 $ / 2,50 $), et Fable 5.2, le plus puissant, 8 $ / 40 $.",
         "Le calcul est simple : coût = input_tokens × prix_entrée / 1 000 000 + output_tokens × prix_sortie / 1 000 000. Exemple : une requête avec 2 000 tokens en entrée et 500 en sortie sur Opus 5.5 : 2 000 × 4 / 1M = 0,008 $, et 500 × 20 / 1M = 0,010 $, soit 0,018 $ au total. Cela semble négligeable ? Mais avec 10 000 requêtes par jour, cela fait 180 $ par jour. Le même travail sur Haiku 5.5 revient à 4,50 $ par jour. C’est pourquoi le choix du modèle et la longueur du prompt comptent autant.",
         "Pour connaître les chiffres exacts, ne devinez pas : la réponse contient response.usage.input_tokens et response.usage.output_tokens, et avant l’envoi vous pouvez utiliser client.messages.count_tokens. N’utilisez pas tiktoken : c’est le tokenizer d’OpenAI, et il donne de mauvais comptes pour Claude. Sachez aussi que la réflexion du modèle (thinking, avant la réponse) fait partie de la sortie et compte dans max_tokens, et que vous pouvez la contrôler avec output_config effort. Dans les prochains cours, nous verrons le prompt caching et la Batches API (50 % moins cher) pour réduire la facture."
       ],
@@ -65,13 +65,13 @@
     {
       "title": "Les familles de modèles : comment choisir",
       "text": [
-        "Anthropic propose Claude en plusieurs niveaux. Opus 5.5 (claude-opus-5-5) est le modèle par défaut : très fort en code, en raisonnement et sur les tâches longues. Sonnet 5.5 (claude-sonnet-5-5) offre une bonne qualité à moitié prix. Haiku 5.5 (claude-haiku-5-5) est le plus rapide et le moins cher, adapté aux gros volumes : classification, extraction, routage. Et Fable 5.1 (claude-fable-5-1) est le plus puissant, pour les tâches les plus difficiles, mais plus cher. Utilisez ces identifiants tels quels, sans date à la fin.",
+        "Anthropic propose Claude en plusieurs niveaux. Opus 5.5 (claude-opus-5-5) est le modèle par défaut : très fort en code, en raisonnement et sur les tâches longues. Sonnet 5.5 (claude-sonnet-5-5) offre une bonne qualité à moitié prix. Haiku 5.5 (claude-haiku-5-5) est le plus rapide et le moins cher, adapté aux gros volumes : classification, extraction, routage. Et Fable 5.2 (claude-fable-5-2) est le plus puissant, pour les tâches les plus difficiles, mais plus cher. Utilisez ces identifiants tels quels, sans date à la fin.",
         "Il existe d’autres fournisseurs : OpenAI (GPT), Google (Gemini), Mistral (une entreprise française), et des modèles « open weights » comme Llama ou Mistral, que vous pouvez faire tourner sur votre machine ou votre serveur, par exemple avec Ollama. Les modèles ouverts sont utiles quand les données ne doivent pas sortir de chez vous ou quand vous voulez tout contrôler, mais il vous faut des GPU et du travail d’hébergement, et la plupart du temps la qualité est inférieure à celle des grands modèles.",
         "Le choix est toujours un compromis entre 5 choses : la qualité (comprend-il et raisonne-t-il bien ?), la vitesse (la latence, importante pour un chatbot), le coût (le prix du token et le nombre de tokens utilisés), la confidentialité (où vont les données et qui peut les voir), et l’hébergement (API cloud ou votre propre serveur). Il n’y a pas de « meilleur modèle » dans l’absolu : il y a le meilleur modèle pour une tâche donnée avec un budget donné.",
         "Une méthode pratique : commencez par un modèle puissant (Opus 5.5) pour voir le plafond de qualité. Puis construisez un petit jeu de test avec de vrais exemples (20 ou 50 cas) et essayez-y Sonnet 5.5 et Haiku 5.5. Si le modèle bon marché obtient le même résultat sur votre cas, prenez-le. Et vous pouvez combiner : Haiku classe les tickets et Opus répond aux plus difficiles. Rappelez-vous aussi que le vrai coût est celui de la tâche entière : un modèle bon marché qui se trompe et doit recommencer 3 fois peut finir plus cher."
       ],
       "points": [
-        "Opus 5.5 = le défaut ; Sonnet 5.5 = le milieu ; Haiku 5.5 = rapide et bon marché ; Fable 5.1 = le plus puissant.",
+        "Opus 5.5 = le défaut ; Sonnet 5.5 = le milieu ; Haiku 5.5 = rapide et bon marché ; Fable 5.2 = le plus puissant.",
         "Modèles ouverts = contrôle et confidentialité, mais GPU et maintenance.",
         "Testez sur vos propres exemples, pas sur les classements d’internet.",
         "Mesurez le coût de la tâche entière, pas seulement le prix du token."
@@ -251,8 +251,8 @@
           "Haiku 5.5, rapide et bon marché : 0,10 $ / 0,50 $ (prompt ≤ 100K)"
         ],
         [
-          "claude-fable-5-1",
-          "Fable 5.1, le plus puissant : 10 $ / 50 $"
+          "claude-fable-5-2",
+          "Fable 5.2, le plus puissant : 8 $ / 40 $"
         ]
       ]
     },
@@ -326,7 +326,7 @@
     {
       "q": "Choisissez un modèle pour chaque cas et justifiez : (a) classer 200 000 emails par jour, (b) un assistant qui relit des contrats longs, (c) un chatbot de support classique.",
       "hint": "Pensez au volume, à la difficulté et au coût.",
-      "answer": "(a) claude-haiku-5-5 : gros volume et tâche simple, le coût et la vitesse comptent le plus. (b) claude-opus-5-5 : documents longs et raisonnement difficile ; claude-fable-5-1 si la qualité ne suffit pas. (c) claude-sonnet-5-5 pour commencer, puis essayez Haiku 5.5 sur vos propres exemples. Dans tous les cas, décidez avec des tests sur vos données, pas au feeling."
+      "answer": "(a) claude-haiku-5-5 : gros volume et tâche simple, le coût et la vitesse comptent le plus. (b) claude-opus-5-5 : documents longs et raisonnement difficile ; claude-fable-5-2 si la qualité ne suffit pas. (c) claude-sonnet-5-5 pour commencer, puis essayez Haiku 5.5 sur vos propres exemples. Dans tous les cas, décidez avec des tests sur vos données, pas au feeling."
     },
     {
       "q": "Ce prompt produit des hallucinations : « Donne-moi le prix de l’abonnement Pro de notre entreprise. » Réécrivez le prompt pour réduire le risque.",

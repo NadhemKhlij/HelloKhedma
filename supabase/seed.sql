@@ -261,6 +261,7 @@ select pg_temp.track('de','de-pipelines','Pipelines and orchestration','intermed
  ["Docker: get started","Containers for reproducible local pipelines.","learn","Docker docs","https://docs.docker.com/get-started/",3],
  ["Airflow tutorial","Write your first DAG, tasks, schedules and dependencies.","learn","Apache Airflow","https://airflow.apache.org/docs/apache-airflow/stable/tutorial/index.html",4],
  ["dbt Fundamentals","Models, tests, documentation and deployment.","learn","dbt Learn","https://learn.getdbt.com",6],
+ ["Data modeling", "HelloKhedma course: star schemas, facts and dimensions, slowly changing dimensions and data vault: the warehouse design questions every data engineering interview asks.", "learn", "HelloKhedma", "", 4],
  ["BigQuery sandbox","Load data into a cloud warehouse without a credit card.","practice","Google Cloud","https://cloud.google.com/bigquery/docs/sandbox",3],
  ["Data Engineering Zoomcamp","Free, project-based course covering Docker, Postgres, orchestration, dbt, Spark and Kafka. Do it alongside or instead of the steps above.","learn","DataTalks.Club","https://github.com/DataTalksClub/data-engineering-zoomcamp",40]]'::jsonb);
 select pg_temp.track('de','de-advanced','Scale, streaming and certification','advanced',
@@ -270,7 +271,8 @@ select pg_temp.track('de','de-advanced','Scale, streaming and certification','ad
  ["Kafka quickstart","Topics, producers and consumers.","learn","Apache Kafka","https://kafka.apache.org/quickstart",3],
  ["Designing Data-Intensive Applications","Reference book on storage, replication and streaming. Read the chapters you need.","learn","dataintensive.net","https://dataintensive.net",20,false],
  ["Portfolio project: end-to-end pipeline","Ingest a public API daily, orchestrate it, transform with dbt, add data tests and a dashboard. Write down your trade-offs.","project","Your repo","",25],
- ["Cloud data engineer certification","Pick one cloud (Google Professional Data Engineer shown; AWS and Azure have equivalents).","certification","Google Cloud","https://cloud.google.com/learn/certification/data-engineer",30,false]]'::jsonb);
+ ["Associate data engineer certification (Databricks or Microsoft Fabric)", "The first certification to aim for in France: Databricks Certified Data Engineer Associate, or Microsoft’s Fabric Data Engineer Associate (DP-700) for companies on Azure. Within reach after this roadmap.", "certification", "Databricks / Microsoft", "https://www.databricks.com/learn/certification/data-engineer-associate", 40, false],
+ ["Cloud data engineer certification","For experienced engineers: Google Professional Data Engineer (Google recommends 3 or more years in data, including a year on Google Cloud); AWS Data Engineer Associate is the AWS equivalent. On a first data job, start with the associate certification above.","certification","Google Cloud","https://cloud.google.com/learn/certification/data-engineer",30,false]]'::jsonb);
 
 -- Business Analyst ------------------------------------------------------------------------
 select pg_temp.track('ba','ba-foundations','Core business analysis','beginner',
@@ -280,11 +282,13 @@ select pg_temp.track('ba','ba-foundations','Core business analysis','beginner',
  ["The Scrum Guide","The short source of truth for Scrum roles and events.","learn","scrumguides.org","https://scrumguides.org",1],
  ["Jira and agile tutorials","Epics, stories, boards and workflows.","learn","Atlassian","https://www.atlassian.com/agile/tutorials",2],
  ["SQL practice","Check requirements against real data.","learn","SQLZoo","https://sqlzoo.net",5],
+ ["Excel for analysis", "HelloKhedma course: lookups, pivot tables and charts: the tool BAs use to check data and share requirements.", "learn", "HelloKhedma", "", 4],
  ["Practice: write 10 user stories for an app you use","Include acceptance criteria and a prioritised backlog.","practice","Your notes","",3]]'::jsonb);
 select pg_temp.track('ba','ba-process','Process modeling and reporting','intermediate',
  'Show how work flows today, where it breaks, and what changes would be worth it.',
  'Map as-is and to-be processes and quantify the impact with a report.',2,'[
  ["BPMN overview","Notation for events, tasks and gateways.","learn","Camunda","https://camunda.com/bpmn/",2],
+ ["Data modeling", "HelloKhedma course: entities, relationships and keys, to read a data model and talk with data teams about what a requirement needs.", "learn", "HelloKhedma", "", 3],
  ["Practice: model a process in draw.io","Draw the as-is flow of a process you know and mark the pain points.","practice","draw.io","https://www.drawio.com",3],
  ["Power BI documentation and training","Build a report from Excel or SQL data.","learn","Microsoft Learn","https://learn.microsoft.com/power-bi/",8],
  ["Practice: as-is, to-be and gap list","Produce a one-page process change proposal with expected KPIs.","practice","Your notes","",4]]'::jsonb);
@@ -292,7 +296,7 @@ select pg_temp.track('ba','ba-advanced','Case study and certification','advanced
  'Proof that you can run a requirement from idea to delivery.',
  'Present a complete requirements pack and hold a recognised credential.',3,'[
  ["Case study: full requirements pack","Stakeholder map, BPMN flows, user stories, acceptance criteria and KPIs for one realistic project.","project","Your repo","",15],
- ["IIBA entry-level certification (ECBA)","Check the current exam requirements on the IIBA site.","certification","IIBA","https://www.iiba.org/",30,false],
+ ["IIBA entry-level certification (ECBA)","Optional: known in some international companies, less asked for in France than Scrum certifications such as PSPO I. Check the current exam requirements on the IIBA site.","certification","IIBA","https://www.iiba.org/",30,false],
  ["Professional Scrum certification","Optional if the target roles mention Product Owner or Scrum.","certification","Scrum.org","https://www.scrum.org",15,false],
  ["Practice: interview stories","Prepare two STAR stories and walk through your case study out loud.","practice","Your notes","",3]]'::jsonb);
 
@@ -333,6 +337,7 @@ select pg_temp.track('da','da-foundations','SQL, statistics and clean data','beg
 select pg_temp.track('da','da-viz','Python, BI and visual storytelling','intermediate',
  'Turn analysis into something a manager can act on.',
  'Build dashboards that lead to a decision and explain them clearly.',2,'[
+ ["Python essentials", "HelloKhedma course: variables, lists, functions, files and errors: the Python you need before pandas.", "learn", "HelloKhedma", "", 4],
  ["pandas","Manipulate and summarise data in Python.","learn","Kaggle Learn","https://www.kaggle.com/learn/pandas",4],
  ["Data visualization","Charts that show the right comparison.","learn","Kaggle Learn","https://www.kaggle.com/learn/data-visualization",4],
  ["Power BI","Pick Power BI or Tableau and stay with one. Power BI documentation and training.","learn","Microsoft Learn","https://learn.microsoft.com/power-bi/",8],
@@ -371,7 +376,8 @@ select pg_temp.track('do','do-cloud','Cloud, Infrastructure as Code and reliabil
  ["Prometheus: first steps","Metrics, targets and queries.","learn","Prometheus","https://prometheus.io/docs/introduction/first_steps/",2],
  ["SRE book: service level objectives","Define SLIs, SLOs and error budgets.","learn","Google SRE","https://sre.google/sre-book/service-level-objectives/",1.5],
  ["Project: infrastructure as code","Create the cloud resources of your API with Terraform from a pipeline, with remote state, a dashboard and one alert.","project","Your repo","",15],
- ["AWS Certified Cloud Practitioner or CKA","Pick one: cloud fundamentals (AWS) or Kubernetes administration (CNCF). Check current exam details.","certification","AWS / CNCF","https://aws.amazon.com/certification/",25,false]]'::jsonb);
+ ["AWS Certified Cloud Practitioner or CKA","For a first job: AWS Cloud Practitioner covers the cloud fundamentals in one exam. The CKA (Kubernetes administration, CNCF) is harder and is worth it once you run clusters; see the next step.","certification","AWS / CNCF","https://aws.amazon.com/certification/",25,false],
+ ["Associate cloud or Kubernetes certification (AZ-104, AWS Solutions Architect or CKA)", "With some experience, the certifications DevOps offers ask for most: Azure Administrator (AZ-104), AWS Solutions Architect Associate, or the CNCF’s Certified Kubernetes Administrator (a hands-on exam).", "certification", "Microsoft / AWS / CNCF", "https://www.cncf.io/training/certification/cka/", 60, false]]'::jsonb);
 
 -- AI Engineer ---------------------------------------------------------------------------------
 -- The nine HelloKhedma AI courses show under these tracks (course list of the path); steps point to official material.
@@ -418,6 +424,7 @@ select pg_temp.track('mk','mk-acquisition','Acquisition: SEO, paid search and pa
  ["Beginner’s Guide to SEO","Keyword research, on-page, technical SEO and links, step by step.","learn","Moz","https://moz.com/beginners-guide-to-seo",6],
  ["Search Console Help","Read the queries, pages and indexing reports of a site.","learn","Google","https://support.google.com/webmasters",2],
  ["Google Ads Help","Campaign types, keywords, bidding and conversion tracking.","learn","Google","https://support.google.com/google-ads",4],
+ ["Google Ads certifications", "Free official courses and exams (Search, Display, Video, Measurement) on Skillshop: recruiters look for them on junior CVs.", "certification", "Google Skillshop", "https://skillshop.withgoogle.com/", 8],
  ["Meta Blueprint","Free courses on Facebook and Instagram advertising.","learn","Meta","https://www.facebook.com/business/learn",5],
  ["Practice: an SEO audit of a real site","Pick a small site (a local business, an association), list its technical, content and link problems and write a prioritised plan.","practice","Your document","",6]]'::jsonb);
 select pg_temp.track('mk','mk-analytics','Measurement, experiments and reporting','advanced',
@@ -523,7 +530,9 @@ select pg_temp.track('grc','grc-foundations','GRC foundations: security basics, 
  ["Excel for analysis","HelloKhedma course: lookups, conditional formatting and pivot tables, for risk registers and control matrices.","learn","HelloKhedma","",6],
  ["IT risk management", "HelloKhedma course: scoring risks, the risk register, treatment and residual risk, appetite, supplier risk and business continuity.", "learn", "HelloKhedma", "", 4],
  ["Practice: a risk register for a small company","For a small company you know (a shop, an agency): list 10 assets, 10 risks with likelihood and impact, and one control for each.","practice","Your register","",4],
- ["CompTIA Security+","The best-known entry-level security certification: threats, controls, risk and compliance.","certification","CompTIA","https://www.comptia.org/certifications/security",60,false]]'::jsonb);
+ ["ISO/IEC 27001 Foundation", "The entry certification most asked for in French GRC offers: the vocabulary, clauses and Annex A of ISO 27001, one short exam, no experience needed.", "certification", "PECB", "https://pecb.com/", 15, false],
+ ["CompTIA Security+","The best-known entry-level security certification internationally: threats, controls, risk and compliance. In France, ISO 27001 Foundation (above) is asked for more often.","certification","CompTIA","https://www.comptia.org/certifications/security",60,false],
+ ["Microsoft Security, Compliance and Identity Fundamentals (SC-900)", "Free learning paths and a short exam on Microsoft 365 and Azure security and compliance (Entra ID, Purview, Defender), the tools most French companies use.", "certification", "Microsoft Learn", "https://learn.microsoft.com/en-us/credentials/certifications/security-compliance-and-identity-fundamentals/", 10, false]]'::jsonb);
 select pg_temp.track('grc','grc-standards','Standards and regulations: ISO 27001, GDPR, NIS2 and DORA','intermediate',
  'The texts GRC offers name: the ISO 27001 management system, personal data protection and the new European rules for critical sectors and finance.',
  'Explain the ISO 27001 clauses and Annex A, keep a GDPR record of processing, and say which obligations NIS2 and DORA add.',2,'[
@@ -647,7 +656,11 @@ update public.training_steps s set course_id = v.c from (values
   ('grc-foundations','Security and GRC foundations','grc-basics'),
   ('grc-foundations','IT risk management','grc-risk'),
   ('grc-standards','ISO 27001 and audits in practice','grc-iso27001'),
-  ('grc-standards','GDPR, NIS2 and DORA for analysts','grc-regulations')
+  ('grc-standards','GDPR, NIS2 and DORA for analysts','grc-regulations'),
+  ('de-pipelines','Data modeling','data-modeling'),
+  ('da-viz','Python essentials','python'),
+  ('ba-foundations','Excel for analysis','excel'),
+  ('ba-process','Data modeling','data-modeling')
 ) as v(tid, title, c)
 where s.id = md5(v.tid || ':' || v.title)::uuid;
 
@@ -749,7 +762,8 @@ select pg_temp.track_fr('de-pipelines','Pipelines et orchestration',
  ["Airflow tutorial","Tutoriel Airflow","Écrire votre premier DAG : tâches, planification et dépendances."],
  ["dbt Fundamentals","Les fondamentaux de dbt","Modèles, tests, documentation et déploiement."],
  ["BigQuery sandbox","Bac à sable BigQuery","Charger des données dans un entrepôt cloud sans carte bancaire."],
- ["Data Engineering Zoomcamp","Data Engineering Zoomcamp","Cours gratuit par projets : Docker, Postgres, orchestration, dbt, Spark et Kafka. À suivre en parallèle ou à la place des étapes ci-dessus."]]'::jsonb);
+ ["Data Engineering Zoomcamp","Data Engineering Zoomcamp","Cours gratuit par projets : Docker, Postgres, orchestration, dbt, Spark et Kafka. À suivre en parallèle ou à la place des étapes ci-dessus."],
+ ["Data modeling", "Modélisation des données", "Cours HelloKhedma : schémas en étoile, faits et dimensions, dimensions à évolution lente et data vault : les questions de conception d’entrepôt de tout entretien data engineer."]]'::jsonb);
 select pg_temp.track_fr('de-advanced','Passage à l’échelle, streaming et certification',
  'Ce qui sépare un portfolio junior d’un profil qu’on embauche.',
  'Concevoir des pipelines fiables, expliquer vos arbitrages et l’appuyer par un projet et une certification cloud.','[
@@ -757,7 +771,8 @@ select pg_temp.track_fr('de-advanced','Passage à l’échelle, streaming et cer
  ["Kafka quickstart","Démarrage rapide Kafka","Topics, producteurs et consommateurs."],
  ["Designing Data-Intensive Applications","Designing Data-Intensive Applications","Livre de référence sur le stockage, la réplication et le streaming. Lisez les chapitres dont vous avez besoin."],
  ["Portfolio project: end-to-end pipeline","Projet portfolio : pipeline de bout en bout","Ingérez une API publique chaque jour, orchestrez-la, transformez avec dbt, ajoutez des tests de données et un tableau de bord. Notez vos arbitrages."],
- ["Cloud data engineer certification","Certification data engineer cloud","Choisissez un cloud (Google Professional Data Engineer ici ; AWS et Azure ont des équivalents)."]]'::jsonb);
+ ["Cloud data engineer certification","Certification data engineer cloud","Pour les profils expérimentés : Google Professional Data Engineer (Google conseille au moins 3 ans en data, dont un an sur Google Cloud) ; AWS Data Engineer Associate est l’équivalent AWS. Pour un premier poste data, commencez par la certification de niveau associé ci-dessus."],
+ ["Associate data engineer certification (Databricks or Microsoft Fabric)", "Certification data engineer de niveau associé (Databricks ou Microsoft Fabric)", "La première certification à viser en France : Databricks Certified Data Engineer Associate, ou Fabric Data Engineer Associate (DP-700) de Microsoft pour les entreprises sur Azure. Accessible après cette feuille de route."]]'::jsonb);
 
 -- Learning tracks: Business Analyst ------------------------------------------------
 select pg_temp.track_fr('ba-foundations','Les bases de l’analyse métier',
@@ -767,19 +782,21 @@ select pg_temp.track_fr('ba-foundations','Les bases de l’analyse métier',
  ["The Scrum Guide","Le Guide Scrum","La source de référence, courte, sur les rôles et les événements Scrum."],
  ["Jira and agile tutorials","Tutoriels Jira et agilité","Epics, stories, tableaux et workflows."],
  ["SQL practice","Pratique du SQL","Vérifier les besoins sur des données réelles."],
- ["Practice: write 10 user stories for an app you use","Pratique : écrire 10 user stories pour une application que vous utilisez","Avec des critères d’acceptation et un backlog priorisé."]]'::jsonb);
+ ["Practice: write 10 user stories for an app you use","Pratique : écrire 10 user stories pour une application que vous utilisez","Avec des critères d’acceptation et un backlog priorisé."],
+ ["Excel for analysis", "Excel pour l’analyse", "Cours HelloKhedma : recherches, tableaux croisés dynamiques et graphiques : l’outil des BA pour vérifier les données et partager les besoins."]]'::jsonb);
 select pg_temp.track_fr('ba-process','Modélisation des processus et reporting',
  'Montrer comment le travail circule aujourd’hui, où il bloque et quels changements en valent la peine.',
  'Cartographier les processus actuels et cibles et chiffrer l’impact dans un rapport.','[
  ["BPMN overview","Introduction à BPMN","La notation des événements, tâches et passerelles."],
  ["Practice: model a process in draw.io","Pratique : modéliser un processus dans draw.io","Dessinez le flux actuel d’un processus que vous connaissez et repérez les points de friction."],
  ["Power BI documentation and training","Documentation et formation Power BI","Construire un rapport à partir de données Excel ou SQL."],
- ["Practice: as-is, to-be and gap list","Pratique : existant, cible et liste des écarts","Rédigez une proposition d’évolution de processus d’une page avec les KPI attendus."]]'::jsonb);
+ ["Practice: as-is, to-be and gap list","Pratique : existant, cible et liste des écarts","Rédigez une proposition d’évolution de processus d’une page avec les KPI attendus."],
+ ["Data modeling", "Modélisation des données", "Cours HelloKhedma : entités, relations et clés, pour lire un modèle de données et discuter avec les équipes data de ce qu’un besoin demande."]]'::jsonb);
 select pg_temp.track_fr('ba-advanced','Étude de cas et certification',
  'La preuve que vous savez mener un besoin de l’idée à la livraison.',
  'Présenter un dossier de besoins complet et détenir une certification reconnue.','[
  ["Case study: full requirements pack","Étude de cas : dossier de besoins complet","Cartographie des parties prenantes, flux BPMN, user stories, critères d’acceptation et KPI pour un projet réaliste."],
- ["IIBA entry-level certification (ECBA)","Certification IIBA de premier niveau (ECBA)","Vérifiez les conditions d’examen actuelles sur le site de l’IIBA."],
+ ["IIBA entry-level certification (ECBA)","Certification IIBA de premier niveau (ECBA)","Facultative : connue dans certaines entreprises internationales, moins demandée en France que les certifications Scrum comme PSPO I. Vérifiez les conditions d’examen actuelles sur le site de l’IIBA."],
  ["Professional Scrum certification","Certification Professional Scrum","Facultative, sauf si les postes visés mentionnent Product Owner ou Scrum."],
  ["Practice: interview stories","Pratique : histoires pour l’entretien","Préparez deux histoires STAR et présentez votre étude de cas à voix haute."]]'::jsonb);
 
@@ -825,7 +842,8 @@ select pg_temp.track_fr('da-viz','Python, BI et storytelling visuel',
  ["Power BI","Power BI","Choisissez Power BI ou Tableau et tenez-vous-en à un seul. Documentation et formation Power BI."],
  ["DAX: measures, CALCULATE and time intelligence","DAX : mesures, CALCULATE et intelligence temporelle","Les formules derrière chaque rapport Power BI : contexte de filtre, CALCULATE, comparaison à l’année précédente, classement."],
  ["Tableau free training","Formation gratuite Tableau","L’alternative si vos employeurs cibles utilisent Tableau."],
- ["Storytelling with Data","Storytelling with Data","Épurer les graphiques, guider l’attention, commencer par l’enseignement."]]'::jsonb);
+ ["Storytelling with Data","Storytelling with Data","Épurer les graphiques, guider l’attention, commencer par l’enseignement."],
+ ["Python essentials", "Les bases de Python", "Cours HelloKhedma : variables, listes, fonctions, fichiers et erreurs : le Python qu’il faut avant pandas."]]'::jsonb);
 select pg_temp.track_fr('da-advanced','Portfolio et certification',
  'Les preuves valent mieux que les promesses. Livrez trois petits projets terminés.',
  'Présenter des tableaux de bord sur des données publiques et détenir une certification reconnue.','[
@@ -868,7 +886,8 @@ select pg_temp.track_fr('do-cloud','Cloud, Infrastructure as Code et fiabilité'
  ["Prometheus: first steps","Prometheus : premiers pas","Métriques, cibles et requêtes."],
  ["SRE book: service level objectives","Livre SRE : les objectifs de niveau de service","Définir SLI, SLO et budgets d’erreur."],
  ["Project: infrastructure as code","Projet : infrastructure as code","Créez les ressources cloud de votre API avec Terraform depuis un pipeline, avec un état distant, un tableau de bord et une alerte."],
- ["AWS Certified Cloud Practitioner or CKA","AWS Certified Cloud Practitioner ou CKA","Choisissez-en une : fondamentaux du cloud (AWS) ou administration Kubernetes (CNCF). Vérifiez les détails actuels de l’examen."]]'::jsonb);
+ ["AWS Certified Cloud Practitioner or CKA","AWS Certified Cloud Practitioner ou CKA","Pour un premier poste : AWS Cloud Practitioner couvre les fondamentaux du cloud en un examen. La CKA (administration Kubernetes, CNCF) est plus difficile et vaut le coup une fois que vous gérez des clusters ; voir l’étape suivante."],
+ ["Associate cloud or Kubernetes certification (AZ-104, AWS Solutions Architect or CKA)", "Certification cloud ou Kubernetes de niveau associé (AZ-104, AWS Solutions Architect ou CKA)", "Avec un peu d’expérience, les certifications que demandent le plus les offres DevOps : Azure Administrator (AZ-104), AWS Solutions Architect Associate, ou la Certified Kubernetes Administrator de la CNCF (un examen pratique)."]]'::jsonb);
 
 -- AI Engineer ----------------------------------------------------------------------------
 select pg_temp.res_fr('ai','tool','[
@@ -939,7 +958,8 @@ select pg_temp.track_fr('mk-acquisition','Acquisition : SEO, référencement pay
  ["Search Console Help","L’aide de Search Console","Lire les rapports de requêtes, de pages et d’indexation d’un site."],
  ["Google Ads Help","L’aide de Google Ads","Types de campagnes, mots-clés, enchères et suivi des conversions."],
  ["Meta Blueprint","Meta Blueprint","Des cours gratuits sur la publicité Facebook et Instagram."],
- ["Practice: an SEO audit of a real site","Pratique : l’audit SEO d’un vrai site","Choisissez un petit site (un commerce local, une association), listez ses problèmes techniques, de contenu et de liens, et écrivez un plan par priorité."]]'::jsonb);
+ ["Practice: an SEO audit of a real site","Pratique : l’audit SEO d’un vrai site","Choisissez un petit site (un commerce local, une association), listez ses problèmes techniques, de contenu et de liens, et écrivez un plan par priorité."],
+ ["Google Ads certifications", "Les certifications Google Ads", "Cours et examens officiels gratuits (Search, Display, Vidéo, Mesure) sur Skillshop : les recruteurs les cherchent sur les CV juniors."]]'::jsonb);
 select pg_temp.track_fr('mk-analytics','Mesure, tests et reporting',
  'Ce qui distingue le marketeur qui rapporte de celui qui décide : des données propres, des tests et des tableaux de bord clairs.',
  'Interroger des données marketing en SQL, dimensionner et lire un test A/B, et publier un tableau de bord qui répond à une question métier.','[
@@ -1089,9 +1109,11 @@ select pg_temp.track_fr('grc-foundations','Les bases de la GRC : sécurité, ris
  ["Incident management & ITIL","Gestion des incidents et ITIL","Cours HelloKhedma : incidents, problèmes, changements et SLA : les processus IT sur lesquels reposent les contrôles de sécurité."],
  ["Excel for analysis","Excel pour l’analyse","Cours HelloKhedma : recherches, mise en forme conditionnelle et tableaux croisés dynamiques, pour les registres des risques et les matrices de contrôles."],
  ["Practice: a risk register for a small company","Pratique : un registre des risques pour une petite entreprise","Pour une petite entreprise que vous connaissez (un commerce, une agence) : listez 10 actifs, 10 risques avec probabilité et impact, et un contrôle pour chacun."],
- ["CompTIA Security+","CompTIA Security+","La certification d’entrée en sécurité la plus connue : menaces, contrôles, risques et conformité (examen en anglais)."],
+ ["CompTIA Security+","CompTIA Security+","La certification d’entrée en sécurité la plus connue à l’international : menaces, contrôles, risques et conformité (examen en anglais). En France, ISO 27001 Foundation (ci-dessus) est plus souvent demandée."],
  ["Security and GRC foundations", "Les bases de la sécurité et de la GRC", "Cours HelloKhedma : la triade CID, les mesures de sécurité, les rôles de gouvernance, le NIST CSF 2.0, les politiques de sécurité et la semaine d’un analyste GRC."],
- ["IT risk management", "La gestion des risques IT", "Cours HelloKhedma : coter les risques, le registre, le traitement et le risque résiduel, l’appétence, le risque fournisseurs et la continuité d’activité."]]'::jsonb);
+ ["IT risk management", "La gestion des risques IT", "Cours HelloKhedma : coter les risques, le registre, le traitement et le risque résiduel, l’appétence, le risque fournisseurs et la continuité d’activité."],
+ ["ISO/IEC 27001 Foundation", "ISO/IEC 27001 Foundation", "La certification d’entrée la plus demandée dans les offres GRC en France : le vocabulaire, les chapitres et l’annexe A de l’ISO 27001, un examen court, sans expérience requise."],
+ ["Microsoft Security, Compliance and Identity Fundamentals (SC-900)", "Microsoft Security, Compliance and Identity Fundamentals (SC-900)", "Des parcours gratuits et un examen court sur la sécurité et la conformité de Microsoft 365 et Azure (Entra ID, Purview, Defender), les outils de la plupart des entreprises françaises."]]'::jsonb);
 select pg_temp.track_fr('grc-standards','Normes et réglementations : ISO 27001, RGPD, NIS2 et DORA',
  'Les textes que citent les offres GRC : le système de management ISO 27001, la protection des données personnelles et les nouvelles règles européennes des secteurs critiques et de la finance.',
  'Expliquer les clauses et l’annexe A de l’ISO 27001, tenir un registre des traitements RGPD, et dire ce qu’ajoutent NIS2 et DORA.','[

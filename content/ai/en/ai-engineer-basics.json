@@ -46,7 +46,7 @@
       "title": "Context window, tokens and cost",
       "text": [
         "The context window is the largest number of tokens the model can see in one request: the system prompt, the conversation history, the documents you added, and the answer it will write. In Claude Opus 5.5, Sonnet 5.5 and Haiku 5.5, the context window is 1M (one million) tokens, and output goes up to 128K tokens. But 'can' does not mean 'should': you pay for every token you send.",
-        "The API does not remember: every request must send the whole conversation from the start. So in a chatbot, each new message makes the input bigger and the cost grows with it. Billing uses two numbers: input tokens (what you send) and output tokens (what the model produces), and output is always more expensive. Prices are in dollars per million tokens (input / output): Opus 5.5 $4 / $20, Sonnet 5.5 $2 / $10, Haiku 5.5 $0.10 / $0.50 (for prompts up to 100K tokens; above that $0.50 / $2.50), and Fable 5.1, the most capable, $10 / $50.",
+        "The API does not remember: every request must send the whole conversation from the start. So in a chatbot, each new message makes the input bigger and the cost grows with it. Billing uses two numbers: input tokens (what you send) and output tokens (what the model produces), and output is always more expensive. Prices are in dollars per million tokens (input / output): Opus 5.5 $4 / $20, Sonnet 5.5 $2 / $10, Haiku 5.5 $0.10 / $0.50 (for prompts up to 100K tokens; above that $0.50 / $2.50), and Fable 5.2, the most capable, $8 / $40.",
         "The calculation is simple: cost = input_tokens × input_price / 1,000,000 + output_tokens × output_price / 1,000,000. Example: a request with 2,000 input tokens and 500 output tokens on Opus 5.5: 2,000 × 4 / 1M = $0.008, and 500 × 20 / 1M = $0.010, a total of $0.018. Looks like nothing? But with 10,000 requests a day, that is $180 a day. The same work on Haiku 5.5 comes to $4.50 a day. That is why the choice of model and the length of the prompt matter so much.",
         "To know the exact numbers, do not guess: the response has response.usage.input_tokens and response.usage.output_tokens, and before sending you can use client.messages.count_tokens. Do not use tiktoken: that is OpenAI's tokenizer and it gives wrong counts for Claude. Also know that the model's thinking (reasoning before the answer) is part of the output and counts toward max_tokens, and you can control it with output_config effort. In the next courses we will see prompt caching and the Batches API (50% cheaper) to lower the bill."
       ],
@@ -65,13 +65,13 @@
     {
       "title": "Model families: how to choose a model",
       "text": [
-        "Anthropic makes Claude in tiers. Opus 5.5 (claude-opus-5-5) is the default model: very strong at code, reasoning and long tasks. Sonnet 5.5 (claude-sonnet-5-5) gives good quality at half the price. Haiku 5.5 (claude-haiku-5-5) is the fastest and cheapest, suited to large volumes: classification, extraction, routing. And Fable 5.1 (claude-fable-5-1) is the most capable, for the hardest tasks, but more expensive. Use these ids exactly as they are, with no date at the end.",
+        "Anthropic makes Claude in tiers. Opus 5.5 (claude-opus-5-5) is the default model: very strong at code, reasoning and long tasks. Sonnet 5.5 (claude-sonnet-5-5) gives good quality at half the price. Haiku 5.5 (claude-haiku-5-5) is the fastest and cheapest, suited to large volumes: classification, extraction, routing. And Fable 5.2 (claude-fable-5-2) is the most capable, for the hardest tasks, but more expensive. Use these ids exactly as they are, with no date at the end.",
         "There are other providers: OpenAI (GPT), Google (Gemini), Mistral (a French company), and 'open weights' models like Llama or Mistral that you can run on your own machine or server, for example with Ollama. Open models help when data must not leave your premises or when you want to control everything, but you need GPUs and hosting work, and most of the time the quality is lower than the big models.",
         "The choice is always a trade-off between 5 things: quality (does it understand and reason well?), speed (latency, important for a chatbot), cost (the token price and how many tokens it uses), privacy (where the data goes and who can see it), and hosting (cloud API or your own server). There is no 'best model' in absolute terms: there is the best model for a given task on a given budget.",
         "A practical method: start with a strong model (Opus 5.5) to see the quality ceiling. Then build a small test set of real examples (20 or 50 cases) and try Sonnet 5.5 and Haiku 5.5 on them. If the cheap model gets the same result on your case, take the cheap one. And you can mix: Haiku classifies the tickets and Opus answers the hard ones. Remember too that the real cost is the cost of the whole task: a cheap model that gets it wrong and needs 3 retries can end up more expensive."
       ],
       "points": [
-        "Opus 5.5 = the default; Sonnet 5.5 = the middle; Haiku 5.5 = cheap and fast; Fable 5.1 = the most capable.",
+        "Opus 5.5 = the default; Sonnet 5.5 = the middle; Haiku 5.5 = cheap and fast; Fable 5.2 = the most capable.",
         "Open models = control and privacy, but GPUs and maintenance.",
         "Test on your own examples, not on internet leaderboards.",
         "Measure the cost of the whole task, not the token price alone."
@@ -251,8 +251,8 @@
           "Haiku 5.5, cheap and fast: $0.10 / $0.50 (prompt ≤ 100K)"
         ],
         [
-          "claude-fable-5-1",
-          "Fable 5.1, the most capable: $10 / $50"
+          "claude-fable-5-2",
+          "Fable 5.2, the most capable: $8 / $40"
         ]
       ]
     },
@@ -326,7 +326,7 @@
     {
       "q": "Choose a model for each case and explain why: (a) classifying 200,000 emails a day, (b) an assistant that reviews long contracts, (c) an ordinary support chatbot.",
       "hint": "Think about volume, difficulty and cost.",
-      "answer": "(a) claude-haiku-5-5: large volume and a simple task, cost and speed are what matter. (b) claude-opus-5-5: long documents and hard reasoning; claude-fable-5-1 if the quality is not enough. (c) claude-sonnet-5-5 to start, then try Haiku 5.5 on your own examples. In every case, decide with tests on your data, not by feel."
+      "answer": "(a) claude-haiku-5-5: large volume and a simple task, cost and speed are what matter. (b) claude-opus-5-5: long documents and hard reasoning; claude-fable-5-2 if the quality is not enough. (c) claude-sonnet-5-5 to start, then try Haiku 5.5 on your own examples. In every case, decide with tests on your data, not by feel."
     },
     {
       "q": "This prompt produces hallucinations: 'Give me the price of our company's Pro subscription.' Rewrite the prompt to reduce the risk.",

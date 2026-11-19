@@ -247,6 +247,16 @@ Corporate Finance). Reuses the Excel, SQL, Power BI, Python and statistics cours
 | C | Practice on finance data: a fictional general ledger / budget dataset for runnable SQL exercises, a take-home case "Financial Analyst" | Later |
 | D | Expert review by a finance professional (part of O11) | Owner |
 
+## Course review against job offers (2026-11-19)
+Four reviewers listed what offers ask for (France / Europe, junior → mid) before reading the courses, then compared. Verdict:
+every path teaches the core of its job; the gaps are tools and topics French offers ask for, and practice on the newer paths.
+
+| Batch | What | Status |
+|---|---|---|
+| 1 | Errors (marketing CAC SQL, Fable 5.2, Bloctel, ingress-nginx, PMBOK 8, UML skill), course tags, roadmap steps, certifications by level (junior first, senior labelled) | **Done 2026-11-19** (owner: O56) |
+| 2 | A lesson 9 (EN + FR, with exercises) for the top gaps: cohort / retention / funnel SQL (da), test plan and recette + functional spec (ba), batch schedulers (Control-M, VTOM) and supervision tools (as), GitLab CI and Argo CD (do), LangChain / LlamaIndex and other providers + EU AI Act (ai, 4 languages), Python charts (da), French financial analysis SIG / CAF / FR-BFR and standard costs (fa), field sales, written proposal, public tenders (sales), technical PO basics (po), IT go-live and cutover, PMO (pm), ITGC and IT audit (grc), CMS / HTML, social content and AI search (mk), Delta / Iceberg (de) | Next |
+| 3 | New courses: Ansible, Azure for data (ADF, Fabric, Databricks), market research (mk Chargé d’études); take-home cases for po, pm, grc, fa, mk, sales; runnable Python exercises in the AI track; cohort and marketing SQL datasets; Terraform "fix this file" rules | Later |
+
 ## Phase 6: grow
 | # | Item | Why | Effort |
 |---|---|---|---|

@@ -1,0 +1,703 @@
+{
+ "why": "Tout sponsor pose deux questions sur un projet : finira-t-il à l’heure, et combien coûtera-t-il vraiment ? On recrute un chef de projet pour bâtir un budget crédible, voir un dépassement des mois avant que les factures ne le montrent, et l’annoncer honnêtement avec des options. La valeur acquise est le langage commun pour cela, et les entretiens le testent avec des chiffres.",
+ "outcome": "estimer les coûts en ascendant à partir du WBS, construire une référence de coûts avec réserve pour aléas et réserve de management, lire réalisé, engagements et charges à payer, calculer VP, VA, CR, EC, ED, IPC et IPD, prévoir l’EAC, le reste à faire, la VAC et le TCPI, agir sur un dépassement via la maîtrise des modifications, et présenter le budget à un sponsor sur une page.",
+ "lessons": [
+  {
+   "title": "Estimer les coûts : du WBS au chiffre",
+   "text": [
+    "Un budget projet part du périmètre, pas d’un chiffre que quelqu’un a en tête. Le WBS (structure de découpage du projet, ou organigramme des tâches) découpe le projet en lots de travaux assez petits pour être estimés : « concevoir le modèle de données », « développer l’interface de facturation », « former 40 utilisateurs ». Une estimation ascendante (bottom-up) chiffre chaque lot et additionne. C’est plus long qu’une intuition, mais chaque euro se rattache à un travail, ce qui permet de défendre le budget puis de le suivre.",
+    "Deux méthodes plus rapides aident au début. L’estimation par analogie (descendante, top-down) part d’un projet passé comparable : « le dernier portail a coûté 300 000, celui-ci est environ un tiers plus gros ». L’estimation paramétrique multiplie un coût unitaire par une quantité : 1 200 € par rapport migré × 85 rapports, ou un coût au mètre carré dans le bâtiment. Elles donnent un premier ordre de grandeur ; le PMBOK Guide indique une fourchette d’environ −25 % à +75 % pour un ordre de grandeur, contre environ −5 % à +10 % pour une estimation définitive. Dites quel type d’estimation vous donnez, et sa fourchette.",
+    "Pour les personnes, coût = charge × taux. Les internes sont valorisés à un coût journalier complet (taux chargé) : salaire, plus charges patronales, plus une quote-part de frais de structure, divisé par les jours travaillés dans l’année (autour de 210 à 220 en France). Les prestataires et consultants externes facturent un TJM (taux journalier moyen) en régie, ou un forfait pour un livrable défini. On ajoute ensuite les achats : licences, matériel, cloud, déplacements, formation, et les honoraires des fournisseurs.",
+    "Mettez-vous d’accord tôt sur ce que compte le budget projet. Beaucoup d’entreprises ne comptent que les dépenses externes ; d’autres valorisent aussi le temps interne passé sur le projet. Les deux se défendent, mais l’estimation, le budget et le réalisé doivent suivre la même règle, sinon le projet paraîtra bon marché sur le papier et cher dans les comptes. Le contrôle de gestion vous demandera aussi de distinguer capex et opex : les coûts qui créent un actif durable (un nouveau système utilisé pendant des années) peuvent parfois être immobilisés, alors que les coûts de fonctionnement et la formation passent en charges. En IFRS, IAS 38 fixe les conditions d’immobilisation des frais de développement (les frais de recherche sont toujours en charges). La finance décide du traitement ; le chef de projet code chaque coût correctement.",
+    "En entretien, attendez-vous à « comment avez-vous construit votre budget ? ». Une bonne réponse cite le WBS, qui a estimé chaque lot (ceux qui font le travail, pas le chef de projet seul), les taux utilisés, les hypothèses écrites (taille d’équipe, taux, taux de change, exclusions) et la précision attendue à ce stade."
+   ],
+   "points": [
+    "Estimation ascendante : chiffrer chaque lot de travaux du WBS, puis additionner.",
+    "Les estimations par analogie et paramétrique sont des contrôles rapides, avec une fourchette plus large.",
+    "Coût des personnes = charge (jours) × taux journalier chargé ; ajouter achats et prestations.",
+    "Écrire les hypothèses et les exclusions à côté du chiffre.",
+    "Décider avec la finance ce qui est compté (temps interne ou non) et comment les coûts sont codés (capex / opex)."
+   ],
+   "example": {
+    "lang": "excel",
+    "code": "D2   =B2*C2          Analysis: 20 days x 550 = 11000\nD3   =B3*C3          Build: 60 days x 600 = 36000\nD4   =B4*C4          Test: 25 days x 500 = 12500\nD5   =B5*C5          Deployment: 10 days x 600 = 6000\nD6   8000            Licences (external purchase)\nD7   =SUM(D2:D6)     Base estimate = 73500",
+    "note": "Chaque ligne vaut charge × taux (D2 à D5), plus un achat (D6). Le total de 73 500 est l’estimation de base, avant toute réserve."
+   }
+  },
+  {
+   "title": "Le budget : référence de coûts, réserves et courbe en S",
+   "text": [
+    "L’estimation de base n’est pas encore un budget : elle suppose que rien ne dérape. Le registre des risques liste ce qui peut arriver : un fournisseur en retard, une migration de données à rejouer. La réserve pour aléas (contingency) est l’argent mis de côté pour ces risques identifiés (les « inconnues connues »). Une façon simple de la dimensionner est la valeur monétaire attendue (EMV) de chaque risque : probabilité × impact. Un risque à 30 % de retard coûtant 20 000 € vaut 6 000 € de réserve. On utilise aussi un pourcentage de l’estimation de base (souvent 5 à 15 % selon l’incertitude), mais une réserve rattachée à des risques nommés se défend mieux.",
+    "Dans les termes du PMBOK Guide, les estimations des lots plus la réserve pour aléas forment la référence de base des coûts (cost baseline) : le budget approuvé et réparti dans le temps, auquel on compare la performance. Son total est le budget à l’achèvement (BAC). Le chef de projet pilote normalement la réserve pour aléas et y puise quand un risque listé se produit, en notant quel risque l’a consommée.",
+    "Au-dessus de la référence de coûts se trouve la réserve de management, pour les « inconnues inconnues » : des événements que personne n’a identifiés. Elle est détenue par le sponsor ou la direction, pas par le chef de projet, et son utilisation est une décision prise en maîtrise des modifications, après laquelle la référence est mise à jour. Référence de coûts + réserve de management = budget du projet. Mélanger les deux réserves, ou cacher des aléas dans des estimations gonflées (les « marges de sécurité » de chacun), détruit l’information que le budget devrait donner.",
+    "Un budget a aussi une forme dans le temps. La dépense mensuelle est faible au début (une petite équipe en analyse), culmine pendant la réalisation quand l’équipe est au complet, puis baisse pendant les tests et le déploiement. La courbe cumulée ressemble à un S : la courbe en S. La finance en a besoin pour sa trésorerie, et vous aussi, car la valeur acquise compare l’avancement à cette courbe mois par mois. Un budget donné seulement en total ne dit pas, au mois 4, si l’on dépense trop vite.",
+    "Enfin le budget est approuvé : par le sponsor ou le comité de pilotage (COPIL), parfois par étapes (un budget pour la phase d’étude, puis pour la réalisation). Une fois approuvée, la référence ne change que par la maîtrise des modifications. C’est ce qui rend les comparaisons ultérieures honnêtes."
+   ],
+   "points": [
+    "Réserve pour aléas : pour les risques identifiés, dans la référence de coûts, pilotée par le chef de projet.",
+    "Réserve de management : pour les événements non identifiés, hors référence, libérée par le sponsor.",
+    "Référence de coûts = estimations des lots + réserve pour aléas ; son total est le BAC.",
+    "Budget du projet = référence de coûts + réserve de management.",
+    "Répartir la référence par mois : la courbe cumulée est la courbe en S."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "Work package estimates (base)        120,000\n+ Contingency reserve (10 %)          12,000\n= Cost baseline = BAC                 132,000\n+ Management reserve (5 %)             6,600\n= Project budget                      138,600\n\nMonth        1      2      3      4      5      6      7\nPlanned    8,000 14,000 26,000 32,000 28,000 16,000  8,000\nCumulative 8,000 22,000 48,000 80,000 108,000 124,000 132,000",
+    "note": "Le BAC de 132 000 inclut la réserve pour aléas ; les 6 600 de réserve de management sont au-dessus. La ligne cumulée est la courbe en S : départ lent, montée pendant la réalisation, palier final."
+   }
+  },
+  {
+   "title": "Suivre le réalisé : imputations, factures, engagements, charges à payer",
+   "text": [
+    "Le coût réel (CR, en anglais AC) est ce que le travail a vraiment coûté jusqu’ici. Il vient de deux sources principales : les feuilles de temps (jours ou heures imputés sur les codes du projet, multipliés par le taux) et les factures fournisseurs. Pour être exploitable, chaque coût doit porter un code projet, idéalement au niveau du lot de travaux, afin de comparer réalisé et budget ligne par ligne.",
+    "Les factures arrivent en retard. Un prestataire qui a travaillé en octobre peut facturer en novembre ; la comptabilité montre alors un mois d’octobre moins cher qu’en réalité. La finance corrige avec les charges à payer : à la clôture, le travail reçu mais pas encore facturé est enregistré comme une charge de la période (les « factures non parvenues », FNP). Le chef de projet, qui sait ce qui a été livré, donne ces montants à la finance et utilise un CR qui les inclut pour la valeur acquise. Sinon l’IPC paraît bon un mois et mauvais le suivant sans raison réelle.",
+    "Un engagement est de l’argent promis mais pas encore dépensé : un bon de commande signé, un contrat de trois mois avec un consultant. Ce n’est pas encore un coût réel, mais ce n’est plus disponible. Ne regarder que le réalisé cache un problème classique : un budget qui paraît libre alors qu’il est presque entièrement engagé. Un bon reporting de coûts montre côte à côte budget, réalisé, engagements et reste non engagé.",
+    "Regardez aussi le rythme de consommation (burn rate), l’argent dépensé par semaine ou par mois. Si l’équipe coûte 30 000 € par mois et qu’il reste 90 000 €, l’argent dure trois mois quoi que dise le planning. Comparer ce rythme au travail restant est un contrôle rapide entre deux rapports de valeur acquise.",
+    "Pièges réels : temps imputé sur le mauvais code, factures payées sur le mauvais projet, fournisseur qui facture tout le contrat d’avance, temps interne non imputé. Rapprochez chaque mois les données du projet avec le système de la finance, et fixez une date d’arrêté pour que tout le monde parle de la même période."
+   ],
+   "points": [
+    "CR (AC) = feuilles de temps × taux + factures fournisseurs + charges à payer du travail reçu.",
+    "Charge à payer (accrual) : coût d’un travail fait sur la période dont la facture n’est pas arrivée.",
+    "Engagement (commitment) : commande ou contrat signé pas encore dépensé ; réduit l’argent disponible.",
+    "Présenter budget, réalisé, engagements et reste non engagé côte à côte.",
+    "Burn rate = dépense par mois ; la comparer à l’argent restant."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "Cost report - end of October                 BAC   132,000\nActuals booked (timesheets + supplier invoices)     51,000\n+ Accrual: October work, invoice not received yet    6,000\n= Actual cost (AC) used for earned value            57,000\n+ Open commitments (purchase orders not delivered)  18,000\n= Spent or committed                                75,000\nBudget not yet committed (132,000 - 75,000)         57,000",
+    "note": "Le réalisé comptable (51 000) sous-estime le coût : avec la charge à payer, le CR vaut 57 000. Et avec les commandes ouvertes, seuls 57 000 des 132 000 restent libres."
+   }
+  },
+  {
+   "title": "Bases de la valeur acquise : VP, VA et CR",
+   "text": [
+    "Comparer seulement budget et coût réel trompe. Un projet qui a dépensé 84 000 € quand le plan prévoyait 80 000 € à cette date semble à peine au-dessus du budget. Mais s’il n’a fait que 35 % du travail, il est en vraie difficulté. La gestion de la valeur acquise (EVM, earned value management) ajoute la mesure manquante : combien de travail a vraiment été fait, valorisé à son budget. Ses règles sont décrites dans le Standard for Earned Value Management du PMI et, pour les grands contrats, dans la norme ANSI/EIA-748 sur les systèmes de gestion de la valeur acquise.",
+    "Trois nombres, tous en euros, à une date d’état. La valeur planifiée (VP, en anglais PV) est le budget du travail qui devait être fait à cette date : on la lit sur la courbe en S. La valeur acquise (VA, en anglais EV) est le budget du travail réellement fait : EV = % d’avancement × BAC (ou la somme, par lot, du budget du travail terminé). Le coût réel (CR, en anglais AC) est ce que ce travail a vraiment coûté. Les anciens documents parlent de BCWS, BCWP et ACWP.",
+    "Exemple chiffré : BAC 200 000 €, dix mois. Fin du mois 4, le plan prévoyait 40 % réalisés, donc VP = 80 000 €. L’équipe a terminé 35 % du travail, donc VA = 0,35 × 200 000 = 70 000 €. Les feuilles de temps et les factures (avec les charges à payer) donnent CR = 84 000 €. Le projet a acquis 70 000 € de travail prévu pour 84 000 € dépensés, et il a 10 000 € de travail de retard sur le plan.",
+    "Tout repose sur un % d’avancement honnête. Le « c’est fini à 90 % » de l’équipe est le piège le plus connu : les 10 % restants prennent la moitié du temps. Utilisez des règles objectives fixées à l’avance : 0/100 (acquis seulement une fois terminé, pour les tâches courtes), 50/50 (la moitié au démarrage, la moitié à la fin), 20/80, jalons pondérés, ou unités terminées (rapports migrés, utilisateurs formés). Mesurez sur le travail terminé et accepté, pas sur l’effort consommé.",
+    "L’EVM exige une référence répartie dans le temps, une date d’état cohérente et un CR sur le même périmètre que le budget. Si le budget compte le temps interne et le réalisé non, tous les indices seront faux."
+   ],
+   "points": [
+    "VP (PV, valeur planifiée) : budget du travail prévu à la date d’état.",
+    "VA (EV, valeur acquise) = % d’avancement × BAC : budget du travail réellement fait.",
+    "CR (AC, coût réel) : ce que le travail fait a vraiment coûté, charges à payer comprises.",
+    "En anglais : PV, EV, AC (anciennement BCWS, BCWP, ACWP).",
+    "Mesurer l’avancement avec des règles convenues (0/100, 50/50, jalons, unités), jamais au ressenti."
+   ],
+   "example": {
+    "lang": "excel",
+    "code": "B1   200000          BAC (budget at completion)\nB2   0.35            % complete, measured on finished work\nB3   80000           PV: planned value at the end of month 4\nB4   84000           AC: actual cost to date\nB5   =B2*B1          EV = 70000",
+    "note": "EV = 70 000 est le travail fait valorisé à son budget. On le compare à la VP (ce qui devait être fait) et au CR (ce qu’il a coûté) dans la leçon suivante."
+   }
+  },
+  {
+   "title": "Écarts et indices : CV, SV, CPI, SPI",
+   "text": [
+    "Deux écarts comparent la valeur acquise aux deux autres nombres. L’écart de coût CV = EV − AC (en français EC = VA − CR) : négatif, le travail fait a coûté plus que son budget (dépassement). L’écart de délai SV = EV − PV (ED = VA − VP) : négatif, moins de travail est fait que prévu (retard). Dans l’exemple, CV = 70 000 − 84 000 = −14 000 € et SV = 70 000 − 80 000 = −10 000 €.",
+    "Les indices rendent comparables des projets de tailles différentes. L’indice de performance des coûts CPI = EV / AC = 70 000 / 84 000 = 0,83 (en français IPC) : chaque euro dépensé a produit 0,83 € de travail prévu. L’indice de performance des délais SPI = EV / PV = 70 000 / 80 000 = 0,875 (IPD) : l’équipe a livré 87,5 % du travail prévu à cette date. Au-dessus de 1 c’est une bonne nouvelle, en dessous une mauvaise, pour les deux.",
+    "Lisez-les ensemble. CPI et SPI sous 1 : en retard et en dépassement, le pire cas. CPI au-dessus de 1 et SPI sous 1 : moins cher jusqu’ici mais lent, souvent parce qu’il manque des personnes (on dépense moins parce qu’on fait moins). CPI sous 1 et SPI au-dessus de 1 : en avance mais cher, typique des heures supplémentaires ou de prestataires ajoutés. Demandez pourquoi avant de fêter un indice supérieur à 1.",
+    "Connaissez les limites. Le SV est en euros, pas en jours : un SV de −10 000 € ne dit rien directement de la date de livraison, et il revient à zéro à la fin de tout projet (tout le travail finit par être acquis), donc le SPI remonte vers 1 sur les projets en retard. Vérifiez le chemin critique pour les dates ; des techniques comme l’earned schedule expriment le retard en temps. Et regardez la tendance : un CPI qui passe de 0,97 à 0,92 puis 0,88 en trois mois en dit plus qu’une valeur isolée.",
+    "Fixez des seuils dans le plan de management du projet, par exemple vert à ±5 %, orange jusqu’à ±10 %, rouge au-delà, et calculez aussi les indices par lot : un CPI projet de 0,95 peut cacher un lot à 0,70."
+   ],
+   "points": [
+    "CV = EV − AC (EC = VA − CR) : négatif = dépassement de budget.",
+    "SV = EV − PV (ED = VA − VP) : négatif = retard (en euros, pas en jours).",
+    "CPI = EV / AC (IPC) ; SPI = EV / PV (IPD) : sous 1 = mauvais, au-dessus de 1 = bon.",
+    "Lire CPI et SPI ensemble, et suivre la tendance sur plusieurs mois.",
+    "Les calculer par lot : le total peut cacher un lot en difficulté."
+   ],
+   "example": {
+    "lang": "excel",
+    "code": "B6   =B5-B4          CV  = EV - AC = -14000\nB7   =B5-B3          SV  = EV - PV = -10000\nB8   =B5/B4          CPI = EV / AC = 0.83\nB9   =B5/B3          SPI = EV / PV = 0.875\nB10  =B6/B5          CV % = -20 %",
+    "note": "Même projet qu’à la leçon 4. CV % = CV / EV = −20 % : le travail fait jusqu’ici a coûté un cinquième de plus que prévu."
+   }
+  },
+  {
+   "title": "Prévoir : EAC, ETC, VAC et TCPI",
+   "text": [
+    "La vraie question du sponsor est combien cela coûtera au final. L’estimation à l’achèvement (EAC) y répond. La formule la plus utilisée suppose que l’efficacité constatée continue : EAC = BAC / CPI = 200 000 / 0,833 = 240 000 €. C’est souvent la meilleure prévision rapide, car un CPI s’améliore rarement beaucoup une fois une bonne part du travail faite.",
+    "Choisissez la formule selon la cause. Si le dépassement vient d’un événement ponctuel qui ne se répétera pas (une défaillance fournisseur déjà payée), le reste peut se faire au budget : EAC = AC + (BAC − EV) = 84 000 + 130 000 = 214 000 €. Si le projet est à la fois en dépassement et en retard et doit tenir une date fixe (rattraper coûtera plus), utilisez EAC = AC + (BAC − EV) / (CPI × SPI) = 84 000 + 130 000 / 0,729 ≈ 262 286 €. Et quand l’estimation initiale était clairement fausse, réestimez le travail restant en ascendant : EAC = AC + nouveau reste à faire.",
+    "De l’EAC découlent trois autres nombres. L’estimation pour achever ETC = EAC − AC = 240 000 − 84 000 = 156 000 € : l’argent encore nécessaire, le « reste à faire » (RAF) des équipes françaises. L’écart à l’achèvement VAC = BAC − EAC = 200 000 − 240 000 = −40 000 € : le dépassement attendu. On parle aussi d’« atterrissage » pour la prévision de fin.",
+    "L’indice de performance pour achever (TCPI) répond à la question inverse : quelle efficacité faut-il sur le reste pour finir dans le budget ? TCPI = (BAC − EV) / (BAC − AC) = 130 000 / 116 000 = 1,12. L’équipe qui produisait 0,83 € de travail par euro doit maintenant en produire 1,12. Une règle empirique courante dit qu’un TCPI au-dessus d’environ 1,10 est rarement atteint : c’est un signal pour prévoir honnêtement ou changer le plan, pas pour promettre. Face à un nouvel EAC approuvé, on utilise TCPI = (BAC − EV) / (EAC − AC).",
+    "Donnez une fourchette et la base de la prévision : « entre 240 000 (efficacité actuelle) et 262 000 (si l’on accélère pour tenir la date) ; la réestimation ascendante donne 248 000 ». Les recruteurs apprécient les candidats qui connaissent plusieurs formules et savent quand utiliser chacune."
+   ],
+   "points": [
+    "EAC = BAC / CPI : l’efficacité actuelle continue (la formule par défaut).",
+    "EAC = AC + (BAC − EV) : dépassement ponctuel, le reste se fait au budget.",
+    "EAC = AC + (BAC − EV) / (CPI × SPI) : dépassement, retard et date imposée.",
+    "ETC = EAC − AC (reste à faire) ; VAC = BAC − EAC (négatif = dépassement attendu).",
+    "TCPI = (BAC − EV) / (BAC − AC) : efficacité nécessaire pour finir dans le budget ; au-dessus d’environ 1,10, c’est une alerte."
+   ],
+   "example": {
+    "lang": "excel",
+    "code": "B11  =B1/B8               EAC = BAC / CPI = 240000\nB12  =B11-B4              ETC = EAC - AC = 156000\nB13  =B1-B11              VAC = BAC - EAC = -40000\nB14  =(B1-B5)/(B1-B4)     TCPI = 1.12\nB15  =B4+(B1-B5)          EAC if the rest goes to budget = 214000\nB16  =B4+(B1-B5)/(B8*B9)  EAC with CPI x SPI = 262286",
+    "note": "Les cellules prolongent la feuille des leçons 4 et 5 (B1 BAC, B4 AC, B5 EV, B8 CPI, B9 SPI). Trois formules donnent de 214 000 à 262 286 : c’est la cause du dépassement qui décide laquelle vous présentez."
+   }
+  },
+  {
+   "title": "Agir sur un dépassement : périmètre, délais, ressources, demandes de modification",
+   "text": [
+    "Une prévision n’est utile que si elle mène à l’action. Commencez par la cause, lot par lot : une estimation trop basse, du périmètre ajouté sans demande de modification (dérive du périmètre, scope creep), une productivité plus faible, des taux plus élevés que prévu, des reprises dues à des problèmes de qualité, ou un risque qui s’est produit. Chaque cause appelle une réponse différente, et couper des moyens sans connaître la cause déplace en général le problème vers les tests ou le support.",
+    "Les leviers sont ceux du triangle classique. Périmètre : retirer ou reporter des fonctionnalités à faible valeur (réduction de périmètre), toujours avec l’accord du sponsor. Délais : réordonner les travaux, ou accepter une date plus tardive quand le temps coûte moins que des personnes en plus. Ressources : changer le mix (moins de prestataires chers, plus d’internes), renégocier les taux, ou ajouter des personnes quand une date imposée vaut ce coût. Le crashing (ajouter des ressources pour raccourcir le chemin critique) achète du temps avec de l’argent ; le fast-tracking (paralléliser des tâches) achète du temps avec un risque de reprises.",
+    "Utilisez les réserves pour ce à quoi elles servent. Quand un risque du registre se produit, puisez dans la réserve pour aléas et notez-le. Quand le dépassement sort des risques identifiés, ou que la réserve est épuisée, le sponsor décide : libérer de la réserve de management, changer le périmètre, ou accepter un nouveau budget.",
+    "Toute modification de la référence passe par la maîtrise des modifications : une demande de modification décrit la cause, les options avec leur effet sur le coût, les dates, le périmètre et les risques, et une recommandation ; le comité de contrôle des modifications ou le COPIL décide ; la référence et le journal des modifications sont mis à jour. Rebaseliner discrètement pour que le CPI revienne à 1 est la faute capitale : cela efface l’historique dont le sponsor a besoin pour vous faire confiance.",
+    "Agissez tôt. Un dépassement repéré à 20 % d’avancement se corrige encore avec de petits changements ; à 80 %, les options sont rares et chères. C’est pourquoi la revue mensuelle du CPI, du SPI et de l’EAC compte plus que la réunion budgétaire annuelle."
+   ],
+   "points": [
+    "Trouver la cause, lot par lot, avant de choisir une correction.",
+    "Leviers : périmètre (réduire), délais (réordonner, décaler), ressources (mix, taux, crashing).",
+    "Réserve pour aléas pour les risques du registre ; réserve de management libérée par le sponsor.",
+    "Toute modification de la référence passe par une demande de modification et le comité de contrôle.",
+    "Ne jamais rebaseliner discrètement pour embellir les indices."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "CHANGE REQUEST CR-07      Project: customer portal\nRequest    Recover the build overrun before go-live\nCause      Build CPI 0.82: the billing integration took 2.5x its\n           estimate (risk R4; its contingency is already used)\nOption A   Descope the invoice download screen (-18 days x 600)\n           Cost -10,800   Go-live unchanged   Feature moves to release 2\nOption B   Add one contractor for 2 months (+40 days x 600)\n           Cost +24,000   Go-live unchanged\nOption C   Keep the team, go live 3 weeks later\n           Cost +9,000 (core team for 3 more weeks)   Go-live +3 weeks\nRecommendation   Option A\nDecision by      Steering committee, 21 October",
+    "note": "Une demande de modification donne la cause, des options chiffrées et une recommandation, puis demande une décision à une date donnée."
+   }
+  },
+  {
+   "title": "Présenter le budget à un sponsor",
+   "text": [
+    "Un sponsor lit un reporting budgétaire en deux minutes. Tenez-le sur une page : BAC, coût réel à date, prévision à l’achèvement et son écart ; les indices de valeur acquise avec leur tendance ; les deux ou trois causes de l’écart ; les actions engagées ; et la décision attendue, avec une date. Ajoutez la courbe en S avec VP, VA et CR si votre outil la trace : l’écart entre les courbes raconte l’histoire d’un coup d’œil.",
+    "La prévision doit être honnête. Les reportings qui restent verts pendant que les chiffres virent au rouge (le reporting « pastèque » : vert dehors, rouge dedans) sont la première raison pour laquelle un sponsor perd confiance dans un chef de projet. Si BAC / CPI donne 470 000 et que vous annoncez 455 000, écrivez pourquoi (une réestimation ascendante, une réduction de périmètre déjà validée). Une mauvaise prévision donnée tôt est bienvenue ; la même nouvelle donnée tard est un échec.",
+    "Expliquez les écarts avec des mots métier. Pas seulement « IPC 0,85 », mais « nous dépensons 1,18 € pour chaque euro de travail prévu, surtout parce que l’intégration de la facturation a pris deux fois et demie son estimation ». Séparez ce qui s’est passé (le réalisé), ce que vous prévoyez (l’atterrissage) et ce que vous demandez (la décision). Convenez à l’avance des seuils qui font passer un statut à l’orange ou au rouge, pour que la couleur ne soit pas une négociation.",
+    "Adaptez-vous au public. Un COPIL veut le total, la tendance et la décision ; le contrôle de gestion veut le réalisé, les charges à payer, les engagements et l’échéancier des dépenses restantes ; l’équipe veut les lots de travaux. Les mêmes données, à trois niveaux de détail.",
+    "Beaucoup d’équipes françaises emploient les termes français : valeur planifiée (VP), valeur acquise (VA), coût réel (CR), IPC pour le CPI et IPD pour le SPI, « reste à faire » pour l’ETC et « atterrissage » pour la prévision de fin ; BAC et EAC restent souvent en anglais. Connaissez les deux jeux de termes : un entretien en France peut passer de l’un à l’autre."
+   ],
+   "points": [
+    "Une page : BAC, CR, EAC, VAC, tendance IPC / IPD, causes, actions, décision attendue.",
+    "Donner la base de la prévision et une fourchette ; ne jamais cacher un mauvais EAC.",
+    "Expliquer les indices avec des mots métier et nommer les causes.",
+    "Convenir des seuils de couleur (vert, orange, rouge) à l’avance.",
+    "Termes français : VP, VA, CR, IPC, IPD, reste à faire, atterrissage."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "BUDGET STATUS - Customer portal - end of month 6 of 10\n                 BAC       Actual (AC)   Forecast (EAC)   VAC\nTotal            400,000   235,000       455,000          -55,000 (-13.8 %)\nEarned value     PV 220,000   EV 200,000   CPI 0.85   SPI 0.91\nCPI trend        M3 0.97   M4 0.92   M5 0.88   M6 0.85\nDrivers          1. Billing integration rework: 24,000 over\n                 2. Contractor day rates above plan: 11,000 over\nForecast basis   Bottom-up ETC 220,000 (BAC / CPI would give 470,000)\nActions          CR-07 descope approved; rates renegotiated from M7\nDecision needed  Release 55,000 of management reserve by 21 Oct\nStatus           Cost RED (VAC beyond -10 %)   Schedule AMBER",
+    "note": "Une page : les chiffres d’abord, puis les causes, les actions et la décision demandée. Le statut suit le seuil convenu, pas l’humeur de la réunion."
+   }
+  }
+ ],
+ "cheatsheet": [
+  {
+   "group": "Estimer",
+   "items": [
+    [
+     "Estimation ascendante (bottom-up)",
+     "Chiffrer chaque lot du WBS, puis additionner"
+    ],
+    [
+     "Estimation par analogie",
+     "Partir d’un projet passé comparable (descendante)"
+    ],
+    [
+     "Estimation paramétrique",
+     "Coût unitaire × quantité (ex. € par rapport migré)"
+    ],
+    [
+     "Taux journalier chargé",
+     "Salaire + charges patronales + frais de structure, par jour travaillé"
+    ],
+    [
+     "Capex / opex",
+     "Coût qui crée un actif durable (immobilisé) / coût de fonctionnement, en charges"
+    ]
+   ]
+  },
+  {
+   "group": "Budget et réserves",
+   "items": [
+    [
+     "Référence de coûts (cost baseline)",
+     "Budget approuvé, réparti dans le temps, réserve pour aléas comprise"
+    ],
+    [
+     "BAC",
+     "Budget à l’achèvement : total de la référence de coûts"
+    ],
+    [
+     "Réserve pour aléas (contingency)",
+     "Pour les risques identifiés ; pilotée par le chef de projet"
+    ],
+    [
+     "Réserve de management",
+     "Pour les événements non identifiés ; libérée par le sponsor"
+    ],
+    [
+     "EMV",
+     "Probabilité × impact d’un risque, pour dimensionner la réserve"
+    ],
+    [
+     "Courbe en S",
+     "Dépense prévue cumulée dans le temps"
+    ]
+   ]
+  },
+  {
+   "group": "Réalisé",
+   "items": [
+    [
+     "AC (CR, coût réel)",
+     "Coût du travail fait (temps imputé, factures, charges à payer)"
+    ],
+    [
+     "Engagement",
+     "Commande ou contrat signé pas encore dépensé"
+    ],
+    [
+     "Charge à payer (accrual)",
+     "Travail reçu sur la période, facture pas encore arrivée"
+    ],
+    [
+     "Burn rate",
+     "Argent dépensé par mois"
+    ]
+   ]
+  },
+  {
+   "group": "Valeur acquise",
+   "items": [
+    [
+     "PV (VP, valeur planifiée)",
+     "Budget du travail prévu à date"
+    ],
+    [
+     "EV = % complete × BAC",
+     "Valeur acquise (VA) : budget du travail réellement fait"
+    ],
+    [
+     "CV = EV − AC",
+     "Écart de coût : négatif = dépassement"
+    ],
+    [
+     "SV = EV − PV",
+     "Écart de délai : négatif = retard"
+    ],
+    [
+     "CPI = EV / AC",
+     "IPC : travail acquis par euro dépensé ; sous 1 = dépassement"
+    ],
+    [
+     "SPI = EV / PV",
+     "IPD : part du travail prévu réalisée ; sous 1 = retard"
+    ]
+   ]
+  },
+  {
+   "group": "Prévoir",
+   "items": [
+    [
+     "EAC = BAC / CPI",
+     "Prévision si l’efficacité actuelle continue"
+    ],
+    [
+     "EAC = AC + (BAC − EV)",
+     "Prévision si le reste se fait au budget (dépassement ponctuel)"
+    ],
+    [
+     "EAC = AC + (BAC − EV) / (CPI × SPI)",
+     "Prévision en retard, en dépassement, avec date imposée"
+    ],
+    [
+     "ETC = EAC − AC",
+     "Reste à faire : argent encore nécessaire"
+    ],
+    [
+     "VAC = BAC − EAC",
+     "Dépassement attendu (négatif) ou économie à la fin"
+    ],
+    [
+     "TCPI = (BAC − EV) / (BAC − AC)",
+     "Efficacité nécessaire sur le reste pour finir dans le budget"
+    ]
+   ]
+  }
+ ],
+ "pitfalls": [
+  "Donner un chiffre unique sans type d’estimation, ni fourchette, ni hypothèses écrites.",
+  "Cacher des aléas dans des estimations gonflées, si bien que personne ne connaît la vraie réserve.",
+  "Mesurer l’avancement au ressenti (« fini à 90 % ») au lieu du travail terminé et accepté.",
+  "Utiliser le réalisé sans charges à payer : le CPI saute d’un mois à l’autre sans raison réelle.",
+  "Suivre le réalisé mais pas les engagements, et découvrir que le budget est déjà promis.",
+  "Rebaseliner discrètement pour que les indices reviennent à 1, au lieu d’une demande de modification.",
+  "Rester au vert jusqu’au dernier mois : une prévision honnête donnée tôt vaut mieux qu’une prévision flatteuse."
+ ],
+ "exercises": [
+  {
+   "q": "En D3, la valeur acquise du lot Build (réalisation).",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Work package",
+     "BAC",
+     "% complete",
+     "EV"
+    ],
+    [
+     "Design",
+     30000,
+     1,
+     30000
+    ],
+    [
+     "Build",
+     120000,
+     0.4,
+     ""
+    ],
+    [
+     "Test",
+     50000,
+     0,
+     0
+    ]
+   ],
+   "cell": "D3",
+   "answer": "=B3*C3",
+   "hint": "VA = % d’avancement × BAC du lot. Utilisez les cellules.",
+   "explain": "120 000 × 0,4 = 48 000. La VA du projet est la somme des lots : 30 000 + 48 000 + 0 = 78 000 (SUM(D2:D4), SOMME en français, une fois D3 rempli). Mesurez les 40 % sur le travail terminé et accepté, pas sur les jours consommés."
+  },
+  {
+   "q": "Complétez les écarts et le CPI (IPC) de ce projet au mois 4.",
+   "type": "fill",
+   "snippet": "BAC = 200000   PV = 80000   EV = 70000   AC = 84000\nCV  = EV - AC = ___\nSV  = EV - PV = ___\nCPI = EV / AC = ___ (2 decimals)",
+   "lang": "text",
+   "blanks": [
+    [
+     "-14000",
+     "/^[-−]\\s?14[ ,.  ]?000\\s?(€|eur|euros)?$/i"
+    ],
+    [
+     "-10000",
+     "/^[-−]\\s?10[ ,.  ]?000\\s?(€|eur|euros)?$/i"
+    ],
+    [
+     "0.83",
+     "0,83",
+     "/^0[.,]83\\d*$/"
+    ]
+   ],
+   "answer": "CV = 70 000 − 84 000 = −14 000 (dépassement). SV = 70 000 − 80 000 = −10 000 (retard, en euros). CPI = 70 000 / 84 000 = 0,83 : chaque euro dépensé a produit 0,83 € de travail prévu."
+  },
+  {
+   "q": "Associez chaque lecture à sa signification.",
+   "type": "match",
+   "pairs": [
+    [
+     "CV = −14 000 €",
+     "Le travail fait a coûté 14 000 € de plus que son budget"
+    ],
+    [
+     "SV = −10 000 €",
+     "10 000 € de travail prévu ne sont pas encore faits"
+    ],
+    [
+     "CPI = 1,10",
+     "Chaque euro dépensé a produit 1,10 € de travail prévu"
+    ],
+    [
+     "SPI = 0,80",
+     "80 % du travail prévu à date est fait"
+    ],
+    [
+     "TCPI = 1,15",
+     "Le reste doit être fait 15 % plus efficacement pour finir dans le budget"
+    ]
+   ],
+   "answer": "Les écarts sont en euros (EV moins AC ou PV) ; les indices sont des ratios où 1 signifie conforme au plan. Le TCPI regarde devant : l’efficacité encore nécessaire."
+  },
+  {
+   "q": "En D2, l’estimation à l’achèvement si l’efficacité actuelle des coûts continue.",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "BAC",
+     "EV",
+     "AC",
+     "EAC"
+    ],
+    [
+     500000,
+     160000,
+     200000,
+     ""
+    ]
+   ],
+   "cell": "D2",
+   "answer": "=A2/(B2/C2)",
+   "hint": "EAC = BAC / CPI, et CPI = EV / AC.",
+   "explain": "CPI = 160 000 / 200 000 = 0,8, donc EAC = 500 000 / 0,8 = 625 000. =A2*C2/B2 donne la même chose. VAC = 500 000 − 625 000 = −125 000 : un dépassement de 25 % si rien ne change."
+  },
+  {
+   "q": "Un projet est en dépassement uniquement parce qu’un fournisseur a fait défaut une fois ; le remplaçant est déjà payé et le reste du travail suit le plan. Quel EAC convient le mieux ?",
+   "type": "choice",
+   "options": [
+    "EAC = BAC / CPI",
+    "EAC = AC + (BAC − EV)",
+    "EAC = AC + (BAC − EV) / (CPI × SPI)",
+    "EAC = BAC : le dépassement sera absorbé"
+   ],
+   "correct": 1,
+   "answer": "Un dépassement ponctuel (atypique) ne se répétera pas : le travail restant est attendu à son coût budgété, d’où EAC = AC + (BAC − EV). BAC / CPI étalerait l’incident sur tout le projet et surestimerait la prévision."
+  },
+  {
+   "q": "En D2, l’indice de performance pour achever (TCPI) nécessaire pour finir dans le budget initial.",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "BAC",
+     "EV",
+     "AC",
+     "TCPI"
+    ],
+    [
+     500000,
+     160000,
+     200000,
+     ""
+    ]
+   ],
+   "cell": "D2",
+   "answer": "=(A2-B2)/(A2-C2)",
+   "hint": "TCPI = (BAC − EV) / (BAC − AC) : travail restant divisé par argent restant.",
+   "explain": "(500 000 − 160 000) / (500 000 − 200 000) = 340 000 / 300 000 = 1,13. L’équipe à un CPI de 0,8 devrait atteindre 1,13 sur le reste : irréaliste. Prévoyez honnêtement (EAC 625 000) ou changez le périmètre, les taux ou le plan."
+  },
+  {
+   "q": "Remettez dans l’ordre les étapes pour construire et piloter un budget projet.",
+   "type": "order",
+   "steps": [
+    "Découper le périmètre en un WBS de lots de travaux",
+    "Estimer chaque lot (charge × taux, achats)",
+    "Ajouter la réserve pour aléas des risques du registre",
+    "Répartir la référence de coûts par mois (courbe en S)",
+    "Faire approuver le budget par le sponsor",
+    "Suivre chaque mois le réalisé et la valeur acquise"
+   ],
+   "answer": "Périmètre → estimations → réserve → référence répartie dans le temps → approbation → pilotage. La réserve de management est fixée par le sponsor au-dessus de la référence approuvée."
+  },
+  {
+   "q": "Quel argent paie chaque événement ?",
+   "type": "groups",
+   "groups": [
+    {
+     "name": "Réserve pour aléas",
+     "items": [
+      "Le retard fournisseur listé au registre des risques se produit",
+      "La migration de données a besoin du second test inscrit comme risque",
+      "Le prix de la licence en dollars monte, comme le prévoyait le registre des risques"
+     ]
+    },
+    {
+     "name": "Réserve de management",
+     "items": [
+      "Un fournisseur clé fait faillite, un risque que personne n’avait identifié",
+      "Une faille de sécurité imprévue oblige à refaire la connexion"
+     ]
+    },
+    {
+     "name": "Demande de modification avec nouveau budget",
+     "items": [
+      "Le sponsor demande d’ajouter un second pays au périmètre",
+      "Le marketing veut une application mobile hors périmètre"
+     ]
+    }
+   ],
+   "answer": "La réserve pour aléas couvre les risques identifiés et le chef de projet l’utilise. La réserve de management couvre les événements que personne n’avait identifiés et le sponsor la libère. Un nouveau périmètre ne relève d’aucune des deux : il faut une demande de modification avec son propre budget."
+  },
+  {
+   "q": "En C6, la réserve pour aléas en % de l’estimation de base, à partir de la valeur monétaire attendue des trois risques.",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Risk",
+     "Probability",
+     "Impact"
+    ],
+    [
+     "Supplier late",
+     0.3,
+     20000
+    ],
+    [
+     "Integration rework",
+     0.1,
+     50000
+    ],
+    [
+     "Licence price rise",
+     0.5,
+     4000
+    ],
+    [
+     "Base estimate",
+     "",
+     130000
+    ],
+    [
+     "Contingency %",
+     "",
+     ""
+    ]
+   ],
+   "cell": "C6",
+   "answer": "=SUMPRODUCT(B2:B4,C2:C4)/C5",
+   "hint": "Réserve = somme des probabilités × impacts. SUMPRODUCT (SOMMEPROD) multiplie deux plages ligne à ligne et additionne.",
+   "explain": "0,3 × 20 000 + 0,1 × 50 000 + 0,5 × 4 000 = 6 000 + 5 000 + 2 000 = 13 000 ; 13 000 / 130 000 = 10 %. La référence de coûts vaut alors 143 000. Gardez le lien avec les risques : quand l’un est clos, sa part de réserve peut être libérée."
+  },
+  {
+   "q": "En F2, le budget de la phase indiquée en E2 (Build).",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Phase",
+     "Item",
+     "Budget",
+     "",
+     "Phase",
+     "Total"
+    ],
+    [
+     "Design",
+     "Analyst",
+     12000,
+     "",
+     "Build",
+     ""
+    ],
+    [
+     "Build",
+     "Developers",
+     48000,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Design",
+     "Architect",
+     9000,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Test",
+     "Testers",
+     15000,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Build",
+     "Licences",
+     6000,
+     "",
+     "",
+     ""
+    ]
+   ],
+   "cell": "F2",
+   "answer": "=SUMIFS(C2:C6,A2:A6,E2)",
+   "hint": "SUMIFS (SOMME.SI.ENS) : plage à additionner, plage de critère, critère.",
+   "explain": "48 000 + 6 000 = 54 000. Pointer sur E2 au lieu de taper \"Build\" permet de recopier la formule pour Design (21 000) et Test (15 000) ; les trois font bien le total de 90 000."
+  },
+  {
+   "q": "Mois 5 sur 10 : BAC 400 000 €, 50 % du travail est fait, le CR (AC) est de 235 000 €. Le sponsor vous voit demain.",
+   "type": "scenario",
+   "steps": [
+    {
+     "text": "EV = 200 000 € et CPI = 0,85. Que dites-vous d’abord au sponsor ?",
+     "choices": [
+      {
+       "label": "La prévision : environ 470 000 € (VAC −70 000 €) si rien ne change, avec les causes et les options",
+       "best": true,
+       "feedback": "BAC / CPI = 400 000 × 235 000 / 200 000 = 470 000. Des chiffres honnêtes et précoces laissent au sponsor le temps de décider."
+      },
+      {
+       "label": "Nous sommes à mi-parcours et avons dépensé à peu près la moitié du budget : tout va bien",
+       "feedback": "235 000 dépensés pour 200 000 de travail : 59 % du budget pour 50 % du travail. Le seul budget vs réalisé cache le dépassement."
+      },
+      {
+       "label": "Rien pour l’instant : attendre un mois pour voir si ça se redresse",
+       "feedback": "À 50 % d’avancement, un CPI se redresse rarement tout seul ; chaque mois perdu retire des options."
+      }
+     ]
+    },
+    {
+     "text": "D’où vient le dépassement ?",
+     "choices": [
+      {
+       "label": "Décomposer le CV par lot et par cause avant de choisir une correction",
+       "best": true,
+       "feedback": "Vous trouvez l’intégration de la facturation à un CPI de 0,70 et des TJM 8 % au-dessus du plan : deux corrections différentes."
+      },
+      {
+       "label": "Couper 70 000 € dans le budget de tests pour atterrir dans le budget",
+       "feedback": "Le problème passe en production : les anomalies trouvées plus tard coûtent plus cher."
+      }
+     ]
+    },
+    {
+     "text": "Que présentez-vous au COPIL ?",
+     "choices": [
+      {
+       "label": "Une demande de modification avec des options chiffrées : retirer une fonctionnalité à faible valeur, renégocier les taux ou libérer de la réserve de management",
+       "best": true,
+       "feedback": "Le sponsor décide sur des faits ; la référence ne change qu’après la décision."
+      },
+      {
+       "label": "Une nouvelle référence à 470 000 € pour que le CPI revienne à 1,0",
+       "feedback": "Rebaseliner sans approbation efface l’historique et la confiance du sponsor."
+      }
+     ]
+    }
+   ],
+   "answer": "Calculer EV et CPI, prévoir l’EAC honnêtement, trouver les causes par lot, puis demander une décision en maîtrise des modifications avec des options chiffrées."
+  },
+  {
+   "q": "Rédigez un point budgétaire de cinq lignes pour le sponsor. Fin du mois 6 sur 10 : BAC 400 000 €, VP 220 000 €, 50 % d’avancement, CR 235 000 €. La réestimation ascendante du travail restant est de 220 000 €.",
+   "answer": "1) Atterrissage : EAC 455 000 € (CR 235 000 + reste à faire ascendant 220 000) pour un budget de 400 000 €, VAC −55 000 € (−13,8 %) ; BAC / CPI donnerait 470 000 €. 2) Avancement : VA 200 000 € pour une VP de 220 000 € (IPD 0,91) et un CR de 235 000 € (IPC 0,85, contre 0,92 il y a deux mois). 3) Causes : reprises sur l’intégration de la facturation et TJM des prestataires au-dessus du plan. 4) Actions : retrait d’un écran à faible valeur (demande de modification), taux renégociés dès le mois prochain. 5) Décision attendue : libérer 55 000 € de réserve de management, ou réduire encore le périmètre, au prochain COPIL. Statut : coûts rouge, délais orange."
+  }
+ ],
+ "interview": [
+  {
+   "q": "Expliquez la valeur acquise à un sponsor qui ne vient pas de la finance.",
+   "a": "Trois nombres à une date : ce que nous avions prévu d’avoir fait (VP), ce que nous avons vraiment fait valorisé à son budget (VA), et ce que cela a coûté (CR). Comparer VA et CR dit si nous dépensons trop pour le travail fait (IPC) ; comparer VA et VP dit si nous sommes en avance ou en retard (IPD). Exemple : 35 % d’un projet de 200 000 € fait, 84 000 € dépensés, le plan prévoyait 80 000 : nous avons acquis 70 000 € de travail pour 84 000 €, donc nous sommes en retard et en dépassement, et à ce rythme nous atterrissons vers 240 000 €."
+  },
+  {
+   "q": "Votre CPI est de 0,9 et votre SPI de 1,1. Que se passe-t-il et que faites-vous ?",
+   "a": "Nous sommes en avance mais chaque euro n’achète que 0,90 € de travail prévu. Causes typiques : heures supplémentaires, prestataires ajoutés ou profils chers mis pour aller plus vite. Je vérifie si cette accélération a été demandée et si elle en vaut la peine ; sinon je ramène la dépense au rythme du plan. Je vérifie aussi les règles d’avancement, car un SPI au-dessus de 1 vient parfois d’un avancement déclaré trop optimiste. Puis je calcule l’EAC et j’alerte le sponsor si le budget est menacé."
+  },
+  {
+   "q": "Quelle différence entre réserve pour aléas et réserve de management ?",
+   "a": "La réserve pour aléas couvre les risques identifiés du registre (inconnues connues), elle est dimensionnée à partir d’eux, par exemple probabilité × impact, fait partie de la référence de coûts et est pilotée par le chef de projet. La réserve de management couvre les événements que personne n’a identifiés (inconnues inconnues), elle est hors référence et libérée par le sponsor ou la direction via la maîtrise des modifications, qui met ensuite la référence à jour."
+  },
+  {
+   "q": "Comment construisez-vous un budget projet ?",
+   "a": "À partir du périmètre : un WBS jusqu’aux lots de travaux, estimés par ceux qui feront le travail (charge × taux chargé, plus achats et prestations), recoupé par une estimation par analogie ou paramétrique. J’écris les hypothèses et les exclusions, j’ajoute une réserve pour aléas tirée du registre des risques, je répartis par mois pour obtenir la courbe en S, je conviens avec le contrôle de gestion de ce qui est compté et de son codage (temps interne, capex / opex), et je le fais approuver comme référence de coûts. Le sponsor garde une réserve de management au-dessus."
+  },
+  {
+   "q": "Quelle formule d’EAC utilisez-vous ?",
+   "a": "Cela dépend de la cause. BAC / CPI quand l’efficacité actuelle va probablement continuer, le choix par défaut. AC + (BAC − EV) quand le dépassement était ponctuel. AC + (BAC − EV) / (CPI × SPI) quand nous sommes en retard, en dépassement et devons tenir une date. Et une réestimation ascendante du reste à faire quand les estimations initiales étaient fausses. Je présente une fourchette et je dis quelle base j’ai choisie et pourquoi."
+  },
+  {
+   "q": "Votre projet va dépasser de 15 %. Comment l’annoncez-vous au sponsor ?",
+   "a": "Dès que je le sais, pas au prochain jalon. Une page : la prévision et sa base, les causes chiffrées, ce que nous avons déjà fait, et deux ou trois options avec leur effet sur le coût, la date et le périmètre, avec ma recommandation. Je demande une décision avec une date. Le cacher ne ferait que retirer des options ; un sponsor pardonne une mauvaise nouvelle donnée tôt, pas une surprise."
+  },
+  {
+   "q": "Comment vous assurez-vous que le % d’avancement est honnête ?",
+   "a": "Je fixe dans le plan, avant le démarrage, des règles objectives : 0/100 pour les tâches courtes, 50/50 ou jalons pondérés pour les plus longues, ou des unités terminées comme les rapports migrés. Un travail compte comme fait quand il est accepté, pas quand l’effort est consommé. Je compare l’avancement déclaré aux livrables, et je surveille les tâches bloquées à 90 %."
+  },
+  {
+   "q": "Votre réalisé paraît bien plus bas que prévu ce mois-ci. Que vérifiez-vous ?",
+   "a": "Les charges à payer manquantes (travail livré dont la facture n’est pas arrivée), les temps non imputés ou imputés sur un autre code, les factures passées sur le mauvais projet, et la date d’arrêté. Je regarde aussi les engagements : l’argent peut être promis par des bons de commande même s’il n’est pas facturé. Ce n’est qu’ensuite que je crois que nous avons dépensé moins."
+  }
+ ]
+}

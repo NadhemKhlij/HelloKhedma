@@ -1,0 +1,859 @@
+{
+  "why": "Chaque budget sécurité, chaque plan d’audit et chaque contrat fournisseur part de la même question : quels risques comptent le plus, et que fait-on ? L’analyste GRC conduit les analyses de risques, fait vivre le registre des risques et transforme les constats techniques en décisions que la direction peut signer. C’est le cœur des missions ISO/IEC 27001, NIS2 et DORA, et les entretiens le testent sur des cas concrets.",
+  "outcome": "décrire un risque avec le bon vocabulaire, choisir et expliquer une méthode (ISO/IEC 27005, EBIOS Risk Manager, NIST SP 800-30, FAIR), coter et cartographier les risques sans fausse précision, tenir un registre des risques utile, proposer des traitements et calculer le risque résiduel, rendre compte par rapport à l’appétence au risque, évaluer les fournisseurs et mener un BIA avec RTO et RPO.",
+  "lessons": [
+    {
+      "title": "Le vocabulaire du risque : actif, menace, vulnérabilité, impact",
+      "text": [
+        "Un risque, c’est la possibilité qu’un événement porte atteinte à ce que l’organisation valorise. En sécurité de l’information, l’ISO/IEC 27000 définit le risque comme l’effet de l’incertitude sur les objectifs ; en pratique, on le décrit par un scénario : une menace exploite une vulnérabilité d’un actif, ce qui entraîne un impact. La vraisemblance dit à quel point le scénario est plausible ; l’impact (ou la gravité) dit à quel point il serait grave.",
+        "Un actif est tout ce qui a de la valeur : l’information (données clients, fichiers de paie, code source), les processus qui l’utilisent (paiements, paie) et les biens supports sur lesquels ils reposent (serveurs, applications, personnes, locaux, fournisseurs). Une menace est ce qui peut causer un dommage : un attaquant, un salarié négligent, une inondation, la défaillance d’un fournisseur. Une vulnérabilité est une faiblesse qu’une menace peut exploiter : un correctif manquant, un mot de passe administrateur partagé, l’absence de MFA, une salle serveurs en sous-sol. Une menace sans vulnérabilité, ou une vulnérabilité qu’aucune menace n’atteint, ne fait pas vraiment un risque.",
+        "Rédigez chaque risque en une phrase qu’un manager comprend : « Du fait de <cause ou vulnérabilité>, <menace> pourrait <événement>, entraînant <impact sur l’activité>. » Évitez les intitulés vagues comme « risque cyber » ou « RGPD » : on ne peut ni les coter, ni leur donner un propriétaire, ni les traiter. Un bon énoncé de risque nomme l’actif et la conséquence métier en euros, en jours d’arrêt, en nombre de personnes touchées ou en exposition juridique.",
+        "Le risque brut (ou inhérent) est le niveau de risque avant prise en compte des mesures de sécurité. Le risque résiduel est ce qui reste après les mesures en place, ou après le traitement prévu. Les organisations définissent ces termes un peu différemment (certaines ajoutent un « risque actuel » entre les deux) : vérifiez la méthodologie de l’entreprise et reprenez ses mots. L’écart entre risque brut et risque résiduel montre ce que valent les mesures, et lesquelles ne doivent pas tomber.",
+        "En entretien, on vous demande souvent de distinguer une menace d’une vulnérabilité, ou de transformer un constat technique en risque. Un constat de test d’intrusion comme « le boîtier VPN a deux ans de retard de correctifs » est une vulnérabilité ; le risque, c’est le scénario qu’elle permet, par exemple un rançongiciel qui entre par le VPN et arrête la production pendant une semaine."
+      ],
+      "points": [
+        "Risque = scénario : une menace exploite une vulnérabilité d’un actif et cause un impact.",
+        "Vraisemblance = à quel point c’est plausible ; impact = à quel point c’est grave (argent, arrêt, personnes, juridique).",
+        "Rédigez des énoncés : du fait de… pourrait… entraînant…",
+        "Risque brut = avant mesures ; risque résiduel = après mesures ou traitement.",
+        "Un constat (correctif manquant) est une vulnérabilité, pas encore un risque."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Asset          Customer database (CRM, 80,000 customer records)\nThreat         External attacker using stolen passwords\nVulnerability  No MFA on CRM administrator accounts\nEvent          Bulk export of customer data\nImpact         Personal data breach, notification, fines, lost customers\n\nRisk statement\n  Because CRM admin accounts have no MFA, an attacker with stolen\n  passwords could export customer data, leading to a notifiable\n  personal data breach and a loss of customer trust.\n\nInherent risk  Likelihood 4 x Impact 5 = 20\nResidual risk  Likelihood 2 x Impact 5 = 10   (after MFA + export alerts)",
+        "note": "La MFA réduit la vraisemblance, pas l’impact : si l’export a lieu malgré tout, le dommage est le même. C’est pourquoi l’impact reste à 5."
+      }
+    },
+    {
+      "title": "Les méthodes : ISO/IEC 27005, EBIOS RM, NIST SP 800-30 et FAIR",
+      "text": [
+        "L’ISO/IEC 27005 donne des lignes directrices pour la gestion des risques de sécurité de l’information et soutient l’appréciation et le traitement des risques exigés par l’ISO/IEC 27001 (clauses 6.1.2 et 6.1.3, puis 8.2 et 8.3). Elle suit le processus de l’ISO 31000 : établir le contexte et les critères de risque, identifier, analyser et évaluer les risques, les traiter, puis surveiller, revoir et communiquer. L’édition 2022 décrit deux approches d’identification : par événements (on part des sources de risque et des événements) et par actifs (on part des actifs, des menaces et des vulnérabilités).",
+        "EBIOS Risk Manager est la méthode française publiée par l’ANSSI, très utilisée dans le secteur public, chez les opérateurs de services essentiels et dans les grandes entreprises. Elle se déroule en cinq ateliers : cadrage et socle de sécurité, sources de risque (qui pourrait attaquer et pourquoi), scénarios stratégiques (les chemins d’attaque par l’écosystème, fournisseurs et partenaires compris), scénarios opérationnels (les étapes techniques de l’attaque) et traitement du risque. Sa force : penser comme un attaquant et intégrer l’écosystème ; elle utilise des échelles de gravité et de vraisemblance.",
+        "La NIST SP 800-30 Rev. 1, « Guide for Conducting Risk Assessments », est la référence américaine. Son processus compte quatre étapes : préparer l’analyse, la conduire (sources et événements de menace, vulnérabilités, vraisemblance, impact, risque), communiquer les résultats et maintenir l’analyse. Elle s’inscrit dans le Risk Management Framework du NIST et se rencontre souvent dans les entreprises liées aux États-Unis.",
+        "Ces méthodes sont surtout qualitatives : elles cotent vraisemblance et impact sur des échelles (faible à très élevé, ou 1 à 5). L’analyse quantitative exprime le risque en argent. Les formules classiques : l’espérance de perte unitaire SLE = valeur de l’actif × facteur d’exposition, et l’espérance de perte annuelle ALE = SLE × ARO (taux annuel d’occurrence). FAIR (Factor Analysis of Information Risk, standard de l’Open Group appelé Open FAIR) va plus loin : il estime la fréquence des événements de perte et l’ampleur des pertes sous forme de fourchettes, puis lance des simulations pour obtenir une distribution de la perte annuelle. Cela demande des données et du temps : on le réserve aux quelques risques où un chiffre en euros aide à décider, comme l’achat d’une cyberassurance ou le financement d’un gros projet.",
+        "Dans les faits, la plupart des entreprises utilisent une méthode maison simplifiée, inspirée de l’une d’elles. Ce que veulent les recruteurs : que vous sachiez les nommer correctement, expliquer leurs différences en une phrase chacune et dire laquelle vous utiliseriez : ISO/IEC 27005 pour un périmètre ISO 27001, EBIOS RM quand un régulateur ou un client français l’attend, FAIR quand la direction demande « combien pourrait-on perdre ? »."
+      ],
+      "points": [
+        "ISO/IEC 27005 : lignes directrices pour le processus de risque de l’ISO 27001, alignées sur l’ISO 31000.",
+        "EBIOS Risk Manager (ANSSI) : cinq ateliers, vision attaquant et écosystème.",
+        "NIST SP 800-30 Rev. 1 : préparer, conduire, communiquer, maintenir.",
+        "ALE = SLE × ARO ; SLE = valeur de l’actif × facteur d’exposition.",
+        "FAIR : quantitatif, fréquence et ampleur en fourchettes, pour les décisions qui ont besoin d’un montant."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "ISO/IEC 27005        ISO guidance for information security risk\n                     (the risk process behind ISO/IEC 27001 clauses 6.1.2 and 8.2)\nEBIOS Risk Manager   ANSSI method (France), 5 workshops:\n                       1 Scope and security baseline\n                       2 Risk origins\n                       3 Strategic scenarios\n                       4 Operational scenarios\n                       5 Risk treatment\nNIST SP 800-30 Rev.1 Prepare -> Conduct -> Communicate -> Maintain\nFAIR (Open FAIR)     Risk = loss event frequency x loss magnitude,\n                     as ranges in EUR per year (quantitative)",
+        "note": "Retenez une ligne par méthode ; en entretien, dites laquelle convient au contexte plutôt que laquelle est la meilleure. Les ateliers EBIOS RM : 1 cadrage et socle de sécurité, 2 sources de risque, 3 scénarios stratégiques, 4 scénarios opérationnels, 5 traitement du risque."
+      }
+    },
+    {
+      "title": "Coter les risques et la cartographie (heat map)",
+      "text": [
+        "Une échelle de cotation transforme des avis en nombres comparables. Le choix courant : 1 à 5 pour la vraisemblance et 1 à 5 pour l’impact, si bien que le score = vraisemblance × impact va de 1 à 25. Chaque niveau doit être défini avec des mots partagés par le métier : vraisemblance 4 = « probable : attendu une fois dans les 1 à 3 ans » ; impact 5 = « critique : perte supérieure à 5 M€, plus d’une semaine d’arrêt d’un processus critique, ou sanctions réglementaires ». Sans définitions, deux personnes cotent le même risque 2 et 4.",
+        "L’impact a en général plusieurs colonnes : financier, opérationnel (arrêt), juridique et réglementaire, image, humain (santé et sécurité). La règle : retenir la plus haute. Une fuite de données avec peu de coût direct mais une notification à la CNIL et des articles de presse reste un 4 ou un 5.",
+        "La cartographie (heat map) place les risques sur une grille, vraisemblance sur un axe et impact sur l’autre, colorée par zones, par exemple faible (1 à 4), moyen (5 à 9), élevé (10 à 16) et critique (20 à 25). Chaque zone a sa règle : qui doit être informé, en combien de temps traiter, qui peut accepter. Montrer deux cartes, brute et résiduelle, rend la valeur des mesures visible d’un coup d’œil.",
+        "Méfiez-vous de la fausse précision. Les scores sur des échelles ordinales sont des classements, pas des mesures : un 20 n’est pas exactement deux fois pire qu’un 10, et 5 × 4 et 4 × 5 donnent le même score à des risques très différents (fréquent et sérieux, ou rare et catastrophique). Ne faites pas de moyennes de scores, ne les additionnez pas en un « risque total » et n’affichez pas de décimales. Discutez des cas limites au lieu de les cacher derrière un nombre et, pour les grosses décisions, passez à des fourchettes en euros.",
+        "La cotation est un exercice collectif. Menez-la avec le propriétaire du risque, l’expert IT ou sécurité et quelqu’un qui connaît le processus métier ; notez la justification de chaque cote dans le registre (« vraisemblance 4 : deux incidents similaires dans le secteur l’an dernier, VPN toujours pas corrigé »). Le prochain relecteur, ou l’auditeur, demandera pourquoi."
+      ],
+      "points": [
+        "Définissez chaque niveau de chaque échelle en termes métier.",
+        "Impact : retenez le plus haut entre financier, opérationnel, juridique, image, humain.",
+        "Score = vraisemblance × impact, de 1 à 25 ; les zones disent qui agit et à quelle vitesse.",
+        "Les scores ordinaux classent les risques : pas de moyennes, pas de totaux, pas de décimales.",
+        "Notez la justification de chaque cote."
+      ],
+      "example": {
+        "lang": "excel",
+        "code": "D2  =B2*C2\nE2  =IF(D2>=20,\"Critical\",IF(D2>=10,\"High\",IF(D2>=5,\"Medium\",\"Low\")))\nH2  =COUNTIFS(E2:E40,\"Critical\")\nH3  =COUNTIFS(D2:D40,\">\"&$G$1,F2:F40,\"Open\")",
+        "note": "D2 le score, E2 la zone, H2 le nombre de risques critiques, H3 les risques ouverts au-dessus de l’appétence en G1. Le $ fige G1 quand on recopie la formule."
+      }
+    },
+    {
+      "title": "Le registre des risques",
+      "text": [
+        "Le registre des risques est la liste unique des risques de l’organisation, avec leurs scores, propriétaires et traitements. Ce peut être un tableur, un outil GRC (ServiceNow IRM, Archer, OneTrust et d’autres) ou une page du SMSI ; l’auditeur regarde moins l’outil que l’exhaustivité, la fraîcheur et l’usage du registre pour décider.",
+        "Champs habituels : identifiant, titre, énoncé du risque, catégorie (cyber, tiers, conformité, disponibilité…), actif ou processus, propriétaire du risque, vraisemblance, impact et score bruts, mesures existantes, vraisemblance, impact et score résiduels, décision de traitement, plan d’action avec responsable et échéance, score cible, statut, date de la dernière revue et de la prochaine. Reliez chaque risque à ses mesures et, pour l’ISO 27001, à la déclaration d’applicabilité (DdA, ou SoA).",
+        "Le propriétaire du risque est la personne qui en répond et qui a l’autorité pour décider : en général un responsable métier ou un directeur, pas le RSSI et pas l’analyste GRC. L’ISO/IEC 27001 demande d’identifier les propriétaires des risques et de leur faire approuver le plan de traitement et accepter les risques résiduels. L’analyste anime, challenge et tient le registre ; le propriétaire décide et rend des comptes.",
+        "La fréquence de revue dépend du niveau : risques critiques et élevés tous les mois ou tous les trimestres, les autres au moins une fois par an, et immédiatement en cas de changement (incident, nouveau système, nouveau fournisseur, nouvelle loi, constat d’audit). Un registre mis à jour seulement avant l’audit est un registre mort : l’auditeur le voit aux dates de revue et aux actions en retard depuis des mois.",
+        "Problèmes fréquents : des risques rédigés comme des mesures (« pas de SIEM »), le même scénario en doublon sous plusieurs noms, des propriétaires partis de l’entreprise, des actions sans date, des risques clos supprimés au lieu d’être archivés. Gardez l’historique : un risque qui passe de 16 à 8 après un projet est la meilleure preuve que la démarche fonctionne."
+      ],
+      "points": [
+        "Un seul registre : énoncé, propriétaire, scores brut et résiduel, mesures, décision, actions, dates.",
+        "Le propriétaire du risque est un responsable métier qui décide ; l’analyste anime.",
+        "Revue des risques élevés chaque mois ou trimestre, des autres chaque année, et après tout changement.",
+        "Archivez les risques clos ; gardez l’historique des scores."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "ID              R-07\nTitle           Payroll SaaS outage at month end\nRisk statement  Because payroll runs on one SaaS provider with no tested\n                fallback, an outage in the last 3 days of the month could\n                delay salaries for 1,200 staff (legal and social impact).\nCategory        Third party / availability\nProcess         Monthly payroll\nRisk owner      HR director\nInherent        L 3 x I 4 = 12   High\nControls        Provider SLA 99.5 %, payroll file exported on D-5\nResidual        L 2 x I 4 = 8    Medium\nDecision        Modify: manual fallback procedure, tested before 30 June\nAction owner    Payroll manager      Due 2026-06-30   Status: In progress\nLast review     2026-03-15           Next review: 2026-06-15 (quarterly)",
+        "note": "Le propriétaire est la DRH, qui porte l’impact métier ; le responsable paie réalise l’action."
+      }
+    },
+    {
+      "title": "Traiter les risques et accepter le risque résiduel",
+      "text": [
+        "L’ISO/IEC 27005 nomme quatre options de traitement : la réduction (ou modification) du risque, en agissant sur la vraisemblance ou l’impact avec des mesures ; le maintien (l’acceptation en connaissance de cause) ; le refus (ou évitement : arrêter l’activité ou la modifier pour que le risque disparaisse) ; le partage (avec un tiers, par une assurance ou un contrat). L’ISO 31000 décrit les mêmes choix plus en détail. Beaucoup de textes américains ou plus anciens disent mitigate, accept, avoid et transfer ; reprenez les mots de l’entreprise et connaissez les deux.",
+        "Partager ne supprime pas la responsabilité. Une cyberassurance paie une partie du coût d’un incident mais ne l’empêche pas, ne couvre pas toutes les pertes (les amendes sont souvent exclues ou non assurables) et ne protège pas l’image. Externaliser un service déplace l’exploitation, pas la responsabilité : avec le RGPD, le responsable de traitement reste responsable des données personnelles confiées à ses sous-traitants.",
+        "Pour réduire un risque, choisissez des mesures qui agissent sur le scénario : préventives pour baisser la vraisemblance (MFA, correctifs, segmentation réseau), détectives pour écourter l’attaque (alertes, supervision des journaux), correctives pour réduire l’impact (sauvegardes hors ligne, plan de reprise). L’annexe A de l’ISO/IEC 27001 liste 93 mesures dans son édition 2022, utiles comme liste de contrôle ; comparez le coût de chaque mesure au risque qu’elle retire.",
+        "Le risque résiduel est le nouveau score une fois les mesures efficaces. Certaines équipes recotent directement vraisemblance et impact ; d’autres utilisent une convention simple, comme résiduel = brut × (1 − efficacité des mesures) : un risque à 20 avec des mesures jugées efficaces à 60 % finit à 8. Dans tous les cas, fondez l’efficacité sur des preuves (tests, audits, historique d’incidents), pas sur l’existence de la mesure : une sauvegarde jamais restaurée n’est pas efficace à 90 %.",
+        "L’acceptation du risque est une décision formelle. Celui qui accepte doit avoir l’autorité pour ce niveau (souvent le propriétaire sous l’appétence, le comité de direction au-dessus), comprendre le scénario et le coût des options, et signer avec une date, des conditions et une date d’échéance, par exemple six mois ou jusqu’à une migration. Inscrivez-la au registre et revoyez-la avant l’échéance. L’ISO/IEC 27001 exige que les propriétaires des risques acceptent les risques résiduels."
+      ],
+      "points": [
+        "Quatre options : réduire (modifier), maintenir (accepter), refuser (éviter), partager (transférer).",
+        "L’assurance et l’externalisation partagent le coût, pas la responsabilité.",
+        "Choisissez les mesures sur le scénario : préventives, détectives, correctives.",
+        "Résiduel = brut × (1 − efficacité) est une convention parmi d’autres ; fondez l’efficacité sur des preuves.",
+        "Acceptation : bonne autorité, signature, conditions et date d’échéance."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "ISO 31000 / 27005   Common US wording   Example\nModify (reduce)     Mitigate            Enforce MFA, patch, segment the network\nRetain (accept)     Accept              Keep the old intranet until Q3 retirement\nAvoid               Avoid               Stop storing card numbers: use tokens\nShare               Transfer            Cyber insurance, contract with a provider\n\nResidual score = inherent score x (1 - control effectiveness)\n               = 20 x (1 - 0.6) = 8",
+        "note": "Les termes ISO (réduction, maintien, refus, partage) et les termes courants anglais (mitigate, accept, avoid, transfer) décrivent les mêmes quatre choix."
+      }
+    },
+    {
+      "title": "L’appétence au risque et le reporting à la direction",
+      "text": [
+        "L’appétence au risque (ou appétit pour le risque) est la quantité et le type de risque qu’une organisation est prête à prendre ou à conserver pour atteindre ses objectifs. Elle est fixée par la direction générale ou le conseil, et se traduit en règles que l’analyste peut appliquer : « aucun risque cyber résiduel au-dessus de 12 sans acceptation du comité de direction », « aucun fournisseur critique sans plan de sortie », « aucune donnée personnelle hors UE sans garanties approuvées ». La tolérance (ou les seuils) est l’écart acceptable autour, souvent suivi par des indicateurs clés de risque (KRI).",
+        "L’appétence varie selon les domaines. Une banque peut avoir une faible appétence pour le risque réglementaire et cyber et une plus forte pour tester de nouveaux produits ; une start-up peut accepter plus de risque de disponibilité sur ses outils internes que sur sa plateforme client. L’appétence fixe aussi l’autorité : en dessous, le propriétaire du risque peut accepter ; au-dessus, le risque monte au comité de direction avec des options.",
+        "Les KRI sont des signaux mesurables qu’un risque grandit : la part de vulnérabilités critiques non corrigées sous 30 jours, le nombre de comptes administrateurs sans MFA, la part de fournisseurs critiques non réévalués cette année, les tests de restauration échoués. Chaque KRI a des seuils (vert, orange, rouge) reliés à l’appétence, pour que le reporting montre les tendances avant qu’un incident ne le fasse.",
+        "La direction veut des décisions, pas un registre de 300 lignes. Un bon reporting tient en une ou deux pages : les principaux risques avec score résiduel, tendance et position par rapport à l’appétence ; ce qui a changé depuis la dernière fois ; les actions en retard ; les acceptations qui arrivent à échéance ; et les décisions demandées au lecteur, avec options et coûts. Une seule cartographie, un langage métier simple partout, et le même format chaque trimestre pour lire facilement les tendances.",
+        "Pour le conseil ou le comité d’audit, reliez les risques aux objectifs qu’ils menacent et aux réglementations qui engagent la direction : NIS2 demande aux organes de direction des entités essentielles et importantes d’approuver les mesures de gestion des risques cyber et de suivre une formation, et DORA donne à l’organe de direction des entités financières la responsabilité ultime du risque informatique (risque lié aux TIC)."
+      ],
+      "points": [
+        "Appétence : le niveau de risque que la direction accepte, écrit sous forme de règles.",
+        "Sous l’appétence, le propriétaire décide ; au-dessus, on remonte avec des options.",
+        "Des KRI avec seuils montrent un risque qui grandit avant l’incident.",
+        "Reporting : principaux risques, tendance, appétence, actions en retard, acceptations à échéance, décisions demandées.",
+        "NIS2 et DORA mettent le risque cyber sur le bureau de la direction."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Top risks - Q2 report to the risk committee\nID    Risk                        Residual  Trend  Appetite (12)  Action\nR-12  Ransomware on plants        16        =      above          EDR rollout 70 %, due Sept\nR-21  Privileged access misuse    15        up     above          PAM project delayed\nR-07  Payroll SaaS outage          8        down   within         Fallback tested 2 June\nOverdue actions: 3 of 41     Acceptances expiring this quarter: 2\nDecision asked: fund the PAM project, or accept R-21 formally until Q4",
+        "note": "Terminez chaque reporting par la décision attendue ; un reporting sans demande est lu puis oublié."
+      }
+    },
+    {
+      "title": "Le risque tiers et fournisseurs",
+      "text": [
+        "Les fournisseurs détiennent des données, exploitent des services et se connectent aux réseaux : leurs faiblesses deviennent les vôtres, et beaucoup de grands incidents ont commencé chez un prestataire. La gestion des risques tiers (TPRM) couvre toute la vie de la relation : inventaire et classement, diligences avant signature, clauses contractuelles, suivi pendant le contrat et sortie propre.",
+        "Commencez par un inventaire et classez les fournisseurs par niveau (tiering) selon leur risque brut : quelles données ils voient (personnelles, financières, de santé), la criticité du service, leurs accès réseau et la difficulté à les remplacer. Un SaaS de paie avec toutes les données des salariés est de niveau 1 ; un imprimeur sans données est de niveau 3. Le niveau fixe la profondeur des contrôles, car aucune équipe ne peut évaluer 800 fournisseurs en détail.",
+        "Les diligences combinent un questionnaire et des preuves. Les bases de questionnaire courantes sont le SIG de Shared Assessments et le CAIQ de la Cloud Security Alliance ; en France, on ajoute souvent au contrat un plan d’assurance sécurité (PAS). Les preuves pèsent plus que les réponses : un rapport SOC 2 Type II (l’opinion d’un auditeur sur l’efficacité des contrôles sur une période, souvent 6 à 12 mois, alors que le Type I ne couvre que leur conception à une date) ou un certificat ISO/IEC 27001. Vérifiez le périmètre (couvre-t-il le service acheté ?), les dates, les exceptions du rapport SOC 2 et les contrôles complémentaires laissés au client (CUEC).",
+        "Les clauses du contrat transforment les attentes en obligations : exigences de sécurité, notification des incidents dans un délai fixé, droit d’audit, liste et approbation des sous-traitants (les « quatrièmes parties »), localisation des données, engagements de sauvegarde et de continuité, SLA, et clause de réversibilité avec restitution et suppression des données. Pour les données personnelles, l’article 28 du RGPD fixe le contenu du contrat de sous-traitance ; les entités financières soumises à DORA doivent en plus tenir un registre d’informations sur tous leurs accords avec des prestataires de services TIC.",
+        "Le suivi continue après la signature : réévaluez chaque année les fournisseurs de niveau 1, suivez l’échéance des certificats et les nouveaux rapports SOC 2, surveillez les fuites dans l’actualité et les notations de sécurité si l’entreprise en utilise, et revoyez le fournisseur après tout incident. Regardez aussi le risque de concentration : quand beaucoup de services critiques dépendent d’un même cloud ou d’un même éditeur, une seule panne les arrête tous, et le plan de sortie devient une vraie exigence."
+      ],
+      "points": [
+        "Classez les fournisseurs selon les données, la criticité, les accès et la substituabilité.",
+        "Questionnaire (SIG, CAIQ) + preuves : SOC 2 Type II, certificat ISO 27001, périmètre vérifié.",
+        "Contrat : sécurité, notification d’incident, droit d’audit, sous-traitants, réversibilité ; article 28 du RGPD pour les sous-traitants.",
+        "Suivi continu ; réévaluation annuelle du niveau 1.",
+        "Risque de concentration : trop de services critiques chez un seul prestataire."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Tier 1  critical service, or sensitive data at scale\n        questionnaire (SIG or CAIQ based) + evidence: SOC 2 Type II report\n        or ISO/IEC 27001 certificate (check the scope), pen test summary,\n        BCP test results; security clauses in the contract;\n        reassessed every year, monitored continuously\nTier 2  some personal data, or a service that is useful but replaceable\n        short questionnaire + certificate, reassessed every 2 years\nTier 3  no data, no access, easy to replace\n        basic checks (company, sanctions, standard terms)",
+        "note": "La profondeur des contrôles suit le niveau : concentrez l’effort là où sont les données et la dépendance."
+      }
+    },
+    {
+      "title": "Continuité d’activité et résilience",
+      "text": [
+        "La continuité d’activité maintient les activités critiques, à un niveau acceptable, pendant et après une perturbation : rançongiciel, incendie de datacenter, défaillance d’un fournisseur, pandémie. L’ISO 22301 fixe les exigences d’un système de management de la continuité d’activité (SMCA), et les réglementations de résilience (NIS2, DORA pour la finance) demandent des plans de continuité et de reprise testés.",
+        "Le bilan d’impact sur l’activité (BIA) vient en premier. Pour chaque activité, il demande ce qui se passe dans le temps si elle s’arrête : après 4 heures, 1 jour, 1 semaine, en argent, exposition juridique, clients et sécurité des personnes. On en tire la durée maximale d’interruption tolérable (MTPD, au-delà de laquelle l’impact devient inacceptable), l’objectif de temps de reprise (RTO, en combien de temps l’activité ou le système doit revenir, plus court que la MTPD) et l’objectif de point de reprise (RPO, combien de données, mesurées en temps, on peut perdre). Le BIA liste aussi les dépendances : systèmes, personnes, sites, fournisseurs. En France, on parle souvent de DMIA (durée maximale d’interruption admissible) et de PDMA (perte de données maximale admissible).",
+        "RTO et RPO guident les choix techniques. Un RPO de 24 heures permet des sauvegardes nocturnes ; un RPO proche de zéro exige de la réplication. Un RTO de 2 heures demande un système de secours prêt à basculer ; un RTO de 3 jours peut accepter une reconstruction depuis les sauvegardes. Des objectifs plus serrés coûtent plus cher : le métier doit les justifier par le BIA, pas demander « zéro » partout.",
+        "Le plan de continuité d’activité (PCA, BCP en anglais) dit comment le métier continue de travailler : solutions de contournement, sites de repli, procédures manuelles, cellule de crise et communication. Le plan de reprise d’activité (PRA, DRP en anglais) dit comment l’IT restaure les systèmes et les données. Le plan de gestion de crise chapeaute les deux : qui décide, qui parle aux salariés, aux clients, aux autorités et à la presse.",
+        "Un plan non testé est un espoir. Testez-le à plusieurs niveaux : relecture du document, exercice sur table autour d’un scénario (par exemple un rançongiciel un vendredi soir), tests techniques comme la restauration des sauvegardes et la bascule sur le site de secours, et de temps en temps un exercice grandeur nature. Comparez le temps de reprise mesuré au RTO, inscrivez les écarts en actions et mettez le plan à jour après chaque test, incident et changement majeur."
+      ],
+      "points": [
+        "Le BIA d’abord : impact dans le temps, MTPD, RTO, RPO, dépendances.",
+        "RTO = en combien de temps on revient ; RPO = combien de données perdues, en temps.",
+        "Le PCA fait tourner le métier ; le PRA restaure l’IT ; la gestion de crise décide et communique.",
+        "L’ISO 22301 fixe les exigences d’un système de management de la continuité d’activité.",
+        "Testez (exercice sur table, restauration, bascule), comparez au RTO, corrigez les écarts."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Process         MTPD     RTO      RPO      Depends on\nCard payments   4 h      2 h      0        payment gateway, order DB, network\nPayroll         3 days   1 day    24 h     payroll SaaS, HR file share\nIntranet        1 week   3 days   24 h     web server, CMS database\n\nChecks: RTO < MTPD for every process\n        backup or replication frequency meets the RPO\n        recovery time measured in the last test <= RTO",
+        "note": "Les paiements par carte exigent de la réplication (RPO 0) et une passerelle de secours (RTO 2 h) ; la paie peut repartir d’une sauvegarde quotidienne en une journée."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Vocabulaire",
+      "items": [
+        [
+          "Actif",
+          "Tout ce qui a de la valeur : informations, processus et les systèmes, personnes et fournisseurs dont ils dépendent"
+        ],
+        [
+          "Menace",
+          "Ce qui peut causer un dommage : attaquant, erreur, inondation, défaillance d’un fournisseur"
+        ],
+        [
+          "Vulnérabilité",
+          "Une faiblesse qu’une menace peut exploiter : correctif manquant, pas de MFA, mot de passe partagé"
+        ],
+        [
+          "Vraisemblance",
+          "À quel point le scénario de risque est plausible"
+        ],
+        [
+          "Impact",
+          "La gravité des conséquences : argent, arrêt, juridique, image, personnes"
+        ],
+        [
+          "Risque brut",
+          "Niveau de risque avant prise en compte des mesures"
+        ],
+        [
+          "Risque résiduel",
+          "Niveau de risque qui reste après les mesures ou le traitement"
+        ],
+        [
+          "Énoncé de risque",
+          "Du fait de… une menace pourrait… entraînant…"
+        ]
+      ]
+    },
+    {
+      "group": "Méthodes",
+      "items": [
+        [
+          "ISO/IEC 27005",
+          "Lignes directrices de gestion des risques de sécurité de l’information, derrière le processus de risque de l’ISO 27001"
+        ],
+        [
+          "ISO 31000",
+          "Lignes directrices générales de management du risque : contexte, appréciation, traitement, surveillance, communication"
+        ],
+        [
+          "EBIOS Risk Manager",
+          "Méthode de l’ANSSI en cinq ateliers, vision attaquant et écosystème"
+        ],
+        [
+          "NIST SP 800-30",
+          "Guide américain de conduite des analyses de risques : préparer, conduire, communiquer, maintenir"
+        ],
+        [
+          "FAIR",
+          "Méthode quantitative : fréquence et ampleur des pertes en fourchettes"
+        ],
+        [
+          "SLE = valeur de l’actif × facteur d’exposition",
+          "Espérance de perte unitaire : le coût d’une occurrence"
+        ],
+        [
+          "ALE = SLE × ARO",
+          "Espérance de perte annuelle : SLE × taux annuel d’occurrence"
+        ]
+      ]
+    },
+    {
+      "group": "Cotation et registre",
+      "items": [
+        [
+          "Score = vraisemblance × impact",
+          "De 1 à 25 sur deux échelles de 1 à 5"
+        ],
+        [
+          "Cartographie (heat map)",
+          "Grille vraisemblance × impact colorée par zones"
+        ],
+        [
+          "Fausse précision",
+          "Traiter des scores ordinaux comme des mesures : moyennes, totaux, décimales"
+        ],
+        [
+          "Registre des risques",
+          "Liste unique des risques avec propriétaires, scores, mesures, décisions et actions"
+        ],
+        [
+          "Propriétaire du risque",
+          "Responsable métier qui répond du risque et peut décider"
+        ],
+        [
+          "Fréquence de revue",
+          "Risques élevés chaque mois ou trimestre, autres chaque année, et après tout changement"
+        ]
+      ]
+    },
+    {
+      "group": "Traitement et appétence",
+      "items": [
+        [
+          "Réduire (modifier, mitigate)",
+          "Ajouter ou renforcer des mesures pour baisser vraisemblance ou impact"
+        ],
+        [
+          "Maintenir (accepter)",
+          "Garder le risque en connaissance de cause, avec une décision signée"
+        ],
+        [
+          "Refuser (éviter)",
+          "Arrêter ou modifier l’activité pour que le risque disparaisse"
+        ],
+        [
+          "Partager (transférer)",
+          "Assurance ou contrat ; la responsabilité reste"
+        ],
+        [
+          "Résiduel = brut × (1 − efficacité des mesures)",
+          "Une convention courante de calcul du résiduel"
+        ],
+        [
+          "Acceptation du risque",
+          "Signée par la bonne autorité, avec conditions et date d’échéance"
+        ],
+        [
+          "Appétence au risque",
+          "Le niveau de risque que la direction est prête à prendre, écrit en règles"
+        ],
+        [
+          "KRI",
+          "Indicateur clé de risque avec seuils, qui montre un risque qui grandit"
+        ]
+      ]
+    },
+    {
+      "group": "Tiers",
+      "items": [
+        [
+          "Classement par niveau (tiering)",
+          "Classer les fournisseurs selon données, criticité, accès et substituabilité"
+        ],
+        [
+          "Diligences (due diligence)",
+          "Contrôles avant signature : questionnaire, preuves, revue du contrat"
+        ],
+        [
+          "SOC 2 Type II",
+          "Rapport d’auditeur sur le fonctionnement des contrôles sur une période"
+        ],
+        [
+          "Certificat ISO 27001",
+          "SMSI certifié : vérifier le périmètre et les dates"
+        ],
+        [
+          "Droit d’audit",
+          "Clause qui permet au client d’auditer le fournisseur"
+        ],
+        [
+          "Quatrième partie",
+          "Le sous-traitant d’un fournisseur"
+        ],
+        [
+          "Risque de concentration",
+          "Beaucoup de services critiques qui dépendent d’un seul prestataire"
+        ]
+      ]
+    },
+    {
+      "group": "Continuité",
+      "items": [
+        [
+          "BIA",
+          "Bilan d’impact sur l’activité : impact dans le temps, objectifs, dépendances"
+        ],
+        [
+          "MTPD (DMIA)",
+          "Durée maximale d’interruption tolérable"
+        ],
+        [
+          "RTO",
+          "Objectif de temps de reprise : en combien de temps l’activité ou le système doit revenir"
+        ],
+        [
+          "RPO (PDMA)",
+          "Objectif de point de reprise : perte de données maximale, mesurée en temps"
+        ],
+        [
+          "PCA (BCP)",
+          "Plan de continuité d’activité : faire continuer le métier"
+        ],
+        [
+          "PRA (DRP)",
+          "Plan de reprise d’activité : restaurer les systèmes et les données"
+        ],
+        [
+          "ISO 22301",
+          "Exigences d’un système de management de la continuité d’activité"
+        ],
+        [
+          "Exercice sur table",
+          "L’équipe déroule un scénario autour d’une table"
+        ]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Des risques vagues comme « cyberattaque » ou « RGPD », impossibles à coter, à attribuer ou à traiter : écrivez un scénario avec un impact métier.",
+    "Des échelles sans définitions : chaque atelier cote le même risque différemment.",
+    "Faire des moyennes ou des sommes de scores ordinaux, ou afficher des décimales : une fausse précision qui masque la vraie discussion.",
+    "Faire du RSSI ou de l’analyste GRC le propriétaire de tous les risques : c’est le responsable métier qui décide et accepte.",
+    "Considérer une mesure comme efficace parce qu’elle existe, sans test ni preuve.",
+    "Accepter un risque élevé par e-mail, sans la bonne autorité, sans conditions ni date d’échéance.",
+    "Se fier au certificat ISO 27001 ou au rapport SOC 2 d’un fournisseur sans vérifier son périmètre, ses dates et ses exceptions."
+  ],
+  "exercises": [
+    {
+      "q": "En D2, le score brut du risque rançongiciel (vraisemblance × impact).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Risk",
+          "Likelihood (1-5)",
+          "Impact (1-5)",
+          "Inherent score"
+        ],
+        [
+          "Ransomware on file servers",
+          4,
+          5,
+          ""
+        ],
+        [
+          "Laptop theft",
+          3,
+          2,
+          ""
+        ],
+        [
+          "Payroll SaaS outage",
+          2,
+          4,
+          ""
+        ]
+      ],
+      "cell": "D2",
+      "answer": "=B2*C2",
+      "hint": "Score = vraisemblance × impact. Utilisez les cellules.",
+      "explain": "4 × 5 = 20, un risque critique sur une échelle de 1 à 25. Recopiée vers le bas, la formule donne 6 pour le vol d’ordinateur portable et 8 pour la panne du SaaS de paie."
+    },
+    {
+      "q": "En E2, le score résiduel du risque rançongiciel, avec résiduel = brut × (1 − efficacité des mesures).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Risk",
+          "Inherent score",
+          "Control",
+          "Control effectiveness",
+          "Residual score"
+        ],
+        [
+          "Ransomware on file servers",
+          20,
+          "Offline backups + EDR",
+          0.6,
+          ""
+        ],
+        [
+          "Laptop theft",
+          6,
+          "Disk encryption",
+          0.5,
+          ""
+        ],
+        [
+          "Payroll SaaS outage",
+          8,
+          "Manual fallback",
+          0.25,
+          ""
+        ]
+      ],
+      "cell": "E2",
+      "answer": "=B2*(1-D2)",
+      "hint": "Multipliez le score brut par la part que la mesure ne retire pas.",
+      "explain": "20 × (1 − 0,6) = 8. C’est une convention parmi d’autres : le taux d’efficacité doit venir de tests et de preuves, pas de la seule existence de la mesure."
+    },
+    {
+      "q": "L’appétence est en F2. En G2, comptez les risques encore ouverts (Open) dont le score résiduel dépasse l’appétence.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Risk ID",
+          "Risk",
+          "Owner",
+          "Residual score",
+          "Status",
+          "Appetite",
+          "Open above appetite"
+        ],
+        [
+          "R-01",
+          "Ransomware",
+          "CIO",
+          8,
+          "Open",
+          12,
+          ""
+        ],
+        [
+          "R-02",
+          "Payroll SaaS outage",
+          "HR director",
+          16,
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "R-03",
+          "Laptop theft",
+          "IT manager",
+          6,
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "R-04",
+          "Phishing of finance staff",
+          "CFO",
+          15,
+          "Closed",
+          "",
+          ""
+        ],
+        [
+          "R-05",
+          "Data centre fire",
+          "CIO",
+          10,
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "R-06",
+          "Privileged access misuse",
+          "CISO",
+          20,
+          "Open",
+          "",
+          ""
+        ]
+      ],
+      "cell": "G2",
+      "answer": "=COUNTIFS(D2:D7,\">\"&F2,E2:E7,\"Open\")",
+      "hint": "COUNTIFS (NB.SI.ENS) avec deux critères : \">\"&F2 sur les scores et \"Open\" sur le statut.",
+      "explain": "R-02 (16) et R-06 (20) sont ouverts et au-dessus de 12 ; R-04 (15) est au-dessus mais clos. Réponse : 2. Construire le critère avec \">\"&F2 garde le bon compte quand l’appétence change."
+    },
+    {
+      "q": "En E2, l’espérance de perte annuelle du scénario rançongiciel (ALE = valeur de l’actif × facteur d’exposition × ARO).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Scenario",
+          "Asset value (EUR)",
+          "Exposure factor",
+          "ARO (per year)",
+          "ALE (EUR)"
+        ],
+        [
+          "Ransomware on file servers",
+          2000000,
+          0.25,
+          0.2,
+          ""
+        ],
+        [
+          "Laptop theft",
+          1500,
+          1,
+          6,
+          ""
+        ]
+      ],
+      "cell": "E2",
+      "answer": "=B2*C2*D2",
+      "hint": "SLE = valeur de l’actif × facteur d’exposition ; ALE = SLE × ARO.",
+      "explain": "SLE = 2 000 000 × 0,25 = 500 000 € par occurrence ; ALE = 500 000 × 0,2 = 100 000 € par an. Comparez-la au coût annuel d’une mesure : une mesure à 40 000 € par an qui divise l’ARO par deux économise 50 000 € par an."
+    },
+    {
+      "q": "En F2, le nom du fournisseur au score de risque le plus élevé, avec INDEX et MATCH (EQUIV).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Supplier",
+          "Criticality (1-5)",
+          "Security gaps (1-5)",
+          "Risk score",
+          "",
+          "Highest risk"
+        ],
+        [
+          "CloudPay",
+          5,
+          2,
+          10,
+          "",
+          ""
+        ],
+        [
+          "HR-Soft",
+          4,
+          4,
+          16,
+          "",
+          ""
+        ],
+        [
+          "PrintCo",
+          1,
+          3,
+          3,
+          "",
+          ""
+        ],
+        [
+          "DataHost",
+          5,
+          3,
+          15,
+          "",
+          ""
+        ],
+        [
+          "MailRelay",
+          3,
+          2,
+          6,
+          "",
+          ""
+        ]
+      ],
+      "cell": "F2",
+      "answer": "=INDEX(A2:A6,MATCH(MAX(D2:D6),D2:D6,0))",
+      "hint": "MATCH(MAX(D2:D6),D2:D6,0) trouve la ligne du score maximal ; INDEX renvoie le nom de la colonne A.",
+      "explain": "Le score maximal est 16, la réponse est donc HR-Soft. XLOOKUP(MAX(D2:D6),D2:D6,A2:A6) fonctionne aussi. En cas d’égalité, MATCH renvoie la première : vérifiez les ex æquo avant d’annoncer un seul nom."
+    },
+    {
+      "q": "En D2, écrivez \"OK\" si le temps de reprise testé respecte le RTO, sinon \"Gap\".",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "System",
+          "RTO (hours)",
+          "Tested recovery time (hours)",
+          "Result"
+        ],
+        [
+          "Payment gateway",
+          4,
+          6,
+          ""
+        ],
+        [
+          "HR portal",
+          24,
+          10,
+          ""
+        ],
+        [
+          "E-mail",
+          8,
+          5,
+          ""
+        ]
+      ],
+      "cell": "D2",
+      "answer": "=IF(C2<=B2,\"OK\",\"Gap\")",
+      "hint": "IF(test <= RTO, \"OK\", \"Gap\") (SI en français).",
+      "explain": "La passerelle de paiement a mis 6 heures à revenir pour un RTO de 4 : Gap. Chaque écart devient une action (système de secours, bascule automatique) ou une décision métier de changer le RTO, appuyée sur le BIA."
+    },
+    {
+      "q": "Associez chaque option de traitement à un exemple.",
+      "type": "match",
+      "pairs": [
+        [
+          "Réduire (modifier)",
+          "Imposer la MFA sur tous les accès distants"
+        ],
+        [
+          "Maintenir (accepter)",
+          "Garder l’ancien intranet sans correctifs jusqu’à son retrait dans 3 mois, avec la signature de son propriétaire"
+        ],
+        [
+          "Refuser (éviter)",
+          "Renoncer à stocker les numéros de carte et utiliser les jetons du prestataire de paiement"
+        ],
+        [
+          "Partager (transférer)",
+          "Souscrire une cyberassurance qui couvre les frais de réponse à incident"
+        ]
+      ],
+      "answer": "Réduire agit sur la vraisemblance ou l’impact avec des mesures ; maintenir est une décision signée de garder le risque ; refuser supprime l’activité qui le crée ; partager transfère une partie du coût à un assureur ou par contrat, pas la responsabilité."
+    },
+    {
+      "q": "Classez ces éléments entre menaces et vulnérabilités.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Menace",
+          "items": [
+            "Groupe de rançongiciel",
+            "Administrateur mécontent",
+            "Crue de la rivière",
+            "Campagne d’hameçonnage"
+          ]
+        },
+        {
+          "name": "Vulnérabilité",
+          "items": [
+            "Boîtier VPN non corrigé",
+            "Mot de passe administrateur partagé",
+            "Sauvegardes sur le même réseau que les serveurs",
+            "Salle serveurs en sous-sol"
+          ]
+        }
+      ],
+      "answer": "Une menace est ce qui peut causer un dommage ; une vulnérabilité est la faiblesse qu’elle exploite. La crue est la menace ; la salle serveurs en sous-sol est la faiblesse qui en fait un risque."
+    },
+    {
+      "q": "Remettez dans l’ordre le processus de management du risque (ISO 31000 / ISO 27005).",
+      "type": "order",
+      "steps": [
+        "Établir le contexte et les critères de risque",
+        "Identifier les risques",
+        "Analyser les risques (vraisemblance et impact)",
+        "Évaluer les risques au regard des critères",
+        "Traiter les risques",
+        "Surveiller et revoir"
+      ],
+      "answer": "Le contexte et les critères d’abord, sinon les scores ne veulent rien dire. Identification, analyse et évaluation forment l’appréciation des risques ; le traitement suit ; la surveillance et la communication courent tout du long et lancent le cycle suivant."
+    },
+    {
+      "q": "Le directeur commercial est propriétaire du risque R-31 : le portail client tourne sur un framework qui n’est plus maintenu (score résiduel 20, appétence 12). La correction coûte 80 000 € et il veut accepter le risque.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Que faites-vous d’abord ?",
+          "choices": [
+            {
+              "label": "Vérifier qui peut accepter un risque de ce niveau selon la politique, et m’assurer qu’il comprend le scénario et son impact",
+              "best": true,
+              "feedback": "Une acceptation n’est valable que par la bonne autorité et avec un propriétaire informé."
+            },
+            {
+              "label": "Inscrire l’acceptation au registre : c’est son risque",
+              "feedback": "Il est propriétaire du risque, mais un risque au-dessus de l’appétence demande en général une autorité plus haute pour être accepté."
+            },
+            {
+              "label": "Refuser : un risque élevé ne peut jamais être accepté",
+              "feedback": "Accepter un risque élevé est possible au bon niveau. La GRC conseille et fait remonter ; elle n’a pas de droit de veto sur les décisions métier."
+            }
+          ]
+        },
+        {
+          "text": "La politique prévoit que les risques au-dessus de 12 sont acceptés par le comité de direction. Ensuite ?",
+          "choices": [
+            {
+              "label": "Préparer une courte note de décision : scénario, score, options chiffrées (par exemple un WAF et un isolement tout de suite pour 15 000 €, la migration l’an prochain), l’avis du propriétaire et une date d’échéance",
+              "best": true,
+              "feedback": "Le comité ne peut trancher qu’entre des options claires et chiffrées."
+            },
+            {
+              "label": "Écrire au PDG que le directeur commercial prend des risques dangereux",
+              "feedback": "Cela abîme la relation et n’apporte aucune option : remonter un risque est un processus, pas une plainte."
+            }
+          ]
+        },
+        {
+          "text": "Le comité accepte le risque pour 6 mois, à condition de déployer le WAF. Que consignez-vous ?",
+          "choices": [
+            {
+              "label": "L’acceptation au registre : signataire, date, conditions, date d’échéance et revue ; le WAF comme action suivie",
+              "best": true,
+              "feedback": "Un risque accepté reste ouvert et est revu avant l’échéance de l’acceptation."
+            },
+            {
+              "label": "Clore le risque : il a été accepté",
+              "feedback": "Un risque accepté existe toujours ; le clore le cache aux revues suivantes."
+            }
+          ]
+        }
+      ],
+      "answer": "Vérifier l’autorité, informer le propriétaire, remonter au-dessus de l’appétence avec des options chiffrées, puis consigner une acceptation signée avec conditions et date d’échéance. Le risque reste au registre et est revu."
+    },
+    {
+      "q": "La base des commandes est sauvegardée chaque nuit à 01:00, sans rien d’autre. Elle tombe en panne à 17:00 et on la restaure depuis la dernière sauvegarde. Quel est le principal problème ?",
+      "type": "choice",
+      "options": [
+        "Jusqu’à 16 heures de commandes perdues : le RPO est trop long pour ce processus",
+        "La restauration prend 16 heures : le RTO n’est pas tenu",
+        "Aucun : des sauvegardes nocturnes respectent n’importe quel RPO",
+        "La MTPD est dépassée par définition"
+      ],
+      "correct": 0,
+      "answer": "Le RPO mesure les données perdues, en temps, depuis la dernière copie saine : ici 16 heures de commandes. Le RTO concerne la durée de la restauration, que l’énoncé ne donne pas. Un RPO plus court demande des sauvegardes plus fréquentes ou de la réplication."
+    },
+    {
+      "q": "Le vol d’un ordinateur portable non chiffré coûte 50 000 € par incident (SLE) et arrive 0,2 fois par an (ARO). Quelle est l’ALE, en euros par an ?",
+      "type": "fill",
+      "blanks": [
+        [
+          "10000",
+          "10 000",
+          "10 000 €",
+          "10000 €",
+          "10 000 euros",
+          "10000 euros",
+          "10,000",
+          "10k",
+          "10 k",
+          "10 k€",
+          "10k€",
+          "10 000 EUR"
+        ]
+      ],
+      "answer": "ALE = SLE × ARO = 50 000 × 0,2 = 10 000 € par an. Un chiffrement de disque sur 300 portables qui coûte moins que cela par an se rembourse sur ce seul risque."
+    },
+    {
+      "q": "Une petite boutique en ligne (25 salariés, paiements par carte via un prestataire de paiement, comptes clients, logiciel d’entrepôt dans le cloud) vous demande son premier registre des risques. Rédigez trois entrées : énoncé du risque, propriétaire, score brut, mesures, score résiduel et décision.",
+      "answer": "1) Du fait de l’absence de MFA sur la messagerie et d’un hameçonnage fréquent, un attaquant pourrait prendre le compte administrateur de la plateforme e-commerce et voler les données clients, entraînant une violation de données au sens du RGPD et des ventes perdues. Propriétaire : le gérant. Brut V4 × I4 = 16. Mesures : MFA sur la messagerie et l’administration de la boutique, sensibilisation à l’hameçonnage. Résiduel V2 × I4 = 8. Décision : réduire, MFA sous un mois. 2) Du fait d’un logiciel d’entrepôt chez un seul fournisseur cloud sans sortie ni export testés, une panne de plus de deux jours pourrait arrêter les expéditions en haute saison, entraînant des commandes annulées. Propriétaire : le responsable des opérations. Brut V3 × I4 = 12. Mesures : SLA, export quotidien des données, procédure de préparation manuelle. Résiduel V2 × I3 = 6. Décision : réduire, puis partager une partie du coût par contrat (pénalités de service). 3) Du fait d’un serveur de la boutique en retard de deux versions de correctifs, un rançongiciel pourrait chiffrer le site et sa base, entraînant plusieurs jours d’arrêt. Propriétaire : le CTO ou responsable informatique. Brut V4 × I5 = 20. Mesures : correctifs mensuels, sauvegardes hors ligne restaurées chaque trimestre, EDR. Résiduel V2 × I4 = 8. Décision : réduire ; si les correctifs ne peuvent pas suivre, accepter pour une durée limitée avec la signature du gérant et une date d’échéance. Chaque entrée nomme un propriétaire métier, une action datée et une prochaine revue."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Comment mèneriez-vous l’analyse de risques d’une nouvelle application ?",
+      "a": "Je cadre d’abord le périmètre et les critères : les processus et données que l’application porte, les échelles et l’appétence. Avec le propriétaire métier et l’équipe technique, j’identifie les actifs, les menaces et les vulnérabilités, hébergeur et interfaces compris, et je rédige chaque risque comme un scénario avec un impact métier. Nous cotons vraisemblance et impact avec les échelles définies en notant les justifications, comparons à l’appétence et convenons des traitements avec responsables et échéances. Les résultats vont au registre, les risques résiduels sont acceptés par la bonne personne, et je prévois une revue avant la mise en production et après tout changement majeur."
+    },
+    {
+      "q": "Quelle différence entre risque brut et risque résiduel, et pourquoi suivre les deux ?",
+      "a": "Le risque brut est le niveau avant prise en compte des mesures ; le risque résiduel est ce qui reste avec les mesures en place ou après traitement. C’est le résiduel que la direction accepte. Le brut montre ce qui dépend des mesures : un risque qui passe de 20 à 6 signifie que ces mesures sont critiques et doivent être testées et surveillées, car si elles tombent, le risque revient à 20."
+    },
+    {
+      "q": "Quelle méthode d’analyse de risques utiliseriez-vous, et pourquoi ?",
+      "a": "Cela dépend du contexte. Pour un périmètre ISO/IEC 27001, une démarche alignée sur l’ISO/IEC 27005 et l’ISO 31000. Si un régulateur français ou un client public l’attend, EBIOS Risk Manager, qui marche aussi très bien pour les scénarios d’attaque passant par les fournisseurs. Dans une entreprise tournée vers les États-Unis, la NIST SP 800-30. Quand la direction a besoin d’un montant, par exemple pour dimensionner une cyberassurance, une analyse quantitative comme FAIR sur quelques scénarios clés. En pratique, je m’adapte à la méthodologie de l’entreprise et je veille à ce que les échelles soient définies et appliquées de façon cohérente."
+    },
+    {
+      "q": "Un responsable métier veut accepter un risque bien au-dessus de l’appétence. Que faites-vous ?",
+      "a": "Je ne refuse pas, et je ne me contente pas de l’enregistrer. Je m’assure qu’il comprend le scénario et son impact, je vérifie qui a l’autorité pour ce niveau selon la politique, et je prépare la décision pour cette instance avec des options chiffrées : correction complète, mesure provisoire moins chère, ou acceptation. Si l’acceptation est retenue, elle est signée avec des conditions et une date d’échéance, le risque reste ouvert au registre et je le revois avant l’échéance."
+    },
+    {
+      "q": "Comment évaluez-vous un nouveau fournisseur SaaS qui traitera des données clients ?",
+      "a": "Je le classe d’abord : données personnelles clients et service critique en font un niveau 1. Puis les diligences : un questionnaire basé sur le SIG ou le CAIQ, et des preuves comme un rapport SOC 2 Type II ou un certificat ISO/IEC 27001, en vérifiant le périmètre, les dates, les exceptions et les contrôles laissés à notre charge. Je regarde la localisation des données et les sous-traitants, et avec le juridique je m’assure que le contrat contient les clauses de l’article 28 du RGPD, la notification d’incident, le droit d’audit et la réversibilité. Les écarts vont au registre des risques avec un propriétaire, et le fournisseur est réévalué chaque année et suivi entre-temps."
+    },
+    {
+      "q": "Expliquez le RTO et le RPO, et comment on les fixe.",
+      "a": "Le RTO est le délai dans lequel un processus ou un système doit revenir après une perturbation ; le RPO est la quantité de données, mesurée en temps, qu’on peut se permettre de perdre. Ils viennent du BIA : la façon dont l’impact grandit dans le temps et la durée maximale d’interruption tolérable, que le RTO doit respecter. Ils guident l’architecture : un RPO proche de zéro exige de la réplication, un RTO court un système de secours. Ensuite on teste, on compare le temps de reprise mesuré au RTO et on corrige les écarts."
+    },
+    {
+      "q": "Comment rendez-vous compte des risques à la direction ?",
+      "a": "Sur une ou deux pages : les principaux risques avec score résiduel, tendance et position par rapport à l’appétence, ce qui a changé depuis la dernière fois, les actions en retard, les acceptations qui arrivent à échéance, et les décisions que j’attends d’eux, avec options et coûts. J’utilise un langage métier simple, le même format chaque trimestre, et des KRI avec seuils pour qu’ils voient un risque grandir avant qu’il ne devienne un incident."
+    },
+    {
+      "q": "Quelles sont les limites d’une cartographie 5×5 ?",
+      "a": "Les scores sont ordinaux : un 20 ne vaut pas exactement deux fois un 10, et 4 × 5 et 5 × 4 donnent le même score à des risques très différents. Je ne fais donc jamais de moyennes ni de sommes de scores, je définis chaque niveau des échelles en termes métier, je note les justifications de chaque cote et je discute des cas limites. Pour les quelques décisions qui ont besoin d’un montant, j’utilise des fourchettes en euros, par exemple avec FAIR, plutôt que des scores d’apparence plus précise."
+    }
+  ]
+}

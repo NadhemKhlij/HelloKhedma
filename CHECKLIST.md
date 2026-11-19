@@ -98,6 +98,7 @@ Update this file whenever an item changes. Last update: 2026-10-29.
 
 | Date | What |
 |---|---|
+| 2026-11-19 | Own courses for the Product Owner, Project Manager and GRC Analyst paths (owner: "do all three"), EN + FR, 8 lessons each: po-discovery, po-backlog, po-metrics, po-roadmap; pm-planning, pm-budget (earned value), pm-risks, pm-stakeholders; grc-basics, grc-risk, grc-iso27001, grc-regulations (GDPR, NIS2, DORA). A roadmap step per course (O55). Written by Claude, unreviewed (part of O11) |
 | 2026-11-19 | O54 done by the owner: supabase/seed-sales-courses.sql run; the Sales roadmap steps open the four sales courses (published in commit 2cfaee8) |
 | 2026-11-19 | Four sales courses (owner: "write the sales courses"), EN + FR, 8 lessons each: Prospecting and outbound sales, Discovery qualification and demos, Negotiation and closing, Pipeline forecast and key accounts (50 exercises, 46 auto-graded incl. 20 Excel formulas). Roadmap steps open them (O54). Written by Claude, unreviewed (part of O11) |
 | 2026-11-19 | O52 done by the owner: supabase/seed-sales.sql run in the SQL editor; the Sales card is on Home |

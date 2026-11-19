@@ -1,0 +1,703 @@
+{
+ "why": "Every sponsor asks two questions about a project: will it finish on time, and how much will it really cost? Project managers are hired to build a credible budget, to see an overrun months before the invoices show it, and to say so honestly with options. Earned value is the common language for that, and interviews test it with numbers.",
+ "outcome": "estimate costs bottom-up from the WBS, build a cost baseline with contingency and management reserve, read actuals, commitments and accruals, compute PV, EV, AC, CV, SV, CPI and SPI, forecast EAC, ETC, VAC and TCPI, act on an overrun through change control, and report the budget to a sponsor on one page.",
+ "lessons": [
+  {
+   "title": "Cost estimating: from the WBS to a number",
+   "text": [
+    "A project budget starts from the scope, not from a figure someone has in mind. The work breakdown structure (WBS) splits the project into work packages small enough to estimate: “design the data model”, “build the billing interface”, “train 40 users”. A bottom-up estimate prices each work package and adds them up. It is slower than a guess, but every euro can be traced to a piece of work, which is what lets you defend the budget and, later, track it.",
+    "Two faster methods help early on. An analogous estimate (top-down) starts from a similar past project: “the last portal cost 300,000, this one is about a third bigger”. A parametric estimate multiplies a unit cost by a quantity: 1,200 € per migrated report × 85 reports, or a cost per square metre in construction. They are good for a first order of magnitude; the PMBOK Guide gives a rough order of magnitude range of about −25 % to +75 %, against about −5 % to +10 % for a definitive estimate. Say which kind of estimate you give, and its range.",
+    "For people, cost = effort × rate. Internal staff are priced at a loaded day rate: salary plus employer social charges plus a share of overheads, divided by the working days in a year (around 210 to 220 in France). External contractors and consultants charge a day rate (TJM in France) on time and materials, or a fixed price for a defined deliverable. Then add what is bought: licences, hardware, cloud, travel, training, and the fees of suppliers.",
+    "Agree early what the project budget counts. Many companies count only external spend; others also charge internal time to the project. Both are fine, but the estimate, the budget and the actuals must use the same rule, or the project will look cheap on paper and expensive in the accounts. Finance will also ask you to tag costs as capex or opex: costs that build a long-lived asset (a new system used for years) can sometimes be capitalised, while running costs and training are expensed. Under IFRS, IAS 38 sets the conditions for capitalising development costs (research costs are always expensed). The finance team decides the treatment; the project manager codes each cost correctly.",
+    "In interviews, expect “how did you build your budget?”. A strong answer names the WBS, who estimated each package (the people doing the work, not the PM alone), the rates used, the assumptions written down (team size, rates, exchange rate, what is excluded) and the accuracy range at that stage."
+   ],
+   "points": [
+    "Bottom-up estimate: price every work package of the WBS, then add up.",
+    "Analogous and parametric estimates are quick early checks, with a wider range.",
+    "Cost of people = effort (days) × loaded day rate; add purchases and supplier fees.",
+    "Write the assumptions and exclusions next to the number.",
+    "Decide with finance what counts (internal time or not) and how costs are coded (capex / opex)."
+   ],
+   "example": {
+    "lang": "excel",
+    "code": "D2   =B2*C2          Analysis: 20 days x 550 = 11000\nD3   =B3*C3          Build: 60 days x 600 = 36000\nD4   =B4*C4          Test: 25 days x 500 = 12500\nD5   =B5*C5          Deployment: 10 days x 600 = 6000\nD6   8000            Licences (external purchase)\nD7   =SUM(D2:D6)     Base estimate = 73500",
+    "note": "Each line is effort × rate (D2 to D5) plus a purchase (D6). The total 73,500 is the base estimate, before any reserve."
+   }
+  },
+  {
+   "title": "The budget: cost baseline, reserves and the S-curve",
+   "text": [
+    "The base estimate is not yet a budget: it assumes nothing goes wrong. The risk register lists what could: a supplier delivering late, a data migration needing a second run. The contingency reserve is money set aside for these identified risks (the “known unknowns”). A simple way to size it is the expected monetary value of each risk: probability × impact. A 30 % chance of a 20,000 € delay is worth 6,000 € of contingency. Teams also use a percentage of the base estimate (often 5 to 15 % depending on uncertainty), but a reserve tied to named risks is easier to defend.",
+    "In the PMBOK Guide's terms, the work package estimates plus the contingency reserve form the cost baseline: the approved, time-phased budget against which performance is measured. Its total is the budget at completion (BAC). The project manager normally controls the contingency reserve and draws on it when a listed risk happens, recording which risk used it.",
+    "Above the cost baseline sits the management reserve, for the “unknown unknowns”: events nobody identified. It is held by the sponsor or management, not by the project manager, and using it is a decision taken through change control, after which the baseline is updated. Cost baseline + management reserve = project budget. Mixing the two reserves, or hiding contingency inside inflated estimates (“padding”), destroys the information the budget should give.",
+    "A budget also has a shape in time. Spending each month is low at the start (a small team doing analysis), peaks during the build when the most people work, and drops during testing and roll-out. The cumulative curve looks like an S: the S-curve. Finance needs it to plan cash, and you need it because earned value compares progress with this curve month by month. A budget given only as a total cannot tell you, in month 4, whether you are spending too fast.",
+    "Finally the budget is approved: by the sponsor or the steering committee, sometimes in stages (a budget for the study phase, then the build). Once approved, the baseline changes only through change control. That is what makes later comparisons honest."
+   ],
+   "points": [
+    "Contingency reserve: for identified risks, inside the cost baseline, controlled by the project manager.",
+    "Management reserve: for unidentified events, outside the baseline, released by the sponsor.",
+    "Cost baseline = work package estimates + contingency reserve; its total is the BAC.",
+    "Project budget = cost baseline + management reserve.",
+    "Time-phase the baseline by month: the cumulative curve is the S-curve."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "Work package estimates (base)        120,000\n+ Contingency reserve (10 %)          12,000\n= Cost baseline = BAC                 132,000\n+ Management reserve (5 %)             6,600\n= Project budget                      138,600\n\nMonth        1      2      3      4      5      6      7\nPlanned    8,000 14,000 26,000 32,000 28,000 16,000  8,000\nCumulative 8,000 22,000 48,000 80,000 108,000 124,000 132,000",
+    "note": "BAC 132,000 includes the contingency; the 6,600 management reserve sits above it. The cumulative row is the S-curve: slow start, steep build, flat end."
+   }
+  },
+  {
+   "title": "Tracking actuals: timesheets, invoices, commitments, accruals",
+   "text": [
+    "Actual cost (AC) is what the work has really cost so far. It comes from two main sources: timesheets (days or hours booked on the project's codes, multiplied by the cost rate) and supplier invoices. To be usable, every cost must carry a project code, ideally down to the work package, so actuals can be compared with the budget line by line.",
+    "Invoices arrive late. A contractor who worked in October may invoice in November; the accounting system then shows October as cheaper than it was. Finance fixes this with accruals: at month end, work received but not yet invoiced is recorded as a cost of the period (in French accounting, charges à payer, often “factures non parvenues”). A project manager who knows what was delivered gives finance these amounts, and uses AC including accruals for earned value. Otherwise the CPI looks good one month and bad the next for no real reason.",
+    "A commitment is money promised but not yet spent: a signed purchase order, a contract for three months of a consultant. It is not an actual cost yet, but it is no longer available. Watching only actuals hides a classic problem: budget that looks free when most of it is already committed. A good cost report shows budget, actuals, commitments and what remains uncommitted.",
+    "Look also at the burn rate, the money spent per week or month. If the team costs 30,000 € a month and 90,000 € remain, the money lasts three months whatever the plan says. Comparing the burn rate with the work left is a fast sanity check between two earned value reports.",
+    "Real-life traps: timesheets booked on the wrong code, invoices paid against the wrong project, a supplier invoicing the full contract upfront, internal time not booked at all. Reconcile the project's records with the finance system every month, and agree a cut-off date so everyone reports the same period."
+   ],
+   "points": [
+    "AC = timesheets × cost rates + supplier invoices + accruals for work received.",
+    "Accrual: cost of work done this period whose invoice has not arrived yet.",
+    "Commitment: signed purchase order or contract not yet spent; reduces the money left.",
+    "Report budget, actuals, commitments and uncommitted budget side by side.",
+    "Burn rate = spend per month; compare it with the money left."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "Cost report - end of October                 BAC   132,000\nActuals booked (timesheets + supplier invoices)     51,000\n+ Accrual: October work, invoice not received yet    6,000\n= Actual cost (AC) used for earned value            57,000\n+ Open commitments (purchase orders not delivered)  18,000\n= Spent or committed                                75,000\nBudget not yet committed (132,000 - 75,000)         57,000",
+    "note": "Actuals in the accounts (51,000) understate the cost: with the accrual, AC is 57,000. And with the open purchase orders, only 57,000 of the 132,000 is still free."
+   }
+  },
+  {
+   "title": "Earned value basics: PV, EV and AC",
+   "text": [
+    "Comparing budget and actual cost alone is misleading. A project that has spent 84,000 € when the plan said 80,000 € by now looks slightly over budget. But if it has done only 35 % of the work, it is in real trouble. Earned value management (EVM) adds the missing measure: how much work has actually been done, valued at its budget. Its rules are described in PMI's Standard for Earned Value Management and, for large contracts, in the ANSI/EIA-748 standard for earned value management systems.",
+    "Three numbers, all in money, at a status date. Planned value (PV) is the budget of the work that should be done by that date: it is read on the S-curve. Earned value (EV) is the budget of the work actually done: EV = % complete × BAC (or the sum, per work package, of the budget of finished work). Actual cost (AC) is what that work really cost. Older documents call them BCWS, BCWP and ACWP; French teams say valeur planifiée (VP), valeur acquise (VA) and coût réel (CR).",
+    "Worked example: BAC 200,000 €, ten months. At the end of month 4 the plan said 40 % done, so PV = 80,000 €. The team has finished 35 % of the work, so EV = 0.35 × 200,000 = 70,000 €. Timesheets and invoices (with accruals) give AC = 84,000 €. The project has earned 70,000 € of planned work for 84,000 € spent, and it is 10,000 € of work behind the plan.",
+    "Everything depends on an honest % complete. “90 % done” said by the team is the most famous trap: the last 10 % takes half the time. Use objective rules agreed in advance: 0/100 (earned only when finished, for short tasks), 50/50 (half at the start, half at the end), 20/80, weighted milestones, or units completed (reports migrated, users trained). Measure on finished, accepted work, not effort spent.",
+    "EVM needs a time-phased baseline, a consistent status date and AC on the same scope as the budget. If the budget counts internal time and the actuals do not, every index will be wrong."
+   ],
+   "points": [
+    "PV (planned value): budget of the work scheduled by the status date.",
+    "EV (earned value) = % complete × BAC: budget of the work actually done.",
+    "AC (actual cost): what the work done really cost, accruals included.",
+    "French: valeur planifiée (VP), valeur acquise (VA), coût réel (CR).",
+    "Measure % complete with agreed rules (0/100, 50/50, milestones, units), never by feeling."
+   ],
+   "example": {
+    "lang": "excel",
+    "code": "B1   200000          BAC (budget at completion)\nB2   0.35            % complete, measured on finished work\nB3   80000           PV: planned value at the end of month 4\nB4   84000           AC: actual cost to date\nB5   =B2*B1          EV = 70000",
+    "note": "EV = 70,000 is the work done valued at its budget. Compare it with PV (what should be done) and AC (what it cost) in the next lesson."
+   }
+  },
+  {
+   "title": "Variances and indices: CV, SV, CPI, SPI",
+   "text": [
+    "Two variances compare EV with the other two numbers. Cost variance CV = EV − AC: negative means the work done cost more than its budget (over budget). Schedule variance SV = EV − PV: negative means less work is done than planned (behind schedule). In the example, CV = 70,000 − 84,000 = −14,000 € and SV = 70,000 − 80,000 = −10,000 €.",
+    "Indices make projects of different sizes comparable. Cost performance index CPI = EV / AC = 70,000 / 84,000 = 0.83: each euro spent produced 0.83 € of planned work. Schedule performance index SPI = EV / PV = 70,000 / 80,000 = 0.875: the team delivered 87.5 % of the work planned by now. Above 1 is good news, below 1 bad news, for both. French teams write IPC (indice de performance des coûts) and IPD (indice de performance des délais).",
+    "Read them together. CPI below 1 and SPI below 1: late and over budget, the worst case. CPI above 1 and SPI below 1: cheaper so far but slow, often because people are missing (less is spent because less is done). CPI below 1 and SPI above 1: ahead but expensive, typical of overtime or extra contractors. Ask why before celebrating any index above 1.",
+    "Know the limits. SV is in money, not days: a −10,000 € SV says nothing directly about the delivery date, and SV returns to zero at the end of every project (all the work is eventually earned), so SPI drifts back towards 1 on late projects. Check the critical path for dates; techniques such as earned schedule exist to express the delay in time. And look at the trend: a CPI going 0.97, 0.92, 0.88 over three months says more than one value.",
+    "Agree thresholds in the project management plan, for example green within ±5 %, amber up to ±10 %, red beyond, and compute indices per work package too: a project CPI of 0.95 can hide one package at 0.70."
+   ],
+   "points": [
+    "CV = EV − AC: negative = over budget.",
+    "SV = EV − PV: negative = behind schedule (in money, not days).",
+    "CPI = EV / AC; SPI = EV / PV: below 1 = bad, above 1 = good.",
+    "Read CPI and SPI together, and follow the trend over months.",
+    "Compute them per work package: the total can hide one package in trouble."
+   ],
+   "example": {
+    "lang": "excel",
+    "code": "B6   =B5-B4          CV  = EV - AC = -14000\nB7   =B5-B3          SV  = EV - PV = -10000\nB8   =B5/B4          CPI = EV / AC = 0.83\nB9   =B5/B3          SPI = EV / PV = 0.875\nB10  =B6/B5          CV % = -20 %",
+    "note": "Same project as lesson 4. CV % = CV / EV = −20 %: the work done so far cost a fifth more than budgeted."
+   }
+  },
+  {
+   "title": "Forecasting: EAC, ETC, VAC and TCPI",
+   "text": [
+    "The sponsor's real question is how much it will cost in the end. The estimate at completion (EAC) answers it. The most used formula assumes that the cost efficiency so far continues: EAC = BAC / CPI = 200,000 / 0.833 = 240,000 €. It is often the best quick forecast, because a CPI rarely improves much once a good part of the work is done.",
+    "Choose the formula that matches the cause. If the overrun came from a one-off event that will not repeat (a supplier failure already paid for), the rest can go to budget: EAC = AC + (BAC − EV) = 84,000 + 130,000 = 214,000 €. If the project is both over budget and behind schedule and must still meet a fixed date (catching up will cost extra), use EAC = AC + (BAC − EV) / (CPI × SPI) = 84,000 + 130,000 / 0.729 ≈ 262,286 €. And when the original estimate was clearly wrong, re-estimate the remaining work bottom-up: EAC = AC + new ETC.",
+    "From EAC come three more numbers. The estimate to complete ETC = EAC − AC = 240,000 − 84,000 = 156,000 €: the money still needed. The variance at completion VAC = BAC − EAC = 200,000 − 240,000 = −40,000 €: the expected overrun. French teams speak of the “reste à faire” (RAF) and of the “atterrissage”, the landing forecast.",
+    "The to-complete performance index answers the opposite question: how efficient must the rest of the work be to finish on budget? TCPI = (BAC − EV) / (BAC − AC) = 130,000 / 116,000 = 1.12. The team that produced 0.83 € of work per euro must now produce 1.12. A common rule of thumb says a TCPI above about 1.10 is rarely achieved: it is a signal to forecast honestly or change the plan, not to promise. Against a new approved EAC, use TCPI = (BAC − EV) / (EAC − AC).",
+    "Give a range and the basis of the forecast: “between 240,000 (current efficiency) and 262,000 (if we accelerate to keep the date); the bottom-up re-estimate gives 248,000”. Interviewers like candidates who know several formulas and say when each applies."
+   ],
+   "points": [
+    "EAC = BAC / CPI: current cost efficiency continues (the default).",
+    "EAC = AC + (BAC − EV): the overrun was a one-off, the rest goes to budget.",
+    "EAC = AC + (BAC − EV) / (CPI × SPI): over budget, late, and the date is fixed.",
+    "ETC = EAC − AC; VAC = BAC − EAC (negative = expected overrun).",
+    "TCPI = (BAC − EV) / (BAC − AC): efficiency needed to finish on budget; above about 1.10 is a warning."
+   ],
+   "example": {
+    "lang": "excel",
+    "code": "B11  =B1/B8               EAC = BAC / CPI = 240000\nB12  =B11-B4              ETC = EAC - AC = 156000\nB13  =B1-B11              VAC = BAC - EAC = -40000\nB14  =(B1-B5)/(B1-B4)     TCPI = 1.12\nB15  =B4+(B1-B5)          EAC if the rest goes to budget = 214000\nB16  =B4+(B1-B5)/(B8*B9)  EAC with CPI x SPI = 262286",
+    "note": "Cells continue the sheet of lessons 4 and 5 (B1 BAC, B4 AC, B5 EV, B8 CPI, B9 SPI). Three formulas give 214,000 to 262,286: the cause of the overrun decides which one you report."
+   }
+  },
+  {
+   "title": "Acting on overruns: scope, schedule, resources, change requests",
+   "text": [
+    "A forecast is only useful if it leads to action. Start with the cause, work package by work package: an estimate that was too low, scope added without a change request (scope creep), lower productivity, higher rates than planned, rework from quality problems, or a risk that happened. Each cause calls for a different answer, and cutting money without knowing the cause usually moves the problem to testing or support.",
+    "The levers are the classic triple constraint. Scope: remove or postpone low-value features (descoping), always agreed with the sponsor. Schedule: re-sequence work, or accept a later date when time costs less than extra people. Resources: change the mix (fewer expensive contractors, more internal staff), renegotiate rates, or add people when a fixed date is worth the cost. Crashing (adding resources to shorten the critical path) buys time with money; fast-tracking (running tasks in parallel) buys time with risk of rework.",
+    "Use the reserves for what they are for. When a risk from the register happens, draw on the contingency reserve and record it. When the overrun is outside identified risks, or the contingency is spent, the sponsor decides whether to release management reserve, change the scope, or accept a new budget.",
+    "Any change to the baseline goes through change control: a change request describes the cause, the options with their effect on cost, dates, scope and risk, and a recommendation; the change control board or steering committee decides; the baseline and the change log are updated. Re-baselining quietly so the CPI goes back to 1 is the cardinal sin: it erases the history the sponsor needs to trust you.",
+    "Act early. Overruns found at 20 % complete can still be fixed with small changes; at 80 % complete the options are few and expensive. That is why the monthly review of CPI, SPI and EAC matters more than the yearly budget meeting."
+   ],
+   "points": [
+    "Find the cause per work package before choosing a fix.",
+    "Levers: scope (descope), schedule (re-sequence, later date), resources (mix, rates, crashing).",
+    "Contingency for risks from the register; management reserve released by the sponsor.",
+    "Every baseline change goes through a change request and the change control board.",
+    "Never re-baseline quietly to make the indices look good."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "CHANGE REQUEST CR-07      Project: customer portal\nRequest    Recover the build overrun before go-live\nCause      Build CPI 0.82: the billing integration took 2.5x its\n           estimate (risk R4; its contingency is already used)\nOption A   Descope the invoice download screen (-18 days x 600)\n           Cost -10,800   Go-live unchanged   Feature moves to release 2\nOption B   Add one contractor for 2 months (+40 days x 600)\n           Cost +24,000   Go-live unchanged\nOption C   Keep the team, go live 3 weeks later\n           Cost +9,000 (core team for 3 more weeks)   Go-live +3 weeks\nRecommendation   Option A\nDecision by      Steering committee, 21 October",
+    "note": "A change request gives the cause, costed options and a recommendation, then asks for a decision by a date."
+   }
+  },
+  {
+   "title": "Reporting the budget to a sponsor",
+   "text": [
+    "A sponsor reads a budget report in two minutes. Put it on one page: BAC, actual cost to date, forecast at completion and its variance; the earned value indices with their trend; the two or three drivers of the variance; the actions taken; and the decision you need, with a date. Add the S-curve chart with PV, EV and AC if your tool draws it: the gap between the curves tells the story at a glance.",
+    "The forecast must be honest. Status reports that stay green while the numbers turn red (“watermelon” reporting: green outside, red inside) are the main way sponsors lose trust in a project manager. If BAC / CPI says 470,000 and you report 455,000, write why (a bottom-up re-estimate, a descope already approved). A bad forecast given early is welcome; the same news given late is a failure.",
+    "Explain variances in business words. Not “CPI 0.85” alone but “we spend 1.18 € for each euro of planned work, mainly because the billing integration took two and a half times its estimate”. Separate what has happened (actuals) from what you expect (forecast) and from what you ask (decision). Agree in advance the thresholds that turn a status amber or red, so the colour is not a negotiation.",
+    "Adapt to the audience. A steering committee wants the total, the trend and the decision; finance wants actuals, accruals, commitments and the phasing of the remaining spend; the team wants the work packages. The same data, at three levels of detail.",
+    "Many French teams use the French terms: valeur planifiée (VP), valeur acquise (VA), coût réel (CR), IPC for CPI and IPD for SPI, “reste à faire” for ETC and “atterrissage” for the landing forecast; BAC and EAC are often kept in English. Know both sets: interviews in France can switch between them."
+   ],
+   "points": [
+    "One page: BAC, AC, EAC, VAC, CPI / SPI trend, drivers, actions, decision needed.",
+    "Give the basis of the forecast and a range; never hide a bad EAC.",
+    "Explain indices in business words and name the drivers.",
+    "Agree RAG thresholds in advance.",
+    "French terms: VP, VA, CR, IPC, IPD, reste à faire, atterrissage."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "BUDGET STATUS - Customer portal - end of month 6 of 10\n                 BAC       Actual (AC)   Forecast (EAC)   VAC\nTotal            400,000   235,000       455,000          -55,000 (-13.8 %)\nEarned value     PV 220,000   EV 200,000   CPI 0.85   SPI 0.91\nCPI trend        M3 0.97   M4 0.92   M5 0.88   M6 0.85\nDrivers          1. Billing integration rework: 24,000 over\n                 2. Contractor day rates above plan: 11,000 over\nForecast basis   Bottom-up ETC 220,000 (BAC / CPI would give 470,000)\nActions          CR-07 descope approved; rates renegotiated from M7\nDecision needed  Release 55,000 of management reserve by 21 Oct\nStatus           Cost RED (VAC beyond -10 %)   Schedule AMBER",
+    "note": "One page, numbers first, then causes, actions and the decision asked. Status follows the agreed threshold, not the mood of the meeting."
+   }
+  }
+ ],
+ "cheatsheet": [
+  {
+   "group": "Estimating",
+   "items": [
+    [
+     "Bottom-up estimate",
+     "Price each WBS work package, then add up"
+    ],
+    [
+     "Analogous estimate",
+     "Start from a similar past project (top-down)"
+    ],
+    [
+     "Parametric estimate",
+     "Unit cost × quantity (e.g. € per report migrated)"
+    ],
+    [
+     "Loaded day rate",
+     "Salary + employer charges + overheads, per working day"
+    ],
+    [
+     "Capex / opex",
+     "Cost that builds a long-lived asset / running cost, expensed"
+    ]
+   ]
+  },
+  {
+   "group": "Budget and reserves",
+   "items": [
+    [
+     "Cost baseline",
+     "Approved, time-phased budget incl. contingency"
+    ],
+    [
+     "BAC",
+     "Budget at completion: total of the cost baseline"
+    ],
+    [
+     "Contingency reserve",
+     "For identified risks; controlled by the project manager"
+    ],
+    [
+     "Management reserve",
+     "For unidentified events; released by the sponsor"
+    ],
+    [
+     "EMV",
+     "Probability × impact of a risk, to size contingency"
+    ],
+    [
+     "S-curve",
+     "Cumulative planned spend over time"
+    ]
+   ]
+  },
+  {
+   "group": "Actuals",
+   "items": [
+    [
+     "AC",
+     "Actual cost of the work done (timesheets, invoices, accruals)"
+    ],
+    [
+     "Commitment",
+     "Signed order or contract not yet spent"
+    ],
+    [
+     "Accrual",
+     "Work received this period, invoice not arrived yet"
+    ],
+    [
+     "Burn rate",
+     "Money spent per month"
+    ]
+   ]
+  },
+  {
+   "group": "Earned value",
+   "items": [
+    [
+     "PV",
+     "Planned value: budget of the work scheduled to date"
+    ],
+    [
+     "EV = % complete × BAC",
+     "Earned value: budget of the work actually done"
+    ],
+    [
+     "CV = EV − AC",
+     "Cost variance: negative = over budget"
+    ],
+    [
+     "SV = EV − PV",
+     "Schedule variance: negative = behind schedule"
+    ],
+    [
+     "CPI = EV / AC",
+     "Work earned per euro spent; below 1 = over budget"
+    ],
+    [
+     "SPI = EV / PV",
+     "Share of planned work done; below 1 = late"
+    ]
+   ]
+  },
+  {
+   "group": "Forecasting",
+   "items": [
+    [
+     "EAC = BAC / CPI",
+     "Forecast if the current cost efficiency continues"
+    ],
+    [
+     "EAC = AC + (BAC − EV)",
+     "Forecast if the rest goes to budget (one-off overrun)"
+    ],
+    [
+     "EAC = AC + (BAC − EV) / (CPI × SPI)",
+     "Forecast when late, over budget and the date is fixed"
+    ],
+    [
+     "ETC = EAC − AC",
+     "Money still needed to finish"
+    ],
+    [
+     "VAC = BAC − EAC",
+     "Expected overrun (negative) or saving at the end"
+    ],
+    [
+     "TCPI = (BAC − EV) / (BAC − AC)",
+     "Efficiency needed on the rest to finish on budget"
+    ]
+   ]
+  }
+ ],
+ "pitfalls": [
+  "Giving a single number with no estimate type, range or written assumptions.",
+  "Hiding contingency inside inflated estimates, so nobody knows what the reserve really is.",
+  "Measuring % complete by feeling (“90 % done”) instead of finished, accepted work.",
+  "Using actuals without accruals: the CPI jumps from month to month for no real reason.",
+  "Watching actuals but not commitments, and discovering the budget is already promised.",
+  "Re-baselining quietly so the indices return to 1, instead of a change request.",
+  "Reporting green until the last month: an honest forecast given early is worth more than a good-looking one."
+ ],
+ "exercises": [
+  {
+   "q": "In D3, the earned value of the Build work package.",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Work package",
+     "BAC",
+     "% complete",
+     "EV"
+    ],
+    [
+     "Design",
+     30000,
+     1,
+     30000
+    ],
+    [
+     "Build",
+     120000,
+     0.4,
+     ""
+    ],
+    [
+     "Test",
+     50000,
+     0,
+     0
+    ]
+   ],
+   "cell": "D3",
+   "answer": "=B3*C3",
+   "hint": "EV = % complete × BAC of the work package. Use the cells.",
+   "explain": "120,000 × 0.4 = 48,000. The project EV is the sum of the packages: 30,000 + 48,000 + 0 = 78,000 (SUM(D2:D4) once D3 is filled). Measure the 40 % on finished, accepted work, not on the days spent."
+  },
+  {
+   "q": "Fill in the variances and the CPI for this project at month 4.",
+   "type": "fill",
+   "snippet": "BAC = 200000   PV = 80000   EV = 70000   AC = 84000\nCV  = EV - AC = ___\nSV  = EV - PV = ___\nCPI = EV / AC = ___ (2 decimals)",
+   "lang": "text",
+   "blanks": [
+    [
+     "-14000",
+     "/^[-−]\\s?14[ ,.  ]?000\\s?(€|eur|euros)?$/i"
+    ],
+    [
+     "-10000",
+     "/^[-−]\\s?10[ ,.  ]?000\\s?(€|eur|euros)?$/i"
+    ],
+    [
+     "0.83",
+     "0,83",
+     "/^0[.,]83\\d*$/"
+    ]
+   ],
+   "answer": "CV = 70,000 − 84,000 = −14,000 (over budget). SV = 70,000 − 80,000 = −10,000 (behind schedule, in money). CPI = 70,000 / 84,000 = 0.83: each euro spent produced 0.83 € of planned work."
+  },
+  {
+   "q": "Match each reading with what it means.",
+   "type": "match",
+   "pairs": [
+    [
+     "CV = −14,000 €",
+     "The work done so far cost 14,000 € more than its budget"
+    ],
+    [
+     "SV = −10,000 €",
+     "10,000 € worth of planned work is not done yet"
+    ],
+    [
+     "CPI = 1.10",
+     "Each euro spent produced 1.10 € of planned work"
+    ],
+    [
+     "SPI = 0.80",
+     "80 % of the work planned by now is done"
+    ],
+    [
+     "TCPI = 1.15",
+     "The rest must be done 15 % more efficiently to finish on budget"
+    ]
+   ],
+   "answer": "Variances are in money (EV minus AC or PV); indices are ratios where 1 means on plan. TCPI looks forward: the efficiency still needed."
+  },
+  {
+   "q": "In D2, the estimate at completion if the current cost efficiency continues.",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "BAC",
+     "EV",
+     "AC",
+     "EAC"
+    ],
+    [
+     500000,
+     160000,
+     200000,
+     ""
+    ]
+   ],
+   "cell": "D2",
+   "answer": "=A2/(B2/C2)",
+   "hint": "EAC = BAC / CPI, and CPI = EV / AC.",
+   "explain": "CPI = 160,000 / 200,000 = 0.8, so EAC = 500,000 / 0.8 = 625,000. =A2*C2/B2 gives the same. VAC = 500,000 − 625,000 = −125,000: a 25 % overrun if nothing changes."
+  },
+  {
+   "q": "A project is over budget only because a supplier failed once; the replacement is already paid and the rest of the work is going to plan. Which EAC fits best?",
+   "type": "choice",
+   "options": [
+    "EAC = BAC / CPI",
+    "EAC = AC + (BAC − EV)",
+    "EAC = AC + (BAC − EV) / (CPI × SPI)",
+    "EAC = BAC: the overrun will be absorbed"
+   ],
+   "correct": 1,
+   "answer": "A one-off (atypical) overrun will not repeat, so the remaining work is expected at its budgeted cost: EAC = AC + (BAC − EV). BAC / CPI would spread the one-off over the whole project and overstate the forecast."
+  },
+  {
+   "q": "In D2, the to-complete performance index needed to finish on the original budget.",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "BAC",
+     "EV",
+     "AC",
+     "TCPI"
+    ],
+    [
+     500000,
+     160000,
+     200000,
+     ""
+    ]
+   ],
+   "cell": "D2",
+   "answer": "=(A2-B2)/(A2-C2)",
+   "hint": "TCPI = (BAC − EV) / (BAC − AC): work left divided by money left.",
+   "explain": "(500,000 − 160,000) / (500,000 − 200,000) = 340,000 / 300,000 = 1.13. The team at CPI 0.8 would need 1.13 on the rest: unrealistic. Forecast honestly (EAC 625,000) or change scope, rates or plan."
+  },
+  {
+   "q": "Put the steps of building and running a project budget in order.",
+   "type": "order",
+   "steps": [
+    "Break the scope into a WBS of work packages",
+    "Estimate each work package (effort × rate, purchases)",
+    "Add the contingency reserve for the risks in the register",
+    "Time-phase the cost baseline by month (S-curve)",
+    "Get the budget approved by the sponsor",
+    "Track actuals and earned value every month"
+   ],
+   "answer": "Scope → estimates → reserve → time-phased baseline → approval → control. Management reserve is set by the sponsor on top of the approved baseline."
+  },
+  {
+   "q": "Which money pays for each event?",
+   "type": "groups",
+   "groups": [
+    {
+     "name": "Contingency reserve",
+     "items": [
+      "The supplier delay listed in the risk register happens",
+      "The data migration needs the second test run logged as a risk",
+      "The dollar licence price rises, as the risk register foresaw"
+     ]
+    },
+    {
+     "name": "Management reserve",
+     "items": [
+      "A key supplier goes bankrupt, a risk nobody had identified",
+      "An unforeseen security flaw forces a redesign of the login"
+     ]
+    },
+    {
+     "name": "Change request with new budget",
+     "items": [
+      "The sponsor asks to add a second country to the scope",
+      "Marketing wants a mobile app that was not in the scope"
+     ]
+    }
+   ],
+   "answer": "Contingency covers identified risks and is used by the project manager. Management reserve covers events nobody identified and is released by the sponsor. New scope is neither: it needs a change request with its own budget."
+  },
+  {
+   "q": "In C6, the contingency as a % of the base estimate, using the expected monetary value of the three risks.",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Risk",
+     "Probability",
+     "Impact"
+    ],
+    [
+     "Supplier late",
+     0.3,
+     20000
+    ],
+    [
+     "Integration rework",
+     0.1,
+     50000
+    ],
+    [
+     "Licence price rise",
+     0.5,
+     4000
+    ],
+    [
+     "Base estimate",
+     "",
+     130000
+    ],
+    [
+     "Contingency %",
+     "",
+     ""
+    ]
+   ],
+   "cell": "C6",
+   "answer": "=SUMPRODUCT(B2:B4,C2:C4)/C5",
+   "hint": "Contingency = sum of probability × impact. SUMPRODUCT multiplies two ranges row by row and adds the results.",
+   "explain": "0.3 × 20,000 + 0.1 × 50,000 + 0.5 × 4,000 = 6,000 + 5,000 + 2,000 = 13,000; 13,000 / 130,000 = 10 %. The cost baseline is then 143,000. Keep the link to the risks: when one closes, its share of the reserve can be released."
+  },
+  {
+   "q": "In F2, the budget of the phase named in E2 (Build).",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Phase",
+     "Item",
+     "Budget",
+     "",
+     "Phase",
+     "Total"
+    ],
+    [
+     "Design",
+     "Analyst",
+     12000,
+     "",
+     "Build",
+     ""
+    ],
+    [
+     "Build",
+     "Developers",
+     48000,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Design",
+     "Architect",
+     9000,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Test",
+     "Testers",
+     15000,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Build",
+     "Licences",
+     6000,
+     "",
+     "",
+     ""
+    ]
+   ],
+   "cell": "F2",
+   "answer": "=SUMIFS(C2:C6,A2:A6,E2)",
+   "hint": "SUMIFS(sum range, criteria range, criterion).",
+   "explain": "48,000 + 6,000 = 54,000. Referencing E2 instead of typing \"Build\" lets you copy the formula down for Design (21,000) and Test (15,000); the three add up to the 90,000 total."
+  },
+  {
+   "q": "Month 5 of 10: BAC 400,000 €, 50 % of the work is done, AC is 235,000 €. The sponsor meets you tomorrow.",
+   "type": "scenario",
+   "steps": [
+    {
+     "text": "EV = 200,000 € and CPI = 0.85. What do you tell the sponsor first?",
+     "choices": [
+      {
+       "label": "The forecast: about 470,000 € (VAC −70,000 €) if nothing changes, with the causes and options",
+       "best": true,
+       "feedback": "BAC / CPI = 400,000 × 235,000 / 200,000 = 470,000. Early, honest numbers give the sponsor time to decide."
+      },
+      {
+       "label": "We are halfway and have spent about half the budget: on track",
+       "feedback": "Spent 235,000 for 200,000 of work: 59 % of the budget for 50 % of the work. Budget vs actual alone hides the overrun."
+      },
+      {
+       "label": "Nothing yet: wait one more month to see if it recovers",
+       "feedback": "A CPI rarely recovers on its own at 50 % complete; every month lost removes options."
+      }
+     ]
+    },
+    {
+     "text": "Where does the overrun come from?",
+     "choices": [
+      {
+       "label": "Break CV down by work package and by cause before choosing a fix",
+       "best": true,
+       "feedback": "You find the billing integration at CPI 0.70 and contractor rates 8 % above plan: two different fixes."
+      },
+      {
+       "label": "Cut the testing budget by 70,000 € to land on budget",
+       "feedback": "That moves the problem to production: defects found later cost more."
+      }
+     ]
+    },
+    {
+     "text": "What do you bring to the steering committee?",
+     "choices": [
+      {
+       "label": "A change request with costed options: descope a low-value feature, renegotiate rates, or release management reserve",
+       "best": true,
+       "feedback": "The sponsor decides on facts; the baseline changes only after the decision."
+      },
+      {
+       "label": "A new baseline of 470,000 € so the CPI shows 1.0 again",
+       "feedback": "Re-baselining without approval erases the history and the sponsor's trust."
+      }
+     ]
+    }
+   ],
+   "answer": "Compute EV and CPI, forecast EAC honestly, find the causes per work package, then ask for a decision through change control with costed options."
+  },
+  {
+   "q": "Write a five-line budget status for the sponsor. End of month 6 of 10: BAC 400,000 €, PV 220,000 €, 50 % complete, AC 235,000 €. The bottom-up re-estimate of the remaining work is 220,000 €.",
+   "answer": "1) Forecast: EAC 455,000 € (AC 235,000 + bottom-up ETC 220,000) for a 400,000 € budget, VAC −55,000 € (−13.8 %); BAC / CPI would give 470,000 €. 2) Progress: EV 200,000 € for PV 220,000 € (SPI 0.91) and AC 235,000 € (CPI 0.85, down from 0.92 two months ago). 3) Drivers: billing integration rework and contractor rates above plan. 4) Actions: descope of a low-value screen (change request), rates renegotiated from next month. 5) Decision needed: release 55,000 € of management reserve, or reduce scope further, by the next steering committee. Status: cost red, schedule amber."
+  }
+ ],
+ "interview": [
+  {
+   "q": "Explain earned value to a sponsor who is not from finance.",
+   "a": "Three numbers at a date: what we planned to have done by now (PV), what we have really done valued at its budget (EV), and what it cost (AC). Comparing EV with AC tells whether we spend too much for the work done (CPI); comparing EV with PV tells whether we are ahead or behind (SPI). Example: 35 % of a 200,000 € project done, 84,000 € spent, plan said 80,000: we have earned 70,000 € of work for 84,000 €, so we are behind and over budget, and at this rate we land around 240,000 €."
+  },
+  {
+   "q": "Your CPI is 0.9 and your SPI is 1.1. What is happening and what do you do?",
+   "a": "We are ahead of schedule but each euro buys only 0.90 € of planned work. Typical causes: overtime, extra contractors or expensive people brought in to go faster. I check whether that acceleration was asked for and worth it; if not, I slow the spending to the plan's pace. I also check the % complete rules, because an SPI above 1 sometimes comes from optimistic progress claims. Then I forecast EAC and tell the sponsor if the budget is at risk."
+  },
+  {
+   "q": "What is the difference between contingency reserve and management reserve?",
+   "a": "Contingency reserve covers identified risks from the risk register (known unknowns), is sized from them, for example by probability × impact, belongs to the cost baseline and is managed by the project manager. Management reserve covers events nobody identified (unknown unknowns), sits outside the baseline, and is released by the sponsor or management through change control, which then updates the baseline."
+  },
+  {
+   "q": "How do you build a project budget?",
+   "a": "From the scope: a WBS down to work packages, estimated by the people who will do the work (effort × loaded rate, plus purchases and supplier fees), cross-checked with an analogous or parametric estimate. I write the assumptions and exclusions, add contingency from the risk register, time-phase it by month to get the S-curve, agree with finance what is counted and how it is coded (internal time, capex / opex), and get it approved as the cost baseline. The sponsor holds a management reserve on top."
+  },
+  {
+   "q": "Which EAC formula do you use?",
+   "a": "It depends on the cause. BAC / CPI when the current efficiency is likely to continue, the usual default. AC + (BAC − EV) when the overrun was a one-off. AC + (BAC − EV) / (CPI × SPI) when we are late and over budget and must hold a date. And a bottom-up re-estimate of the remaining work when the original estimates were wrong. I report a range and say which basis I chose and why."
+  },
+  {
+   "q": "Your project will overrun by 15 %. How do you tell the sponsor?",
+   "a": "As soon as I know, not at the next milestone. One page: the forecast and its basis, the drivers with numbers, what we already did, and two or three options with their cost, date and scope effect, with my recommendation. I ask for a decision with a date. Hiding it would only remove options; sponsors forgive bad news given early, not surprises."
+  },
+  {
+   "q": "How do you make sure the % complete is honest?",
+   "a": "I agree objective rules in the plan before work starts: 0/100 for short tasks, 50/50 or weighted milestones for longer ones, or units done such as reports migrated. Work counts as done when it is accepted, not when effort is spent. I compare the claimed progress with the deliverables, and I watch for tasks stuck at 90 %."
+  },
+  {
+   "q": "Your actuals look much lower than expected this month. What do you check?",
+   "a": "Missing accruals (work delivered whose invoice has not arrived), timesheets not booked or booked on another code, invoices posted to the wrong project, and the cut-off date. I also look at commitments: the money may be promised in purchase orders even if not invoiced. Only then do I believe that we spent less."
+  }
+ ]
+}

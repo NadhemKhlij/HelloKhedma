@@ -1,0 +1,783 @@
+{
+ "why": "On demande au Product Owner de prouver que ce que livre l’équipe change quelque chose pour les utilisateurs et pour l’entreprise. Les recruteurs cherchent des profils qui choisissent le bon indicateur, fixent des OKR honnêtes, mènent des expérimentations propres et savent dire « ça a marché » ou « ça n’a pas marché » avec des chiffres fiables.",
+ "outcome": "distinguer outputs et outcomes, construire une North Star metric et ses indicateurs d’entrée, lire funnels, activation et cohortes de rétention, rédiger et noter des OKR, préparer un test A/B et un déploiement progressif derrière un feature flag, et repérer les pièges classiques des chiffres produit.",
+ "lessons": [
+  {
+   "title": "Pourquoi mesurer : outputs, outcomes et indicateurs de vanité",
+   "text": [
+    "Une équipe produit peut être très occupée et ne rien changer. Un output, c’est ce que l’équipe livre : une fonctionnalité, une release, dix user stories terminées. Un outcome, c’est le changement de comportement qui suit : plus de nouvelles équipes qui envoient leur première facture, moins de clients qui partent, moins de temps pour être payé. L’impact business (chiffre d’affaires, marge) vient après l’outcome. Un Product Owner est jugé sur les outcomes : chaque élément du backlog devrait dire quel outcome il doit faire bouger.",
+    "Mesurer garde l’équipe honnête. Avant de construire, on écrit ce qu’on attend comme changement et de combien ; après le lancement, on regarde. Sans cette habitude, la roadmap devient une liste de fonctionnalités que personne ne vérifie, et l’équipe n’apprend rien de ce qu’elle livre. Avec elle, une fonctionnalité qui n’a rien fait bouger devient une leçon, pas un échec à cacher.",
+    "Méfiez-vous des indicateurs de vanité (vanity metrics) : des chiffres qui ne font que monter, rendent bien sur une slide mais n’aident à aucune décision. Le total d’inscriptions depuis le lancement, les pages vues ou les téléchargements de l’application grimpent presque tout seuls. Un indicateur actionnable est lié à un comportement sur lequel on peut agir et se lit par période ou par cohorte : le taux d’activation des inscrits du mois, les équipes actives par semaine, la part des nouvelles équipes encore actives au mois 3.",
+    "Un test utile pour tout indicateur : s’il montait ou baissait de 20 % demain, feriez-vous quelque chose de différent ? Sinon, c’est un indicateur de vanité. Préférez aussi les taux et les chiffres par utilisateur aux totaux bruts (un total grossit avec le budget marketing même quand le produit se dégrade), et donnez à chaque indicateur une définition écrite : formule, source, période, filtres et responsable.",
+    "En entretien, on demande souvent « comment mesureriez-vous le succès de la fonctionnalité X ? ». Une bonne réponse nomme le problème utilisateur, l’indicateur d’outcome qui montre qu’il est résolu, un ou deux garde-fous qui ne doivent pas se dégrader, la valeur de départ et la cible, et le moment où l’on regardera."
+   ],
+   "points": [
+    "Output = ce que l’équipe livre ; outcome = le changement de comportement utilisateur qui suit.",
+    "Les indicateurs de vanité ne font que monter et ne guident aucune décision ; les indicateurs actionnables sont des taux, par période ou par cohorte.",
+    "Le test des 20 % : un gros changement du chiffre changerait-il ce que vous faites ?",
+    "Écrivez l’outcome attendu et la cible avant de construire, puis vérifiez après le lancement.",
+    "Chaque indicateur a une définition écrite et un responsable."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "Output (what the team ships)          Outcome (what changes, and how we know)\nNew onboarding wizard released     ->  Teams sending a first invoice within 7 days: 30% -> 40%\nReminder e-mails for unpaid bills  ->  Median days to get paid: 21 -> 14\nExport to accounting software      ->  Monthly churn of teams with an accountant: 4% -> 3%\n\nVanity metric                         Actionable metric\nTotal sign-ups since launch           Activation rate of this month's sign-ups\nPage views                            Weekly active teams, by cohort\nApp downloads                         Share of new teams still active in month 3",
+    "note": "Chaque output est relié à l’outcome qu’il doit faire bouger, avec la valeur de départ et la cible. Les indicateurs de vanité à gauche ne font que grossir ; les indicateurs actionnables à droite peuvent baisser, donc ils vous apprennent quelque chose."
+   }
+  },
+  {
+   "title": "La North Star metric et les indicateurs d’entrée",
+   "text": [
+    "La North Star metric (l’indicateur « étoile du nord ») est le chiffre unique qui reflète le mieux la valeur que les utilisateurs tirent du produit et qui, quand il grandit, annonce les résultats business à long terme. Elle aligne des équipes qui, sinon, optimiseraient chacune leur coin. Une bonne North Star mesure la valeur délivrée (factures payées via l’application, nuits réservées, équipes qui collaborent chaque semaine), pas l’argent encaissé ni l’effort fourni, et elle bouge en quelques semaines, pas en quelques années.",
+    "Le chiffre d’affaires fait rarement une bonne North Star : il est en retard, il peut monter alors que les utilisateurs sont moins satisfaits (une hausse de prix), et aucune équipe ne peut agir dessus seule. Les inscriptions non plus : elles mesurent l’intérêt, pas la valeur. Testez une candidate avec trois questions : monte-t-elle seulement quand les utilisateurs reçoivent plus de valeur, les équipes peuvent-elles l’influencer ce trimestre, et mène-t-elle au chiffre d’affaires dans la durée ?",
+    "Une North Star est trop grosse pour qu’une équipe la fasse bouger directement : on la décompose en indicateurs d’entrée (input metrics) dans un arbre d’indicateurs (metric tree). Pour une application de facturation, factures payées via l’application par semaine = équipes actives par semaine × factures envoyées par équipe × part payée en ligne. Chaque entrée a un responsable : l’équipe growth travaille les nouvelles équipes activées, l’équipe cœur les factures par équipe, l’équipe paiements la part payée en ligne. Quand la North Star bouge, l’arbre montre quelle branche l’explique.",
+    "Associez à la North Star des contre-indicateurs (counter-metrics, ou indicateurs de santé) qui empêchent l’équipe de la faire grandir de la mauvaise façon : litiges de paiement, tickets de support, désabonnements, temps de chargement. Envoyer plus d’e-mails de relance peut augmenter les factures payées ce mois-ci et abîmer la confiance pour l’année suivante ; le contre-indicateur le montre.",
+    "En pratique, une entreprise a une North Star pour le produit, chaque équipe porte deux ou trois indicateurs d’entrée, et le tableau de bord montre l’arbre de haut en bas avec les cibles. Changez de North Star rarement : quand le modèle économique change, pas parce qu’un trimestre a déçu."
+   ],
+   "points": [
+    "La North Star metric mesure la valeur délivrée aux utilisateurs et annonce le chiffre d’affaires.",
+    "Les indicateurs d’entrée d’un arbre d’indicateurs en font des leviers que chaque équipe peut porter.",
+    "Les contre-indicateurs empêchent l’équipe de faire grandir le chiffre de la mauvaise façon.",
+    "Chiffre d’affaires et inscriptions font en général de mauvaises North Stars : en retard ou sans lien avec la valeur."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "North Star: invoices paid through the app per week\n= weekly active teams x invoices sent per team x share paid online\n\nWeekly active teams\n|-- new teams activated this week      (growth team: onboarding)\n`-- retained teams from earlier weeks  (core team: reminders, exports)\nInvoices sent per active team          (core team: templates, recurring invoices)\nShare of invoices paid online          (payments team: card and bank transfer links)\n\nCounter-metrics: payment disputes per 1,000 invoices, support tickets per active team",
+    "note": "La North Star est le produit de trois entrées, chacune avec un responsable. Les contre-indicateurs repèrent une croissance qui nuit aux utilisateurs."
+   }
+  },
+  {
+   "title": "Funnels et conversion (AARRR comme cadre)",
+   "text": [
+    "Un funnel (entonnoir de conversion) est la suite d’étapes qu’un utilisateur franchit pour atteindre un objectif : visiter la page d’inscription, créer un compte, importer ses clients, envoyer une première facture, être payé. Pour chaque étape, on compte les utilisateurs qui l’atteignent et on calcule la conversion d’étape (utilisateurs à cette étape ÷ utilisateurs à l’étape précédente) et la conversion depuis le début du funnel. L’étape où l’on perd le plus est en général celle qu’un Product Owner regarde en premier.",
+    "Exemple chiffré : 20 000 visiteurs, 8 000 comptes (40 %), 4 800 imports de clients (60 %), 2 400 premières factures (50 %), 600 payées sous 30 jours (25 %). De bout en bout, 600 ÷ 20 000 = 3 %. Doubler l’étape à 25 % double le résultat final, mais doubler n’importe quelle étape aussi : comparez quelle étape peut réalistement progresser, et avec quel effort.",
+    "Définissez chaque funnel avec soin : qui entre (tous les visiteurs, ou seulement les nouveaux ?), dans quel ordre les étapes doivent avoir lieu, et dans quelle fenêtre de temps (payée sous 30 jours après l’inscription). Un funnel compté par utilisateur et avec une fenêtre se compare d’un mois à l’autre ; un funnel de totaux d’événements bruts, non. Segmentez-le par appareil, canal et pays : un funnel moyen cache souvent un parcours cassé, comme une étape qui échoue sur un navigateur mobile.",
+    "AARRR, les « pirate metrics » proposées par Dave McClure, est un cadre courant pour tout le cycle de vie : Acquisition (les utilisateurs arrivent), Activation (ils vivent une première bonne expérience), Rétention (ils reviennent), Recommandation (Referral : ils en amènent d’autres) et Revenu (ils paient). Il aide l’équipe à voir quelle étape est la plus faible avant de choisir quoi construire. C’est un cadre pour se poser des questions, pas une norme : beaucoup d’équipes mettent la rétention en premier, car acquérir des utilisateurs qui partent est du gaspillage.",
+    "Les chiffres du funnel disent où les utilisateurs décrochent, pas pourquoi. Complétez-les par de la recherche qualitative (enregistrements de sessions, entretiens, court questionnaire à l’étape de décrochage) avant de décider d’une correction."
+   ],
+   "points": [
+    "Conversion d’étape = utilisateurs à cette étape ÷ utilisateurs à l’étape précédente ; décrochage = 1 − conversion d’étape.",
+    "Comptez des utilisateurs, pas des événements, dans une fenêtre de temps fixe, pour comparer les mois.",
+    "Segmentez le funnel par appareil, canal et pays pour trouver le parcours cassé.",
+    "AARRR : Acquisition, Activation, Rétention, Referral, Revenu.",
+    "Le funnel montre où les utilisateurs décrochent ; la recherche montre pourquoi."
+   ],
+   "example": {
+    "lang": "excel",
+    "code": "Sheet: A = step, B = users (B2 visited the sign-up page ... B6 paid by day 30)\nC3   =B3/B2        step conversion: created account / visited\nD3   =B3/$B$2      conversion from the start of the funnel (copy down)\nE3   =1-C3         drop-off at this step\nD6   =B6/$B$2      end-to-end conversion: 600 / 20,000 = 3%",
+    "note": "$B$2 garde la première étape fixe quand on recopie la formule vers le bas : chaque ligne donne sa conversion depuis le début."
+   }
+  },
+  {
+   "title": "Activation et rétention",
+   "text": [
+    "L’activation est le moment où un nouvel utilisateur reçoit pour la première fois une vraie valeur : l’« aha moment ». Les équipes la définissent comme une action concrète dans une fenêtre de temps, par exemple « a envoyé une première facture dans les 7 jours après l’inscription » ou « a créé un projet et invité un collègue la première semaine ». Un bon événement d’activation est atteint en général par les utilisateurs qui restent et rarement par ceux qui partent. C’est une corrélation trouvée dans les données : confirmez-la par une expérimentation avant d’y miser la roadmap.",
+    "La rétention mesure si les utilisateurs reviennent. Un tableau de cohortes regroupe les utilisateurs par date de début (mois d’inscription) et montre, pour chaque cohorte, la part encore active après 1, 2, 3 mois. Lire une ligne montre comment une cohorte s’érode ; lire une colonne montre si le produit progresse : si la rétention à 1 mois passe de 45 % pour janvier à 52 % pour mars, les changements récents fonctionnent. Une courbe de rétention saine s’aplatit : après la première baisse, un noyau d’utilisateurs reste.",
+    "Pour moyenner la rétention de plusieurs cohortes, pondérez par leur taille : additionnez les utilisateurs retenus et divisez par les utilisateurs de départ, au lieu de faire la moyenne des pourcentages. Soyez explicite sur la définition d’« actif » (s’être connecté est faible ; avoir fait l’action clé est mieux) et sur le sens de « mois 2 » : « actif au mois 2 » ou « actif au mois 2 ou après ».",
+    "La stickiness, DAU/MAU, est le nombre moyen d’utilisateurs actifs par jour divisé par les utilisateurs actifs du mois. Un DAU/MAU de 20 % signifie que l’utilisateur mensuel moyen est actif environ 6 jours sur 30. Il convient aux produits faits pour un usage quotidien (messagerie, application bancaire) ; pour un outil de facturation mensuel, les actifs hebdomadaires ou mensuels sont le bon rythme. Choisissez la fréquence à laquelle un utilisateur satisfait utilise naturellement le produit.",
+    "Le churn (taux d’attrition) est l’inverse de la rétention pour les clients payants : la part des clients du début de période partis pendant la période. 60 départs sur 2 000, c’est 3 % par mois, et cela se cumule : 0,97 puissance 12 ≈ 0,69, donc 31 % des clients d’aujourd’hui sont partis en un an. Le churn en revenu (revenu perdu et déclassements) peut différer du churn en clients quand de gros clients partent."
+   ],
+   "points": [
+    "Activation = une action concrète dans une fenêtre de temps qui annonce que l’utilisateur restera.",
+    "Tableau de cohortes : une ligne montre l’érosion d’une cohorte, une colonne montre si le produit progresse.",
+    "Rétention moyenne pondérée par la taille des cohortes : somme des retenus ÷ somme des départs.",
+    "DAU/MAU mesure la stickiness ; choisissez la fréquence adaptée au produit.",
+    "Le churn mensuel se cumule : 3 % par mois ≈ 31 % des clients perdus en un an."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "Cohort (sign-up month)  New users   Month 1   Month 2   Month 3\nJanuary                    1,000       45%       38%       35%\nFebruary                   1,200       48%       40%        -\nMarch                      1,500       52%        -         -\n\nRead across a row: how one cohort decays. Read down a column: is month 1 improving?\nStickiness: average DAU 9,000 / MAU 40,000 = 22.5% (about 7 days a month per user)\nChurn: 60 of the 2,000 paying teams at the start of the month left = 3% a month\n       12 months at 3%: 0.97^12 = 0.69, so only 69% of today's teams remain in a year",
+    "note": "La cohorte de mars garde 52 % au mois 1 contre 45 % pour janvier : les changements de l’onboarding fonctionnent. Le churn se cumule sur l’année."
+   }
+  },
+  {
+   "title": "Les OKR : objectifs et résultats clés",
+   "text": [
+    "Les OKR (Objectives and Key Results) ont été développés par Andy Grove chez Intel et introduits chez Google par John Doerr en 1999 ; son livre Measure What Matters (2018) les a popularisés. Un objectif est une phrase qualitative et motivante qui dit ce que l’on veut atteindre ce trimestre. Les résultats clés (key results), en général deux à quatre, sont des outcomes mesurables qui montrent que l’objectif est atteint.",
+    "Un bon résultat clé est un outcome chiffré, avec une valeur de départ et une cible : « taux d’activation de 30 % à 45 % ». Un mauvais résultat clé est un output ou une tâche : « lancer l’assistant d’onboarding », « mener cinq entretiens ». Ce sont des initiatives, le travail prévu pour faire bouger les résultats clés, et leur place est dans le backlog. Si un résultat clé peut être coché en livrant quelque chose, réécrivez-le.",
+    "Équilibrez les résultats clés pour qu’on ne puisse pas les manipuler : associez un chiffre de croissance à un chiffre de qualité (plus de factures envoyées et moins de litiges de paiement). Gardez un petit ensemble, mesurable dès le premier jour (vérifiez que les données existent avant le début du trimestre), porté par l’équipe qui peut le faire bouger. Les OKR ne doivent pas être une copie de la roadmap ni une évaluation individuelle.",
+    "La notation en fin de trimestre : pour chaque résultat clé, avancement = (réel − départ) ÷ (cible − départ), entre 0 et 1 ; la note de l’objectif est la moyenne de ses résultats clés. La pratique de Google distingue les OKR d’engagement (committed), qui doivent atteindre 1,0, des OKR ambitieux (aspirational), pour lesquels environ 0,6 à 0,7 est considéré comme un bon résultat. Une équipe qui obtient toujours 1,0 se fixe des cibles trop faciles.",
+    "Pendant le trimestre, faites le point toutes les une ou deux semaines avec un niveau de confiance, et ajustez les initiatives, pas les résultats clés. À la fin, écrivez ce que vous avez appris : savoir pourquoi un résultat clé a bougé ou non vaut plus que la note."
+   ],
+   "points": [
+    "Objectif = direction qualitative ; résultats clés = 2 à 4 outcomes mesurables.",
+    "Un résultat clé a une valeur de départ, une cible et une date ; une tâche ou un lancement est une initiative.",
+    "Associez résultats clés de croissance et de qualité pour qu’on ne puisse pas les manipuler.",
+    "Note = (réel − départ) ÷ (cible − départ) ; objectif = moyenne de ses résultats clés.",
+    "OKR ambitieux : environ 0,6 à 0,7 est un bon résultat ; toujours 1,0 veut dire trop facile."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "Objective: new teams get value from the product in their first week\nKR1  Activation rate (first invoice sent within 7 days) from 30% to 45%\nKR2  Median time to first invoice from 3 days to 1 day\nKR3  Onboarding support tickets per 1,000 sign-ups from 50 to 30\nNot a key result: \"Launch the new onboarding wizard\" (an initiative, an output)\n\nEnd-of-quarter score = (actual - start) / (target - start)\nKR1  reached 41%    (41 - 30) / (45 - 30) = 0.73\nKR2  reached 2 days (2 - 3) / (1 - 3)     = 0.50\nKR3  reached 38     (38 - 50) / (30 - 50) = 0.60\nObjective score: average = 0.61",
+    "note": "Chaque résultat clé a un départ et une cible, donc il peut être noté. Le lancement de l’assistant est l’initiative, pas le résultat."
+   }
+  },
+  {
+   "title": "Expérimentation : les tests A/B en pratique",
+   "text": [
+    "Un test A/B répartit au hasard les utilisateurs entre la version actuelle (A, le contrôle) et une nouvelle version (B), et compare un indicateur. C’est l’affectation aléatoire qui rend la différence causale : les deux groupes se ressemblent en tout, sauf le changement. C’est la preuve la plus solide qu’un Product Owner puisse apporter qu’une fonctionnalité a fait bouger un outcome. Le cours Statistiques et tests A/B traite en profondeur p-values, intervalles de confiance et puissance ; cette leçon porte sur la bonne conduite des tests.",
+    "Commencez par une hypothèse écrite avant le test : « parce que [constat], nous pensons que [changement] va [effet] ; nous le saurons quand [l’indicateur bougera] ». Choisissez un indicateur principal qui tranche le résultat (taux d’activation, conversion) et des indicateurs garde-fous (guardrail metrics) qui ne doivent pas se dégrader (tickets de support, temps de chargement, revenu par utilisateur). Écrivez la règle de décision avant de regarder le moindre résultat.",
+    "Dimensionnez le test avant de le lancer. L’effet minimum détectable (MDE) est le plus petit changement qui vaut la peine d’être détecté. Une règle empirique courante pour une puissance de 80 % et un seuil de 5 % : utilisateurs par variante ≈ 16 × p × (1 − p) ÷ δ², où p est le taux de départ et δ l’effet absolu. Avec p = 5 % et δ = 0,5 point, cela fait 30 400 utilisateurs par variante. De petits effets sur un produit à faible trafic demandent des semaines ; si le calcul ne tient pas, testez un changement plus fort ou utilisez une autre méthode.",
+    "Faites tourner le test jusqu’à l’échantillon prévu et sur des semaines entières, pour couvrir jours ouvrés et week-ends. Ne l’arrêtez pas le premier jour où le résultat semble significatif : regarder chaque jour et s’arrêter au premier bon résultat (le peeking) produit beaucoup de faux gagnants. Vérifiez la répartition : si un test 50/50 affiche 52/48 sur des dizaines de milliers d’utilisateurs, il y a un déséquilibre d’échantillon (sample ratio mismatch) et le résultat n’est pas fiable.",
+    "Présentez la hausse relative (B ÷ A − 1) et l’écart absolu en points, avec l’intervalle de confiance, les garde-fous et la décision. Un test non concluant est aussi un résultat : il dit que l’effet, s’il existe, est plus petit que le MDE. Consignez chaque test, perdants compris, pour que l’équipe ne les refasse pas."
+   ],
+   "points": [
+    "Hypothèse, indicateur principal, garde-fous et règle de décision sont écrits avant le lancement.",
+    "Taille d’échantillon par variante ≈ 16 × p × (1 − p) ÷ δ² (puissance 80 %, seuil 5 %).",
+    "Semaines entières jusqu’à l’échantillon prévu ; le peeking crée de faux gagnants.",
+    "Un sample ratio mismatch signifie que le test est cassé, quel que soit le résultat.",
+    "Présentez hausse relative et écart absolu, avec l’intervalle et les garde-fous."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "Experiment brief: one-page onboarding checklist\nHypothesis: because interviews show new users do not know what to do after sign-up,\n  we believe a 3-step checklist will help more teams send a first invoice.\n  We will know when the activation rate rises.\nPrimary metric: activation rate (first invoice sent within 7 days of sign-up)\nGuardrails: support tickets per 1,000 sign-ups, sign-up completion, page load time\nBaseline p = 5%, minimum detectable effect = +0.5 point (10% relative)\nSample size (80% power, 5% significance, two-sided):\n  n per variant = 16 x p x (1 - p) / d^2 = 16 x 0.05 x 0.95 / 0.005^2 = 30,400\nTraffic: 4,400 new users a day, 50/50 split -> 30,400 / 2,200 = 14 days (2 full weeks)\nDecision rule, written before the start: ship if activation rises and no guardrail\n  gets worse; otherwise keep A and record what we learned.",
+    "note": "La fiche fixe l’indicateur, les garde-fous, la taille d’échantillon et la règle de décision avant tout résultat. 14 jours font exactement deux semaines entières."
+   }
+  },
+  {
+   "title": "Feature flags, déploiements progressifs et mesure d’un lancement",
+   "text": [
+    "Un feature flag est un interrupteur dans le code qui active ou désactive une fonctionnalité pour des utilisateurs choisis, sans nouveau déploiement. Il sépare le déploiement du code de la mise à disposition de la fonctionnalité : le code peut partir en production lundi, masqué, et être activé pour les utilisateurs quand l’équipe est prête. C’est avec les flags que la plupart des équipes produit mènent tests A/B, programmes bêta et lancements progressifs.",
+    "Un déploiement progressif (staged rollout) active la fonctionnalité par paliers : comptes internes d’abord, puis 1 %, 10 %, 50 % et 100 % des utilisateurs. À chaque palier, l’équipe surveille des signaux techniques (taux d’erreur, latence, échecs de paiement) et produit (conversion, tickets de support). Le flag sert aussi de kill switch : si un seuil convenu à l’avance est franchi, la fonctionnalité est coupée en quelques secondes, sans retour arrière du code.",
+    "Mesurer le lancement demande une comparaison. Le palier à 50 % peut être un vrai test A/B (flag actif contre flag inactif, affectation aléatoire). Ensuite, un groupe holdout (par exemple 5 % des utilisateurs gardés sans la fonctionnalité pendant quelques semaines) montre si l’effet tient une fois l’effet de nouveauté passé : les utilisateurs cliquent sur tout ce qui est nouveau pendant quelques jours, et le gain de la première semaine diminue souvent.",
+    "Tout ne peut pas passer en test A/B : un changement de prix pour tous les clients, une fonctionnalité pour quelques grands comptes, une évolution réglementaire. Comparez alors avant et après avec soin (même saison, même segment), lancez de façon échelonnée par pays ou par segment, et suivez plusieurs cohortes après le lancement. Dites honnêtement dans le compte rendu quelle est la force de la preuve.",
+    "Les flags ont un coût. Chaque flag laissé dans le code ajoute une branche à tester et une façon de casser quelque chose. Donnez à chaque flag un responsable et une date de fin, et retirez-le une fois la fonctionnalité à 100 % (la dette de flags). Indiquez dans les notes de version les flags actifs, pour que le support sache ce que voit chaque client."
+   ],
+   "points": [
+    "Un feature flag sépare le déploiement du code de la mise à disposition de la fonctionnalité.",
+    "Déploiement progressif : interne, 1 %, 10 %, 50 %, 100 %, avec des seuils convenus à l’avance.",
+    "Le flag sert de kill switch : coupé en quelques secondes, sans retour arrière du code.",
+    "Un groupe holdout montre si l’effet tient après l’effet de nouveauté.",
+    "Retirez les flags une fois à 100 % : chacun a un responsable et une date de fin."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "Rollout plan: flag \"new_checkout\" (kill switch = flag off, no deploy needed)\nDay 1    staff accounts only              check errors, logs, the full flow by hand\nDay 2    1% of users                      error rate, latency, payment failures\nDay 3    10% of users                     same + support tickets\nDay 5    50% on / 50% off for 2 full weeks  the A/B test: checkout conversion\nDay 19   95% on, 5% holdout for 4 weeks   does the effect last after the novelty?\nDay 47   100%, remove the flag from the code (no flag debt)\nTurn the flag off at once if: error rate > 1%, or payment failures double",
+    "note": "Chaque palier a ses signaux à surveiller, et les seuils du kill switch sont écrits avant le premier jour. Le holdout de 5 % vérifie que le gain dure."
+   }
+  },
+  {
+   "title": "Lire les chiffres honnêtement",
+   "text": [
+    "La plupart des chiffres produit bougent pour des raisons sans rapport avec le travail de l’équipe. La saisonnalité est le premier suspect : week-ends, jours fériés, fin de mois, été. Comparez ce qui est comparable (ce mardi avec mardi dernier, ce mois de décembre avec le précédent) et regardez une période assez longue. Vérifiez aussi d’abord les données : un changement de tracking, un événement cassé ou un nouveau filtre anti-robots peut créer une « baisse » qui n’a jamais eu lieu.",
+    "Moyennes et totaux peuvent tromper. Dans le paradoxe de Simpson, une tendance présente dans chaque segment s’inverse dans le total parce que la composition des segments a changé. Un nouvel onboarding peut être meilleur sur ordinateur et sur mobile et paraître moins bon au total s’il a surtout été montré à des utilisateurs mobiles, qui s’activent moins. Quand les groupes diffèrent en taille ou en composition, regardez les segments avant de conclure.",
+    "Corrélation n’est pas causalité. Les utilisateurs de la fonction d’export restent davantage, mais peut-être parce que ce sont des clients plus grands et plus structurés qui resteraient de toute façon. Pousser tout le monde vers l’export peut ne rien changer. Seule une expérimentation, ou l’analyse rigoureuse d’une comparaison naturelle, montre une cause. Le biais de sélection fonctionne de la même façon : un questionnaire auprès des utilisateurs actifs ne dit rien de ceux qui sont partis.",
+    "La loi de Goodhart avertit que lorsqu’une mesure devient une cible, elle cesse d’être une bonne mesure : une équipe rémunérée sur les inscriptions trouvera des moyens d’en gagner qui n’apportent aucune valeur. C’est pourquoi on associe les résultats clés à des contre-indicateurs et qu’on regarde la définition d’un indicateur avant de fêter sa hausse. Les petits nombres sont bruités aussi : 6 conversions contre 4 n’est pas une hausse de 50 % à annoncer.",
+    "Un tableau de bord d’équipe doit répondre en une minute à « sommes-nous sur la bonne trajectoire et où faut-il regarder ? ». Mettez en haut la North Star et ses indicateurs d’entrée, chacun avec une cible et une période de comparaison, les segments à un clic, et des annotations pour les lancements et les incidents. Peu de graphiques bien définis valent mieux qu’un mur de chiffres ; chaque graphique doit mener à une question dont quelqu’un est responsable."
+   ],
+   "points": [
+    "Vérifiez les données et la saison avant d’expliquer un changement.",
+    "Paradoxe de Simpson : segments et total peuvent aller en sens inverse.",
+    "Corrélation n’est pas causalité ; seule l’expérimentation prouve une cause.",
+    "Loi de Goodhart : un indicateur devenu cible est manipulé ; associez-le à des contre-indicateurs.",
+    "Un tableau de bord d’équipe : North Star et entrées, cibles, périodes de comparaison, annotations."
+   ],
+   "example": {
+    "lang": "text",
+    "code": "Old vs new onboarding: activation by device\n              Old onboarding            New onboarding\nDesktop       400 / 1,000 = 40%         90 / 200   = 45%\nMobile         20 / 200   = 10%        120 / 1,000 = 12%\nTotal         420 / 1,200 = 35%        210 / 1,200 = 17.5%\nNew is better on desktop AND on mobile, yet worse in total:\nit was shown mostly to mobile users, who activate less (Simpson's paradox).",
+    "note": "Le nouvel onboarding gagne dans chaque segment et perd au total. C’est la répartition des appareils, pas l’onboarding, qui explique le total."
+   }
+  }
+ ],
+ "cheatsheet": [
+  {
+   "group": "Mesurer ce qui compte",
+   "items": [
+    [
+     "Output",
+     "Ce que l’équipe livre : une fonctionnalité, une release"
+    ],
+    [
+     "Outcome",
+     "Le changement de comportement utilisateur qui suit"
+    ],
+    [
+     "Indicateur de vanité",
+     "Ne fait que monter, ne guide aucune décision (total d’inscriptions)"
+    ],
+    [
+     "Indicateur actionnable",
+     "Un taux par période ou par cohorte sur lequel on peut agir"
+    ],
+    [
+     "North Star metric",
+     "Un chiffre pour la valeur reçue par les utilisateurs ; annonce le chiffre d’affaires"
+    ],
+    [
+     "Indicateur d’entrée",
+     "Un levier sous la North Star, porté par une équipe"
+    ],
+    [
+     "Contre-indicateur",
+     "Empêche l’équipe de faire grandir un chiffre de la mauvaise façon"
+    ]
+   ]
+  },
+  {
+   "group": "Funnels et rétention",
+   "items": [
+    [
+     "Conversion d’étape",
+     "Utilisateurs à cette étape ÷ utilisateurs à l’étape précédente"
+    ],
+    [
+     "AARRR",
+     "Acquisition, Activation, Rétention, Referral, Revenu"
+    ],
+    [
+     "Activation",
+     "Première vraie valeur : une action dans une fenêtre de temps"
+    ],
+    [
+     "Tableau de cohortes",
+     "Utilisateurs groupés par date de début, part active dans le temps"
+    ],
+    [
+     "DAU/MAU",
+     "Stickiness : actifs quotidiens moyens ÷ actifs du mois"
+    ],
+    [
+     "Churn",
+     "Part des clients du début de période partis pendant la période"
+    ]
+   ]
+  },
+  {
+   "group": "OKR",
+   "items": [
+    [
+     "Objectif",
+     "Direction qualitative pour le trimestre"
+    ],
+    [
+     "Résultat clé",
+     "Outcome mesurable avec une valeur de départ et une cible"
+    ],
+    [
+     "Initiative",
+     "Travail prévu pour faire bouger un résultat clé (pas un résultat clé)"
+    ],
+    [
+     "Note d’un résultat clé",
+     "(réel − départ) ÷ (cible − départ)"
+    ],
+    [
+     "OKR ambitieux",
+     "Environ 0,6 à 0,7 est un bon résultat"
+    ]
+   ]
+  },
+  {
+   "group": "Expérimentation",
+   "items": [
+    [
+     "Hypothèse",
+     "Parce que… nous pensons que… nous le saurons quand…"
+    ],
+    [
+     "Indicateur principal",
+     "Le seul indicateur qui tranche le test"
+    ],
+    [
+     "Garde-fou",
+     "Ne doit pas se dégrader pendant le test"
+    ],
+    [
+     "Effet minimum détectable",
+     "Plus petit changement que le test est dimensionné pour détecter"
+    ],
+    [
+     "16 × p × (1 − p) ÷ δ²",
+     "Utilisateurs par variante pour une puissance de 80 %, seuil 5 %"
+    ],
+    [
+     "Peeking",
+     "S’arrêter au premier jour significatif : faux gagnants"
+    ],
+    [
+     "Sample ratio mismatch",
+     "Répartition différente du plan : le test est cassé"
+    ],
+    [
+     "Hausse relative",
+     "B ÷ A − 1"
+    ]
+   ]
+  },
+  {
+   "group": "Lancements",
+   "items": [
+    [
+     "Feature flag",
+     "Active ou coupe une fonctionnalité sans déploiement"
+    ],
+    [
+     "Déploiement progressif",
+     "Interne, 1 %, 10 %, 50 %, 100 % des utilisateurs"
+    ],
+    [
+     "Kill switch",
+     "Flag coupé aussitôt qu’un seuil est franchi"
+    ],
+    [
+     "Groupe holdout",
+     "Utilisateurs gardés sans la fonctionnalité pour vérifier que l’effet dure"
+    ],
+    [
+     "Effet de nouveauté",
+     "Gain initial qui s’efface quand la fonctionnalité n’est plus nouvelle"
+    ]
+   ]
+  },
+  {
+   "group": "Lire les chiffres",
+   "items": [
+    [
+     "Saisonnalité",
+     "Cycles de la semaine et de l’année : comparer ce qui est comparable"
+    ],
+    [
+     "Paradoxe de Simpson",
+     "Une tendance présente dans chaque segment s’inverse dans le total"
+    ],
+    [
+     "Corrélation n’est pas causalité",
+     "Bouger ensemble ne prouve pas une cause"
+    ],
+    [
+     "Loi de Goodhart",
+     "Une mesure devenue cible est manipulée"
+    ]
+   ]
+  }
+ ],
+ "pitfalls": [
+  "Fixer « lancer la fonctionnalité X » comme résultat clé : livrer est un output, pas un outcome.",
+  "Choisir le chiffre d’affaires ou le total d’inscriptions comme North Star : en retard, ou sans lien avec la valeur.",
+  "Faire la moyenne des pourcentages de rétention de cohortes de tailles très différentes au lieu de les pondérer.",
+  "Arrêter un test A/B le premier jour où il semble significatif, ou ignorer un sample ratio mismatch.",
+  "Livrer un « gagnant » dont les garde-fous se sont dégradés.",
+  "Fêter un lancement sur les chiffres de la première semaine, avant que l’effet de nouveauté ne s’efface.",
+  "Laisser de vieux feature flags dans le code sans responsable ni date de fin."
+ ],
+ "exercises": [
+  {
+   "q": "Classez ces éléments en outputs et outcomes.",
+   "type": "groups",
+   "groups": [
+    {
+     "name": "Output",
+     "items": [
+      "Mettre en production le nouvel assistant d’onboarding",
+      "Terminer 12 user stories ce sprint",
+      "Publier l’application Android"
+     ]
+    },
+    {
+     "name": "Outcome",
+     "items": [
+      "Les équipes qui envoient une première facture sous 7 jours passent de 30 % à 40 %",
+      "Le churn mensuel baisse de 3 % à 2 %",
+      "Le délai médian de paiement passe de 21 à 14 jours"
+     ]
+    }
+   ],
+   "answer": "Les outputs sont ce que l’équipe livre ; les outcomes sont les changements de comportement des utilisateurs que l’on mesure ensuite. Résultats clés et critères de succès doivent être des outcomes."
+  },
+  {
+   "q": "Une application de travail collaboratif vend des abonnements par utilisateur. Quelle est la meilleure North Star metric ?",
+   "type": "choice",
+   "options": [
+    "Le total d’inscriptions depuis le lancement",
+    "Les équipes actives par semaine avec au moins 3 membres qui collaborent",
+    "Le revenu récurrent mensuel",
+    "Le nombre de fonctionnalités livrées par trimestre"
+   ],
+   "correct": 1,
+   "answer": "Les équipes qui collaborent chaque semaine mesurent la valeur reçue et annoncent le revenu (plus d’équipes actives, plus de licences). Les inscriptions sont un indicateur de vanité, le revenu est en retard et aucune équipe ne peut agir dessus directement, et les fonctionnalités livrées sont un output."
+  },
+  {
+   "q": "Associez chaque indicateur à la question à laquelle il répond.",
+   "type": "match",
+   "pairs": [
+    [
+     "Taux d’activation",
+     "Les nouveaux utilisateurs atteignent-ils leur premier moment de valeur ?"
+    ],
+    [
+     "Rétention à 3 mois par cohorte",
+     "Les utilisateurs reviennent-ils encore trois mois après leur début ?"
+    ],
+    [
+     "DAU/MAU",
+     "À quel point le produit est-il une habitude quotidienne ?"
+    ],
+    [
+     "Conversion d’étape",
+     "À quelle étape de l’inscription les gens décrochent-ils ?"
+    ],
+    [
+     "Churn mensuel",
+     "Quelle part des clients payants part chaque mois ?"
+    ]
+   ],
+   "answer": "Chaque indicateur répond à une question ; choisissez l’indicateur à partir de la question à trancher, pas l’inverse."
+  },
+  {
+   "q": "En D2, la part des utilisateurs perdus entre « Created account » et « Sent first invoice » (en fraction).",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Step",
+     "Users",
+     "",
+     "Lost from Created account to First invoice"
+    ],
+    [
+     "Visited sign-up page",
+     15000,
+     "",
+     ""
+    ],
+    [
+     "Created account",
+     6000,
+     "",
+     ""
+    ],
+    [
+     "Imported clients",
+     3900,
+     "",
+     ""
+    ],
+    [
+     "Sent first invoice",
+     2340,
+     "",
+     ""
+    ],
+    [
+     "Paid by day 30",
+     468,
+     "",
+     ""
+    ]
+   ],
+   "cell": "D2",
+   "answer": "=1-B5/B3",
+   "hint": "Utilisateurs ayant envoyé une première facture ÷ utilisateurs ayant créé un compte donne la part conservée sur ces deux étapes ; 1 moins cette part donne la part perdue.",
+   "explain": "=1-B5/B3 donne 1 − 2 340 ÷ 6 000 = 0,61 : 61 % des nouveaux comptes n’envoient jamais de première facture. (B3−B5)/B3 donne la même chose. C’est la plus grosse fuite de ce funnel, donc la première chose à regarder."
+  },
+  {
+   "q": "En G2, la rétention à 1 mois des trois cohortes ensemble, pondérée par la taille des cohortes.",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Cohort",
+     "New users",
+     "Month 1",
+     "Month 2",
+     "Month 3",
+     "",
+     "Weighted month-1 retention"
+    ],
+    [
+     "January",
+     1000,
+     420,
+     350,
+     310,
+     "",
+     ""
+    ],
+    [
+     "February",
+     1500,
+     600,
+     510,
+     "",
+     "",
+     ""
+    ],
+    [
+     "March",
+     2000,
+     760,
+     "",
+     "",
+     "",
+     ""
+    ]
+   ],
+   "cell": "G2",
+   "answer": "=SUM(C2:C4)/SUM(B2:B4)",
+   "hint": "Additionnez les utilisateurs retenus au mois 1 et divisez par les utilisateurs de départ.",
+   "explain": "=SUM(C2:C4)/SUM(B2:B4) donne 1 780 ÷ 4 500 = 0,3956, soit environ 39,6 %. La moyenne simple des trois taux (42 %, 40 %, 38 %) donne 40 % : elle accorde à la petite cohorte de janvier autant de poids qu’à la grande cohorte de mars."
+  },
+  {
+   "q": "En E2, la stickiness (DAU/MAU) de la semaine : DAU moyen divisé par le MAU en D2.",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Day",
+     "DAU",
+     "",
+     "MAU",
+     "Stickiness"
+    ],
+    [
+     "Mon",
+     9800,
+     "",
+     45000,
+     ""
+    ],
+    [
+     "Tue",
+     10400,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Wed",
+     10100,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Thu",
+     9900,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Fri",
+     9600,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Sat",
+     7200,
+     "",
+     "",
+     ""
+    ],
+    [
+     "Sun",
+     6900,
+     "",
+     "",
+     ""
+    ]
+   ],
+   "cell": "E2",
+   "answer": "=AVERAGE(B2:B8)/D2",
+   "hint": "AVERAGE sur les sept jours de DAU, puis divisez par D2.",
+   "explain": "=AVERAGE(B2:B8)/D2 donne 9 128,6 ÷ 45 000 = 0,203 : l’utilisateur mensuel moyen est actif environ 6 jours sur 30. Prenez une semaine entière pour inclure le week-end, plus calme."
+  },
+  {
+   "q": "En E2, la hausse relative du taux de conversion de B par rapport à A.",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Variant",
+     "Visitors",
+     "Conversions",
+     "",
+     "Relative lift of B"
+    ],
+    [
+     "A",
+     18000,
+     810,
+     "",
+     ""
+    ],
+    [
+     "B",
+     18200,
+     910,
+     "",
+     ""
+    ]
+   ],
+   "cell": "E2",
+   "answer": "=(C3/B3)/(C2/B2)-1",
+   "hint": "Calculez chaque taux de conversion (conversions ÷ visiteurs), puis B ÷ A − 1.",
+   "explain": "A convertit à 810 ÷ 18 000 = 4,5 % et B à 910 ÷ 18 200 = 5,0 % : (5,0 ÷ 4,5) − 1 = 0,111, une hausse relative de 11,1 %, soit +0,5 point en absolu. Comparez des taux, pas des conversions brutes : les groupes n’ont pas la même taille."
+  },
+  {
+   "q": "En F2, la note de l’objectif : la moyenne des trois résultats clés, chacun noté (réel − départ) ÷ (cible − départ).",
+   "type": "sheet",
+   "code": "excel",
+   "rows": [
+    [
+     "Key result",
+     "Start",
+     "Target",
+     "Actual",
+     "",
+     "Objective score"
+    ],
+    [
+     "Activation rate (%)",
+     30,
+     45,
+     39,
+     "",
+     ""
+    ],
+    [
+     "Days to first invoice",
+     4,
+     2,
+     3,
+     "",
+     ""
+    ],
+    [
+     "Tickets per 1,000 sign-ups",
+     60,
+     40,
+     44,
+     "",
+     ""
+    ]
+   ],
+   "cell": "F2",
+   "answer": "=AVERAGE((D2-B2)/(C2-B2),(D3-B3)/(C3-B3),(D4-B4)/(C4-B4))",
+   "hint": "AVERAGE accepte plusieurs expressions séparées par des virgules : une (D−B)/(C−B) par ligne.",
+   "explain": "Activation : (39 − 30) ÷ (45 − 30) = 0,6. Jours avant la première facture : (3 − 4) ÷ (2 − 4) = 0,5. Tickets : (44 − 60) ÷ (40 − 60) = 0,8. Moyenne 0,63. La même formule fonctionne quand « moins » est mieux, car les deux écarts sont négatifs."
+  },
+  {
+   "q": "Remettez dans l’ordre les étapes d’un test A/B.",
+   "type": "order",
+   "steps": [
+    "Écrire l’hypothèse et choisir l’indicateur principal",
+    "Choisir les garde-fous et l’effet minimum détectable",
+    "Calculer la taille d’échantillon et la durée en semaines entières",
+    "Vérifier la mise en place (recette, répartition conforme au plan)",
+    "Faire tourner jusqu’à l’échantillon prévu sans arrêter avant",
+    "Analyser indicateur principal et garde-fous, décider et consigner l’enseignement"
+   ],
+   "answer": "Tout ce qui définit le succès est fixé avant le lancement ; l’analyse suit ensuite le plan, et l’enseignement est consigné quel que soit le résultat."
+  },
+  {
+   "q": "Votre test d’onboarding était prévu sur deux semaines entières (environ 30 000 utilisateurs par variante).",
+   "type": "scenario",
+   "steps": [
+    {
+     "text": "Jour 3 : le tableau de bord affiche +12 % d’activation pour B, p = 0,02. Le responsable commercial vous demande de livrer B aujourd’hui.",
+     "choices": [
+      {
+       "label": "Livrer B maintenant : c’est significatif",
+       "feedback": "S’arrêter au premier jour significatif (peeking) multiplie les faux gagnants, et trois jours ouvrés ne représentent pas une semaine entière."
+      },
+      {
+       "label": "Laisser le test tourner jusqu’à l’échantillon prévu, et expliquer pourquoi au responsable commercial",
+       "best": true,
+       "feedback": "Le plan est là pour protéger la décision. Partagez la tendance comme provisoire et la date du vrai résultat."
+      },
+      {
+       "label": "Arrêter le test et le relancer avec plus de trafic sur B",
+       "feedback": "Relancer jette des données valides et ne corrige rien."
+      }
+     ]
+    },
+    {
+     "text": "Jour 14 : l’activation est à +4 % pour B (p = 0,04), mais les tickets de support pour 1 000 inscriptions, un garde-fou, ont augmenté de 15 %.",
+     "choices": [
+      {
+       "label": "Livrer : l’indicateur principal a gagné",
+       "feedback": "Les garde-fous font partie de la règle de décision ; un gain qui coûte du temps de support n’en est peut-être pas un."
+      },
+      {
+       "label": "Trouver l’étape qui crée les tickets, décider avec l’équipe de corriger et de retester",
+       "best": true,
+       "feedback": "Le garde-fou signale un problème corrigeable ; un B corrigé peut ensuite être retesté ou livré avec l’accord de l’équipe."
+      },
+      {
+       "label": "Ignorer les tickets : c’est le problème du support",
+       "feedback": "Le coût du support et la frustration des utilisateurs sont aussi des outcomes produit."
+      }
+     ]
+    },
+    {
+     "text": "B est corrigé et livré. Comment vérifier que le gain dure ?",
+     "choices": [
+      {
+       "label": "Garder un petit groupe holdout quelques semaines et suivre les cohortes suivantes",
+       "best": true,
+       "feedback": "Un holdout montre si l’effet survit à l’effet de nouveauté."
+      },
+      {
+       "label": "Rien : le test l’a déjà prouvé",
+       "feedback": "Les effets mesurés en deux semaines diminuent souvent quand la nouveauté s’estompe."
+      }
+     ]
+    }
+   ],
+   "answer": "Respectez le plan (pas de peeking), traitez les garde-fous comme partie de la décision, et confirmez l’effet dans le temps avec un holdout."
+  },
+  {
+   "q": "10 000 visiteurs arrivent sur la page tarifs ; 30 % commencent l’inscription et la moitié d’entre eux la terminent. Combien de comptes sont créés ?",
+   "type": "fill",
+   "blanks": [
+    [
+     "1500",
+     "1 500",
+     "1,500",
+     "1.500"
+    ]
+   ],
+   "answer": "10 000 × 0,30 = 3 000 commencent, × 0,50 = 1 500 comptes. La conversion de bout en bout est 0,30 × 0,50 = 15 % : on multiplie les conversions d’étape."
+  },
+  {
+   "q": "Objectif : « Les petites entreprises sont payées plus vite grâce à notre application. » Rédigez trois résultats clés pour ce trimestre et dites pourquoi chacun est un bon résultat clé.",
+   "answer": "RC1 : délai médian entre l’envoi et le paiement d’une facture de 21 à 14 jours (l’outcome lui-même, avec un départ et une cible). RC2 : part des factures payées en ligne via le lien de paiement de 25 % à 40 % (une entrée qui accélère le paiement). RC3 : litiges de paiement maintenus sous 2 pour 1 000 factures (un contre-indicateur, pour que la vitesse ne se paie pas en clients mécontents). Ne sont pas des résultats clés : « lancer les relances automatiques » ou « ajouter des liens de virement », qui sont des initiatives. Chaque résultat clé est mesurable dès aujourd’hui, porté par l’équipe et noté (réel − départ) ÷ (cible − départ) en fin de trimestre."
+  }
+ ],
+ "interview": [
+  {
+   "q": "Comment choisiriez-vous la North Star metric de notre produit ?",
+   "a": "Je partirais de la valeur pour laquelle les utilisateurs viennent et chercherais l’action qui montre qu’ils l’ont obtenue, comme les factures payées ou les équipes qui collaborent chaque semaine. Je teste chaque candidate : monte-t-elle seulement quand les utilisateurs reçoivent plus de valeur, les équipes peuvent-elles l’influencer en un trimestre, mène-t-elle au chiffre d’affaires ? Puis je la décompose en deux ou trois indicateurs d’entrée avec des responsables, j’ajoute des contre-indicateurs pour qu’on ne la fasse pas grandir de la mauvaise façon, et je vérifie sur l’historique qu’elle est corrélée à la rétention et au revenu."
+  },
+  {
+   "q": "Nos utilisateurs actifs hebdomadaires ont baissé de 10 % la semaine dernière. Que faites-vous ?",
+   "a": "D’abord, est-ce réel : un changement de tracking, une release qui a cassé un événement, un jour férié ou une semaine saisonnière ? Je compare avec la même semaine l’an dernier et le même jour de la semaine. Ensuite je segmente : nouveaux ou anciens utilisateurs, appareil, pays, canal, version de l’application, pour localiser la baisse. Je regarde le funnel et les releases ou incidents récents de ce segment, je formule une hypothèse, et je présente la branche qui explique l’essentiel de la baisse avec une action et un responsable."
+  },
+  {
+   "q": "Qu’est-ce qu’un bon résultat clé ?",
+   "a": "C’est un outcome, pas une tâche : il a un indicateur, une valeur de départ, une cible et une date, et l’équipe peut l’influencer. « Activation de 30 % à 45 % » est un résultat clé ; « lancer l’assistant d’onboarding » est une initiative. J’en garde deux à quatre par objectif, j’associe croissance et qualité pour qu’on ne puisse pas les manipuler, je vérifie que les données existent avant le trimestre, et je les note à la fin avec (réel − départ) ÷ (cible − départ), où 0,6 à 0,7 est bon pour un OKR ambitieux."
+  },
+  {
+   "q": "Expliquez-moi comment vous mèneriez un test A/B sur un nouveau parcours d’onboarding.",
+   "a": "J’écris l’hypothèse à partir de la recherche, je choisis l’indicateur principal (activation sous 7 jours) et les garde-fous (taux de fin d’inscription, tickets de support, temps de chargement). Je fais valider l’effet minimum détectable, je calcule la taille d’échantillon et je fais tourner le test sur des semaines entières, derrière un feature flag avec affectation aléatoire. Je vérifie la répartition (sample ratio mismatch), je n’arrête pas avant la fin, puis je présente hausse relative et absolue avec l’intervalle de confiance et les garde-fous, je décide selon la règle écrite au départ et je consigne l’enseignement."
+  },
+  {
+   "q": "Votre test A/B n’est pas concluant. Et maintenant ?",
+   "a": "Un résultat non concluant dit que l’effet, s’il existe, est plus petit que ce que le test pouvait détecter. Je vérifie que le test était sain (répartition, tracking, échantillon suffisant), je regarde les segments seulement comme des pistes pour de nouvelles hypothèses, pas comme des victoires, et je décide : garder la version la plus simple, tester un changement plus audacieux, ou passer à autre chose si l’opportunité est petite. Je le consigne pour que l’équipe ne refasse pas le même test."
+  },
+  {
+   "q": "Les utilisateurs de notre fonction d’export churnent deux fois moins. Faut-il pousser tout le monde à l’utiliser ?",
+   "a": "Pas sur cette seule base : c’est une corrélation. Les utilisateurs de l’export sont peut-être des entreprises plus grandes ou mieux organisées qui resteraient de toute façon. Je le testerais : mettre en avant l’export auprès d’une moitié tirée au hasard des nouveaux utilisateurs et comparer la rétention les mois suivants. Si le groupe exposé retient mieux, la fonctionnalité aide ; sinon, l’export est le signe de clients engagés, pas une cause, et je cherche ailleurs."
+  },
+  {
+   "q": "Comment mesurez-vous le succès d’un lancement que vous ne pouvez pas tester en A/B ?",
+   "a": "Je définis l’outcome et la valeur de départ avant le lancement, puis j’utilise la meilleure comparaison possible : un lancement échelonné par pays ou par segment, une comparaison avant/après sur la même saison et le même segment, l’analyse des cohortes avant et après, et des retours qualitatifs. Je surveille les garde-fous et l’effet de nouveauté, et je dis clairement dans le compte rendu quelle est la force de la preuve."
+  },
+  {
+   "q": "Que mettriez-vous sur le tableau de bord de l’équipe produit ?",
+   "a": "La North Star et ses indicateurs d’entrée en haut, chacun avec une cible, une période de comparaison et un responsable ; le funnel principal et les cohortes de rétention en dessous ; des garde-fous comme les erreurs et les tickets de support ; des annotations pour les releases et les incidents. Peu de graphiques, chacun avec une définition écrite, pour que l’équipe voie en une minute si nous sommes sur la trajectoire et où regarder."
+  }
+ ]
+}

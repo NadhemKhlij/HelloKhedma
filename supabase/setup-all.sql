@@ -883,7 +883,11 @@ insert into public.career_paths (id, name, blurb, color, job_titles, sort_order)
  ('mk','Digital Marketing','SEO, ads, analytics, campaigns','#0891b2',
    array['Digital Marketing Specialist','Marketing Analyst','Growth Marketer','SEO Specialist','Performance Marketing Manager'],7),
  ('fa','Financial Analyst','Modelling, FP&A, reporting, valuation','#ca8a04',
-   array['Financial Analyst','FP&A Analyst','Financial Planning Analyst','Finance Business Partner','Corporate Finance Analyst'],8)
+   array['Financial Analyst','FP&A Analyst','Financial Planning Analyst','Finance Business Partner','Corporate Finance Analyst'],8),
+ ('po','Product Owner','Backlog, discovery, roadmap, delivery','#e11d48',
+   array['Product Owner','Product Manager','Associate Product Manager','Digital Product Owner','Technical Product Owner'],9),
+ ('pm','Project Manager','Planning, risks, budget, stakeholders','#4f46e5',
+   array['Project Manager','IT Project Manager','Project Coordinator','PMO Analyst','Program Manager'],10)
 on conflict (id) do update set
   name = excluded.name, blurb = excluded.blurb, color = excluded.color,
   job_titles = excluded.job_titles, sort_order = excluded.sort_order;
@@ -899,7 +903,9 @@ update public.career_paths set job_titles_fr = v.t from (values
   ('do', array['Ingénieur DevOps','Ingénieur DevOps','Ingénieur SRE','Ingénieur Plateforme','Ingénieur Cloud']),
   ('ai', array['Ingénieur IA','Ingénieur IA','Ingénieur LLM','Ingénieur IA Générative','Ingénieur IA Appliquée']),
   ('mk', array['Chargé de Marketing Digital','Chargé d’Études Marketing','Growth Marketer','Chargé de Référencement','Traffic Manager']),
-  ('fa', array['Analyste Financier','Analyste FP&A','Contrôleur de Gestion','Business Partner Finance','Analyste Corporate Finance'])
+  ('fa', array['Analyste Financier','Analyste FP&A','Contrôleur de Gestion','Business Partner Finance','Analyste Corporate Finance']),
+  ('po', array['Product Owner','Chef de Produit Digital','Product Manager Junior','Product Owner Digital','Product Owner Technique']),
+  ('pm', array['Chef de Projet','Chef de Projet IT','Coordinateur de Projet','Analyste PMO','Directeur de Programme'])
 ) as v(id, t) where public.career_paths.id = v.id;
 
 -- Data Engineer ---------------------------------------------------------------
@@ -999,6 +1005,34 @@ select pg_temp.seed('fa','tip','[
  "Interviews test the basics every time: walk through the three statements, say how a 10 rise in depreciation flows through them, and walk through a DCF.",
  "End every analysis with what the manager should do, not only the numbers: business partnering is what gets analysts promoted."]'::jsonb);
 select pg_temp.seed('fa','keyword','["Financial modeling","Financial analysis","Financial statements","Accounting","FP&A","Budgeting","Forecasting","Variance analysis","Financial reporting","Management control","Valuation","Corporate finance","IFRS","EPM tools","Excel","Power BI","SQL","SAP","KPI"]'::jsonb);
+
+-- Product Owner -----------------------------------------------------------------------
+-- Courses: agile-scrum, requirements, sql, statistics, excel.
+select pg_temp.seed('po','tool','[
+ ["Jira","Backlog, sprints and boards: the tool most product teams plan in"],
+ ["Confluence or Notion","Product pages: vision, specs, decisions and release notes in one place"],
+ ["Figma","Look at and comment on the designers’ screens; sketch a flow yourself"],
+ ["Miro","Story maps, workshops and discovery boards with the team"],
+ ["Mixpanel, Amplitude or GA4","Product analytics: funnels, retention and the effect of a release"]]'::jsonb);
+select pg_temp.seed('po','tip','[
+ "Show one product case study: the problem, what users told you, what you chose not to build and why, and what changed after release.",
+ "Interviews always ask how you say no: practise answering with a prioritisation method (RICE, MoSCoW) and a real example.",
+ "Learn to read product data yourself (SQL, an analytics tool): a PO who checks the numbers earns the team’s trust."]'::jsonb);
+select pg_temp.seed('po','keyword','["Product management","Product discovery","Product roadmap","Backlog management","Prioritization","User stories","Agile","Scrum","Kanban","Stakeholder management","OKR","Product analytics","A/B testing","KPI","UAT","PSPO","Jira","Confluence","Figma","SQL"]'::jsonb);
+
+-- Project Manager ---------------------------------------------------------------------
+-- Courses: agile-scrum, requirements, bpmn, excel, power-bi.
+select pg_temp.seed('pm','tool','[
+ ["MS Project or Smartsheet","Plans with tasks, dependencies, milestones and the critical path"],
+ ["Jira","Agile projects: backlog, sprints, boards and reports"],
+ ["Excel","Budgets, plans, risk and action logs: still the project manager’s everyday tool"],
+ ["Power BI","A project portfolio dashboard: progress, budget and risks for the steering committee"],
+ ["Trello, Asana or Monday.com","Light task boards for small teams and non-IT projects"]]'::jsonb);
+select pg_temp.seed('pm','tip','[
+ "Bring one real plan to interviews: a project you ran (studies, an event, an association) with its scope, Gantt chart, budget and risk log.",
+ "Recruiters ask for a certification more and more: CAPM or PSM I are within reach without experience, PMP or PRINCE2 later.",
+ "Talk about trade-offs, not tools: what you cut, delayed or escalated when time, budget or scope moved, and how you told the sponsor."]'::jsonb);
+select pg_temp.seed('pm','keyword','["Project management","Project planning","Risk management","Stakeholder management","Change management","Budgeting","Agile","Scrum","Waterfall","PMP","PRINCE2","MS Project","Jira","Confluence","Excel","Power BI","KPI","Process mapping"]'::jsonb);
 
 -- =====================================================================================
 -- Learning tracks. Step = [title, description, kind, provider, url, est_hours, is_free?]
@@ -1234,6 +1268,56 @@ select pg_temp.track('fa','fa-fpa','FP&A, reporting and business partnering','ad
  ["FRED economic data","Interest rates, inflation and growth series, to ground the assumptions of a forecast.","practice","Federal Reserve Bank of St. Louis","https://fred.stlouisfed.org/",2],
  ["Project: a budget vs actual pack","A monthly pack in Power BI or Excel: P&L against budget and last year, a variance bridge, a rolling forecast and three written comments.","project","Your report","",10]]'::jsonb);
 
+-- Product Owner -----------------------------------------------------------------------
+select pg_temp.track('po','po-foundations','Product Owner foundations: Scrum, the backlog and user stories','beginner',
+ 'What every Product Owner interview checks first: how Scrum works and how a backlog turns needs into work.',
+ 'Explain the Product Owner’s accountabilities in Scrum, write user stories with acceptance criteria and order a backlog.',1,'[
+ ["The Scrum Guide","The official guide (13 pages): roles, events, artifacts and what the Product Owner is accountable for.","learn","Scrum.org","https://scrumguides.org/scrum-guide.html",2],
+ ["Agile & Scrum","HelloKhedma course: Scrum roles and events, estimation, Kanban and the metrics teams use, with exercises.","learn","HelloKhedma","",6],
+ ["Requirements & user stories","HelloKhedma course: needs, user stories, acceptance criteria in Given / When / Then, and backlog refinement.","learn","HelloKhedma","",6],
+ ["Practice: write the backlog of an app you use","Pick an app you use every day: write 3 epics and 12 user stories with acceptance criteria, then order them and say why.","practice","Your notes","",4],
+ ["Professional Scrum Product Owner I (PSPO I)","The best-known Product Owner certification: an online exam, no course required.","certification","Scrum.org","https://www.scrum.org/assessments/professional-scrum-product-owner-i-certification",20,false]]'::jsonb);
+select pg_temp.track('po','po-discovery','Product discovery, prioritisation and metrics','intermediate',
+ 'How good Product Owners decide what to build: talking to users, choosing with a method, and checking the result in the data.',
+ 'Run user interviews, prioritise with RICE or MoSCoW, define success metrics and read them yourself with SQL.',2,'[
+ ["User interviews","How to prepare, run and analyse interviews with users without leading them.","learn","Nielsen Norman Group","https://www.nngroup.com/articles/user-interviews/",2],
+ ["Intro to SQL","Select, filter, join and aggregate: enough to answer your own product questions in the database.","learn","Kaggle Learn","https://www.kaggle.com/learn/intro-to-sql",4],
+ ["Statistics & A/B testing","HelloKhedma course: averages, variation, significance and how to read an A/B test without fooling yourself.","learn","HelloKhedma","",6],
+ ["A/B test sample size calculator","How many users a test needs before its result means anything.","practice","Evan Miller","https://www.evanmiller.org/ab-testing/sample-size.html",1],
+ ["Project: a product case study","Five user interviews, a prioritised backlog and a one-page roadmap for a real app (see the portfolio projects below).","project","Your case study","",15]]'::jsonb);
+select pg_temp.track('po','po-delivery','Roadmaps, stakeholders and delivery','advanced',
+ 'The day-to-day of a senior Product Owner: a roadmap people trust, stakeholders who agree on priorities, and releases that move a metric.',
+ 'Build an outcome-based roadmap, run a sprint review that leads to decisions, and report the value delivered.',3,'[
+ ["Evidence-Based Management guide","Scrum.org’s guide to measuring value: current value, time to market, ability to innovate.","learn","Scrum.org","https://www.scrum.org/resources/evidence-based-management-guide",2],
+ ["Excel for analysis","HelloKhedma course: lookups, pivot tables and charts, for release reports and business cases.","learn","HelloKhedma","",6],
+ ["Practice: turn a feature list into an outcome roadmap","Take 10 feature requests, group them under 3 outcomes with a metric each, and place them in Now / Next / Later.","practice","Your roadmap","",3],
+ ["Project: a release plan and a stakeholder update","A release plan for one quarter, the risks and dependencies, and the one-page update you would send to sponsors.","project","Your plan","",10]]'::jsonb);
+
+-- Project Manager ---------------------------------------------------------------------
+select pg_temp.track('pm','pm-foundations','Project management foundations: scope, plan, budget and risks','beginner',
+ 'The base every project manager interview checks: how to frame a project and plan it so it can be followed.',
+ 'Write a project charter, break the work down, build a Gantt chart with the critical path, a budget and a risk log.',1,'[
+ ["Project management guide","Free guides on project phases, charters, planning, risk and status reports.","learn","Atlassian","https://www.atlassian.com/work-management/project-management",4],
+ ["Excel for analysis","HelloKhedma course: formulas, lookups, pivot tables and charts: the tool for plans, budgets and logs.","learn","HelloKhedma","",6],
+ ["BPMN & process mapping","HelloKhedma course: map how work flows today and after the project, to agree on the scope.","learn","HelloKhedma","",5],
+ ["Practice: plan a project you know","A move, an event or a small app: write the scope, a work breakdown, a Gantt chart in Excel, a budget and five risks with their responses.","practice","Your plan","",4],
+ ["Certified Associate in Project Management (CAPM)","PMI’s entry-level certification: no project experience needed, 23 hours of training.","certification","PMI","https://www.pmi.org/certifications/certified-associate-capm",40,false]]'::jsonb);
+select pg_temp.track('pm','pm-agile','Agile and hybrid delivery','intermediate',
+ 'Most IT projects mix a fixed plan with agile teams: how to run both and report on them.',
+ 'Run a project with Scrum or Kanban teams inside a milestone plan, and report progress with a dashboard.',2,'[
+ ["Agile & Scrum","HelloKhedma course: Scrum roles and events, estimation, Kanban and the metrics teams use, with exercises.","learn","HelloKhedma","",6],
+ ["The Kanban Guide","The short official guide to Kanban: visualise work, limit work in progress, measure flow.","learn","ProKanban.org","https://kanbanguides.org/english/",1],
+ ["Requirements & user stories","HelloKhedma course: gather needs and turn them into user stories the team can deliver.","learn","HelloKhedma","",6],
+ ["Power BI & DAX","HelloKhedma course: build the dashboard a steering committee reads: progress, budget, risks.","learn","HelloKhedma","",8],
+ ["Project: a project status dashboard","A one-page Power BI or Excel dashboard for a real or sample project: milestones, budget used, top risks and decisions needed.","project","Your dashboard","",10]]'::jsonb);
+select pg_temp.track('pm','pm-certification','Certifications and larger projects','advanced',
+ 'What senior project manager offers ask for: a recognised certification and experience with budgets, vendors and change.',
+ 'Prepare a PMP, PRINCE2 or PSM certification, and lead the people side of change on a larger project.',3,'[
+ ["Professional Scrum Master I (PSM I)","An online exam on Scrum, no course required: proof that you can run agile teams.","certification","Scrum.org","https://www.scrum.org/assessments/professional-scrum-master-i-certification",15,false],
+ ["Project Management Professional (PMP)","The global reference certification: 3 to 5 years of leading projects and 35 hours of training required.","certification","PMI","https://www.pmi.org/certifications/project-management-pmp",80,false],
+ ["PRINCE2 Foundation","The process-based method common in the UK, Europe and public projects.","certification","PeopleCert","https://www.peoplecert.org/",30,false],
+ ["Project: a full plan for a real initiative","A charter, plan, budget, risk log, RACI and communication plan for a real initiative of an association or company you know (see the portfolio projects below).","project","Your plan","",15]]'::jsonb);
+
 -- =====================================================================================
 -- HelloKhedma courses on the roadmaps (needs migration 20261109000600_step_course.sql). A step with a course opens our
 -- course first (its outside resource stays as an extra). Matched on (track id, English step title), like the step ids.
@@ -1280,7 +1364,15 @@ update public.training_steps s set course_id = v.c from (values
   ('fa-foundations','Excel essentials for analysts','excel'),
   ('fa-modeling','Free financial modelling courses','financial-modeling'), ('fa-modeling','Principles of Finance','valuation'),
   ('fa-modeling','Finance Theory I','valuation'),
-  ('fa-fpa','Principles of Managerial Accounting','fpa'), ('fa-fpa','Intro to SQL','sql'), ('fa-fpa','Power BI financial sample','power-bi')
+  ('fa-fpa','Principles of Managerial Accounting','fpa'), ('fa-fpa','Intro to SQL','sql'), ('fa-fpa','Power BI financial sample','power-bi'),
+  ('po-foundations','The Scrum Guide','agile-scrum'), ('po-foundations','Agile & Scrum','agile-scrum'),
+  ('po-foundations','Requirements & user stories','requirements'),
+  ('po-discovery','Intro to SQL','sql'), ('po-discovery','Statistics & A/B testing','statistics'),
+  ('po-discovery','A/B test sample size calculator','statistics'), ('po-delivery','Excel for analysis','excel'),
+  ('pm-foundations','Excel for analysis','excel'), ('pm-foundations','BPMN & process mapping','bpmn'),
+  ('pm-agile','Agile & Scrum','agile-scrum'), ('pm-agile','The Kanban Guide','agile-scrum'),
+  ('pm-agile','Requirements & user stories','requirements'), ('pm-agile','Power BI & DAX','power-bi'),
+  ('pm-certification','Professional Scrum Master I (PSM I)','agile-scrum')
 ) as v(tid, title, c)
 where s.id = md5(v.tid || ':' || v.title)::uuid;
 
@@ -1300,7 +1392,9 @@ from (values
   ('do', 'DevOps Engineer', 'CI/CD, conteneurs, cloud, automatisation'),
   ('ai', 'AI Engineer', 'Applications LLM, agents, RAG, évaluations'),
   ('mk', 'Marketing digital', 'SEO, publicité, analytics, campagnes'),
-  ('fa', 'Analyste financier', 'Modélisation, FP&A, reporting, valorisation')
+  ('fa', 'Analyste financier', 'Modélisation, FP&A, reporting, valorisation'),
+  ('po', 'Product Owner', 'Backlog, découverte, roadmap, livraison'),
+  ('pm', 'Chef de projet', 'Planning, risques, budget, parties prenantes')
 ) as v(id, n, b)
 where p.id = v.id;
 
@@ -1614,3 +1708,77 @@ select pg_temp.track_fr('fa-fpa','FP&A, reporting et business partnering',
  ["Power BI financial sample","L’exemple financier de Power BI","Un classeur d’exemple de ventes, coûts et marges par segment et par pays, pour construire un tableau de bord financier."],
  ["FRED economic data","Les données économiques FRED","Taux d’intérêt, inflation et croissance, pour appuyer les hypothèses d’une prévision."],
  ["Project: a budget vs actual pack","Projet : un reporting budget contre réel","Un reporting mensuel sous Power BI ou Excel : compte de résultat contre budget et année précédente, un pont des écarts, une prévision glissante et trois commentaires écrits."]]'::jsonb);
+
+-- Product Owner -----------------------------------------------------------------------
+select pg_temp.res_fr('po','tool','[
+ ["Jira","Jira","Backlog, sprints et tableaux : l’outil où planifient la plupart des équipes produit"],
+ ["Confluence or Notion","Confluence ou Notion","Les pages produit : vision, spécifications, décisions et notes de version au même endroit"],
+ ["Figma","Figma","Consulter et commenter les écrans des designers ; esquisser un parcours vous-même"],
+ ["Miro","Miro","Story maps, ateliers et tableaux de découverte avec l’équipe"],
+ ["Mixpanel, Amplitude or GA4","Mixpanel, Amplitude ou GA4","L’analytics produit : tunnels, rétention et effet d’une mise en production"]]'::jsonb);
+select pg_temp.res_fr('po','tip','[
+ ["Show one product case study: the problem, what users told you, what you chose not to build and why, and what changed after release.","Montrez une étude de cas produit : le problème, ce que les utilisateurs vous ont dit, ce que vous avez choisi de ne pas faire et pourquoi, et ce qui a changé après la mise en production."],
+ ["Interviews always ask how you say no: practise answering with a prioritisation method (RICE, MoSCoW) and a real example.","Les entretiens demandent toujours comment vous dites non : entraînez-vous à répondre avec une méthode de priorisation (RICE, MoSCoW) et un exemple réel."],
+ ["Learn to read product data yourself (SQL, an analytics tool): a PO who checks the numbers earns the team’s trust.","Apprenez à lire vous-même les données produit (SQL, un outil d’analytics) : un PO qui vérifie les chiffres gagne la confiance de l’équipe."]]'::jsonb);
+
+-- Project Manager ---------------------------------------------------------------------
+select pg_temp.res_fr('pm','tool','[
+ ["MS Project or Smartsheet","MS Project ou Smartsheet","Des plannings avec tâches, dépendances, jalons et chemin critique"],
+ ["Jira","Jira","Les projets agiles : backlog, sprints, tableaux et rapports"],
+ ["Excel","Excel","Budgets, plannings, registres des risques et des actions : toujours l’outil quotidien du chef de projet"],
+ ["Power BI","Power BI","Un tableau de bord du portefeuille de projets : avancement, budget et risques pour le comité de pilotage"],
+ ["Trello, Asana or Monday.com","Trello, Asana ou Monday.com","Des tableaux de tâches légers pour les petites équipes et les projets hors IT"]]'::jsonb);
+select pg_temp.res_fr('pm','tip','[
+ ["Bring one real plan to interviews: a project you ran (studies, an event, an association) with its scope, Gantt chart, budget and risk log.","Apportez un vrai planning en entretien : un projet que vous avez mené (études, événement, association) avec son périmètre, son Gantt, son budget et son registre des risques."],
+ ["Recruiters ask for a certification more and more: CAPM or PSM I are within reach without experience, PMP or PRINCE2 later.","Les recruteurs demandent de plus en plus une certification : CAPM ou PSM I sont accessibles sans expérience, PMP ou PRINCE2 plus tard."],
+ ["Talk about trade-offs, not tools: what you cut, delayed or escalated when time, budget or scope moved, and how you told the sponsor.","Parlez d’arbitrages, pas d’outils : ce que vous avez coupé, décalé ou remonté quand le délai, le budget ou le périmètre ont bougé, et comment vous l’avez dit au sponsor."]]'::jsonb);
+
+-- Learning tracks: Product Owner --------------------------------------------------------
+select pg_temp.track_fr('po-foundations','Les bases du Product Owner : Scrum, le backlog et les user stories',
+ 'Ce que vérifie d’abord tout entretien de Product Owner : comment fonctionne Scrum et comment un backlog transforme des besoins en travail.',
+ 'Expliquer les responsabilités du Product Owner dans Scrum, écrire des user stories avec critères d’acceptation et ordonner un backlog.','[
+ ["The Scrum Guide","Le Guide Scrum","Le guide officiel (13 pages, aussi en français) : rôles, événements, artefacts et responsabilités du Product Owner."],
+ ["Agile & Scrum","Agile et Scrum","Cours HelloKhedma : rôles et événements Scrum, estimation, Kanban et les indicateurs des équipes, avec exercices."],
+ ["Requirements & user stories","Besoins et user stories","Cours HelloKhedma : besoins, user stories, critères d’acceptation en Étant donné / Quand / Alors, et affinage du backlog."],
+ ["Practice: write the backlog of an app you use","Pratique : écrire le backlog d’une application que vous utilisez","Choisissez une application de votre quotidien : écrivez 3 epics et 12 user stories avec critères d’acceptation, puis ordonnez-les et justifiez."],
+ ["Professional Scrum Product Owner I (PSPO I)","Professional Scrum Product Owner I (PSPO I)","La certification de Product Owner la plus connue : un examen en ligne, en anglais, sans formation obligatoire."]]'::jsonb);
+select pg_temp.track_fr('po-discovery','Découverte produit, priorisation et indicateurs',
+ 'Comment les bons Product Owners décident quoi construire : parler aux utilisateurs, choisir avec une méthode, vérifier le résultat dans les données.',
+ 'Mener des entretiens utilisateurs, prioriser avec RICE ou MoSCoW, définir des indicateurs de succès et les lire vous-même en SQL.','[
+ ["User interviews","Les entretiens utilisateurs","Comment préparer, mener et analyser des entretiens avec des utilisateurs sans les influencer (en anglais)."],
+ ["Intro to SQL","Introduction au SQL","Sélectionner, filtrer, joindre et agréger : de quoi répondre vous-même à vos questions produit dans la base."],
+ ["Statistics & A/B testing","Statistiques et tests A/B","Cours HelloKhedma : moyennes, variation, significativité et comment lire un test A/B sans se tromper."],
+ ["A/B test sample size calculator","Le calculateur de taille d’échantillon d’un test A/B","Combien d’utilisateurs il faut à un test avant que son résultat veuille dire quelque chose."],
+ ["Project: a product case study","Projet : une étude de cas produit","Cinq entretiens utilisateurs, un backlog priorisé et une roadmap d’une page pour une vraie application (voir les projets de portfolio plus bas)."]]'::jsonb);
+select pg_temp.track_fr('po-delivery','Roadmaps, parties prenantes et livraison',
+ 'Le quotidien d’un Product Owner confirmé : une roadmap crédible, des parties prenantes d’accord sur les priorités, et des livraisons qui font bouger un indicateur.',
+ 'Construire une roadmap orientée résultats, animer une sprint review qui mène à des décisions, et rendre compte de la valeur livrée.','[
+ ["Evidence-Based Management guide","Le guide Evidence-Based Management","Le guide de Scrum.org pour mesurer la valeur : valeur actuelle, délai de mise sur le marché, capacité à innover (en anglais)."],
+ ["Excel for analysis","Excel pour l’analyse","Cours HelloKhedma : recherches, tableaux croisés dynamiques et graphiques, pour les bilans de livraison et les business cases."],
+ ["Practice: turn a feature list into an outcome roadmap","Pratique : transformer une liste de fonctionnalités en roadmap orientée résultats","Prenez 10 demandes de fonctionnalités, regroupez-les sous 3 résultats avec un indicateur chacun, et placez-les en Maintenant / Ensuite / Plus tard."],
+ ["Project: a release plan and a stakeholder update","Projet : un plan de livraison et un point aux parties prenantes","Un plan de livraison sur un trimestre, les risques et dépendances, et le point d’une page que vous enverriez aux sponsors."]]'::jsonb);
+
+-- Learning tracks: Project Manager ------------------------------------------------------
+select pg_temp.track_fr('pm-foundations','Les bases de la gestion de projet : périmètre, planning, budget et risques',
+ 'La base que vérifie tout entretien de chef de projet : comment cadrer un projet et le planifier pour qu’il puisse être suivi.',
+ 'Rédiger une charte projet, découper le travail, construire un Gantt avec le chemin critique, un budget et un registre des risques.','[
+ ["Project management guide","Le guide de la gestion de projet","Des guides gratuits, en anglais, sur les phases d’un projet, la charte, le planning, les risques et les points d’avancement."],
+ ["Excel for analysis","Excel pour l’analyse","Cours HelloKhedma : formules, recherches, tableaux croisés dynamiques et graphiques, l’outil des plannings, budgets et registres."],
+ ["BPMN & process mapping","BPMN et cartographie des processus","Cours HelloKhedma : cartographier le travail avant et après le projet, pour s’accorder sur le périmètre."],
+ ["Practice: plan a project you know","Pratique : planifier un projet que vous connaissez","Un déménagement, un événement ou une petite application : écrivez le périmètre, un découpage du travail, un Gantt sous Excel, un budget et cinq risques avec leurs réponses."],
+ ["Certified Associate in Project Management (CAPM)","Certified Associate in Project Management (CAPM)","La certification d’entrée du PMI : aucune expérience de projet exigée, 23 heures de formation."]]'::jsonb);
+select pg_temp.track_fr('pm-agile','Livraison agile et hybride',
+ 'La plupart des projets IT mélangent un planning fixe et des équipes agiles : comment piloter les deux et en rendre compte.',
+ 'Piloter un projet avec des équipes Scrum ou Kanban à l’intérieur d’un planning à jalons, et suivre l’avancement avec un tableau de bord.','[
+ ["Agile & Scrum","Agile et Scrum","Cours HelloKhedma : rôles et événements Scrum, estimation, Kanban et les indicateurs des équipes, avec exercices."],
+ ["The Kanban Guide","Le Guide Kanban","Le court guide officiel de Kanban : visualiser le travail, limiter le travail en cours, mesurer le flux."],
+ ["Requirements & user stories","Besoins et user stories","Cours HelloKhedma : recueillir les besoins et les transformer en user stories que l’équipe peut livrer."],
+ ["Power BI & DAX","Power BI et DAX","Cours HelloKhedma : construire le tableau de bord que lit un comité de pilotage : avancement, budget, risques."],
+ ["Project: a project status dashboard","Projet : un tableau de bord d’avancement","Un tableau de bord d’une page sous Power BI ou Excel pour un projet réel ou d’exemple : jalons, budget consommé, risques principaux et décisions attendues."]]'::jsonb);
+select pg_temp.track_fr('pm-certification','Certifications et projets plus importants',
+ 'Ce que demandent les offres de chef de projet confirmé : une certification reconnue et l’expérience des budgets, des fournisseurs et du changement.',
+ 'Préparer une certification PMP, PRINCE2 ou PSM, et piloter le volet humain du changement sur un projet plus important.','[
+ ["Professional Scrum Master I (PSM I)","Professional Scrum Master I (PSM I)","Un examen en ligne sur Scrum, en anglais, sans formation obligatoire : la preuve que vous savez animer des équipes agiles."],
+ ["Project Management Professional (PMP)","Project Management Professional (PMP)","La certification de référence mondiale : 3 à 5 ans de pilotage de projets et 35 heures de formation exigés."],
+ ["PRINCE2 Foundation","PRINCE2 Foundation","La méthode par processus répandue au Royaume-Uni, en Europe et dans les projets publics."],
+ ["Project: a full plan for a real initiative","Projet : un plan complet pour une initiative réelle","Une charte, un planning, un budget, un registre des risques, une matrice RACI et un plan de communication pour l’initiative réelle d’une association ou d’une entreprise que vous connaissez (voir les projets de portfolio plus bas)."]]'::jsonb);

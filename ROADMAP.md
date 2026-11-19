@@ -273,6 +273,11 @@ Corporate Finance). Reuses the Excel, SQL, Power BI, Python and statistics cours
 
 ## Decisions log (so they are not reopened by accident)
 
+- 2026-11-19: Paths for job seekers outside tech stay in the same app (owner: "more inclusive", "job hunters from other
+  fields"): a new field is a new career path (seed, skills in js/ats.js, interview questions, 3 projects), its roadmap
+  pointing first to the existing HelloKhedma courses and to free outside training and certifications; new full courses
+  only for the most-used paths. First: Product Owner ("po") and Project Manager ("pm").
+
 - 2026-11-12: Owner approved anonymous feature counters for every visitor, guests included (feature_daily: day +
   feature + count, no account, no IP, no identifier; once per feature per day per browser). They are audience
   measurement like the job-search counter, so they run without the "hk.insights" consent; anything richer (skills,

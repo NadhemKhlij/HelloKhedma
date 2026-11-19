@@ -42,6 +42,14 @@ const DRAW = {
   fa: () => [
     line("M10 54h52"), line("M16 54V40h8v14"), line("M30 54V32h8v22"), line("M44 54V24h8v30"),
     line("M14 34l14-8 14-6 14-10"), line("M50 10h6v6"), ring(64, 40), line("M64 36v8"), dot(20, 30, 2.2)],
+  // Product Owner: a backlog of cards with the top one picked, and a target
+  po: () => [
+    line("M10 14h30v8H10z"), line("M10 28h30v8H10z"), line("M10 42h30v8H10z"), line("M15 18h12"), line("M15 32h16"), line("M15 46h10"),
+    line("M44 18h6"), ring(60, 32, 9), ring(60, 32, 4), dot(60, 32, 1.8), line("M50 18l6 10")],
+  // Project Manager: a Gantt chart with a milestone and a check
+  pm: () => [
+    line("M10 12v44h58"), line("M16 20h20"), line("M26 30h22"), line("M40 40h18"), line("M18 50h0"),
+    line("M58 46l4 4 4-4-4-4z"), line("M30 16v-4"), line("M48 26v-4"), ring(20, 50, 3), line("M17 50l2 2 3-4")],
 };
 const GENERIC = () => [line("M40 14v40M20 24l40 20M60 24L20 44"), ring(40, 14), ring(20, 24), dot(60, 44), ring(40, 54), dot(60, 24), ring(20, 44)];
 

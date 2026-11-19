@@ -43,7 +43,7 @@ import { tokens } from "../js/highlight.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const C = (...p) => join(ROOT, "content", ...p);
-const PATHS = new Set(["de", "da", "ba", "as", "do", "ai", "mk", "fa"]); // "ai": AI Engineer, its courses and projects are in content/ai
+const PATHS = new Set(["de", "da", "ba", "as", "do", "ai", "mk", "fa", "po", "pm"]); // "ai": AI Engineer, its courses and projects are in content/ai
 const SITE_PATHS = [...PATHS].filter((p) => p !== "ai"); // paths with content/projects/<id>.json
 const SKILL_NAMES = new Set(SKILLS.map(([name]) => name));
 const problems = [];

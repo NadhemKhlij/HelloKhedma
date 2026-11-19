@@ -4,7 +4,9 @@
 A multi-path job hunting web app targeting Data Engineers, Business Analysts, Application Support, Data Analysts, DevOps Engineers,
 AI Engineers and Digital Marketing (path id "mk", 2026-11-09: seed, skills, interview, projects and six courses: marketing-foundations, seo, paid-ads, ga4,
   email-crm, marketing-analytics) and Financial Analyst (path id "fa", 2026-11-17: seed, 14 finance skills, interview, projects
-  and four courses: finance-foundations, financial-modeling, fpa, valuation).
+  and four courses: finance-foundations, financial-modeling, fpa, valuation), Product Owner (path id "po") and Project Manager
+  (path id "pm", 2026-11-19: seed, product & project skills, interview, projects; their roadmaps use the existing agile-scrum,
+  requirements, bpmn, sql, statistics, excel and power-bi courses).
 The selected path adapts the job search, trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.
 
 ## Commands

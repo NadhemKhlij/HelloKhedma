@@ -6,7 +6,7 @@ offers, learning tracks and courses, CV tools with an ATS score, interview prep 
 Live: **https://hellokhedma.io** · English and French · installable on phone and desktop (PWA)
 
 Career paths: **Data Engineer · Business Analyst · Application Support · Data Analyst · DevOps Engineer · AI Engineer ·
-Digital Marketing**.
+Digital Marketing · Financial Analyst · Product Owner · Project Manager**.
 The AI Engineer courses form the **AI engineer track**, in English, French or Tunisian Derja (Arabic letters or 3arbizi).
 
 ## What it does

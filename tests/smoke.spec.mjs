@@ -1360,3 +1360,45 @@ test("home: CV score card, example score, and no empty blocks for a newcomer", a
   await page.goto("/index.html#/");
   await expect(page.locator('#homeSummary [data-home-cv="score"]')).toContainText(/\d+\/100/);
 });
+
+// CV ↔ offer fit (js/fit.js, audit 2026-11-23 section 1): 2 of 2 skills is not 100%, a job title outside the path is
+// capped, and an offer with too few skills is shown as "Not enough information" and sorted after the scored ones.
+test("fit score: minimum of skills, other job titles capped, unscored offers last", async ({ page }) => {
+  await open(page, "#/offers");
+  const r = await page.evaluate(async () => {
+    const { offerFit, fitRank, OFF_PATH_CAP } = await import("/js/fit.js");
+    const { extractSkills } = await import("/js/ats.js");
+    const { titleMatcher } = await import("/js/companies.js");
+    const cvNames = new Set(extractSkills("SQL, Linux, Java, Git, Python, ITIL, ServiceNow, Bash, incident management").map((s) => s.name));
+    const support = titleMatcher({ id: "as", job_titles: ["Application Support Analyst"], job_titles_fr: ["Support Applicatif"] });
+    const two = offerFit({ title: "Analyste support applicatif", text: "SQL et Linux.", cvNames, onPath: support });
+    const java = offerFit({ title: "Développeur Java Fullstack Senior", text: "Java, SQL, Git, Linux, Python.", cvNames, onPath: support });
+    const sup = offerFit({ title: "Support Applicatif N2", text: "SQL, Linux, ITIL, ServiceNow, Bash.", cvNames, onPath: support });
+    return { two, java, sup, cap: OFF_PATH_CAP, order: [two, java, sup].sort((a, b) => fitRank(b) - fitRank(a)).map((f) => f.score) };
+  });
+  expect(r.two.score).toBeNull(); // 2/2 is not a 100% fit
+  expect(r.two.reason).toBe("few");
+  expect(r.java.raw).toBe(100);
+  expect(r.java.offPath).toBe(true);
+  expect(r.java.score).toBeLessThanOrEqual(r.cap); // a developer job is no perfect fit for Application Support
+  expect(r.sup.score).toBe(100);
+  expect(r.order).toEqual([100, r.cap, null]); // the unscored offer comes last
+
+  // On the page: the unscored offer says so and stays below the scored ones when sorting by best fit.
+  await page.evaluate(async () => {
+    const { state } = await import("/js/state.js");
+    const { extractSkills } = await import("/js/ats.js");
+    const { renderOffers } = await import("/js/offers.js");
+    state.cv = { ...state.cv, text: "x", skills: extractSkills("Python SQL Airflow Docker Git Spark"),
+      names: new Set(extractSkills("Python SQL Airflow Docker Git Spark").map((s) => s.name)) };
+    state.jobs = [
+      { id: "few", source: "jsearch", title: "Data Engineer", company: "A", url: "https://example.com/a", snippet: "", text: "Python and SQL." },
+      { id: "full", source: "jsearch", title: "Data Engineer", company: "B", url: "https://example.com/b", snippet: "", text: "Python, SQL, Airflow, Docker and Spark." },
+    ];
+    renderOffers();
+  });
+  await page.selectOption("#sortBy", "fit");
+  const cards = page.locator("#results > li");
+  await expect(cards.nth(0).locator('[data-fit="scored"]')).toContainText("100% fit");
+  await expect(cards.nth(1).locator('[data-fit="few"]')).toHaveText("Not enough information");
+});

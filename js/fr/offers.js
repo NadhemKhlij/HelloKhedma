@@ -359,4 +359,9 @@ export default {
   "Remote job boards are unavailable right now. Try again in a few minutes.": "Les sites d’emploi à distance sont indisponibles pour le moment. Réessayez dans quelques minutes.",
   "Too many searches in the last hour. Please try again later.": "Trop de recherches au cours de la dernière heure. Réessayez plus tard.",
   "Suggested places": "Lieux suggérés",
+  // Fit score rules (fit.js, audit 2026-11-23)
+  "Not enough information": "Pas assez d’informations",
+  "The offer names fewer than {n} skills: too little to score it.": "L’offre cite moins de {n} compétences : trop peu pour la noter.",
+  "{score}% fit · other job": "{score} % d’adéquation · autre métier",
+  "{matched} of {total} skills are in your CV, but the job title is outside your path: the score is capped at {cap}%.": "{matched} des {total} compétences sont dans votre CV, mais l’intitulé sort de votre métier : le score est plafonné à {cap} %.",
 };

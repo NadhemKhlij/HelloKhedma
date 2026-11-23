@@ -34,6 +34,8 @@ import { marketSkills, skillRow } from "./pulse.js";
 import { STAGES } from "./store.js";
 import { countFeature } from "./usage.js";
 import { exampleBox } from "./samplecv.js";
+import { offerFit, fitRank } from "./fit.js";
+import { titleMatcher } from "./companies.js";
 
 // Loads the active CV version into state.cv. Skills are re-extracted each time: path keywords may have changed.
 export function loadActiveCv() {
@@ -283,15 +285,16 @@ function onAts({ quiet = false } = {}) {
 // "Choose an offer": the market, offers seen on the Offers page (best fit first) and tracked offers with a kept text.
 // picked: { jd, title, company } of the chosen offer (its text is put in the offer box), or { market: true }.
 let picked = null;
-const fitOf = (text) => (state.cv.text.trim() ? matchSkills(extractSkills(text).map((s) => s.name), state.cv.names) : null);
+// Same rule as the Offers page (fit.js): no percentage below the minimum of skills, other job titles capped.
+const fitOf = (o) => (state.cv.text.trim() ? offerFit({ title: o.title, text: o.text, cvNames: state.cv.names, onPath: titleMatcher(path()) }) : null);
 const cut = (s, n = 70) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 // Also called by refreshTracker (applications.js): the tracker cards load after this page is first drawn.
 export function renderOfferPick() {
   const sel = $("#jdPick");
   if (!sel || !state.pathId) return;
   const market = marketSkills(state.pathId);
-  const recent = recentOffers(state.pathId).map((o) => ({ o, fit: fitOf(`${o.title} ${o.text}`) }))
-    .sort((a, b) => (b.fit?.total >= 2 ? b.fit.score : -1) - (a.fit?.total >= 2 ? a.fit.score : -1)).slice(0, 40);
+  const recent = recentOffers(state.pathId).map((o) => ({ o, fit: fitOf(o) }))
+    .sort((a, b) => fitRank(b.fit) - fitRank(a.fit)).slice(0, 40);
   const stageName = (id) => STAGES.find((s) => s.id === id)?.label || id;
   const cards = (state.cards || []).filter((c) => !c.path_id || c.path_id === state.pathId)
     .map((c) => ({ c, o: trackedOffer(c) })).sort((a, b) => Boolean(b.o) - Boolean(a.o)).slice(0, 40);
@@ -303,7 +306,7 @@ export function renderOfferPick() {
       market ? t("📊 The market: the {n} offers you've seen", { n: market.n })
         : t("📊 The market (search offers for your path first)")),
     recent.length ? h("optgroup", { label: t("Offers you've seen, best fit first") }, recent.map(({ o, fit }) =>
-      h("option", { value: `r:${o.key}` }, fit?.total >= 2 ? t("{score}% · {offer}", { score: fit.score, offer: name(o) }) : name(o)))) : null,
+      h("option", { value: `r:${o.key}` }, fit?.score != null ? t("{score}% · {offer}", { score: fit.score, offer: name(o) }) : name(o)))) : null,
     cards.length ? h("optgroup", { label: t("In your tracker") }, cards.map(({ c, o }) =>
       h("option", { value: `t:${c.id}` }, o ? t("{stage} · {offer}", { stage: stageName(c.stage), offer: name(c) })
         : t("{offer} (paste its text)", { offer: name(c) })))) : null,

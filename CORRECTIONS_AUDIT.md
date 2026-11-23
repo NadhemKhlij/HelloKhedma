@@ -19,10 +19,19 @@ Constats :
 - 10 offres affichées sur 20 sont en « Adéquation : n.d. » : aucune compétence n'est détectée, surtout chez Adzuna, dont le résumé est tronqué.
 
 À faire :
-- [ ] Fixer un seuil minimal de compétences détectées (par exemple 4). En dessous, afficher « Pas assez d'informations » au lieu d'un pourcentage, et ne pas trier ces offres comme des 100 %.
-- [ ] Pondérer le score par la pertinence de l'intitulé pour le parcours. Un poste de développeur ne doit pas atteindre 100 % pour Support applicatif.
-- [ ] Pour Adzuna (et toute source à résumé tronqué) : vérifier si la description complète est disponible via l'API ou la page de l'offre, et l'utiliser pour l'extraction des compétences.
-- [ ] Ajouter des tests unitaires : 2/2 ne donne pas 100 %, un intitulé hors parcours plafonne le score, et une offre sans compétence ne remonte pas en tête.
+- [x] Fixer un seuil minimal de compétences détectées (par exemple 4). En dessous, afficher « Pas assez d'informations » au lieu d'un pourcentage, et ne pas trier ces offres comme des 100 %.
+- [x] Pondérer le score par la pertinence de l'intitulé pour le parcours. Un poste de développeur ne doit pas atteindre 100 % pour Support applicatif.
+- [x] Pour Adzuna (et toute source à résumé tronqué) : vérifier si la description complète est disponible via l'API ou la page de l'offre, et l'utiliser pour l'extraction des compétences.
+- [x] Ajouter des tests unitaires : 2/2 ne donne pas 100 %, un intitulé hors parcours plafonne le score, et une offre sans compétence ne remonte pas en tête.
+
+> **Fait le 23/11/2026 (Claude).** Reproduit avec le code du site : « SQL et Linux » → 100 % · 2/2 ; « Développeur Java
+> Fullstack Senior » → 100 % · 5/5 pour Support applicatif. Une seule règle (`js/fit.js`), utilisée par la page Offres et
+> la liste « Choisir une offre » de la page CV : moins de 4 compétences trouvées → « Pas assez d'informations », sans
+> pourcentage, classé après toutes les offres notées ; intitulé hors du métier (intitulés et mots du parcours,
+> `titleMatcher`) → score plafonné à 50 % et badge « autre métier ». Adzuna : l'API ne renvoie que les 500 premiers
+> caractères (vérifié sur la recherche de l'audit, en cache : 55 offres Adzuna de 495 à 500 caractères, contre 2 400 en
+> moyenne pour JSearch). La description complète n'est que sur la page Adzuna (pas d'API, et lire leurs pages irait contre
+> leurs conditions) : le seuil évite les faux 100 % sur ces résumés. Test « fit score » ajouté (tests/smoke.spec.mjs).
 
 ## P1 — Lieu des offres (`js/jobs.js`, fonction serveur `job-search`, `js/places.js`)
 

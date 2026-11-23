@@ -227,4 +227,9 @@ export default {
   "Lines to strengthen ({n})": "Lignes à renforcer ({n})",
   "Rewrite each one as an achievement: a verb first, then what you did and the result (\"Automated the monthly report, from 2 days to 2 hours\").": "Réécrivez chacune comme une réalisation : un verbe d’abord, puis ce que vous avez fait et le résultat (« Automatisé le reporting mensuel, de 2 jours à 2 heures »).",
   "Show {n} more": "Voir {n} de plus",
+  // Example score of a made-up CV (samplecv.js, 2026-11-23)
+  "See an example score": "Voir un exemple de score",
+  "Example: a made-up junior CV": "Exemple : un CV junior inventé",
+  "scored for the {path} path. Your own CV gets the same check, and stays on this device.": "noté pour le métier {path}. Votre CV passe la même vérification, et reste sur cet appareil.",
+  "Show the example CV": "Afficher le CV d’exemple",
 };

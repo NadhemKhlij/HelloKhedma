@@ -16,6 +16,7 @@ import { $, h, ls, onStore } from "./lib.js";
 import { t } from "./i18n.js";
 import { state, path } from "./state.js";
 import { loadCvs } from "./cvs.js";
+import { exampleBox } from "./samplecv.js";
 
 const KEY = "hk.guide", PATH_DONE = "hk.guide.path";
 let pickPath = () => {};
@@ -79,7 +80,8 @@ export function renderGuide() {
         h("p", { class: "mute text-sm" }, t("You get its ATS score out of 100 at once, with the fixes that add the most points. It stays in this browser.")),
         h("div", { class: "flex flex-wrap gap-2" },
           h("a", { href: "#/cv", class: "btn" }, t("Upload or paste my CV")),
-          h("a", { href: "#/cv/maker", class: "btn-ghost" }, t("I have no CV: build one"))))),
+          h("a", { href: "#/cv/maker", class: "btn-ghost" }, t("I have no CV: build one"))),
+        exampleBox())),
     step(2, t("Find your first offers"), null,
       h("div", { class: "grid gap-2" },
         h("p", { class: "mute text-sm" }, t("Live {title} offers from several job boards, each scored against your CV.", { title })),

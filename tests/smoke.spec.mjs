@@ -114,7 +114,11 @@ test("home shows the career paths and a path can be selected", async ({ page }) 
   await expect(page.locator("#h-home")).toHaveText(/Good (morning|afternoon|evening)/);
   const paths = page.locator("#paths button");
   expect(await paths.count()).toBeGreaterThanOrEqual(4);
+  // The path cards are folded under "Change career path"; choosing one folds them again.
+  await expect(paths.nth(1)).toBeHidden();
+  await page.locator("#pathsFold summary").click();
   await paths.nth(1).click();
+  await expect(paths.nth(1)).toBeHidden();
   await expect(paths.nth(1)).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -1334,4 +1338,25 @@ test("static pages: course and career pages, sitemap, and the link into the app 
   await expect(page.locator("html")).toHaveAttribute("lang", "fr");
   await expect(page).toHaveURL(/\/#\/course\/grc-iso27001$/); // the ?lang=&path= query is removed
   expect(await page.evaluate(() => localStorage.getItem("hk.guide.path"))).toBe("1"); // newcomer: role step already done
+});
+
+// Home: the CV card invites a score before any CV and shows the score once one is saved; "See an example score"
+// scores a made-up CV for the path without saving anything (samplecv.js). Empty blocks stay hidden.
+test("home: CV score card, example score, and no empty blocks for a newcomer", async ({ page }) => {
+  await open(page);
+  await expect(page.locator('#homeSummary [data-home-cv="invite"]')).toContainText("Score my CV");
+  await expect(page.locator("#homeSummary")).not.toContainText("Open tracker"); // nothing tracked yet
+  await expect(page.locator("#homeActions")).toBeEmpty();
+
+  await page.goto("/index.html#/cv");
+  await page.locator("#cvScore").getByRole("button", { name: "See an example score" }).click();
+  const ex = page.locator("[data-cv-example]");
+  await expect(ex).toContainText("Example: a made-up junior CV");
+  await expect(ex).toContainText("ATS score");
+  expect(await page.evaluate(() => localStorage.getItem("hk.cvs"))).toBeNull(); // nothing saved
+
+  await page.fill("#cv", "Data Engineer\nBuilt Python and SQL pipelines on Airflow\nDocker and Git every day");
+  await page.click("#cvSave");
+  await page.goto("/index.html#/");
+  await expect(page.locator('#homeSummary [data-home-cv="score"]')).toContainText(/\d+\/100/);
 });

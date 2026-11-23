@@ -1,7 +1,8 @@
 // CV check page (#/cv), three panels:
 // 1. "Your CV": CV versions (stored by cvs.js, in this browser only; synced only if the user opted in, cvsync.js),
 //    upload / paste, "Save and score my CV" (an "unsaved changes" hint while the text differs from the saved one);
-// 2. "Your CV score": computed as soon as a CV is saved, no offer needed: ATS score (atsscore.js) against the path's
+// 2. "Your CV score": before a CV is saved, the three steps and "See an example score" (samplecv.js, a made-up CV for
+//    the path, nothing saved); computed as soon as a CV is saved, no offer needed (pathReport, also used by Home): ATS score (atsscore.js) against the path's
 //    keywords and job titles, fixes sorted by the points they add, the change since the last score of this version
 //    for this path ("hk.cvscore", this browser only), "✨ Improve my CV with AI" (tailor.js improveBox, no offer needed),
 //    path keywords found / missing + "Close the gaps", skills found;
@@ -32,6 +33,7 @@ import { recentOffers, trackedOffer, offerAsText, rememberTracked } from "./offe
 import { marketSkills, skillRow } from "./pulse.js";
 import { STAGES } from "./store.js";
 import { countFeature } from "./usage.js";
+import { exampleBox } from "./samplecv.js";
 
 // Loads the active CV version into state.cv. Skills are re-extracted each time: path keywords may have changed.
 export function loadActiveCv() {
@@ -101,7 +103,7 @@ function saveCv(text) {
 // The path's keywords, through the extractor so aliases map to the same names as in the CV.
 const pathSkills = () => extractSkills(byKind("keyword").map((k) => k.title).join(" ; ")).map((s) => s.name);
 // ATS report of the active CV for the selected path (no offer needed), or null without a CV.
-function pathReport() {
+export function pathReport() {
   if (!state.cv.text.trim()) return null;
   return atsReport(state.cv.text, { required: pathSkills(), jobTitles: path()?.job_titles || [], source: "path" });
 }
@@ -128,7 +130,8 @@ function renderCvScore() {
     $("#cvScore").replaceChildren(h("ol", { class: "grid gap-3" },
       step(1, t("Add your CV"), t("Upload a PDF, paste the text, or build one in the CV maker.")),
       step(2, t("Get your score at once"), t("Out of 100, with the fixes that add the most points first.")),
-      step(3, t("Match it with an offer (optional)"), t("Choose an offer you have seen or paste one, to see what that job asks for and you lack."))));
+      step(3, t("Match it with an offer (optional)"), t("Choose an offer you have seen or paste one, to see what that job asks for and you lack."))),
+      exampleBox()); // a made-up CV for the path, scored on the spot (samplecv.js)
     return;
   }
   const change = scoreChange(r.score), m = r.match;

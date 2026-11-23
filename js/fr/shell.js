@@ -215,4 +215,13 @@ export default {
   "Opened Review today": "Ont ouvert Réviser aujourd’hui",
   "Opened Interview prep": "Ont ouvert la préparation aux entretiens",
   "Opened the skill check": "Ont ouvert le test de niveau",
+  // Home: CV card and folded path cards (2026-11-23)
+  "Change career path": "Changer de métier",
+  "CV score": "Score du CV",
+  "Your score in 30 s": "Votre score en 30 s",
+  "Out of 100, with the fixes that add the most points. Your CV stays on this device.": "Sur 100, avec les corrections qui rapportent le plus de points. Votre CV reste sur cet appareil.",
+  "Score my CV": "Noter mon CV",
+  "Improve my CV": "Améliorer mon CV",
+  "Next fix: {fix}": "Prochaine correction : {fix}",
+  "Scored for the {path} path.": "Noté pour le métier {path}.",
 };

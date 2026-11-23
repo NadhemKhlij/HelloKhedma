@@ -78,7 +78,7 @@ function renderPaths() {
     return h("button", {
       type: "button", class: "panel !p-0 overflow-hidden text-left flex flex-col", "aria-pressed": String(on),
       style: on ? `border-color:${c};box-shadow:0 0 0 1px ${c}` : "",
-      onClick: () => selectPath(p.id),
+      onClick: () => { selectPath(p.id); $("#pathsFold").open = false; window.scrollTo({ top: 0, behavior: "smooth" }); }, // back to the dashboard of the new path
     },
       h("div", { class: "grid place-items-center h-24 sm:h-32", style: `background:color-mix(in srgb, ${c} 62%, #fff)` }, pathArt(p.id)),
       h("div", { class: "p-5 grid gap-2" },

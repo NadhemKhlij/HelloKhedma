@@ -211,7 +211,8 @@ Read the header comment of any file before modifying it; update the header if be
 - CHECKLIST.md updated with any new owner task (migration to run, function to deploy, secret to set).
 
 ## Routes (`#/<route>[/<param>]`, router in js/router.js)
-- `#/` → home → home.js (path cards: app.js; first-visit guide: guide.js)
+- `#/` → home → home.js (cards: Offers, CV score, Training, Applications once something is tracked; path cards folded under
+  "Change career path": app.js; first-visit guide: guide.js)
 - `#/offers` → offers → offers.js + jobs.js, companies.js, remote.js (three tabs)
 - `#/training` → training → training.js (My learning, roadmap of tracks, study plan) + courses.js (course list)
 - `#/course/<id>` → course → courses.js
@@ -307,6 +308,8 @@ Read the header comment of any file before modifying it; update the header if be
   create my CV" (one AI call: corrected + tailored CV opens in the CV maker with the changes and gaps) and "Rewrite
   only" (text) (cv-tailor function, signed-in users, after a notice); improveBox(): "✨ Improve my CV with AI" under the CV
   score, no offer needed (cv-tailor mode "improve": corrected and improved for the path, opens in the CV maker)
+- js/samplecv.js — "See an example score": a made-up junior CV for the path scored on the spot (guide step 2, empty CV page),
+  nothing saved or sent
 - js/offercoach.js — offer coach: offered salary vs the path's market (pulse.js marketPay), verdict, tips, prompt
 - js/reminders.js — "E-mail reminders" switch on the Account page (profiles.email_reminders) and the test e-mail; the account's
   offer alerts and "Send me today's offers now"

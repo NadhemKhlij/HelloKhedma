@@ -2,12 +2,17 @@
 // without committing them. Set these in your host (Cloudflare Pages / Netlify / Vercel):
 //   SUPABASE_URL, SUPABASE_ANON_KEY, DEFAULT_COUNTRY (optional, default "fr"),
 //   CONTACT_EMAIL (optional: shown on the legal and privacy pages), SENTRY_DSN (optional: error monitoring),
-//   CF_ANALYTICS_TOKEN (optional: Cloudflare Web Analytics site token, visitor counts)
+//   CF_ANALYTICS_TOKEN (optional: Cloudflare Web Analytics site token, visitor counts). The whole snippet Cloudflare
+//   offers to copy (<script … data-cf-beacon='{"token": "…"}'>) is accepted too: only the token is kept (2026-11-23,
+//   the variable held the snippet and every page view was sent with an unknown token, so the dashboard stayed at 0).
 // Locally you can skip the env vars and keep a hand-made js/config.js (copied from config.example.js).
 import { existsSync, writeFileSync } from "node:fs";
 
 const target = new URL("../js/config.js", import.meta.url);
-const { SUPABASE_URL, SUPABASE_ANON_KEY, DEFAULT_COUNTRY = "fr", CONTACT_EMAIL = "", SENTRY_DSN = "", CF_ANALYTICS_TOKEN = "" } = process.env;
+const { SUPABASE_URL, SUPABASE_ANON_KEY, DEFAULT_COUNTRY = "fr", CONTACT_EMAIL = "", SENTRY_DSN = "" } = process.env;
+const rawCf = (process.env.CF_ANALYTICS_TOKEN || "").trim();
+const CF_ANALYTICS_TOKEN = /^[0-9a-f]{32}$/i.test(rawCf) ? rawCf : (rawCf.match(/"token"\s*:\s*"([0-9a-f]{32})"/i) || [])[1] || "";
+if (rawCf && !CF_ANALYTICS_TOKEN) console.warn("CF_ANALYTICS_TOKEN: no Cloudflare token found in the value; visitor counts are off.");
 
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   const config = { SUPABASE_URL, SUPABASE_ANON_KEY, DEFAULT_COUNTRY, CONTACT_EMAIL, SENTRY_DSN, CF_ANALYTICS_TOKEN };

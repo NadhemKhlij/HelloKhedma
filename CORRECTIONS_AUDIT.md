@@ -25,13 +25,21 @@ Constats :
 - [x] Ajouter des tests unitaires : 2/2 ne donne pas 100 %, un intitulé hors parcours plafonne le score, et une offre sans compétence ne remonte pas en tête.
 
 > **Fait le 23/11/2026 (Claude).** Reproduit avec le code du site : « SQL et Linux » → 100 % · 2/2 ; « Développeur Java
-> Fullstack Senior » → 100 % · 5/5 pour Support applicatif. Une seule règle (`js/fit.js`), utilisée par la page Offres et
-> la liste « Choisir une offre » de la page CV : moins de 4 compétences trouvées → « Pas assez d'informations », sans
-> pourcentage, classé après toutes les offres notées ; intitulé hors du métier (intitulés et mots du parcours,
-> `titleMatcher`) → score plafonné à 50 % et badge « autre métier ». Adzuna : l'API ne renvoie que les 500 premiers
-> caractères (vérifié sur la recherche de l'audit, en cache : 55 offres Adzuna de 495 à 500 caractères, contre 2 400 en
-> moyenne pour JSearch). La description complète n'est que sur la page Adzuna (pas d'API, et lire leurs pages irait contre
-> leurs conditions) : le seuil évite les faux 100 % sur ces résumés. Test « fit score » ajouté (tests/smoke.spec.mjs).
+> Fullstack Senior / Oracle » → 100 % pour un CV de support. Cause : le score ne compte que les compétences que le
+> dictionnaire reconnaît dans l'offre, et il ne connaissait ni le développement (dans l'offre Java, il ne voyait que
+> Java et Oracle, pas « Fullstack » ni « forte dominante Backend ») ni le vocabulaire français du support (« incident »,
+> « support applicatif / N2 / N3 », « MCO », « tickets », « mise en production », « diagnostic »…). Correction, sans
+> regarder le métier choisi (un développeur peut faire du support s'il en a les compétences) :
+> - `js/ats.js` : compétences de développement (backend, frontend, fullstack, Spring, Angular, React, microservices…) et
+>   vocabulaire du support en français ;
+> - `js/fit.js` (une seule règle pour la page Offres et « Choisir une offre ») : les compétences de l'intitulé pèsent 3
+>   fois plus (le cœur du poste), et « Compétences clés de l'intitulé absentes de votre CV » s'affiche au survol ; moins de
+>   4 compétences trouvées → « Pas assez d'informations », classé après les offres notées.
+> Sur les 66 offres de la recherche de l'audit (en cache) : l'offre Java passe à 60 % pour un CV de support (100 % pour un
+> CV de développeur), les offres sans aucune compétence reconnue passent de 26 à 12 et les offres notées de 7 à 16.
+> Les autres sont des résumés Adzuna : l'API ne renvoie que 500 caractères (55 offres sur 66, de 495 à 500 caractères),
+> souvent la présentation de l'entreprise sans les exigences ; un pourcentage y serait inventé. La description complète
+> n'est que sur le site d'Adzuna (pas dans l'API). Test « fit score » ajouté, sur l'offre Java réelle de l'audit.
 
 ## P1 — Lieu des offres (`js/jobs.js`, fonction serveur `job-search`, `js/places.js`)
 

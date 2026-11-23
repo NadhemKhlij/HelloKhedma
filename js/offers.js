@@ -6,7 +6,7 @@
 // - Companies I follow: companies.js (career-page APIs, watchlist in this browser, "New since last visit").
 // - Remote jobs: remote.js (Jobicy, Remotive, Remote OK; titles filtered to the path).
 // Every offer gets its skills, contract / remote tags (from the text), a fit score against the active CV (fit.js: no
-// percentage below 4 skills found, "Not enough information" sorted last; a title outside the path capped at 50%) and its salary
+// percentage below 4 skills found, "Not enough information" sorted last; skills named in the job title weigh more) and its salary
 // (salary.js: provider field or description; the "≥ N k€" filter and the salary sort use the yearly amount, euros only).
 // offercheck.js adds its age ("Posted 3 days ago", date filter, "Most recent" sort), its level (Junior…Lead, level
 // filter) and the "⚠ Check this offer" warnings (scam signals, stale offer, no company; filter to hide them).
@@ -34,7 +34,7 @@ import { state, path, fitColor, skillChip } from "./state.js";
 import { searchJobs, boardLinks } from "./jobs.js";
 import { placeOptions, rememberPlace } from "./places.js";
 import { extractSkills, norm } from "./ats.js";
-import { offerFit, fitRank, MIN_SKILLS_FOR_FIT, OFF_PATH_CAP } from "./fit.js";
+import { offerFit, fitRank, MIN_SKILLS_FOR_FIT } from "./fit.js";
 import { offerSalary, formatSalary } from "./salary.js";
 import { searchRemote } from "./remote.js";
 import {
@@ -202,10 +202,10 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
   const tag = (text) => h("span", { class: "chip !py-0 text-xs" }, text);
   const badge = fit?.score != null
     ? h("span", { class: "chip text-xs font-bold shrink-0 ml-auto whitespace-nowrap", style: `border-color:${fitColor(fit.score)};color:${fitColor(fit.score)}`,
-        "data-fit": fit.offPath ? "off-path" : "scored",
-        title: fit.offPath ? t("{matched} of {total} skills are in your CV, but the job title is outside your path: the score is capped at {cap}%.", { matched: fit.matched.length, total: fit.total, cap: OFF_PATH_CAP })
-          : t("{matched} of {total} skills from this offer are in your CV", { matched: fit.matched.length, total: fit.total }) },
-        fit.offPath ? t("{score}% fit · other job", { score: fit.score }) : t("{score}% fit · {matched}/{total}", { score: fit.score, matched: fit.matched.length, total: fit.total }))
+        "data-fit": "scored",
+        title: [t("{matched} of {total} skills from this offer are in your CV", { matched: fit.matched.length, total: fit.total }),
+          fit.missingCore.length ? t("Core skills of the job title missing from your CV: {skills}", { skills: fit.missingCore.join(", ") }) : ""].filter(Boolean).join(". ") },
+        t("{score}% fit · {matched}/{total}", { score: fit.score, matched: fit.matched.length, total: fit.total }))
     : fit ? h("span", { class: "mute text-xs shrink-0 ml-auto whitespace-nowrap", "data-fit": "few",
         title: t("The offer names fewer than {n} skills: too little to score it.", { n: MIN_SKILLS_FOR_FIT }) }, t("Not enough information"))
     : null;
@@ -252,10 +252,9 @@ export function renderOffers() {
   const hasCv = state.cv.skills.length > 0;
   $("#moreBtn").hidden = !(state.offerMode === "search" && state.more && state.jobs.length);
   if (!state.jobs.length) { $("#offerTools").hidden = true; $("#results").replaceChildren(); $("#sourceCredits").replaceChildren(); return; }
-  const onPath = titleMatcher(path());
   let list = state.jobs.map((j) => {
     const skills = extractSkills(jobText(j)).map((s) => s.name);
-    const fit = hasCv ? offerFit({ title: j.title, skills, cvNames: state.cv.names, onPath }) : null;
+    const fit = hasCv ? offerFit({ title: j.title, skills, cvNames: state.cv.names }) : null;
     const salary = offerSalary(j);
     j.salaryInfo = salary; // kept for Track, which copies it into the application
     const days = offerAge(j);

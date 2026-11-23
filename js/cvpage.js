@@ -35,7 +35,6 @@ import { STAGES } from "./store.js";
 import { countFeature } from "./usage.js";
 import { exampleBox } from "./samplecv.js";
 import { offerFit, fitRank } from "./fit.js";
-import { titleMatcher } from "./companies.js";
 
 // Loads the active CV version into state.cv. Skills are re-extracted each time: path keywords may have changed.
 export function loadActiveCv() {
@@ -285,8 +284,8 @@ function onAts({ quiet = false } = {}) {
 // "Choose an offer": the market, offers seen on the Offers page (best fit first) and tracked offers with a kept text.
 // picked: { jd, title, company } of the chosen offer (its text is put in the offer box), or { market: true }.
 let picked = null;
-// Same rule as the Offers page (fit.js): no percentage below the minimum of skills, other job titles capped.
-const fitOf = (o) => (state.cv.text.trim() ? offerFit({ title: o.title, text: o.text, cvNames: state.cv.names, onPath: titleMatcher(path()) }) : null);
+// Same rule as the Offers page (fit.js): no percentage below the minimum of skills, job-title skills weigh more.
+const fitOf = (o) => (state.cv.text.trim() ? offerFit({ title: o.title, text: o.text, cvNames: state.cv.names }) : null);
 const cut = (s, n = 70) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 // Also called by refreshTracker (applications.js): the tracker cards load after this page is first drawn.
 export function renderOfferPick() {

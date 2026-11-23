@@ -49,6 +49,7 @@ export default {
   "Data & BI": "Data et BI",
   "Databases": "Bases de données",
   "Cloud & DevOps": "Cloud et DevOps",
+  "Software development": "Développement logiciel",
   "Methods": "Méthodes",
   "Support & IT": "Support et IT",
   "Marketing": "Marketing",

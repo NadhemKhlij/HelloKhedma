@@ -1361,28 +1361,33 @@ test("home: CV score card, example score, and no empty blocks for a newcomer", a
   await expect(page.locator('#homeSummary [data-home-cv="score"]')).toContainText(/\d+\/100/);
 });
 
-// CV ↔ offer fit (js/fit.js, audit 2026-11-23 section 1): 2 of 2 skills is not 100%, a job title outside the path is
-// capped, and an offer with too few skills is shown as "Not enough information" and sorted after the scored ones.
-test("fit score: minimum of skills, other job titles capped, unscored offers last", async ({ page }) => {
+// CV ↔ offer fit (js/fit.js, audit 2026-11-23 section 1): 2 of 2 skills is not 100%; the real "Développeur Java
+// Fullstack Senior" offer of the audit (Adzuna, 500 characters) is not a perfect fit for a support CV that only shares
+// Java and Oracle with it, but is one for a developer CV, whatever path is selected; unscored offers come last.
+test("fit score: minimum of skills, job-title skills weigh more, unscored offers last", async ({ page }) => {
   await open(page, "#/offers");
   const r = await page.evaluate(async () => {
-    const { offerFit, fitRank, OFF_PATH_CAP } = await import("/js/fit.js");
+    const { offerFit, fitRank } = await import("/js/fit.js");
     const { extractSkills } = await import("/js/ats.js");
-    const { titleMatcher } = await import("/js/companies.js");
-    const cvNames = new Set(extractSkills("SQL, Linux, Java, Git, Python, ITIL, ServiceNow, Bash, incident management").map((s) => s.name));
-    const support = titleMatcher({ id: "as", job_titles: ["Application Support Analyst"], job_titles_fr: ["Support Applicatif"] });
-    const two = offerFit({ title: "Analyste support applicatif", text: "SQL et Linux.", cvNames, onPath: support });
-    const java = offerFit({ title: "Développeur Java Fullstack Senior", text: "Java, SQL, Git, Linux, Python.", cvNames, onPath: support });
-    const sup = offerFit({ title: "Support Applicatif N2", text: "SQL, Linux, ITIL, ServiceNow, Bash.", cvNames, onPath: support });
-    return { two, java, sup, cap: OFF_PATH_CAP, order: [two, java, sup].sort((a, b) => fitRank(b) - fitRank(a)).map((f) => f.score) };
+    const names = (txt) => new Set(extractSkills(txt).map((s) => s.name));
+    const support = names("Application support analyst. SQL, Linux, Java, Oracle, Git, Python, ITIL, ServiceNow, Bash, incident management");
+    const dev = names("Java developer: Spring Boot, Angular, fullstack and backend development, Oracle, Git");
+    const title = "Développeur Java Fullstack Senior / Oracle – Finance de Marché (H/F) (IT)";
+    const text = "Contexte de la mission Dans le cadre de la maintenance évolutive et de l'amélioration d'une application stratégique de refinancement des filiales d'un grand groupe bancaire, nous recherchons un Développeur Java Fullstack confirmé / senior, à forte dominante Backend.";
+    const two = offerFit({ title: "Analyste support applicatif", text: "SQL et Linux.", cvNames: support });
+    const javaSupport = offerFit({ title, text, cvNames: support });
+    const javaDev = offerFit({ title, text, cvNames: dev });
+    const sup = offerFit({ title: "Support Applicatif N2", text: "SQL, Linux, ITIL, ServiceNow, Bash.", cvNames: dev });
+    return { two, javaSupport, javaDev, sup, order: [two, javaSupport, javaDev].sort((a, b) => fitRank(b) - fitRank(a)).map((f) => f.score) };
   });
   expect(r.two.score).toBeNull(); // 2/2 is not a 100% fit
   expect(r.two.reason).toBe("few");
-  expect(r.java.raw).toBe(100);
-  expect(r.java.offPath).toBe(true);
-  expect(r.java.score).toBeLessThanOrEqual(r.cap); // a developer job is no perfect fit for Application Support
-  expect(r.sup.score).toBe(100);
-  expect(r.order).toEqual([100, r.cap, null]); // the unscored offer comes last
+  expect(r.javaSupport.skills).toEqual(expect.arrayContaining(["Java", "Fullstack development", "Backend development", "Oracle"]));
+  expect(r.javaSupport.missingCore).toContain("Fullstack development");
+  expect(r.javaSupport.score).toBeLessThanOrEqual(60); // shares Java and Oracle only
+  expect(r.javaDev.score).toBe(100); // a developer CV fits the developer offer…
+  expect(r.sup.score).toBeLessThan(50); // …and is judged on skills for a support offer too, not on its title
+  expect(r.order).toEqual([100, r.javaSupport.score, null]); // the unscored offer comes last
 
   // On the page: the unscored offer says so and stays below the scored ones when sorting by best fit.
   await page.evaluate(async () => {

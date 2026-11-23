@@ -22,6 +22,9 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   .claude/launch.json) and open /preview-test.html. Never commit preview-test.html. The real build runs in CI.
 - `npm run check-links`: checks every URL in supabase/seed.sql and the portfolio projects (Node 18+). CI runs it as a
   report only ("Check links" step: broken links are warnings on the run); this cloud environment cannot reach most sites.
+- Static pages for search engines: `node scripts/gen-pages.mjs _site` (deploy.yml, after "Assemble site") writes
+  /learn/<course>/, /careers/<path>/ and their French twins /fr/formation/…, /fr/metiers/… (one page per course and career
+  path, from content/ and supabase/seed.sql) and the full sitemap.xml. Their buttons open the app with `?lang=` and `?path=`.
 - `npm run check-content`: checks every content JSON (structure, French copies, identical code, skills known to
   js/ats.js, projects, AI track scripts). CI runs it before the smoke tests; a problem stops the deploy.
 - Translations: `perl scripts/check-i18n.pl js` (every t() text has French, no French key in two js/fr/ files; CI runs it) and
@@ -339,6 +342,8 @@ Read the header comment of any file before modifying it; update the header if be
 - supabase/functions/job-search/, delete-account/, cv-tailor/, explain-mistake/, follow-up-reminders/, search-alerts/ — Edge Functions
   (cv-tailor: AI CV rewrite with Claude; explain-mistake: why a course answer is wrong and "Ask about this lesson" (mode "ask"), Claude Sonnet 5.5; follow-up-reminders: the opt-in daily e-mail, called by .github/workflows/reminders.yml; search-alerts: the opt-in offer
   alerts e-mail, called by the same workflow until nothing remains)
+- scripts/gen-pages.mjs — static, indexable course and career pages (EN + FR, JSON-LD Course / FAQPage) + sitemap.xml at
+  deploy time; js/i18n.js reads `?lang=`, js/app.js `?path=` (guide.js pathFromLink keeps the first-visit guide)
 - scripts/whats-new.sh — before a deploy: what main got since your branch started, shared files, other branches
 - scripts/ — write-config.mjs (build config), copy-pyodide.mjs (build: Python engine into js/vendor/pyodide/), check-links.mjs (link checker), preview-cdn.sh + serve.ps1 (preview without Node),
   gen-practice-2e.mjs (rebuilds the dwh / payments datasets and the payments log, fixed seed)

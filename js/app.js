@@ -22,7 +22,7 @@ import { state, path, byKind, fail } from "./state.js";
 import { pathArt } from "./icons.js";
 import { showRoute, refreshInterview, refreshSkillCheck, coursesReady } from "./router.js";
 import { PROG_KEY, loadTracks, loadProgress, renderLearn, initTraining } from "./training.js";
-import { initGuide, markPathChosen, guideSeenOnAccount } from "./guide.js";
+import { initGuide, markPathChosen, guideSeenOnAccount, pathFromLink } from "./guide.js";
 import { renderSearchControls, renderOffers, resetOffers, loadCompanyJobs, initOffers, renderSavedSearches } from "./offers.js";
 import { renderCvVersions, renderCvSkills, useCvForPath, initCvPage } from "./cvpage.js";
 import { refreshTracker, initApplications } from "./applications.js";
@@ -241,6 +241,10 @@ async function init() {
   if (!configured) { $("#setup").hidden = false; $("#status").textContent = t("Setup needed"); return; }
   try {
     await loadPaths();
+    // "?path=grc" (links from the static course and career pages, scripts/gen-pages.mjs): open that path and keep it.
+    const params = new URLSearchParams(location.search), asked = params.get("path");
+    if (asked && state.paths.some((p) => p.id === asked)) { pathFromLink(); ls.set(PATH_KEY, asked); }
+    if (params.has("path") || params.has("lang")) history.replaceState(null, "", location.pathname + location.hash);
     const saved = ls.get(PATH_KEY);
     state.pathId = state.paths.some((p) => p.id === saved) ? saved : state.paths[0]?.id;
     if (!state.pathId) throw new Error(t("No career paths found. Did you run supabase/seed.sql?"));

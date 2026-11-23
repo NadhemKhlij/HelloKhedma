@@ -1,6 +1,8 @@
 // Interface language (French / English). English is the source language: the code and index.html are written
 // in English and js/i18n-fr.js maps each English text to its French translation.
 // - lang: saved choice ("hk.lang"), otherwise the browser language (fr → French, anything else → English).
+//   A "?lang=fr" / "?lang=en" link (the static course and career pages, scripts/gen-pages.mjs) sets and saves it;
+//   app.js removes the query from the address bar once it has read "path" too.
 // - t(text, vars): translated text, "{name}" placeholders filled from vars. A key may carry a context prefix
 //   ("stage|Interview") when one English word needs two French translations; English shows the part after "|".
 //   A text missing from the dictionary shows in English, so a forgotten key never breaks the page.
@@ -15,6 +17,8 @@ import FR from "./i18n-fr.js";
 
 const LANG_KEY = "hk.lang";
 const detect = () => {
+  const asked = new URLSearchParams(location.search).get("lang");
+  if (asked === "fr" || asked === "en") { ls.set(LANG_KEY, asked); return asked; }
   const saved = ls.get(LANG_KEY);
   if (saved === "fr" || saved === "en") return saved;
   return /^fr\b/i.test(navigator.language || "") ? "fr" : "en";

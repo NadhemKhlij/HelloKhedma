@@ -6,6 +6,8 @@
 // Who sees it: decided once, at the first start-up of this browser (initGuide): someone with nothing saved yet (no path
 // chosen, CV, application, lesson, search or saved search). Anyone who already used the site never sees it. A signed-in account that already has
 // applications skips it too (guideSeenOnAccount, app.js onUser).
+// A newcomer who arrives from a static course or career page with "?path=" (scripts/gen-pages.mjs) still gets the
+// guide, with step 1 already done (pathFromLink, called by app.js before it saves that path).
 // Stored in this browser only: "hk.guide" = "on" | "done" | "skip", "hk.guide.path" = "1" once a role is chosen.
 // Progress: the path is chosen with selectPath (app.js) through a guide button or the path cards / top-bar select
 // (markPathChosen); the CV step is done when a CV version has text (cvs.js "hk.cvs"); the offers step when a job search
@@ -33,6 +35,13 @@ export function initGuide({ selectPath }) {
   onStore((k) => { if ([KEY, PATH_DONE, "hk.path", "hk.cvs", "hk.searchRuns"].includes(k)) renderGuide(); });
   window.addEventListener("hashchange", renderGuideBar);
   renderGuide();
+}
+// Before app.js saves a "?path=" link's path: decide "newcomer" now, as initGuide would, so the saved path does not
+// count as earlier use, and tick step 1.
+export function pathFromLink() {
+  if (ls.get(KEY) != null) return;
+  const used = ["hk.path", "hk.cvs", "hk.cv.text", "hk.applications.v1", "hk.activity", "hk.lessons", "hk.searchRuns", "hk.savedSearches"];
+  if (used.every((k) => ls.get(k) == null)) { ls.set(KEY, "on"); ls.set(PATH_DONE, "1"); }
 }
 export function markPathChosen() { if (on() && !ls.get(PATH_DONE)) ls.set(PATH_DONE, "1"); }
 // Signed in with applications already on the account: an existing user on a new device.

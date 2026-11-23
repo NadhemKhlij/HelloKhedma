@@ -283,6 +283,9 @@ every path teaches the core of its job; the gaps are tools and topics French off
 
 ## Decisions log (so they are not reopened by accident)
 
+- 2026-11-23: Search engines get static pages generated at deploy time (scripts/gen-pages.mjs) rather than a
+  rewrite of the app's hash routes: one page per course and career path in EN + FR, content from the same JSON and seed,
+  buttons into the app with ?lang= and ?path=. Lesson texts stay in the app; the pages show titles, key points and Q&A.
 - 2026-11-19: Paths for job seekers outside tech stay in the same app (owner: "more inclusive", "job hunters from other
   fields"): a new field is a new career path (seed, skills in js/ats.js, interview questions, 3 projects), its roadmap
   pointing first to the existing HelloKhedma courses and to free outside training and certifications; new full courses

@@ -1306,3 +1306,32 @@ for (const lang of ["en", "fr"]) {
     }
   });
 }
+
+// Static pages for search engines (scripts/gen-pages.mjs, written into _site by deploy.yml): a course page and a career
+// page in both languages, the sitemap, and the link into the app, which opens in the page's language and path.
+test("static pages: course and career pages, sitemap, and the link into the app keeps language and path", async ({ page, request }) => {
+  const sitemap = await (await request.get("/sitemap.xml")).text();
+  expect(sitemap).toContain("https://hellokhedma.io/learn/grc-iso27001/");
+  expect(sitemap).toContain("https://hellokhedma.io/fr/metiers/grc/");
+
+  await page.goto("/learn/grc-iso27001/");
+  await expect(page.locator("h1")).toHaveText("ISO 27001 and audits in practice");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://hellokhedma.io/learn/grc-iso27001/");
+  await expect(page.locator('link[hreflang="fr"]')).toHaveAttribute("href", "https://hellokhedma.io/fr/formation/grc-iso27001/");
+  const ld = JSON.parse(await page.locator('script[type="application/ld+json"]').textContent());
+  expect(ld["@type"]).toBe("Course");
+  expect(await page.locator("main ol > li").count()).toBeGreaterThan(5);
+
+  await page.goto("/fr/metiers/grc/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+  await expect(page.locator("h1")).toContainText("Analyste GRC");
+  expect(await page.locator("details").count()).toBeGreaterThan(5); // interview questions with model answers
+  const course = page.locator('main a[href="/fr/formation/grc-iso27001/"]');
+  await expect(course).toBeVisible();
+  await course.click();
+  await page.locator("a.btn").first().click(); // "Commencer ce cours, gratuitement"
+  await expect(page.locator("#pathSelect")).toHaveValue("grc", { timeout: 15_000 });
+  await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+  await expect(page).toHaveURL(/\/#\/course\/grc-iso27001$/); // the ?lang=&path= query is removed
+  expect(await page.evaluate(() => localStorage.getItem("hk.guide.path"))).toBe("1"); // newcomer: role step already done
+});

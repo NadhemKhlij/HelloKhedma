@@ -1,0 +1,390 @@
+{
+  "why": "Dans une BFI, le support applicatif est responsable du parcours des opérations à travers des dizaines de systèmes : la plateforme de trading, les outils de confirmation, les moteurs de règlement, le P&L et les risques, le reporting réglementaire. Les entretiens pour ces postes comportent toujours un cas comme « une opération manque au back office » ou « le batch de fin de journée est en retard » : ils vérifient que vous connaissez le cycle de vie d’une opération, les données dont elle a besoin, les messages qu’elle produit, et que vous savez trier les priorités avec calme pendant que les traders attendent.",
+  "outcome": "décrire le cycle de vie d’une opération de l’enregistrement à l’échéance, distinguer données statiques et données de marché, expliquer comment des plateformes comme Murex et Calypso alimentent les systèmes en aval, lire les principaux messages SWIFT de confirmation et de règlement, traiter les échecs de règlement et les écarts de rapprochement, expliquer la compensation, le collatéral et les appels de marge, suivre le batch de fin de journée du P&L et des risques, connaître les obligations de reporting EMIR, MiFIR et SFTR, et mener un incident en BFI du tri à la clôture.",
+  "lessons": [
+    {
+      "title": "Le cycle de vie d’une opération",
+      "text": [
+        "Chaque opération passe par les mêmes étapes. Avant la négociation : le client demande un prix, les vendeurs et les traders cotent, les limites de crédit sont vérifiées. Exécution : l’opération est conclue par téléphone, messagerie ou plateforme électronique. Saisie (booking) : le trader ou un flux automatique l’enregistre dans le système de trading avec tous ses détails : produit, contrepartie, montants, dates, portefeuille. L’enrichissement ajoute ce que le trader ne saisit pas : instructions de règlement, règles comptables, identifiants réglementaires.",
+        "Viennent ensuite les contrôles. La validation par le middle office vérifie l’opération par rapport au deal. La confirmation envoie les termes à la contrepartie et rapproche sa version. La compensation, pour les dérivés listés et beaucoup de dérivés OTC, transfère l’opération à une chambre de compensation. Le règlement échange espèces et titres à la date de valeur. La comptabilité enregistre l’opération et sa valorisation quotidienne.",
+        "Pendant sa vie, une opération connaît des événements : fixings et paiements d’intérêts sur un swap, coupons sur une obligation, appels de marge, exercices d’options, modifications (un montant ou une date corrigés) et annulations. À l’échéance, les derniers flux sont payés et l’opération devient inactive. Chaque événement doit atteindre tous les systèmes qui détiennent l’opération.",
+        "Le traitement de bout en bout sans ressaisie (STP, straight-through processing) est l’objectif : une opération circule de l’enregistrement au règlement sans que personne la retape. En réalité, une opération traverse de nombreux systèmes reliés par des interfaces, et chaque interface peut échouer : un message rejeté faute de donnée, une table de correspondance qui ne connaît pas un nouveau produit, une file de messages arrêtée.",
+        "On attend du support qu’il sache où se trouve une opération à chaque étape et quel système et quelle équipe en sont responsables. Une bonne première question pour tout incident : à quelle étape du cycle de vie l’opération s’est-elle arrêtée ?"
+      ],
+      "points": [
+        "Avant-vente → exécution → saisie → enrichissement → validation → confirmation → compensation → règlement → comptabilité.",
+        "Événements de vie : fixings, paiements, coupons, appels de marge, exercices, modifications, annulations, échéance.",
+        "Chaque événement doit atteindre tous les systèmes qui détiennent l’opération.",
+        "STP : pas de ressaisie ; chaque interface entre systèmes est un point de défaillance possible.",
+        "Première question de tri : à quelle étape l’opération s’est-elle arrêtée, et qui en est responsable ?"
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Trade 4471823, EUR IRS 5Y, 25,000,000 EUR, counterparty ACME BANK\n09:12  Executed on an electronic platform, booked in Murex (book RATES_EUR_5Y)\n09:12  Enriched: SSIs, LEI, UTI generated\n09:13  Sent to MarkitWire for confirmation           -> matched 09:20\n09:21  Sent to LCH SwapClear for clearing           -> accepted 09:24\n09:25  Sent to the back office settlement system    -> ERROR: unknown book mapping\n       => incident: the trade stopped between front office and back office",
+        "note": "Suivre la chronologie d’une opération montre exactement où elle s’est arrêtée."
+      }
+    },
+    {
+      "title": "Données statiques et données de marché",
+      "text": [
+        "Les opérations dépendent de deux sortes de données de référence. Les données statiques changent rarement : contreparties et leur identifiant d’entité juridique (LEI), portefeuilles, produits et leurs conventions, devises et calendriers de jours fériés, titres (ISIN, coupon, échéance), et instructions de règlement standard (SSI : quel compte dans quelle banque reçoit chaque devise ou chaque titre). Elles sont en général gérées par une équipe dédiée avec un processus de validation.",
+        "Les données de marché changent en permanence : prix des titres, cours de change, fixings de taux (EURIBOR, €STR, SOFR), courbes de taux construites à partir de nombreuses cotations, nappes de volatilité pour les options, spreads de crédit. Elles viennent de fournisseurs comme Bloomberg et Refinitiv (LSEG) par des flux, et une photographie prise en fin de journée sert à la valorisation officielle et au P&L.",
+        "Une très grande partie des incidents en BFI vient des données de référence. Une nouvelle contrepartie sans SSI bloque le règlement. Un jour férié absent d’un calendrier donne une date de valeur fausse. Un titre créé avec un mauvais coupon donne un coupon couru faux. Un fixing non publié par le fournisseur bloque un paiement de swap. Une courbe qui n’a pas pu se construire fausse les valorisations de tout un desk.",
+        "Bonne pratique du support : vérifier les données avant d’accuser le code. Comparez l’opération à ses données statiques, vérifiez que la photographie des données de marché du jour est complète, et regardez les journaux de chargement. Ne créez ni ne modifiez jamais des données de référence à la main sans validation de l’équipe responsable : elles touchent toutes les opérations qui les utilisent.",
+        "En entretien, montrer que vous connaissez la différence entre données statiques et données de marché, avec un exemple d’incident pour chacune, est un signal fort."
+      ],
+      "points": [
+        "Données statiques : contreparties (LEI), portefeuilles, produits, calendriers, titres, SSI ; changent rarement, gérées par une équipe.",
+        "Données de marché : prix, cours de change, fixings, courbes, nappes de volatilité, spreads ; photographie de fin de journée pour le P&L.",
+        "Beaucoup d’incidents viennent des données de référence : SSI manquantes, calendriers, titres faux, fixings manquants, courbes en échec.",
+        "Vérifier les données avant d’accuser le code ; ne jamais modifier une donnée de référence sans son responsable.",
+        "Préparer un exemple d’incident sur une donnée statique et un sur une donnée de marché."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Static data of counterparty ACME BANK\n  LEI        5299000ACMEBANK00042 (20 characters)\n  SSI EUR    pay to ACMEFRPP, account FR76 ...\n  SSI USD    MISSING                       <- USD trades with ACME cannot settle\nMarket data, end of day 24/11\n  EURIBOR 6M   2.143%   loaded 11:05\n  EUR curve    built    18:02\n  USD vol surface   STALE (last update 21/11)   <- FX option prices wrong",
+        "note": "Deux manques typiques : une instruction de règlement absente et une nappe de volatilité périmée."
+      }
+    },
+    {
+      "title": "Plateformes de trading et interfaces",
+      "text": [
+        "Les BFI utilisent des plateformes front-to-back qui enregistrent les opérations, les valorisent, calculent les risques et produisent souvent les confirmations et la comptabilité. Les plus connues sont Murex (MX.3), Calypso, Finastra Summit et Kondor, Sophis (aujourd’hui SS&C Fusion Invest) et Orchestrade. Beaucoup de banques ont aussi des systèmes internes. Les offres d’emploi citent souvent la plateforme, et l’expérience de l’une d’elles est un argument fort.",
+        "Autour de la plateforme, de nombreux systèmes interviennent : gestion des ordres et trading électronique (les ordres circulent souvent avec le protocole FIX), plateforme de confirmation, moteur de règlement, système de paiement, grand livre comptable, moteurs de risques et de P&L, outil de reporting réglementaire et entrepôts de données. Opérations et événements circulent entre eux par des interfaces : files de messages (IBM MQ, Kafka), fichiers échangés par batch, ou API.",
+        "Chaque interface transforme l’opération d’un format à un autre avec des tables de correspondance : tel portefeuille va vers telle entité juridique, tel type de produit vers tel schéma comptable. Un nouveau produit, portefeuille ou contrepartie que la table ne connaît pas provoque un rejet. Les interfaces ont aussi des accusés de réception (ACK et NACK) et des files d’erreurs où attendent les messages rejetés.",
+        "Le support passe beaucoup de temps à suivre une opération à travers ces interfaces : chercher dans les journaux par identifiant d’opération, vérifier si le message est parti de la source, s’il a été reçu et acquitté, et pourquoi il a été rejeté. Un message peut être rejoué une fois la cause corrigée, mais seulement après avoir vérifié qu’il ne créera pas de doublon en aval.",
+        "Les plateformes ont aussi leurs propres traitements : fin de journée, import des données de marché, génération des événements de vie, archivage. Connaître les principaux traitements de la plateforme que vous supportez, et leurs horaires, fait partie du métier."
+      ],
+      "points": [
+        "Plateformes front-to-back : Murex MX.3, Calypso, Summit, Kondor, Sophis / Fusion Invest, Orchestrade, systèmes internes.",
+        "Autour : gestion des ordres (FIX), confirmation, règlement, paiements, grand livre, risques et P&L, reporting.",
+        "Interfaces : MQ, Kafka, fichiers, API, avec tables de correspondance, ACK / NACK et files d’erreurs.",
+        "Suivre une opération par son identifiant dans les journaux ; rejouer un message rejeté seulement après avoir écarté les doublons.",
+        "Connaître les traitements propres à sa plateforme et leurs horaires."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "grep 4471823 /logs/bo-interface/2026-11-24.log\n09:25:02 RECEIVED  trade=4471823 source=MUREX type=IRS book=RATES_EUR_5Y\n09:25:02 MAPPING   book RATES_EUR_5Y -> legal entity ?\n09:25:02 REJECTED  trade=4471823 reason=UNKNOWN_BOOK  sent to error queue BO.ERR\n09:25:03 NACK sent to MUREX\nFix: static data team adds the book mapping -> replay message from BO.ERR -> ACK 10:42",
+        "note": "Un nouveau portefeuille absent de la table de correspondance : le rejet classique entre front et back office."
+      }
+    },
+    {
+      "title": "Confirmation et appariement",
+      "text": [
+        "Après une opération, les deux parties doivent s’accorder par écrit sur ses termes : c’est la confirmation. La version de la banque et celle de la contrepartie sont comparées champ par champ (date de négociation, date de valeur, montants, taux, devises, instructions de règlement). Quand elles concordent, l’opération est appariée (matched) ; quand un champ diffère, elle est non appariée et doit être analysée avant le règlement.",
+        "Pour le change et le marché monétaire, les banques échangent des messages SWIFT : MT300 pour les confirmations de change, MT305 pour les options de change, MT320 pour les prêts et emprunts, MT360 et MT361 pour les swaps de taux et de devises. Des services d’appariement comparent automatiquement les messages. Pour les dérivés OTC, les confirmations passent surtout par des plateformes électroniques comme MarkitWire ou DTCC, où les deux côtés valident l’opération.",
+        "SWIFT est un réseau sécurisé entre institutions financières, et chaque institution a un BIC (par exemple BNPAFRPP). Les messages suivent des formats stricts avec des champs numérotés. Les messages de paiement transfrontaliers sont passés à la norme ISO 20022 (messages pacs) après une période de coexistence terminée en novembre 2025, tandis que beaucoup de messages de confirmation et de titres utilisent encore les formats MT.",
+        "Les opérations non appariées sont traitées par le back office avec la contrepartie. Le support aide quand la cause est technique : une confirmation non générée, générée avec des données fausses à cause des données statiques, envoyée deux fois, ou non reçue à cause d’un problème de connexion. L’ancienneté des opérations non appariées est un indicateur de risque suivi par la direction et les régulateurs.",
+        "Une explication claire pour l’entretien : la confirmation est la preuve juridique des termes de l’opération, l’appariement vérifie que les deux parties sont d’accord, et une opération non appariée doit être résolue avant sa date de règlement, sinon elle échouera probablement."
+      ],
+      "points": [
+        "Confirmation : les versions des deux parties comparées champ par champ ; appariée ou non appariée.",
+        "SWIFT : MT300 (change), MT305 (options de change), MT320 (prêts et emprunts), MT360 / MT361 (swaps).",
+        "Dérivés OTC : plateformes de confirmation électronique comme MarkitWire ou DTCC.",
+        "Le BIC identifie une institution sur SWIFT ; paiements transfrontaliers en ISO 20022 (fin de la coexistence en novembre 2025).",
+        "Les non-appariées doivent être résolues avant le règlement ; leur ancienneté est un indicateur de risque."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "MT300 FX confirmation (simplified), our version vs counterparty's\n:22A: Type of operation     NEWT        NEWT\n:30T: Trade date            20261124    20261124\n:30V: Value date            20261126    20261127   <- MISMATCH\n:36:  Rate                  1,0850      1,0850\n:32B: Currency, amount      USD10000000 USD10000000\n=> Unmatched on value date: check holiday calendars of both sides",
+        "note": "Un jour d’écart sur la date de valeur : souvent un problème de calendrier d’un côté."
+      }
+    },
+    {
+      "title": "Règlement et rapprochement",
+      "text": [
+        "Le règlement est l’échange effectif : des espèces pour les devises et les paiements, des titres contre espèces pour les obligations et les actions. Les espèces passent par les comptes de la banque chez ses correspondants (comptes nostro) ou par les systèmes des banques centrales comme T2 dans la zone euro. Les titres se déplacent dans les dépositaires centraux (CSD) comme Euroclear et Clearstream, surtout via T2S en Europe. La livraison contre paiement (DVP) échange titres et espèces au même moment, pour qu’aucune partie ne puisse perdre les deux.",
+        "Les instructions de règlement sont envoyées avant la date de valeur : pour les titres, les SWIFT MT540 à MT543 (recevoir ou livrer, franco ou contre paiement), avec des mises à jour de statut en MT548 et les confirmations de dénouement en MT544 à MT547. Les paiements utilisent les pacs.008 et pacs.009 en ISO 20022. Chaque devise et chaque marché a des heures limites (cut-off) après lesquelles une instruction ne peut plus se régler le jour même.",
+        "Un échec de règlement (settlement fail) survient quand une opération ne se règle pas à sa date de valeur : SSI manquantes ou fausses, titres indisponibles, manque d’espèces, instruction envoyée après le cut-off, instruction non appariée. Dans l’UE, le règlement CSDR impose des pénalités en espèces pour chaque jour d’échec d’un règlement de titres. Les États-Unis sont passés au règlement à T+1 pour la plupart des titres en mai 2024, et l’UE, le Royaume-Uni et la Suisse prévoient de suivre le 11 octobre 2027, ce qui laisse beaucoup moins de temps pour corriger les problèmes.",
+        "Le rapprochement compare les données de la banque avec des relevés externes : positions en espèces avec les relevés nostro (MT950 ou camt.053), positions titres avec les relevés du conservateur ou du dépositaire, opérations avec les courtiers et les chambres de compensation. Une différence est un écart (break). Les écarts doivent être expliqués et résolus vite, car ils peuvent cacher une opération manquante, un paiement faux ou une fraude.",
+        "Le support intervient quand un échec ou un écart a une cause technique : une instruction jamais envoyée, un message rejeté par SWIFT, un paiement en double, un fichier de rapprochement non arrivé ou chargé deux fois."
+      ],
+      "points": [
+        "Espèces via nostros ou systèmes de banque centrale (T2) ; titres via les CSD (Euroclear, Clearstream, T2S) ; DVP.",
+        "Instructions titres MT540-543, statut MT548, dénouement MT544-547 ; paiements pacs.008 / pacs.009 ; heures limites.",
+        "Échecs : SSI, titres ou espèces manquants, instructions tardives ou non appariées ; pénalités CSDR dans l’UE.",
+        "T+1 : États-Unis depuis mai 2024 ; UE, Royaume-Uni et Suisse prévus le 11 octobre 2027.",
+        "Rapprochement avec les relevés nostro, conservateurs, courtiers et chambres ; une différence est un écart."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Nostro reconciliation, USD account at correspondent bank, 24/11\nOur books (expected)        +12,450,000.00 USD\nBank statement (MT950)      +11,450,000.00 USD\nBreak                        -1,000,000.00 USD\nInvestigation: payment of 1,000,000 USD to ACME BANK sent twice on 21/11\n=> recall the duplicate payment, fix the interface that resent the message",
+        "note": "Un écart égal au montant d’un paiement oriente souvent vers un doublon ou un message manquant."
+      }
+    },
+    {
+      "title": "Compensation, collatéral et marges",
+      "text": [
+        "La compensation place une chambre de compensation (CCP) entre les deux parties d’une opération : LCH, Eurex Clearing, CME Clearing, ICE Clear. La chambre devient l’acheteur de chaque vendeur et le vendeur de chaque acheteur, compense les positions et demande des marges à chaque membre. Les dérivés listés sont toujours compensés. Depuis la crise de 2008, EMIR en Europe et le Dodd-Frank Act aux États-Unis imposent aussi la compensation de nombreux dérivés OTC standard, comme les swaps de taux courants et les indices de CDS.",
+        "Les opérations OTC bilatérales non compensées sont couvertes par des accords de collatéral : le contrat-cadre ISDA fixe le cadre juridique, et son annexe de remise en garantie (CSA) définit le collatéral accepté, les seuils et les montants minimaux de transfert. Chaque jour, les deux parties valorisent leurs opérations ; si l’exposition a bougé, la partie créancière envoie un appel de marge et l’autre doit livrer du collatéral, espèces ou titres.",
+        "La marge de variation couvre la variation quotidienne de valeur des opérations. La marge initiale couvre la perte possible si une contrepartie fait défaut pendant le remplacement de ses opérations ; depuis l’entrée en vigueur progressive des règles de marge sur les dérivés non compensés, achevée en septembre 2022, les grands acteurs doivent aussi échanger une marge initiale sur les opérations bilatérales, souvent calculée avec le modèle ISDA SIMM et conservée chez des dépositaires tiers.",
+        "Les systèmes de gestion du collatéral calculent les expositions, émettent et reçoivent les appels de marge, suivent les litiges et ordonnent les mouvements de collatéral. Incidents typiques : un écart de valorisation entre les deux parties qui provoque un litige, un appel de marge non envoyé car une opération manquait dans le portefeuille, un collatéral livré sur le mauvais compte, ou un rapport de marge d’une chambre non chargé.",
+        "En entretien, expliquez la marge avec une image simple : comme le dépôt de garantie quand on loue un appartement (marge initiale) plus le règlement de la note chaque jour (marge de variation), pour que personne n’accumule une grosse dette impayée."
+      ],
+      "points": [
+        "Chambre de compensation : acheteur de chaque vendeur, vendeur de chaque acheteur ; compense et appelle des marges ; LCH, Eurex Clearing, CME, ICE.",
+        "EMIR et Dodd-Frank : de nombreux dérivés OTC standard doivent être compensés.",
+        "Opérations bilatérales : ISDA + CSA (collatéral éligible, seuils, transfert minimal) ; appels de marge quotidiens.",
+        "Marge de variation = variation quotidienne de valeur ; marge initiale = coussin contre le défaut (règles achevées en 2022).",
+        "Incidents : litiges de valorisation, opérations manquantes dans un portefeuille, mauvais compte de collatéral, rapports de chambre manquants."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "CSA with ACME BANK, threshold 0, minimum transfer amount 500,000 EUR\nPortfolio value for us, yesterday   +3,200,000 EUR (collateral held: 3,200,000)\nPortfolio value for us, today       +4,050,000 EUR\nExposure change                       +850,000 EUR >= 500,000 -> margin call\nWe call 850,000 EUR from ACME BANK, due today\nACME's valuation: +3,700,000 -> they agree 500,000 only -> dispute on 350,000",
+        "note": "Un appel de marge, et le litige qui suit quand les deux valorisations diffèrent."
+      }
+    },
+    {
+      "title": "P&L, risques et batch de fin de journée",
+      "text": [
+        "Chaque soir, la banque calcule la valeur officielle de toutes ses positions. Le batch de fin de journée (EOD) est une chaîne de traitements, ordonnancée par des outils comme Control-M ou Autosys : import des données de marché de clôture, construction des courbes et des nappes, revalorisation de chaque opération (mark-to-market), calcul du P&L et des mesures de risque, alimentation des rapports finance, risques et réglementaires. Chaque traitement dépend des précédents, et les résultats sont attendus pour une heure limite.",
+        "Le P&L quotidien est la variation de valeur des positions plus les flux du jour. L’explication du P&L (P&L explain) le décompose en causes : nouvelles opérations, mouvements de marché (delta, véga…), passage du temps, fixings et frais. Un P&L inexpliqué est analysé par le middle office et remonte souvent au support : une donnée de marché manquante, une opération enregistrée deux fois, une opération absente, un champ de données statiques faux.",
+        "Les mesures de risque indiquent à la direction combien la banque pourrait perdre. Les sensibilités (delta, véga, PV01 : la variation de valeur pour un mouvement de taux d’un point de base) sont calculées par desk et par portefeuille. La value at risk (VaR) estime la perte qui ne devrait pas être dépassée avec une confiance donnée, par exemple 99 % sur un jour, en général par simulation historique. Les stress tests appliquent des scénarios extrêmes. Chaque desk a des limites sur ces mesures.",
+        "Quand le batch est en retard ou qu’un traitement échoue, l’impact est large : les traders commencent la journée sans leurs risques, les rapports à la direction et aux régulateurs sont en retard, et la relance d’un traitement peut prendre des heures. Le support surveille la chaîne, relance les traitements en échec après avoir corrigé leur cause, décide avec le métier quels traitements relancer pour quels portefeuilles, et communique une heure de fin estimée.",
+        "Les recruteurs aiment la question « le batch a échoué à 2 h du matin, que faites-vous ? » : regarder quel traitement a échoué et pourquoi dans son journal, évaluer ce qui en dépend et l’heure limite, corriger ou contourner la cause, relancer dans le bon ordre, vérifier les résultats avec le métier, et consigner ce qui s’est passé."
+      ],
+      "points": [
+        "Batch EOD (Control-M, Autosys) : données de marché → courbes → revalorisation → P&L → risques → rapports, avec heures limites.",
+        "P&L quotidien et explication du P&L (nouvelles opérations, marché, temps, fixings, frais).",
+        "Risques : sensibilités (delta, véga, PV01), VaR (par exemple 99 %, un jour), stress tests, limites.",
+        "Échec du batch : impact large ; le support relance après correction, dans l’ordre, et communique une heure estimée.",
+        "Question classique : le batch a échoué à 2 h du matin, que faites-vous ?"
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EOD chain 24/11 (Control-M)\n19:00 MD_IMPORT        OK    closing prices and fixings\n19:20 CURVE_BUILD      OK\n19:45 REVAL_RATES      OK\n19:45 REVAL_FX         FAILED   ORA-01652 unable to extend temp segment\n      PNL_FX           WAITING (depends on REVAL_FX)\n      RISK_VAR         WAITING (depends on all REVAL jobs)\nAction: DBA extends temp space -> rerun REVAL_FX 21:10 -> PNL_FX, RISK_VAR follow\nETA risk reports: 23:30 instead of 22:00, sent to middle office and risk",
+        "note": "Un traitement en échec bloque tout ce qui en dépend ; communiquez la nouvelle heure estimée."
+      }
+    },
+    {
+      "title": "Reporting réglementaire et gestion des incidents en BFI",
+      "text": [
+        "Les banques doivent déclarer leurs opérations aux régulateurs. EMIR impose aux deux parties de chaque dérivé dans l’UE de le déclarer à un référentiel central le jour ouvré suivant ; depuis la refonte EMIR Refit d’avril 2024, les déclarations utilisent le format XML ISO 20022 avec plus de 200 champs, un identifiant unique d’opération (UTI), les LEI des parties et un identifiant unique de produit (UPI). La déclaration des transactions MiFIR (RTS 22) impose aux entreprises d’investissement de déclarer leurs transactions au régulateur national, l’AMF en France, au plus tard le jour ouvré suivant. SFTR fait de même pour les pensions livrées et les prêts de titres.",
+        "Les déclarations réglementaires sont produites par des systèmes dédiés alimentés par les plateformes de trading. Chaque déclaration peut être acceptée ou rejetée par le référentiel ou le régulateur, et les rejets doivent être corrigés et renvoyés vite : LEI manquant, UTI invalide, mauvaise classification du produit, champ au mauvais format. Des déclarations tardives ou fausses peuvent entraîner des sanctions : les files de rejets sont donc suivies chaque jour.",
+        "Les incidents en BFI ont un rythme particulier. Pendant les heures de marché, un problème sur la plateforme de trading ou un flux de prix est critique : les traders ne peuvent plus traiter ni coter, et chaque minute coûte de l’argent ou des clients. La priorité suit l’impact métier : trading bloqué, échéance de règlement menacée, échéance réglementaire menacée, puis le reste. La communication compte autant que la correction : un canal d’incident, des points réguliers, une estimation claire.",
+        "Une bonne routine de tri : identifier le périmètre (quelles opérations, quels portefeuilles, quels systèmes), trouver l’étape du cycle de vie où cela s’est arrêté, vérifier les changements récents (une mise en production, un nouveau produit, une mise à jour de données statiques), regarder les journaux et les files d’erreurs, décider d’un contournement pour protéger le métier, corriger la cause racine, puis confirmer avec les utilisateurs et rédiger le retour d’expérience.",
+        "Préparez deux ou trois histoires pour l’entretien avec la structure STAR : situation, tâche, action, résultat. Par exemple un échec de règlement que vous avez relié à une SSI manquante, un saut de P&L dû à un fixing manquant, ou un batch que vous avez rétabli avant l’heure limite des risques. Des chiffres et la leçon que vous en avez tirée rendent l’histoire convaincante."
+      ],
+      "points": [
+        "EMIR : dérivés déclarés à un référentiel central à T+1 ; Refit depuis avril 2024 : XML ISO 20022, UTI, LEI, UPI.",
+        "Déclaration des transactions MiFIR (RTS 22) au régulateur national (AMF en France) à T+1 ; SFTR pour pensions et prêts de titres.",
+        "Suivre les files de rejets chaque jour : LEI manquant, UTI invalide, mauvaise classification, formats faux.",
+        "Priorité selon l’impact métier : trading bloqué, échéance de règlement, échéance réglementaire, puis le reste ; communiquer.",
+        "Tri : périmètre, étape du cycle de vie, changements récents, journaux et files, contournement, cause racine, confirmation, retour d’expérience."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Interview story (STAR)\nSituation  09:40, FX traders could not price EUR/USD options: vol surface stale since Friday\nTask       Restore pricing before the 10:00 client calls, then find the cause\nAction     Checked the market data loading log: the provider file format changed on Friday,\n           the import job skipped the surface without failing. Loaded the surface manually\n           from the official file with the market data team, then fixed the import mapping\nResult     Pricing back at 09:55; added an alert when a surface is older than one day",
+        "note": "Situation, tâche, action, résultat, avec les heures et l’amélioration apportée."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Cycle de vie et données",
+      "items": [
+        ["Cycle de vie", "Saisie → enrichissement → validation → confirmation → compensation → règlement → comptabilité"],
+        ["STP", "Traitement de bout en bout sans ressaisie entre systèmes"],
+        ["Données statiques", "Contreparties (LEI), portefeuilles, produits, calendriers, titres, SSI"],
+        ["Données de marché", "Prix, cours de change, fixings, courbes, nappes de volatilité ; photographie de fin de journée"],
+        ["SSI", "Instructions de règlement standard : où chaque devise ou titre est payé"]
+      ]
+    },
+    {
+      "group": "Plateformes et messages",
+      "items": [
+        ["Murex, Calypso", "Plateformes de trading front-to-back très utilisées en BFI"],
+        ["FIX", "Protocole des ordres et exécutions entre systèmes de trading"],
+        ["MT300 / MT320", "Confirmation SWIFT d’une opération de change / d’un prêt ou emprunt"],
+        ["MT540-543", "Instructions SWIFT de règlement de titres (recevoir / livrer, franco / contre paiement)"],
+        ["ISO 20022", "Nouvelle norme de messages ; paiements transfrontaliers migrés en novembre 2025"]
+      ]
+    },
+    {
+      "group": "Règlement et collatéral",
+      "items": [
+        ["DVP", "Livraison contre paiement : titres et espèces échangés au même moment"],
+        ["Échec de règlement", "Opération non réglée à sa date de valeur ; pénalités CSDR dans l’UE"],
+        ["T+1", "États-Unis depuis mai 2024 ; UE, Royaume-Uni et Suisse prévus le 11 octobre 2027"],
+        ["Écart (break)", "Différence entre les données de la banque et un relevé externe"],
+        ["CSA", "Annexe ISDA qui définit collatéral, seuils et montants minimaux de transfert"]
+      ]
+    },
+    {
+      "group": "P&L et risques",
+      "items": [
+        ["Batch EOD", "Chaîne de nuit : données de marché, courbes, revalorisation, P&L, risques, rapports"],
+        ["Explication du P&L", "P&L du jour décomposé : nouvelles opérations, marché, temps, fixings, frais"],
+        ["PV01", "Variation de valeur pour un mouvement de taux d’un point de base"],
+        ["VaR", "Perte non dépassée avec une confiance donnée, par exemple 99 % sur un jour"],
+        ["Marge de variation", "Paiement quotidien de la variation de valeur des opérations"]
+      ]
+    },
+    {
+      "group": "Réglementation et incidents",
+      "items": [
+        ["EMIR", "Dérivés dans l’UE : déclaration à un référentiel central à T+1, obligation de compensation"],
+        ["UTI / LEI / UPI", "Identifiant unique d’opération / d’entité juridique / de produit"],
+        ["MiFIR RTS 22", "Déclaration des transactions au régulateur national (AMF) à T+1"],
+        ["SFTR", "Déclaration des pensions livrées et des prêts de titres"],
+        ["STAR", "Situation, tâche, action, résultat : structure des histoires d’entretien"]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Relancer un traitement ou rejouer un message avant de comprendre pourquoi il a échoué.",
+    "Rejouer un message d’opération rejeté sans vérifier qu’il ne créera pas de doublon en aval.",
+    "Modifier des données statiques ou de marché à la main sans l’équipe responsable et une source officielle.",
+    "Traiter tous les incidents pareil : pendant les heures de marché, le trading et les échéances de règlement passent d’abord.",
+    "Corriger le problème sans dire aux traders, au middle office ou au back office ce qui se passe.",
+    "Expliquer T+1 ou EMIR avec de vieilles dates : vérifiez les échéances actuelles avant un entretien.",
+    "Raconter des histoires d’entretien sans heures, sans chiffres et sans ce que vous avez changé ensuite."
+  ],
+  "exercises": [
+    {
+      "q": "Remettez dans l’ordre les étapes de la vie d’une opération.",
+      "type": "order",
+      "steps": ["Exécution avec le client", "Saisie dans le système de trading", "Enrichissement avec SSI et identifiants réglementaires", "Validation par le middle office", "Confirmation et appariement avec la contrepartie", "Règlement à la date de valeur", "Comptabilité et valorisation quotidienne"],
+      "answer": "La saisie suit l’exécution, l’enrichissement ajoute ce que le trader ne saisit pas, le middle office valide, la confirmation doit être appariée avant le règlement, et la comptabilité enregistre l’opération et sa valeur chaque jour jusqu’à l’échéance."
+    },
+    {
+      "q": "Classez ces données de référence.",
+      "type": "groups",
+      "groups": [
+        { "name": "Données statiques", "items": ["LEI d’une contrepartie", "Calendrier des jours fériés d’une devise", "Instructions de règlement (SSI)", "Coupon d’une obligation"] },
+        { "name": "Données de marché", "items": ["Fixing EURIBOR 6 mois", "Cours de clôture EUR/USD", "Nappe de volatilité", "Courbe de taux"] }
+      ],
+      "answer": "Les données statiques décrivent produits, parties et règles et changent rarement ; les données de marché s’observent sur le marché et changent chaque jour. Les deux sont des causes fréquentes d’incidents, et chacune a une équipe responsable."
+    },
+    {
+      "q": "Associez chaque message SWIFT à son usage.",
+      "type": "match",
+      "pairs": [
+        ["MT300", "Confirmation d’une opération de change"],
+        ["MT320", "Confirmation d’un prêt ou d’un emprunt"],
+        ["MT543", "Livrer des titres contre paiement"],
+        ["MT548", "Statut d’une instruction de règlement"],
+        ["MT950", "Relevé de compte utilisé pour le rapprochement"]
+      ],
+      "answer": "Les messages MT3xx confirment les opérations de trésorerie, les MT54x ordonnent et suivent le règlement des titres, et les relevés MT950 alimentent le rapprochement nostro. Les paiements transfrontaliers utilisent désormais les messages pacs ISO 20022."
+    },
+    {
+      "q": "Que garantit la livraison contre paiement (DVP) ?",
+      "type": "choice",
+      "options": ["Que l’opération est confirmée par les deux parties", "Que titres et espèces sont échangés au même moment", "Que l’opération est déclarée au régulateur", "Que la marge est payée chaque jour"],
+      "correct": 1,
+      "answer": "La DVP lie la livraison des titres au paiement des espèces dans le système de règlement : aucune partie ne peut livrer sans recevoir. Elle supprime le risque en principal au moment du règlement."
+    },
+    {
+      "q": "En B4, calculez l’écart de rapprochement : le solde attendu par la banque moins le solde du relevé nostro.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "USD"], ["Expected balance (our books)", 12450000], ["Statement balance (MT950)", 11450000], ["Break", ""]],
+      "cell": "B4",
+      "answer": "=B2-B3",
+      "explain": "12 450 000 − 11 450 000 = 1 000 000 USD de plus dans nos livres qu’à la banque. Un écart égal au montant d’un paiement oriente vers un paiement en double ou un paiement entrant manquant : cherchez les paiements de ce montant."
+    },
+    {
+      "q": "En D2, comptez les confirmations encore non appariées.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Trade", "Product", "Status", "Unmatched"], ["4471801", "FX spot", "Matched", ""], ["4471802", "FX forward", "Unmatched", ""], ["4471803", "Deposit", "Matched", ""], ["4471804", "FX swap", "Unmatched", ""], ["4471805", "FX spot", "Unmatched", ""], ["4471806", "IRS", "Matched", ""]],
+      "cell": "D2",
+      "answer": "=COUNTIF(C2:C7,\"Unmatched\")",
+      "explain": "Trois opérations ne sont pas appariées. Elles doivent être analysées avant leur date de valeur, en commençant par la plus proche ; l’ancienneté des non-appariées est suivie comme indicateur de risque."
+    },
+    {
+      "q": "En B5, calculez la marge à appeler : la variation de valeur du portefeuille depuis hier si elle atteint le montant minimal de transfert, sinon 0.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "EUR"], ["Value yesterday (collateral held)", 3200000], ["Value today", 4050000], ["Minimum transfer amount", 500000], ["Margin to call", ""]],
+      "cell": "B5",
+      "answer": "=IF(ABS(B3-B2)>=B4,B3-B2,0)",
+      "explain": "4 050 000 − 3 200 000 = 850 000 EUR, au-dessus du minimum de 500 000 : on appelle 850 000 EUR. En dessous du minimum, aucun appel n’est fait, pour éviter de déplacer du collatéral pour de petits montants."
+    },
+    {
+      "q": "En D2, calculez le P&L du jour de cette position obligataire à partir de la variation de prix (prix en % du nominal).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Price yesterday (%)", "Price today (%)", "Nominal held (EUR)", "P&L (EUR)"], [98.5, 98.35, 20000000, ""]],
+      "cell": "D2",
+      "answer": "=(B2-A2)/100*C2",
+      "explain": "(98,35 − 98,50) / 100 × 20 000 000 = −30 000 EUR. Si un prix manquait et que le système prenait 0, le P&L afficherait une perte de près de 20 millions : un saut pareil oriente d’abord vers les données de marché."
+    },
+    {
+      "q": "Complétez : le message SWIFT utilisé pour confirmer une opération de change entre deux banques est le MT___.",
+      "type": "fill",
+      "blanks": [["300", "MT300", "mt300"]],
+      "answer": "Le MT300 est la confirmation de change ; le MT305 couvre les options de change, le MT320 les prêts et emprunts, les MT360 et MT361 les swaps de taux et de devises."
+    },
+    {
+      "q": "À 10 h 15, le back office appelle : un swap de change de 50 millions d’euros saisi à 9 h n’est pas dans son système de règlement, et sa jambe proche se règle aujourd’hui. Déroulez vos actions.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Que faites-vous d’abord ?",
+          "choices": [
+            { "label": "Retrouver l’opération dans la plateforme de trading et suivre son identifiant dans les journaux d’interface pour voir où elle s’est arrêtée", "best": true, "feedback": "Oui : localiser l’étape du cycle de vie où l’opération s’est arrêtée avant d’agir." },
+            { "label": "Demander au back office de ressaisir l’opération à la main dans son système", "feedback": "La ressaisie crée un risque d’erreur et de doublon quand l’interface rattrape son retard ; à n’utiliser qu’en dernier recours, avec l’accord du métier." },
+            { "label": "Redémarrer l’interface", "feedback": "Redémarrer sans connaître la cause peut perdre ou dupliquer des messages." }
+          ]
+        },
+        {
+          "text": "Le journal montre que l’opération a été rejetée : la contrepartie n’a pas de SSI en EUR. Et ensuite ?",
+          "choices": [
+            { "label": "Demander à l’équipe des données statiques d’ajouter la SSI en urgence, prévenir le back office et le trader du risque sur le règlement du jour, puis rejouer le message", "best": true, "feedback": "Oui : le responsable corrige la donnée, le métier connaît le risque sur l’échéance, et le rejeu fait entrer l’opération une seule fois." },
+            { "label": "Ajouter vous-même la SSI dans les données statiques", "feedback": "Les SSI décident où va l’argent : elles doivent être créées et validées par l’équipe responsable, jamais par le support seul." },
+            { "label": "Attendre que le batch de fin de journée la reprenne", "feedback": "La jambe proche se règle aujourd’hui ; attendre, c’est un échec de règlement et peut-être des pénalités." }
+          ]
+        },
+        {
+          "text": "L’opération est arrivée à 10 h 50, avant le cut-off. Comment clôturez-vous ?",
+          "choices": [
+            { "label": "Vérifier avec le back office que les deux jambes sont là, puis chercher d’autres opérations bloquées par la même SSI manquante et proposer un contrôle à la création d’une contrepartie", "best": true, "feedback": "Oui : confirmer avec les utilisateurs, trouver les autres victimes de la même cause et la prévenir." },
+            { "label": "Clôturer le ticket dès que le message est rejoué", "feedback": "Les utilisateurs doivent confirmer, et d’autres opérations peuvent être bloquées pour la même raison." },
+            { "label": "Clôturer en écrivant « erreur utilisateur »", "feedback": "La cause racine est un manque de contrôle sur les données ; la décrire précisément aide à la corriger." }
+          ]
+        }
+      ],
+      "answer": "Localiser où l’opération s’est arrêtée, faire corriger la cause par le responsable des données, prévenir le métier de l’échéance, rejouer une fois, confirmer les deux jambes avec les utilisateurs, chercher les autres opérations touchées par le même problème et proposer un contrôle préventif."
+    },
+    {
+      "q": "Le batch de fin de journée a échoué à 2 h du matin sur le traitement qui revalorise les opérations de change. Expliquez ce que vous faites jusqu’au matin.",
+      "answer": "Je lis le journal du traitement en échec pour trouver la cause, par exemple un espace temporaire plein, un fichier de données de marché manquant ou une opération défectueuse. Je regarde ce qui en dépend : P&L change, VaR et rapports de risques du matin, et leurs heures limites. Je corrige la cause ou je la fais corriger par la bonne équipe, par exemple les DBA pour l’espace ou l’équipe des données de marché pour un fichier manquant, et si une seule opération défectueuse bloque le traitement, je conviens avec le middle office de l’exclure temporairement. Je relance le traitement en échec et ceux qui en dépendent dans le bon ordre, je les suis jusqu’au bout, et je vérifie les résultats avec le middle office : P&L cohérent, aucun portefeuille manquant. J’envoie un point avec la nouvelle heure estimée au middle office, aux risques et aux responsables des desks avant leur arrivée, et je consigne la cause et la correction pour qu’une solution durable soit planifiée."
+    },
+    {
+      "q": "Expliquez à un recruteur pourquoi le passage au règlement à T+1 compte pour le support applicatif.",
+      "answer": "Avec T+1, les opérations sur titres se règlent un jour ouvré après la négociation au lieu de deux. Les États-Unis y sont passés en mai 2024, et l’UE, le Royaume-Uni et la Suisse prévoient de le faire le 11 octobre 2027. Tout ce qui se passe entre la négociation et le règlement doit tenir en une journée : saisie, enrichissement, confirmation, allocation, instructions de règlement, financement et change pour les investisseurs étrangers. Pour le support, cela veut dire moins d’heures pour corriger une opération rejetée, une SSI manquante ou un batch en retard avant l’heure limite de règlement, plus d’automatisation et des contrôles plus tôt, et des incidents qui deviennent beaucoup plus vite des échecs de règlement et des pénalités CSDR s’ils ne sont pas résolus le jour même."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Décrivez le cycle de vie d’une opération.",
+      "a": "Le client demande un prix et l’opération est exécutée, puis saisie dans la plateforme de trading. Elle est enrichie avec les instructions de règlement et les identifiants réglementaires, validée par le middle office, confirmée et appariée avec la contrepartie, compensée si elle doit l’être, réglée à la date de valeur et comptabilisée chaque jour jusqu’à l’échéance. Entre-temps surviennent des événements de vie comme les fixings, les coupons, les appels de marge, les modifications ou les exercices, et chaque étape se passe en général dans un système différent relié par des interfaces."
+    },
+    {
+      "q": "Quelle est la différence entre données statiques et données de marché ? Donnez un incident pour chacune.",
+      "a": "Les données statiques changent rarement : contreparties et leurs LEI, portefeuilles, calendriers, titres, instructions de règlement. Une SSI manquante pour une nouvelle contrepartie bloque le règlement de ses opérations. Les données de marché changent en permanence : prix, cours de change, fixings, courbes, nappes de volatilité. Un fixing EURIBOR manquant bloque le calcul d’un paiement de swap et peut faire sauter le P&L. Les deux ont des équipes responsables, et le support ne doit pas les modifier à la main."
+    },
+    {
+      "q": "Une opération est dans Murex mais pas dans le système du back office. Comment analysez-vous ?",
+      "a": "Je prends l’identifiant de l’opération et je la suis à travers l’interface : Murex l’a-t-il envoyée, le middleware l’a-t-il reçue, a-t-elle été acquittée ou rejetée, attend-elle dans une file d’erreurs ? Le motif de rejet oriente en général vers les données, comme un portefeuille inconnu de la table de correspondance ou une SSI manquante, ou vers un problème technique comme une file arrêtée. Je fais corriger la cause par son responsable, je rejoue le message une fois après avoir vérifié qu’il ne créera pas de doublon, je confirme avec le back office et je cherche d’autres opérations touchées par le même problème."
+    },
+    {
+      "q": "Qu’est-ce qu’un échec de règlement et quelles en sont les causes ?",
+      "a": "C’est une opération qui ne se règle pas à sa date de valeur prévue. Les causes : instructions de règlement manquantes ou fausses, instruction non appariée, titres indisponibles pour la livraison, espèces insuffisantes, ou instruction envoyée après l’heure limite du marché. Dans l’UE, CSDR applique des pénalités en espèces pour chaque jour d’échec d’un règlement de titres, et avec le passage à T+1 en octobre 2027, il y aura encore moins de temps pour corriger les problèmes."
+    },
+    {
+      "q": "Qu’est-ce qu’un appel de marge ?",
+      "a": "Une demande de collatéral quand la valeur des opérations entre deux parties bouge. Chaque jour les opérations sont valorisées ; si l’exposition a augmenté au-delà du montant minimal de transfert du CSA, la partie gagnante appelle de la marge et l’autre doit livrer des espèces ou des titres. La marge de variation couvre les variations quotidiennes, la marge initiale est un coussin en cas de défaut. Des litiges surviennent quand les valorisations des deux parties diffèrent, souvent à cause d’une opération manquante ou de données de marché différentes."
+    },
+    {
+      "q": "Que savez-vous du reporting EMIR ?",
+      "a": "EMIR impose aux deux contreparties d’un dérivé dans l’UE de le déclarer à un référentiel central au plus tard le jour ouvré suivant, avec des identifiants comme l’UTI, les LEI des parties et, depuis la refonte d’avril 2024, l’UPI, au format XML ISO 20022. Les déclarations peuvent être rejetées pour des champs manquants ou invalides, et les rejets doivent être corrigés et renvoyés vite pour éviter des sanctions : le support suit donc les files de rejets chaque jour."
+    },
+    {
+      "q": "Parlez-moi d’un incident difficile que vous avez géré.",
+      "a": "Utilisez la structure STAR : situation, tâche, action, résultat. Choisissez un incident réel, dites quand il est survenu et ce qui était en jeu pour le métier, expliquez comment vous avez trouvé la cause avec des faits comme des journaux, des données ou des files, ce que vous avez fait d’abord pour protéger les utilisateurs et ce que vous avez corrigé ensuite, et donnez le résultat chiffré : temps de rétablissement, montants, échéances tenues. Terminez par ce que vous avez changé pour que cela ne se reproduise pas : c’est ce dont les recruteurs se souviennent."
+    }
+  ]
+}

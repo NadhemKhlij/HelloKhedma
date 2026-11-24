@@ -1,0 +1,390 @@
+{
+  "why": "In a CIB, application support owns the flow of trades through dozens of systems: the trading platform, confirmation tools, settlement engines, P&L and risk, regulatory reporting. Interviews for these roles always include a scenario such as “a trade is missing in the back office” or “the end-of-day batch is late”: they test whether you know the trade lifecycle, the data it needs, the messages it produces and how to triage calmly while traders are waiting.",
+  "outcome": "describe the lifecycle of a trade from booking to maturity, tell static data from market data, explain how trading platforms such as Murex and Calypso feed downstream systems, read the main SWIFT confirmation and settlement messages, handle settlement fails and reconciliation breaks, explain clearing, collateral and margin calls, follow the end-of-day P&L and risk batch, know the EMIR, MiFIR and SFTR reporting duties, and run a CIB incident from triage to closure.",
+  "lessons": [
+    {
+      "title": "The lifecycle of a trade",
+      "text": [
+        "Every trade goes through the same stages. Pre-trade: the client asks for a price, sales and traders quote, credit limits are checked. Execution: the deal is agreed by phone, chat or an electronic platform. Capture or booking: the trader or an automatic feed records it in the trading system with all its details: product, counterparty, amounts, dates, book. Enrichment adds what the trader does not type: settlement instructions, accounting rules, regulatory identifiers.",
+        "Then come the controls. Validation by the middle office checks the trade against the deal. Confirmation sends the terms to the counterparty and matches its version. Clearing, for listed and many OTC derivatives, moves the trade to a central counterparty. Settlement exchanges cash and securities on the value date. Accounting records the trade and its daily valuation.",
+        "During its life, a trade has events: interest fixings and payments on a swap, coupons on a bond, margin calls, option exercises, amendments (a corrected amount or date) and cancellations. At maturity the last flows are paid and the trade becomes inactive. Each event must reach every system that holds the trade.",
+        "Straight-through processing (STP) is the goal: a trade flows from booking to settlement without anyone retyping it. In reality, a trade crosses many systems connected by interfaces, and every interface can fail: a message rejected for missing data, a mapping that does not know a new product, a queue that stopped.",
+        "Support analysts are expected to know where a trade is at each stage and which system and team own it. A good first question for any incident is: at which step of the lifecycle did the trade stop?"
+      ],
+      "points": [
+        "Pre-trade → execution → booking → enrichment → validation → confirmation → clearing → settlement → accounting.",
+        "Lifecycle events: fixings, payments, coupons, margin calls, exercises, amendments, cancellations, maturity.",
+        "Each event must reach every system that holds the trade.",
+        "STP: no retyping; every interface between systems is a possible failure point.",
+        "First triage question: at which step did the trade stop, and who owns it?"
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Trade 4471823, EUR IRS 5Y, 25,000,000 EUR, counterparty ACME BANK\n09:12  Executed on an electronic platform, booked in Murex (book RATES_EUR_5Y)\n09:12  Enriched: SSIs, LEI, UTI generated\n09:13  Sent to MarkitWire for confirmation           -> matched 09:20\n09:21  Sent to LCH SwapClear for clearing           -> accepted 09:24\n09:25  Sent to the back office settlement system    -> ERROR: unknown book mapping\n       => incident: the trade stopped between front office and back office",
+        "note": "Following one trade's timeline shows exactly where it stopped."
+      }
+    },
+    {
+      "title": "Static data and market data",
+      "text": [
+        "Trades depend on two kinds of reference data. Static data changes rarely: counterparties and their legal entity identifier (LEI), books and portfolios, products and their conventions, currencies and holiday calendars, securities (ISIN, coupon, maturity), and standard settlement instructions (SSIs: which account at which bank receives each currency or security). Static data is usually managed by a dedicated team with a validation process.",
+        "Market data changes all the time: prices of securities, FX rates, interest rate fixings (EURIBOR, €STR, SOFR), yield curves built from many quotes, volatility surfaces for options, credit spreads. It comes from providers such as Bloomberg and Refinitiv (LSEG) through feeds, and a snapshot taken at the end of the day is used for the official valuation and P&L.",
+        "A huge share of CIB incidents comes from reference data. A new counterparty without SSIs blocks settlement. A missing holiday in a calendar gives a wrong value date. A security created with the wrong coupon gives wrong accrued interest. A fixing not published by the provider stops a swap payment. A curve that failed to build gives wrong valuations for a whole desk.",
+        "Good support practice: check the data before blaming the code. Compare the trade with its static data, check whether today's market data snapshot is complete, and look at the data loading logs. Never create or change reference data by hand without the owner team's validation: it affects every trade that uses it.",
+        "In interviews, showing that you know the difference between static and market data, and give one example of an incident for each, is a strong signal."
+      ],
+      "points": [
+        "Static data: counterparties (LEI), books, products, calendars, securities, SSIs; changes rarely, owned by a team.",
+        "Market data: prices, FX rates, fixings, curves, volatility surfaces, spreads; end-of-day snapshot for P&L.",
+        "Many incidents come from reference data: missing SSIs, calendars, wrong securities, missing fixings, failed curves.",
+        "Check the data before blaming the code; never edit reference data without its owner.",
+        "Be ready with one incident example for static and one for market data."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Static data of counterparty ACME BANK\n  LEI        5299000ACMEBANK00042 (20 characters)\n  SSI EUR    pay to ACMEFRPP, account FR76 ...\n  SSI USD    MISSING                       <- USD trades with ACME cannot settle\nMarket data, end of day 24/11\n  EURIBOR 6M   2.143%   loaded 11:05\n  EUR curve    built    18:02\n  USD vol surface   STALE (last update 21/11)   <- FX option prices wrong",
+        "note": "Two typical gaps: a missing settlement instruction and a stale volatility surface."
+      }
+    },
+    {
+      "title": "Trading platforms and interfaces",
+      "text": [
+        "CIBs run front-to-back platforms that book trades, price them, compute risk and often generate confirmations and accounting. The best known are Murex (MX.3), Calypso, Finastra Summit and Kondor, Sophis (now SS&C Fusion Invest) and Orchestrade. Many banks also have in-house systems. Job offers often name the platform, and experience with one of them is a strong argument.",
+        "Around the platform, many systems take part: order management and electronic trading (orders often travel in the FIX protocol), the confirmation platform, the settlement engine, the payment system, the general ledger, the risk and P&L engines, the regulatory reporting tool and data warehouses. Trades and events travel between them through interfaces: message queues (IBM MQ, Kafka), files exchanged by batch, or APIs.",
+        "Each interface transforms the trade from one format to another, with mapping tables: this book goes to that legal entity, this product type to that accounting scheme. A new product, a new book or a new counterparty that the mapping does not know causes a rejection. Interfaces also have acknowledgements (ACK and NACK) and error queues where rejected messages wait.",
+        "Support analysts spend much of their time following a trade across these interfaces: searching logs by trade ID, checking whether the message left the source, whether it was received and acknowledged, and why it was rejected. A message can be replayed once the cause is fixed, but only after checking it will not create a duplicate downstream.",
+        "Platforms also run their own processes: end-of-day, market data import, lifecycle event generation, archiving. Knowing the main processes of the platform you support, and their timings, is part of the job."
+      ],
+      "points": [
+        "Front-to-back platforms: Murex MX.3, Calypso, Summit, Kondor, Sophis / Fusion Invest, Orchestrade, in-house.",
+        "Around them: order management (FIX), confirmation, settlement, payments, ledger, risk and P&L, reporting.",
+        "Interfaces: MQ, Kafka, files, APIs, with mapping tables, ACK / NACK and error queues.",
+        "Follow a trade by its ID across logs; replay a rejected message only after checking for duplicates.",
+        "Know your platform's own processes and their timings."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "grep 4471823 /logs/bo-interface/2026-11-24.log\n09:25:02 RECEIVED  trade=4471823 source=MUREX type=IRS book=RATES_EUR_5Y\n09:25:02 MAPPING   book RATES_EUR_5Y -> legal entity ?\n09:25:02 REJECTED  trade=4471823 reason=UNKNOWN_BOOK  sent to error queue BO.ERR\n09:25:03 NACK sent to MUREX\nFix: static data team adds the book mapping -> replay message from BO.ERR -> ACK 10:42",
+        "note": "A new book missing from the mapping table: the classic rejection between front and back office."
+      }
+    },
+    {
+      "title": "Confirmation and matching",
+      "text": [
+        "After a trade, both parties must agree on its terms in writing: this is the confirmation. The bank's version and the counterparty's version are compared field by field (trade date, value date, amounts, rates, currencies, settlement instructions). When they agree, the trade is matched; when a field differs, it is unmatched and must be investigated before settlement.",
+        "For FX and money market trades, banks exchange SWIFT messages: MT300 for FX confirmations, MT305 for FX options, MT320 for loans and deposits, MT360 and MT361 for interest rate and cross-currency swaps. Matching services compare the messages automatically. For OTC derivatives, confirmations go mostly through electronic platforms such as MarkitWire or DTCC, where both sides affirm the trade.",
+        "SWIFT is a secure network between financial institutions, and each institution has a BIC (for example BNPAFRPP). Messages follow strict formats with numbered fields. Cross-border payment messages moved to the ISO 20022 standard (pacs messages) after a coexistence period that ended in November 2025, while many confirmation and securities messages still use MT formats.",
+        "Unmatched trades are worked by the back office with the counterparty. The support analyst helps when the cause is technical: a confirmation not generated, generated with wrong data because of static data, sent twice, or not received because of a connectivity problem. Ageing unmatched trades are a risk indicator, watched by management and regulators.",
+        "A clean explanation for interviews: the confirmation is the legal proof of the trade's terms, matching checks both parties agree, and an unmatched trade must be resolved before its settlement date or it will probably fail."
+      ],
+      "points": [
+        "Confirmation: both parties' versions compared field by field; matched or unmatched.",
+        "SWIFT: MT300 (FX), MT305 (FX options), MT320 (loans and deposits), MT360 / MT361 (swaps).",
+        "OTC derivatives: electronic confirmation platforms such as MarkitWire or DTCC.",
+        "BIC identifies an institution on SWIFT; cross-border payments moved to ISO 20022 (end of coexistence November 2025).",
+        "Unmatched trades must be solved before settlement; ageing unmatched trades are a risk indicator."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "MT300 FX confirmation (simplified), our version vs counterparty's\n:22A: Type of operation     NEWT        NEWT\n:30T: Trade date            20261124    20261124\n:30V: Value date            20261126    20261127   <- MISMATCH\n:36:  Rate                  1,0850      1,0850\n:32B: Currency, amount      USD10000000 USD10000000\n=> Unmatched on value date: check holiday calendars of both sides",
+        "note": "A one-day difference in value date: often a calendar problem on one side."
+      }
+    },
+    {
+      "title": "Settlement and reconciliation",
+      "text": [
+        "Settlement is the actual exchange: cash for currencies and payments, securities against cash for bonds and shares. Cash moves through the bank's accounts at correspondent banks (nostro accounts) or through central bank systems such as T2 in the euro area. Securities move in central securities depositories (CSDs) such as Euroclear and Clearstream, mostly through T2S in Europe. Delivery versus payment (DVP) means securities and cash are exchanged at the same moment, so neither side can lose both.",
+        "Settlement instructions are sent before the value date: for securities, SWIFT MT540 to MT543 (receive or deliver, free or against payment), with status updates in MT548 and confirmations of settlement in MT544 to MT547. Payments use pacs.008 and pacs.009 under ISO 20022. Each currency and market has cut-off times after which an instruction cannot settle the same day.",
+        "A settlement fail happens when a trade does not settle on its value date: missing or wrong SSIs, securities not available, cash short, an instruction sent after the cut-off, an unmatched instruction. In the EU, the Central Securities Depositories Regulation (CSDR) charges cash penalties for each day a securities settlement fails. The US moved to T+1 settlement for most securities in May 2024, and the EU, the UK and Switzerland plan to follow on 11 October 2027, which leaves much less time to fix problems.",
+        "Reconciliation compares the bank's records with external statements: cash positions with nostro statements (MT950 or camt.053), securities positions with custodian or CSD statements, trades with brokers and clearing houses. A difference is a break. Breaks must be explained and resolved quickly, because they can hide a missing trade, a wrong payment or a fraud.",
+        "Support analysts are involved when a fail or a break has a technical cause: an instruction never sent, a message rejected by SWIFT, a duplicate payment, a reconciliation file that did not arrive or was loaded twice."
+      ],
+      "points": [
+        "Cash via nostros or central bank systems (T2); securities via CSDs (Euroclear, Clearstream, T2S); DVP.",
+        "Securities instructions MT540-543, status MT548, settled MT544-547; payments pacs.008 / pacs.009; cut-offs.",
+        "Settlement fails: SSIs, securities or cash short, late or unmatched instructions; CSDR penalties in the EU.",
+        "T+1: US since May 2024; EU, UK and Switzerland planned for 11 October 2027.",
+        "Reconciliation against nostro, custodian, broker and CCP statements; a difference is a break."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Nostro reconciliation, USD account at correspondent bank, 24/11\nOur books (expected)        +12,450,000.00 USD\nBank statement (MT950)      +11,450,000.00 USD\nBreak                        -1,000,000.00 USD\nInvestigation: payment of 1,000,000 USD to ACME BANK sent twice on 21/11\n=> recall the duplicate payment, fix the interface that resent the message",
+        "note": "A break of exactly one payment amount often points to a duplicate or a missing message."
+      }
+    },
+    {
+      "title": "Clearing, collateral and margin",
+      "text": [
+        "Clearing puts a central counterparty (CCP) between the two parties of a trade: LCH, Eurex Clearing, CME Clearing, ICE Clear. The CCP becomes the buyer to every seller and the seller to every buyer, nets positions and asks each member for margin. Listed derivatives are always cleared. Since the 2008 crisis, EMIR in Europe and the Dodd-Frank Act in the US require many standard OTC derivatives, such as common interest rate swaps and CDS indexes, to be cleared too.",
+        "Bilateral OTC trades that are not cleared are covered by collateral agreements: the ISDA master agreement sets the legal frame, and its Credit Support Annex (CSA) defines which collateral is accepted, thresholds and minimum transfer amounts. Each day both parties value their trades; if the exposure moved, the party that owes sends a margin call and the other must deliver collateral, cash or securities.",
+        "Variation margin covers the daily change in value of the trades. Initial margin covers the possible loss if a counterparty defaults while its trades are being replaced; since the uncleared margin rules were phased in up to September 2022, large firms must also exchange initial margin on bilateral trades, often calculated with the ISDA SIMM model and held by third-party custodians.",
+        "Collateral management systems calculate exposures, issue and receive margin calls, track disputes and instruct the collateral movements. Typical incidents: a valuation difference between the two parties causing a dispute, a margin call not sent because a trade was missing from the portfolio, collateral delivered to the wrong account, or a CCP margin report not loaded.",
+        "In an interview, explain margin with a simple picture: like a deposit when you rent a flat (initial margin) plus settling the bill every day (variation margin), so that nobody builds a large unpaid debt."
+      ],
+      "points": [
+        "CCP: buyer to every seller, seller to every buyer; nets and calls margin; LCH, Eurex Clearing, CME, ICE.",
+        "EMIR and Dodd-Frank: many standard OTC derivatives must be cleared.",
+        "Bilateral trades: ISDA + CSA (eligible collateral, thresholds, minimum transfer); daily margin calls.",
+        "Variation margin = daily change in value; initial margin = buffer against default (uncleared margin rules to 2022).",
+        "Incidents: valuation disputes, missing trades in portfolios, wrong collateral account, missing CCP reports."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "CSA with ACME BANK, threshold 0, minimum transfer amount 500,000 EUR\nPortfolio value for us, yesterday   +3,200,000 EUR (collateral held: 3,200,000)\nPortfolio value for us, today       +4,050,000 EUR\nExposure change                       +850,000 EUR >= 500,000 -> margin call\nWe call 850,000 EUR from ACME BANK, due today\nACME's valuation: +3,700,000 -> they agree 500,000 only -> dispute on 350,000",
+        "note": "A margin call, and the dispute that follows when the two valuations differ."
+      }
+    },
+    {
+      "title": "P&L, risk and the end-of-day batch",
+      "text": [
+        "Every evening the bank computes the official value of all its positions. The end-of-day (EOD) batch is a chain of jobs, scheduled by tools such as Control-M or Autosys: import the closing market data, build curves and surfaces, revalue every trade (mark-to-market), compute the P&L and the risk measures, and feed finance, risk and regulatory reports. Each job depends on the previous ones, and the results are expected by a deadline.",
+        "Daily P&L is the change in value of the positions plus the cash flows of the day. P&L explain splits it into causes: new trades, market moves (delta, vega…), the passage of time, fixings and fees. A P&L that cannot be explained is investigated by the middle office, and often reaches support: a missing market data point, a trade booked twice, a trade missing, a wrong static data field.",
+        "Risk measures tell management how much the bank could lose. Sensitivities (delta, vega, PV01: the value change for a one basis point move in rates) are computed by desk and book. Value at risk (VaR) estimates the loss that should not be exceeded with a given confidence, for example 99% over one day, usually by historical simulation. Stress tests apply extreme scenarios. Each desk has limits on these measures.",
+        "When the batch is late or a job fails, the impact is wide: traders start the next day without their risk, reports to management and regulators are late, and a job rerun can take hours. Support analysts monitor the chain, restart failed jobs after fixing their cause, decide with the business which jobs can be rerun for which books, and communicate an estimated time of completion.",
+        "Interviewers like the question “the batch failed at 2 a.m., what do you do?”: check which job failed and why from its log, assess what depends on it and the deadline, fix or work around the cause, rerun in the right order, check the results with the business, and write down what happened."
+      ],
+      "points": [
+        "EOD batch (Control-M, Autosys): market data → curves → revaluation → P&L → risk → reports, with deadlines.",
+        "Daily P&L and P&L explain (new trades, market moves, time, fixings, fees).",
+        "Risk: sensitivities (delta, vega, PV01), VaR (e.g. 99%, one day), stress tests, limits.",
+        "Batch failure: wide impact; support restarts after fixing the cause, reruns in order, communicates an ETA.",
+        "Classic question: the batch failed at 2 a.m., what do you do?"
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EOD chain 24/11 (Control-M)\n19:00 MD_IMPORT        OK    closing prices and fixings\n19:20 CURVE_BUILD      OK\n19:45 REVAL_RATES      OK\n19:45 REVAL_FX         FAILED   ORA-01652 unable to extend temp segment\n      PNL_FX           WAITING (depends on REVAL_FX)\n      RISK_VAR         WAITING (depends on all REVAL jobs)\nAction: DBA extends temp space -> rerun REVAL_FX 21:10 -> PNL_FX, RISK_VAR follow\nETA risk reports: 23:30 instead of 22:00, sent to middle office and risk",
+        "note": "One failed job blocks everything that depends on it; communicate the new ETA."
+      }
+    },
+    {
+      "title": "Regulatory reporting and handling CIB incidents",
+      "text": [
+        "Banks must report their trades to regulators. EMIR requires both parties of every derivative in the EU to report it to a trade repository the next working day; since the EMIR Refit changes of April 2024, reports use the ISO 20022 XML format with more than 200 fields, a unique trade identifier (UTI), the parties' LEIs and a unique product identifier (UPI). MiFIR transaction reporting (RTS 22) requires investment firms to report their transactions to the national regulator, the AMF in France, by the next working day. SFTR does the same for repos and securities lending.",
+        "Regulatory reports are produced by dedicated systems fed by the trading platforms. Each report can be accepted or rejected by the trade repository or the regulator, and rejections must be corrected and resubmitted quickly: missing LEI, invalid UTI, wrong product classification, a field in the wrong format. Late or wrong reporting can lead to fines, so rejection queues are watched every day.",
+        "Incidents in a CIB have a particular rhythm. During market hours, a problem on the trading platform or a pricing feed is critical: traders cannot trade or quote, and every minute costs money or clients. Priority follows the business impact: trading blocked, settlement deadline at risk, regulatory deadline at risk, then the rest. Communication matters as much as the fix: an incident channel, regular updates, a clear estimate.",
+        "A good triage routine: identify the scope (which trades, books, systems), find the step of the lifecycle where things stopped, check recent changes (a release, a new product, a static data update), look at the logs and error queues, decide on a workaround to protect the business, fix the root cause, then confirm with the users and write the post-incident review.",
+        "Prepare two or three stories for interviews with the STAR structure: situation, task, action, result. For example a settlement fail you traced to a missing SSI, a P&L jump caused by a missing fixing, or a batch you recovered before the risk deadline. Numbers and the lesson you learned make the story convincing."
+      ],
+      "points": [
+        "EMIR: derivatives to a trade repository by T+1; Refit since April 2024: ISO 20022 XML, UTI, LEI, UPI.",
+        "MiFIR transaction reporting (RTS 22) to the national regulator (AMF in France) by T+1; SFTR for repos and securities lending.",
+        "Watch rejection queues daily: missing LEI, invalid UTI, wrong classification, bad formats.",
+        "Priority by business impact: trading blocked, settlement deadline, regulatory deadline, then the rest; communicate.",
+        "Triage: scope, lifecycle step, recent changes, logs and queues, workaround, root cause, confirm, review."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Interview story (STAR)\nSituation  09:40, FX traders could not price EUR/USD options: vol surface stale since Friday\nTask       Restore pricing before the 10:00 client calls, then find the cause\nAction     Checked the market data loading log: the provider file format changed on Friday,\n           the import job skipped the surface without failing. Loaded the surface manually\n           from the official file with the market data team, then fixed the import mapping\nResult     Pricing back at 09:55; added an alert when a surface is older than one day",
+        "note": "Situation, task, action, result, with times and the improvement you made."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Lifecycle and data",
+      "items": [
+        ["Trade lifecycle", "Booking → enrichment → validation → confirmation → clearing → settlement → accounting"],
+        ["STP", "Straight-through processing: no manual retyping between systems"],
+        ["Static data", "Counterparties (LEI), books, products, calendars, securities, SSIs"],
+        ["Market data", "Prices, FX rates, fixings, curves, volatility surfaces; end-of-day snapshot"],
+        ["SSI", "Standard settlement instructions: where each currency or security is paid"]
+      ]
+    },
+    {
+      "group": "Platforms and messages",
+      "items": [
+        ["Murex, Calypso", "Front-to-back trading platforms widely used in CIBs"],
+        ["FIX", "Protocol for orders and executions between trading systems"],
+        ["MT300 / MT320", "SWIFT confirmation of an FX trade / of a loan or deposit"],
+        ["MT540-543", "SWIFT securities settlement instructions (receive / deliver, free / against payment)"],
+        ["ISO 20022", "New message standard; cross-border payments migrated by November 2025"]
+      ]
+    },
+    {
+      "group": "Settlement and collateral",
+      "items": [
+        ["DVP", "Delivery versus payment: securities and cash exchanged at the same moment"],
+        ["Settlement fail", "Trade not settled on its value date; CSDR cash penalties in the EU"],
+        ["T+1", "US since May 2024; EU, UK and Switzerland planned for 11 October 2027"],
+        ["Break", "Difference between the bank's records and an external statement"],
+        ["CSA", "ISDA annex defining collateral, thresholds and minimum transfer amounts"]
+      ]
+    },
+    {
+      "group": "P&L and risk",
+      "items": [
+        ["EOD batch", "Night chain: market data, curves, revaluation, P&L, risk, reports"],
+        ["P&L explain", "Daily P&L split into new trades, market moves, time, fixings, fees"],
+        ["PV01", "Value change for a one basis point move in interest rates"],
+        ["VaR", "Loss not exceeded with a given confidence, e.g. 99% over one day"],
+        ["Variation margin", "Daily payment of the change in value of trades"]
+      ]
+    },
+    {
+      "group": "Regulation and incidents",
+      "items": [
+        ["EMIR", "EU derivatives: report to a trade repository by T+1, clearing obligation"],
+        ["UTI / LEI / UPI", "Unique trade identifier / legal entity identifier / unique product identifier"],
+        ["MiFIR RTS 22", "Transaction reporting to the national regulator (AMF) by T+1"],
+        ["SFTR", "Reporting of repos and securities lending"],
+        ["STAR", "Situation, task, action, result: structure for interview stories"]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Restarting a job or replaying a message before understanding why it failed.",
+    "Replaying a rejected trade message without checking it will not create a duplicate downstream.",
+    "Changing static or market data by hand without the owner team and an official source.",
+    "Treating every incident the same: during market hours, trading and settlement deadlines come first.",
+    "Fixing the problem without telling the traders, the middle office or the back office what is happening.",
+    "Explaining T+1 or EMIR with old dates: check the current deadlines before an interview.",
+    "Telling interview stories without times, numbers or what you changed afterwards."
+  ],
+  "exercises": [
+    {
+      "q": "Put the stages of a trade's life in order.",
+      "type": "order",
+      "steps": ["Execution with the client", "Booking in the trading system", "Enrichment with SSIs and regulatory identifiers", "Validation by the middle office", "Confirmation and matching with the counterparty", "Settlement on the value date", "Accounting and daily valuation"],
+      "answer": "Booking comes right after execution, enrichment adds what the trader does not type, the middle office validates, the confirmation must be matched before settlement, and accounting records the trade and its value every day until maturity."
+    },
+    {
+      "q": "Sort this reference data.",
+      "type": "groups",
+      "groups": [
+        { "name": "Static data", "items": ["Counterparty LEI", "Holiday calendar of a currency", "Settlement instructions (SSIs)", "Coupon of a bond"] },
+        { "name": "Market data", "items": ["EURIBOR 6M fixing", "EUR/USD closing rate", "Volatility surface", "Yield curve"] }
+      ],
+      "answer": "Static data describes products, parties and rules and changes rarely; market data is observed in the market and changes every day. Both are frequent causes of incidents, and each has an owner team."
+    },
+    {
+      "q": "Match each SWIFT message with its use.",
+      "type": "match",
+      "pairs": [
+        ["MT300", "Confirmation of an FX trade"],
+        ["MT320", "Confirmation of a loan or deposit"],
+        ["MT543", "Deliver securities against payment"],
+        ["MT548", "Status of a settlement instruction"],
+        ["MT950", "Account statement used for reconciliation"]
+      ],
+      "answer": "MT3xx messages confirm treasury trades, MT54x instruct and report securities settlement, and MT950 statements feed nostro reconciliation. Cross-border payments now use ISO 20022 pacs messages."
+    },
+    {
+      "q": "What does delivery versus payment (DVP) guarantee?",
+      "type": "choice",
+      "options": ["That the trade is confirmed by both parties", "That securities and cash are exchanged at the same moment", "That the trade is reported to the regulator", "That margin is paid every day"],
+      "correct": 1,
+      "answer": "DVP links the delivery of securities to the payment of cash in the settlement system, so neither party can deliver without receiving. It removes principal risk at settlement."
+    },
+    {
+      "q": "In B4, compute the reconciliation break: the bank's expected balance minus the balance on the nostro statement.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "USD"], ["Expected balance (our books)", 12450000], ["Statement balance (MT950)", 11450000], ["Break", ""]],
+      "cell": "B4",
+      "answer": "=B2-B3",
+      "explain": "12,450,000 − 11,450,000 = 1,000,000 USD more in our books than at the bank. A break equal to one payment amount points to a duplicate payment or a missing incoming payment: search the payments of that amount."
+    },
+    {
+      "q": "In D2, count the confirmations that are still unmatched.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Trade", "Product", "Status", "Unmatched"], ["4471801", "FX spot", "Matched", ""], ["4471802", "FX forward", "Unmatched", ""], ["4471803", "Deposit", "Matched", ""], ["4471804", "FX swap", "Unmatched", ""], ["4471805", "FX spot", "Unmatched", ""], ["4471806", "IRS", "Matched", ""]],
+      "cell": "D2",
+      "answer": "=COUNTIF(C2:C7,\"Unmatched\")",
+      "explain": "Three trades are unmatched. They must be investigated before their value date, starting with the closest one; ageing unmatched trades are reported as a risk indicator."
+    },
+    {
+      "q": "In B5, compute the margin to call: the change in the portfolio's value since yesterday, if it reaches the minimum transfer amount, otherwise 0.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "EUR"], ["Value yesterday (collateral held)", 3200000], ["Value today", 4050000], ["Minimum transfer amount", 500000], ["Margin to call", ""]],
+      "cell": "B5",
+      "answer": "=IF(ABS(B3-B2)>=B4,B3-B2,0)",
+      "explain": "4,050,000 − 3,200,000 = 850,000 EUR, above the 500,000 minimum, so 850,000 EUR is called. Below the minimum, no call is made, to avoid moving collateral for small amounts."
+    },
+    {
+      "q": "In D2, compute today's P&L of this bond position from the price change (prices in % of nominal).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Price yesterday (%)", "Price today (%)", "Nominal held (EUR)", "P&L (EUR)"], [98.5, 98.35, 20000000, ""]],
+      "cell": "D2",
+      "answer": "=(B2-A2)/100*C2",
+      "explain": "(98.35 − 98.50) / 100 × 20,000,000 = −30,000 EUR. If a price were missing and the system used 0, the P&L would show a loss of almost 20 million: a jump like that points to market data first."
+    },
+    {
+      "q": "Fill in the blank: the SWIFT message used to confirm an FX trade between two banks is the MT___.",
+      "type": "fill",
+      "blanks": [["300", "MT300", "mt300"]],
+      "answer": "MT300 is the FX confirmation; MT305 covers FX options, MT320 loans and deposits, MT360 and MT361 interest rate and cross-currency swaps."
+    },
+    {
+      "q": "At 10:15 the back office calls: a 50 million euro FX swap booked at 09:00 is not in their settlement system, and its near leg settles today. Walk through your actions.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "What do you do first?",
+          "choices": [
+            { "label": "Find the trade in the trading platform and follow its ID through the interface logs to see where it stopped", "best": true, "feedback": "Right: locate the step of the lifecycle where the trade stopped before acting." },
+            { "label": "Ask the back office to type the trade by hand in their system", "feedback": "Retyping creates a risk of error and of a duplicate when the interface catches up; use it only as a last resort, agreed with the business." },
+            { "label": "Restart the interface", "feedback": "Restarting without knowing the cause may lose or duplicate messages." }
+          ]
+        },
+        {
+          "text": "The log shows the trade was rejected: counterparty has no SSI for EUR. What next?",
+          "choices": [
+            { "label": "Ask the static data team to add the SSI urgently, tell the back office and the trader about the risk on today's settlement, then replay the message", "best": true, "feedback": "Yes: the owner fixes the data, the business knows the deadline risk, and the replay brings the trade in once." },
+            { "label": "Add the SSI yourself in the static data", "feedback": "SSIs decide where money goes: they must be created and validated by their owner team, never by support alone." },
+            { "label": "Wait for the end of day batch to pick it up", "feedback": "The near leg settles today; waiting means a settlement fail and possibly penalties." }
+          ]
+        },
+        {
+          "text": "The trade arrived at 10:50, before the cut-off. How do you close?",
+          "choices": [
+            { "label": "Check with the back office that both legs are there, then search for other trades blocked by the same missing SSI and propose a check when a counterparty is created", "best": true, "feedback": "Right: confirm with the users, find the other victims of the same cause and prevent it." },
+            { "label": "Close the ticket as soon as the message is replayed", "feedback": "The users must confirm, and other trades may be blocked for the same reason." },
+            { "label": "Close and write ‘user error’", "feedback": "The root cause is a data control gap; describing it precisely helps fix it." }
+          ]
+        }
+      ],
+      "answer": "Locate where the trade stopped, have the data owner fix the cause, warn the business about the deadline, replay once, confirm both legs with the users, look for other trades with the same problem and propose a preventive control."
+    },
+    {
+      "q": "The end-of-day batch failed at 2 a.m. on the job that revalues FX trades. Explain what you do until the morning.",
+      "answer": "I read the failed job's log to find the cause, for example a full temporary tablespace, a missing market data file or a bad trade. I check what depends on it: FX P&L, the VaR and the morning risk reports, and their deadlines. I fix the cause or get the right team to fix it, for example the DBAs for space or the market data team for a missing file, and if a single bad trade blocks the run I agree with the middle office to exclude it temporarily. I rerun the failed job and its dependants in the right order, watch them to the end, and check the results with the middle office: P&L in line, no missing books. I send an update with the new estimated time to the middle office, risk and the trading desk managers before they start, and I write down the cause and the fix so that a permanent solution is planned."
+    },
+    {
+      "q": "Explain to an interviewer why the move to T+1 settlement matters for application support.",
+      "answer": "With T+1, securities trades settle one business day after the trade date instead of two. The US moved in May 2024, and the EU, the UK and Switzerland plan to on 11 October 2027. Everything that happens between trade and settlement must fit in one day: booking, enrichment, confirmation, allocation, settlement instructions, funding and FX for foreign investors. For support it means fewer hours to fix a rejected trade, a missing SSI or a late batch before the settlement cut-off, more automation and earlier controls, and incidents that become settlement fails and CSDR penalties much faster if they are not solved the same day."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Describe the lifecycle of a trade.",
+      "a": "The client asks for a price and the trade is executed, then booked in the trading platform. It is enriched with settlement instructions and regulatory identifiers, validated by the middle office, confirmed and matched with the counterparty, cleared if it must be, settled on the value date and accounted for every day until maturity. In between there are lifecycle events such as fixings, coupons, margin calls, amendments or exercises, and each step usually happens in a different system connected by interfaces."
+    },
+    {
+      "q": "What is the difference between static data and market data? Give an incident for each.",
+      "a": "Static data changes rarely: counterparties and their LEIs, books, calendars, securities, settlement instructions. A missing SSI for a new counterparty blocks the settlement of its trades. Market data changes all the time: prices, FX rates, fixings, curves, volatility surfaces. A missing EURIBOR fixing stops the calculation of a swap payment and can make the P&L jump. Both have owner teams, and support should not change them by hand."
+    },
+    {
+      "q": "A trade is in Murex but not in the back office system. How do you investigate?",
+      "a": "I take the trade ID and follow it through the interface: did Murex send it, did the middleware receive it, was it acknowledged or rejected, and is it waiting in an error queue? The rejection reason usually points to data, such as an unknown book in the mapping or a missing SSI, or to a technical problem like a stopped queue. I get the cause fixed by its owner, replay the message once after checking it will not duplicate, confirm with the back office and look for other trades with the same problem."
+    },
+    {
+      "q": "What is a settlement fail and what can cause it?",
+      "a": "It is a trade that does not settle on its intended value date. Causes include missing or wrong settlement instructions, an unmatched instruction, securities not available for delivery, insufficient cash, or an instruction sent after the market cut-off. In the EU, CSDR applies cash penalties for each day a securities settlement fails, and with T+1 coming in October 2027 there is even less time to fix problems."
+    },
+    {
+      "q": "What is a margin call?",
+      "a": "A request for collateral when the value of trades between two parties moves. Each day the trades are valued; if the exposure increased beyond the minimum transfer amount of the CSA, the party in the money calls margin and the other must deliver cash or securities. Variation margin covers daily value changes, initial margin is a buffer in case of default. Disputes happen when the two parties' valuations differ, often because of a missing trade or different market data."
+    },
+    {
+      "q": "What do you know about EMIR reporting?",
+      "a": "EMIR requires both counterparties of a derivative in the EU to report it to a trade repository by the next working day, with identifiers such as the UTI, the parties' LEIs and since the April 2024 Refit the UPI, in ISO 20022 XML. Reports can be rejected for missing or invalid fields, and rejections must be corrected and resubmitted quickly to avoid sanctions, so support watches the rejection queues every day."
+    },
+    {
+      "q": "Tell me about a difficult incident you handled.",
+      "a": "Use the STAR structure: situation, task, action, result. Choose a real incident, say when it happened and what was at stake for the business, explain how you found the cause with facts such as logs, data or queues, what you did first to protect the users and what you fixed afterwards, and give the result with numbers: time to restore, amounts, deadlines met. End with what you changed so that it does not happen again: that is what interviewers remember."
+    }
+  ]
+}

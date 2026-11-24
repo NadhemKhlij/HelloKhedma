@@ -1,0 +1,401 @@
+{
+  "why": "Les équipes de support applicatif des banques de financement et d’investissement s’occupent des systèmes qui enregistrent, valorisent, confirment et règlent les opérations. Les recruteurs n’attendent pas le savoir d’un trader, mais ils vérifient toujours que vous comprenez ce que sont les produits, comment fonctionnent leurs flux et ce qui peut mal tourner : un analyste support qui sait qu’un change au comptant se règle deux jours plus tard, ou que le nominal d’un swap n’est pas échangé, diagnostique les incidents bien plus vite.",
+  "outcome": "expliquer comment est organisée une BFI, décrire les dépôts et les pensions livrées du marché monétaire, les obligations et leur coupon couru, le change au comptant, à terme et les swaps de change, les swaps de taux après la fin du LIBOR, les futures et la compensation, les options et leurs grecques, les CDS et les produits structurés, calculer les montants clés sous Excel, et répondre aux questions produits d’un entretien de support applicatif en BFI.",
+  "lessons": [
+    {
+      "title": "Comment fonctionne une BFI, et pourquoi le support a besoin des produits",
+      "text": [
+        "Une banque de financement et d’investissement (BFI, CIB en anglais) sert les grandes entreprises, les institutions et les États. Son activité de marchés achète et vend des produits financiers pour ses clients et pour gérer ses propres risques, organisée en desks par classe d’actifs : taux (taux d’intérêt et obligations), change (FX), crédit, actions et matières premières. Chaque desk compte des vendeurs (sales) qui parlent aux clients, des traders qui cotent et prennent des positions, et des structureurs qui conçoivent des produits sur mesure.",
+        "Autour des desks, la banque est organisée du front au back. Le front office exécute et enregistre les opérations. Le middle office les contrôle, calcule le résultat (P&L) et les risques, et vérifie que les opérations sont bien saisies. Le back office confirme les opérations avec la contrepartie, règle les espèces et les titres, et les comptabilise. Les directions des risques et des finances travaillent à côté, et l’IT et le support applicatif font tourner toute la chaîne.",
+        "On appelle le support applicatif quand une opération manque dans un système en aval, qu’un prix ou un taux ne s’est pas chargé, qu’une confirmation ne concorde pas, qu’un règlement échoue ou que le P&L de fin de journée est faux. Pour résoudre ces incidents, il faut savoir à quoi ressemble une opération correcte : ses dates (date de négociation, date de valeur, échéance), les montants qui bougent et quand, les données de référence dont elle a besoin (contrepartie, portefeuille, calendrier de la devise, indice de taux) et les systèmes qu’elle traverse.",
+        "Les produits se négocient de deux façons. Les produits listés, comme les futures et les options listées, se traitent sur une bourse avec des contrats standard et sont compensés par une chambre de compensation. Les produits de gré à gré (OTC), comme la plupart des swaps, des changes à terme et beaucoup d’options, sont conclus entre deux parties sous un contrat-cadre ISDA, même si beaucoup de dérivés OTC standard doivent aujourd’hui aussi être compensés.",
+        "En entretien, une explication courte et claire vaut mieux que du jargon. Pour chaque produit de ce cours, entraînez-vous à répondre à trois questions : à quoi sert-il, quels sont ses flux et ses dates, et que se passe-t-il de travers dans les systèmes ?"
+      ],
+      "points": [
+        "Desks par classe d’actifs : taux, change, crédit, actions, matières premières.",
+        "Le front office exécute et enregistre, le middle office contrôle P&L et risques, le back office confirme et règle.",
+        "Le support a besoin des dates (négociation, valeur, échéance), des montants et des données de référence de chaque opération.",
+        "Listé (bourse, standard, compensé) ou OTC (bilatéral, ISDA, de plus en plus compensé).",
+        "Pour chaque produit : usage, flux et dates, problèmes typiques dans les systèmes."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Trade: client buys 10,000,000 USD against EUR, spot, rate 1.0850\nFront office   Sales quotes the client, trader books the deal in the trading system (e.g. Murex)\nMiddle office  Trade checked, P&L and FX position updated, risk limits checked\nBack office    Confirmation sent (SWIFT MT300), matched with the client's\n               Settlement on value date T+2: bank pays 10,000,000 USD, receives 9,216,589.86 EUR\nSupport        Called if the trade does not reach the back office or the confirmation does not match",
+        "note": "Une opération de change au comptant suivie du front office au back office."
+      }
+    },
+    {
+      "title": "Marché monétaire et pensions livrées",
+      "text": [
+        "Le marché monétaire couvre les emprunts et les prêts à court terme, d’un jour à environ un an. Le dépôt ou le prêt est le produit le plus simple : une partie prête un montant, l’autre le rembourse à l’échéance avec des intérêts. Les banques émettent et achètent aussi des titres courts : bons du Trésor des États, billets de trésorerie (NEU CP) des entreprises et certificats de dépôt des banques.",
+        "Les intérêts du marché monétaire sont des intérêts simples, calculés avec une convention de décompte des jours. La plus courante en euro et en dollar est ACT/360 : intérêts = capital × taux × nombre réel de jours / 360. La livre sterling utilise ACT/365. Une erreur de convention est une cause classique de petits écarts dans les confirmations et les règlements.",
+        "Depuis la fin du LIBOR (les fixings en euro et la plupart des fixings en dollar se sont arrêtés entre 2021 et juin 2023) et de l’EONIA (janvier 2022), les taux au jour le jour sont des taux sans risque publiés par les banques centrales ou les régulateurs : €STR pour l’euro, SOFR pour le dollar, SONIA pour la livre. L’EURIBOR existe toujours pour les taux à terme en euro. Les fixings de taux sont chargés chaque jour dans les systèmes, et un fixing manquant ou faux est un incident fréquent du support.",
+        "Une pension livrée (repo) est un prêt garanti : une partie vend des titres, en général des obligations d’État, et s’engage à les racheter plus tard à un prix un peu plus élevé. La différence correspond aux intérêts. Pour le prêteur d’espèces, c’est une prise en pension (reverse repo). Les titres servent de garantie (collatéral), et une décote (haircut) fait que les espèces prêtées sont un peu inférieures à leur valeur de marché, pour protéger le prêteur si leur prix baisse.",
+        "Les banques financent ainsi leurs positions obligataires et gèrent leur liquidité au quotidien. Pour le support, une pension crée deux règlements (la jambe de départ et la jambe de retour), dépend du prix du collatéral, et peut déclencher des appels de marge quand ce prix bouge."
+      ],
+      "points": [
+        "Marché monétaire : dépôts et prêts, bons du Trésor, billets de trésorerie, certificats de dépôt, jusqu’à environ un an.",
+        "Intérêts simples avec une convention : EUR et USD souvent ACT/360, GBP ACT/365.",
+        "Taux sans risque après le LIBOR et l’EONIA : €STR, SOFR, SONIA ; l’EURIBOR reste utilisé pour les taux à terme en euro.",
+        "Pension livrée : vendre des titres et les racheter plus tard ; un prêt garanti avec décote.",
+        "Une pension a deux règlements, et son collatéral peut déclencher des appels de marge."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Deposit: lend 50,000,000 EUR for 91 days at 3.20%, ACT/360\nInterest = 50,000,000 x 3.20% x 91 / 360 = 404,444.44 EUR\nRepay at maturity: 50,404,444.44 EUR\n\nRepo: bank sells bonds worth 102,000,000 EUR, haircut 2%\nCash received = 102,000,000 x (1 - 2%) = 99,960,000 EUR\nEnd leg after 30 days at 3.00% ACT/360: buys back for 99,960,000 x (1 + 3.00% x 30/360) = 100,209,900 EUR",
+        "note": "Intérêts simples en ACT/360, et les deux jambes d’une pension livrée avec décote."
+      }
+    },
+    {
+      "title": "Les obligations : prix, rendement et coupon couru",
+      "text": [
+        "Une obligation est un titre de dette : l’émetteur emprunte auprès des investisseurs, verse un coupon (intérêt fixe ou variable) à dates régulières et rembourse le nominal à l’échéance. Les États émettent des obligations (OAT en France, Bund en Allemagne, Treasuries aux États-Unis), les entreprises aussi. Chaque obligation a un identifiant, l’ISIN (12 caractères commençant par un code pays, FR pour une obligation française), et des caractéristiques stockées en données statiques : coupon, fréquence, convention de jours, échéance, émetteur.",
+        "Le prix d’une obligation se cote en pourcentage du nominal. Quand les taux du marché montent, le prix des obligations à coupon fixe existantes baisse, et inversement, car leurs coupons deviennent moins ou plus attractifs. Le rendement à l’échéance est le taux unique qui égalise les flux futurs de l’obligation avec son prix. La duration mesure de combien le prix bouge quand les taux bougent.",
+        "Entre deux dates de coupon, le vendeur a gagné une partie du prochain coupon. L’acheteur la lui paie : c’est le coupon couru. Le prix coté sans lui est le prix pied de coupon (clean price) ; le montant réellement payé est le prix plein coupon (dirty price) = prix pied de coupon + coupon couru. Coupon couru = nominal × coupon × jours depuis le dernier coupon / jours de l’année, selon la convention de l’obligation (souvent ACT/ACT pour les obligations d’État).",
+        "La qualité de crédit compte : les agences de notation (S&P, Moody’s, Fitch) notent les émetteurs de AAA à D ; en dessous de BBB-, c’est le haut rendement (high yield). Les obligations d’entreprises paient un écart (spread) au-dessus des taux d’État pour compenser le risque de crédit. Le desk obligataire d’une banque traite ces titres, les finance par des pensions et les couvre avec des futures et des swaps.",
+        "Problèmes typiques du support sur les obligations : des données statiques fausses (coupon, convention ou calendrier) qui donnent un coupon couru faux, un prix manquant en fin de journée, une opération sur titre (paiement de coupon, remboursement anticipé) non traitée, ou un échec de règlement parce que les titres n’ont pas été livrés à temps."
+      ],
+      "points": [
+        "Obligation : coupon à dates régulières, nominal remboursé à l’échéance ; identifiée par son ISIN.",
+        "Taux en hausse → prix des obligations en baisse ; le rendement et la duration résument le lien prix-taux.",
+        "Prix plein coupon = prix pied de coupon + coupon couru ; coupon couru = nominal × coupon × jours / base.",
+        "Notes de AAA à D ; sous BBB-, haut rendement ; les obligations d’entreprises paient un spread sur l’État.",
+        "Problèmes du support : données statiques, prix manquants, opérations sur titres, échecs de règlement."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Bond: nominal 1,000,000 EUR, annual coupon 4%, ACT/365 for this example\nLast coupon 15 March, trade settles 27 May: 73 days\nAccrued interest = 1,000,000 x 4% x 73 / 365 = 8,000.00 EUR\nClean price 98.50% -> 985,000.00 EUR\nDirty price (amount paid) = 985,000.00 + 8,000.00 = 993,000.00 EUR",
+        "note": "L’acheteur paie le prix pied de coupon plus le coupon déjà gagné par le vendeur."
+      }
+    },
+    {
+      "title": "Le change : comptant, terme et swaps de change",
+      "text": [
+        "Le change consiste à échanger une devise contre une autre ; c’est le plus grand marché du monde. Une paire s’écrit BASE/COTATION : EUR/USD 1,0850 signifie qu’un euro coûte 1,0850 dollar. Le marché cote un prix d’achat (bid, où la banque achète la devise de base) et un prix de vente (ask ou offer, où elle la vend). La plupart des paires se cotent à quatre ou cinq décimales ; le plus petit mouvement usuel est le pip, 0,0001 pour EUR/USD.",
+        "Une opération au comptant (spot) se règle à la date spot, deux jours ouvrés après la date de négociation (T+2) pour la plupart des paires, un jour pour USD/CAD. Les jours ouvrés dépendent des calendriers de fêtes des deux devises, et un calendrier faux donne une date de valeur fausse : un incident fréquent du support.",
+        "Un change à terme (forward) fixe aujourd’hui le cours d’un échange à une date future. Le cours à terme n’est pas une prévision : il découle des taux d’intérêt des deux devises. Cours à terme = comptant × (1 + taux de la devise de cotation × jours/360) / (1 + taux de la devise de base × jours/360). L’écart avec le comptant, en pips, s’appelle les points de terme. Un NDF (non-deliverable forward) ne règle que la différence dans une devise convertible, pour les devises qui ne peuvent pas être livrées librement.",
+        "Un swap de change combine deux échanges en sens inverse : par exemple vendre des euros contre des dollars au comptant, et les racheter dans trois mois au cours à terme. Les banques s’en servent pour emprunter une devise contre une autre. C’est le produit de change le plus traité, et il crée deux règlements.",
+        "Le change se règle par les correspondants de chaque devise (comptes nostro), ou par CLS, un système qui règle les deux côtés en même temps pour supprimer le risque de règlement. Incidents du support : opérations sans instructions de règlement standard (SSI), dates de valeur fausses, confirmations MT300 non appariées."
+      ],
+      "points": [
+        "BASE/COTATION : EUR/USD 1,0850 = 1 EUR coûte 1,0850 USD ; pip = 0,0001 pour EUR/USD.",
+        "Le comptant se règle à T+2 (USD/CAD à T+1), selon les calendriers des deux devises.",
+        "Terme = comptant × (1 + r_cotation × j/360) / (1 + r_base × j/360) ; points de terme = terme − comptant.",
+        "Swap de change = jambe comptant + jambe à terme en sens inverse ; le NDF ne règle que la différence.",
+        "Règlement par nostros ou CLS ; problèmes : SSI, dates de valeur, MT300 non appariés."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EUR/USD spot 1.0800, EUR rate 2.00%, USD rate 4.00%, 90 days\nForward = 1.0800 x (1 + 4.00% x 90/360) / (1 + 2.00% x 90/360)\n        = 1.0800 x 1.0100 / 1.0050 = 1.0854\nForward points = 1.0854 - 1.0800 = +54 pips\n(The higher-yielding currency, USD, is cheaper for later delivery)",
+        "note": "Le cours à terme vient de l’écart de taux d’intérêt entre les deux devises."
+      }
+    },
+    {
+      "title": "Les swaps de taux",
+      "text": [
+        "Un swap de taux (IRS) est un accord pour échanger des intérêts sur un notionnel pendant une période : une partie paie un taux fixe, l’autre un taux variable fondé sur un indice. Le notionnel lui-même n’est pas échangé ; il sert seulement à calculer les intérêts. Les entreprises utilisent les swaps pour transformer un prêt à taux variable en coût fixe, et les banques pour gérer le risque de taux de leur bilan.",
+        "Chaque côté est une jambe. La jambe fixe paie le taux fixe selon un échéancier (souvent annuel, 30/360 en euro). La jambe variable paie l’indice plus un éventuel écart, refixé à chaque période : en euro souvent l’EURIBOR 3 ou 6 mois et, depuis la fin du LIBOR, des taux au jour le jour capitalisés comme l’€STR, le SOFR ou le SONIA. Un OIS (overnight index swap) échange un taux fixe contre un taux au jour le jour capitalisé.",
+        "À chaque date de paiement, les deux montants sont en général compensés : seule la différence est payée. La valeur du swap (sa valeur de marché) change chaque jour avec les taux : si les taux montent, le payeur du fixe gagne, car il reçoit plus sur la jambe variable en payant toujours le même taux fixe.",
+        "Un swap de devises (cross-currency swap) échange des intérêts dans deux devises et, contrairement à un IRS, échange aussi les notionnels au départ et à l’échéance. Les swaps sont documentés sous ISDA, beaucoup de swaps standard sont compensés par des chambres comme LCH SwapClear, et ils doivent être déclarés au titre d’EMIR en Europe.",
+        "Problèmes du support sur les swaps : un fixing manquant (le taux variable de la période n’a pas été chargé), un calendrier ou une date de roulement faux, une mauvaise convention de capitalisation des taux au jour le jour, ou des écarts entre les flux de la banque et ceux de la chambre de compensation."
+      ],
+      "points": [
+        "IRS : jambe fixe contre jambe variable sur un notionnel qui n’est pas échangé.",
+        "Indices variables : EURIBOR, et taux au jour le jour €STR, SOFR, SONIA (OIS) depuis la fin du LIBOR.",
+        "Les paiements sont compensés ; la valeur de marché bouge avec les taux.",
+        "Swap de devises : deux devises, notionnels échangés au départ et à l’échéance.",
+        "Problèmes : fixings manquants, calendriers et dates de roulement, capitalisation, écarts avec la chambre."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "IRS, notional 10,000,000 EUR, bank pays fixed 3.00%, receives EURIBOR 6M\nPeriod of 180 days, EURIBOR 6M fixing = 3.40%, both legs ACT/360 for this example\nFixed leg     10,000,000 x 3.00% x 180/360 = 150,000 EUR (paid)\nFloating leg  10,000,000 x 3.40% x 180/360 = 170,000 EUR (received)\nNet payment   bank receives 20,000 EUR",
+        "note": "Seule la différence est payée ; le notionnel ne change jamais de mains."
+      }
+    },
+    {
+      "title": "Futures, dérivés listés et compensation",
+      "text": [
+        "Un future est un contrat standard, négocié en bourse, pour acheter ou vendre un sous-jacent à un prix fixé, à une date future : une obligation d’État (le future Euro-Bund sur Eurex), un indice actions (Euro Stoxx 50, S&P 500), un taux d’intérêt (futures €STR ou SOFR) ou une matière première. La bourse définit tout sauf le prix : taille du contrat, mois d’échéance, échelon de cotation (tick) et règles de livraison.",
+        "Le forward est le cousin OTC du future : sur mesure, bilatéral et réglé à l’échéance. Le future est standard, traité en bourse et réglé chaque jour par les marges, ce qui le rend facile à négocier et à déboucler avant l’échéance.",
+        "Les futures sont compensés par une chambre de compensation (CCP), comme Eurex Clearing, LCH ou CME Clearing, qui s’interpose entre l’acheteur et le vendeur. Chaque partie dépose une marge initiale à l’ouverture de sa position, un dépôt qui couvre une perte possible. Chaque jour, la chambre valorise les positions au cours de clôture et échange la marge de variation : les gains et pertes du jour sont payés en espèces.",
+        "Les banques accèdent aux bourses par des membres compensateurs et des courtiers. Positions, prix et marges arrivent chaque jour dans des fichiers ou des messages, et doivent être rapprochés des systèmes de la banque. Les futures sur indices et sur obligations servent aussi à se couvrir vite, car ils sont liquides et peu coûteux à traiter.",
+        "Problèmes du support : un écart de position entre la banque et le courtier, un cours de compensation de fin de journée manquant, un appel de marge non payé à temps, ou un contrat roulé sur l’échéance suivante sans que le système suive."
+      ],
+      "points": [
+        "Future : contrat standard de bourse ; seul le prix se négocie.",
+        "Forward : OTC, sur mesure, réglé à l’échéance ; future : standard, réglé chaque jour.",
+        "Chambre de compensation entre acheteur et vendeur ; marge initiale à l’ouverture, marge de variation chaque jour.",
+        "Courtiers et membres compensateurs envoient positions, prix et marges à rapprocher chaque jour.",
+        "Problèmes : écarts de position, cours de compensation manquants, appels de marge impayés, roulements de contrats."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Long 10 Euro-Bund futures, contract value 100,000 EUR nominal, tick 0.01 = 10 EUR\nDay 1 close 131.20, day 2 close 130.85: move of -0.35 = -35 ticks\nVariation margin = 10 contracts x -35 ticks x 10 EUR = -3,500 EUR (paid to the CCP)\nInitial margin stays posted as long as the position is open",
+        "note": "Les gains et pertes se règlent chaque jour par la marge de variation."
+      }
+    },
+    {
+      "title": "Les options et les grecques",
+      "text": [
+        "Une option donne à son acheteur le droit, pas l’obligation, d’acheter (call) ou de vendre (put) un sous-jacent à un prix fixé, le prix d’exercice (strike), à une date ou jusqu’à une date, l’échéance. L’acheteur paie une prime ; le vendeur la reçoit et prend le risque. Une option européenne ne s’exerce qu’à l’échéance, une option américaine à tout moment jusqu’à l’échéance.",
+        "À l’échéance, un call vaut max(cours du sous-jacent − strike, 0) et un put max(strike − cours, 0) : c’est la valeur intrinsèque. Avant l’échéance, la prime contient aussi une valeur temps, qui dépend du temps restant, de la volatilité et des taux. Une option est dans la monnaie quand elle a une valeur intrinsèque, à la monnaie quand le strike égale le cours, hors de la monnaie sinon.",
+        "On valorise les options avec des modèles comme Black-Scholes, dont l’entrée clé qu’on ne peut pas observer directement est la volatilité implicite. Les banques stockent des nappes de volatilité (volatilité par strike et par échéance) comme données de marché, et une nappe manquante ou périmée est une cause typique de prix et de P&L faux.",
+        "Les grecques mesurent la réaction du prix d’une option : le delta au cours du sous-jacent (un delta de 0,5 signifie que l’option bouge environ moitié moins que le sous-jacent), le gamma à la variation du delta, le véga à la volatilité, le thêta au temps qui passe, le rhô aux taux d’intérêt. Les traders couvrent leur delta avec le sous-jacent et suivent les autres grecques comme limites de risque.",
+        "Les banques traitent des options de change, sur actions, de taux (caps, floors, swaptions) et des options exotiques comme les barrières, qui s’activent ou disparaissent quand le cours touche un niveau. Pour le support, une option ajoute un événement d’exercice à l’échéance et dépend de données de marché qui doivent être complètes chaque jour."
+      ],
+      "points": [
+        "Call = droit d’acheter, put = droit de vendre, au strike, à ou jusqu’à l’échéance ; l’acheteur paie une prime.",
+        "Valeur intrinsèque à l’échéance : call max(S − K, 0), put max(K − S, 0) ; plus une valeur temps avant.",
+        "Les modèles de valorisation ont besoin de la volatilité implicite ; les banques stockent des nappes de volatilité.",
+        "Grecques : delta (cours), gamma (delta), véga (volatilité), thêta (temps), rhô (taux).",
+        "Produits : options de change, actions, taux (caps, floors, swaptions), exotiques (barrières) ; exercice à l’échéance."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EUR/USD call, strike 1.1000, notional 5,000,000 EUR, premium paid 1.2% = 60,000 EUR\nAt expiry, EUR/USD = 1.1250 -> in the money\nIntrinsic value = (1.1250 - 1.1000) x 5,000,000 = 125,000 USD\nThe buyer exercises: buys 5,000,000 EUR at 1.1000 (pays 5,500,000 USD)\nIf EUR/USD had ended at 1.0900: out of the money, the option expires worthless",
+        "note": "La perte de l’acheteur est limitée à la prime ; le risque du vendeur ne l’est pas."
+      }
+    },
+    {
+      "title": "Dérivés de crédit, dérivés actions et produits structurés",
+      "text": [
+        "Un credit default swap (CDS) est une assurance contre le défaut d’une entreprise ou d’un État. L’acheteur de protection paie une prime régulière, le spread, cotée en points de base par an sur un notionnel. En cas d’événement de crédit (faillite, défaut de paiement, restructuration), le vendeur paie à l’acheteur la perte, en général fixée par une enchère. Des indices de CDS comme iTraxx Europe et CDX couvrent des paniers de signatures.",
+        "Un total return swap (TRS) échange la performance totale d’un actif, ses revenus plus sa variation de prix, contre un taux variable. Les equity swaps font de même avec une action ou un indice. Ils donnent à un client l’exposition économique à un actif sans le détenir, et génèrent des refixations et des paiements réguliers.",
+        "Les produits structurés combinent une obligation et des options pour créer un profil de gain sur mesure pour les investisseurs, souvent émis sous forme de notes (EMTN) ou de certificats. Une note à capital garanti place l’essentiel de l’argent dans une obligation zéro coupon et achète un call avec le reste. Un autocall verse un coupon et se rembourse par anticipation si un indice dépasse un niveau aux dates d’observation, et expose l’investisseur à une perte s’il passe sous une barrière.",
+        "Ces produits ont beaucoup d’événements au cours de leur vie : observations, dates de coupon, remboursements anticipés, vérifications de barrière. Chacun dépend de fixings et de calendriers corrects. Les produits structurés sont souvent enregistrés dans des systèmes spécialisés et demandent des données de référence précises sur le sous-jacent.",
+        "En entretien de support applicatif, on vous demandera rarement de valoriser ces produits. On vous demandera de les expliquer simplement et de dire ce qui peut mal tourner : une observation manquée, un fixing faux, une opération sur titre sur une action sous-jacente, ou un événement de cycle de vie non traité."
+      ],
+      "points": [
+        "CDS : l’acheteur de protection paie un spread ; le vendeur paie la perte après un événement de crédit ; indices iTraxx, CDX.",
+        "TRS et equity swaps : performance d’un actif contre un taux variable, avec des refixations régulières.",
+        "Produits structurés : obligation + options dans une note (EMTN, certificat) ; capital garanti, autocalls.",
+        "Nombreux événements de cycle de vie : observations, coupons, remboursements anticipés, barrières, tous liés aux fixings.",
+        "En entretien : expliquer simplement, puis citer ce qui peut mal tourner dans les systèmes."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "CDS on company X, notional 10,000,000 EUR, spread 150 bp per year, paid quarterly\nQuarterly premium = 10,000,000 x 1.50% x 90/360 = 37,500 EUR (protection buyer pays)\nCredit event: auction recovery 40%\nProtection seller pays 10,000,000 x (1 - 40%) = 6,000,000 EUR",
+        "note": "La prime est petite et régulière ; le paiement après un événement de crédit est gros et rare."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "BFI et marchés",
+      "items": [
+        ["BFI / CIB", "Banque de financement et d’investissement (corporate and investment bank)"],
+        ["Front / middle / back office", "Exécuter et enregistrer / contrôler P&L et risques / confirmer et régler"],
+        ["Listé ou OTC", "Bourse, standard, compensé / bilatéral, sur mesure, sous ISDA"],
+        ["Date de négociation / date de valeur", "Quand l’opération est conclue / quand les espèces ou les titres bougent"],
+        ["ISIN", "Identifiant international d’un titre, 12 caractères commençant par un code pays"]
+      ]
+    },
+    {
+      "group": "Taux et marché monétaire",
+      "items": [
+        ["ACT/360", "Intérêts = capital × taux × jours réels / 360 (EUR, USD)"],
+        ["€STR, SOFR, SONIA", "Taux sans risque au jour le jour pour EUR, USD, GBP depuis la fin du LIBOR"],
+        ["Pension livrée (repo)", "Vendre des titres et les racheter plus tard : un prêt garanti avec décote"],
+        ["Prix plein coupon", "Prix pied de coupon + coupon couru : le montant réellement payé pour une obligation"],
+        ["Duration", "Sensibilité du prix d’une obligation à une variation des taux"]
+      ]
+    },
+    {
+      "group": "Change",
+      "items": [
+        ["EUR/USD 1,0850", "1 EUR (base) coûte 1,0850 USD (cotation)"],
+        ["Date spot", "T+2 pour la plupart des paires, T+1 pour USD/CAD"],
+        ["Cours à terme", "Comptant × (1 + r_cotation × j/360) / (1 + r_base × j/360)"],
+        ["Swap de change", "Jambe comptant et jambe à terme en sens inverse"],
+        ["CLS", "Règle les deux côtés d’une opération de change en même temps"]
+      ]
+    },
+    {
+      "group": "Dérivés",
+      "items": [
+        ["Swap de taux", "Jambe fixe contre jambe variable ; notionnel non échangé ; paiements compensés"],
+        ["Future", "Contrat standard de bourse avec marge de variation quotidienne via une chambre de compensation"],
+        ["Call / put", "Droit d’acheter / de vendre au strike ; l’acheteur paie une prime"],
+        ["Delta", "De combien bouge le prix de l’option quand le sous-jacent bouge"],
+        ["Véga", "Sensibilité du prix de l’option à la volatilité"]
+      ]
+    },
+    {
+      "group": "Crédit et structurés",
+      "items": [
+        ["CDS", "Protection contre le défaut ; l’acheteur paie un spread, le vendeur paie la perte"],
+        ["Événement de crédit", "Faillite, défaut de paiement ou restructuration qui déclenche un CDS"],
+        ["TRS", "Performance totale d’un actif contre un taux variable"],
+        ["Autocall", "Note structurée remboursée par anticipation si le sous-jacent dépasse un niveau"],
+        ["Fixing", "Le taux ou le prix officiel du jour, utilisé pour calculer les flux"]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Confondre date de négociation et date de valeur en expliquant un problème de règlement.",
+    "Dire qu’un swap échange son notionnel : seul un swap de devises le fait.",
+    "Oublier que le change au comptant se règle deux jours ouvrés plus tard, selon les calendriers des deux devises.",
+    "Présenter le cours à terme comme une prévision : il découle des deux taux d’intérêt.",
+    "Mélanger prix pied de coupon et prix plein coupon d’une obligation.",
+    "Parler encore du LIBOR comme de l’indice variable principal : il s’est arrêté en 2023 pour le dollar.",
+    "Répondre aux questions produits avec du jargon au lieu des flux et de ce qui peut mal tourner."
+  ],
+  "exercises": [
+    {
+      "q": "Classez ces produits par type.",
+      "type": "groups",
+      "groups": [
+        { "name": "Marché monétaire", "items": ["Bon du Trésor", "Pension livrée", "Billet de trésorerie"] },
+        { "name": "Dérivés OTC", "items": ["Swap de taux", "Change à terme", "Credit default swap"] },
+        { "name": "Dérivés listés", "items": ["Future Euro-Bund", "Future Euro Stoxx 50", "Option listée sur action"] }
+      ],
+      "answer": "Les produits du marché monétaire sont des emprunts et prêts à court terme. Les dérivés OTC se concluent entre deux parties, en général sous ISDA, même quand ils sont ensuite compensés. Les dérivés listés sont des contrats standard traités en bourse et toujours compensés par une chambre de compensation."
+    },
+    {
+      "q": "Associez chaque service à ce qu’il fait d’une opération.",
+      "type": "match",
+      "pairs": [
+        ["Front office", "Cote, exécute et enregistre l’opération"],
+        ["Middle office", "Contrôle l’opération et calcule P&L et risques"],
+        ["Back office", "Confirme avec la contrepartie et règle"],
+        ["Support applicatif", "Répare les systèmes quand l’opération ne circule pas ou qu’un calcul est faux"]
+      ],
+      "answer": "Du front au back, c’est le parcours d’une opération. Le support travaille avec les trois : il doit savoir quelle équipe est responsable de quelle étape pour orienter un incident."
+    },
+    {
+      "q": "Un trader enregistre une opération de change EUR/USD au comptant le mercredi 10 juin. Les deux devises sont ouvertes tous les jours de semaine cette semaine et la suivante. Quelle est la date de valeur ?",
+      "type": "choice",
+      "options": ["Mercredi 10 juin", "Jeudi 11 juin", "Vendredi 12 juin", "Lundi 15 juin"],
+      "correct": 2,
+      "answer": "Le comptant EUR/USD se règle à T+2 jours ouvrés : jeudi est T+1, vendredi 12 juin est T+2. Si jeudi était férié dans l’une des deux devises, la date de valeur passerait au jour ouvré suivant ouvert dans les deux calendriers."
+    },
+    {
+      "q": "En B5, calculez les intérêts d’un dépôt avec la convention ACT/360.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "Value"], ["Principal (EUR)", 50000000], ["Rate", 0.032], ["Days", 91], ["Interest (EUR)", ""]],
+      "cell": "B5",
+      "answer": "=B2*B3*B4/360",
+      "explain": "50 000 000 × 3,2 % × 91 / 360 = 404 444,44 EUR. En ACT/365, les intérêts seraient plus faibles (398 904,11 EUR) : une mauvaise convention est une cause classique de petits écarts de règlement."
+    },
+    {
+      "q": "En B6, calculez le cours à terme EUR/USD à partir du comptant et des deux taux d’intérêt (ACT/360).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "Value"], ["Spot EUR/USD", 1.08], ["EUR rate (base)", 0.02], ["USD rate (quote)", 0.04], ["Days", 90], ["Forward rate", ""]],
+      "cell": "B6",
+      "answer": "=B2*(1+B4*B5/360)/(1+B3*B5/360)",
+      "explain": "1,08 × (1 + 4 % × 90/360) / (1 + 2 % × 90/360) = 1,08 × 1,01 / 1,005 ≈ 1,0854. Le terme est au-dessus du comptant car la devise de cotation (USD) a le taux le plus élevé : +54 points de terme."
+    },
+    {
+      "q": "En B5, calculez le coupon couru que l’acheteur de cette obligation paie au vendeur.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "Value"], ["Nominal (EUR)", 1000000], ["Annual coupon", 0.04], ["Days since last coupon", 73], ["Accrued interest (EUR)", ""]],
+      "cell": "B5",
+      "answer": "=B2*B3*B4/365",
+      "explain": "1 000 000 × 4 % × 73 / 365 = 8 000 EUR, ici en ACT/365. L’acheteur paie le prix pied de coupon plus ce montant (le prix plein coupon) et touche le coupon entier à la prochaine date de coupon."
+    },
+    {
+      "q": "En B6, calculez le montant net que la banque reçoit sur cette période du swap (positif = reçu). La banque paie le taux fixe et reçoit le taux variable, les deux en ACT/360.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "Value"], ["Notional (EUR)", 10000000], ["Fixed rate (paid)", 0.03], ["Floating fixing (received)", 0.034], ["Days", 180], ["Net received (EUR)", ""]],
+      "cell": "B6",
+      "answer": "=B2*(B4-B3)*B5/360",
+      "explain": "10 000 000 × (3,4 % − 3,0 %) × 180 / 360 = 20 000 EUR. Seul le montant net est payé. Si le fixing manquait dans le système, la jambe variable ne pourrait pas être calculée : un incident classique du support à la date de fixing."
+    },
+    {
+      "q": "En B4, calculez la valeur intrinsèque d’un call à l’échéance, par unité (0 s’il est hors de la monnaie).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "Value"], ["Underlying price at expiry", 1.125], ["Strike", 1.1], ["Intrinsic value per unit", ""]],
+      "cell": "B4",
+      "answer": "=MAX(B2-B3,0)",
+      "explain": "max(1,125 − 1,100 ; 0) = 0,025 par euro de notionnel, soit 125 000 USD sur 5 000 000 EUR. Si le sous-jacent avait fini sous le strike, le call expirerait sans valeur et l’acheteur ne perdrait que la prime."
+    },
+    {
+      "q": "Associez chaque grecque à ce qu’elle mesure.",
+      "type": "match",
+      "pairs": [
+        ["Delta", "Sensibilité au cours du sous-jacent"],
+        ["Gamma", "Vitesse de variation du delta"],
+        ["Véga", "Sensibilité à la volatilité"],
+        ["Thêta", "Perte de valeur avec le temps"],
+        ["Rhô", "Sensibilité aux taux d’intérêt"]
+      ],
+      "answer": "Les traders couvrent le delta avec le sous-jacent, et les autres grecques sont suivies comme limites de risque. Pour le support, des grecques fausses viennent souvent de données de marché manquantes, comme une nappe de volatilité non chargée."
+    },
+    {
+      "q": "Complétez : le taux sans risque au jour le jour de l’euro, publié par la BCE depuis 2019, est l’___.",
+      "type": "fill",
+      "blanks": [["€STR", "ESTR", "€str", "estr", "euro short-term rate", "euro short term rate", "/^€?\\s*str$/i"]],
+      "answer": "L’€STR (euro short-term rate) a remplacé l’EONIA, arrêté en janvier 2022. Le SOFR est son équivalent en dollar et le SONIA en livre ; l’EURIBOR existe toujours pour les taux à terme en euro."
+    },
+    {
+      "q": "À 18 h 30, le middle office signale que le P&L du desk taux a bondi de 4 millions d’euros un jour calme. Déroulez vos premières actions.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Que vérifiez-vous d’abord ?",
+          "choices": [
+            { "label": "Si les données de marché du jour se sont bien chargées : courbes, fixings et cours de clôture utilisés par le P&L", "best": true, "feedback": "Oui : un jour calme, un gros saut de P&L vient en général de données de marché fausses ou manquantes, pas d’une vraie activité." },
+            { "label": "Redémarrer le serveur de P&L", "feedback": "Redémarrer sans comprendre risque de cacher la cause, ou de relancer le traitement sur les mêmes données fausses." },
+            { "label": "Demander aux traders ce qu’ils ont fait aujourd’hui", "feedback": "Utile ensuite, mais vous pouvez vérifier les données vous-même d’abord et venir avec des faits." }
+          ]
+        },
+        {
+          "text": "Le fixing EURIBOR 6 mois du jour manque, donc le système a pris zéro. Et ensuite ?",
+          "choices": [
+            { "label": "Prévenir le middle office et l’équipe des données de marché, faire charger le fixing depuis la source officielle, puis relancer le P&L des portefeuilles de taux", "best": true, "feedback": "Oui : le responsable des données de marché charge la valeur officielle, et le P&L est recalculé pour les seuls portefeuilles touchés." },
+            { "label": "Saisir le fixing vous-même depuis un site web", "feedback": "Le support ne doit pas créer de données de marché à la main depuis une source non officielle : elles doivent venir du fournisseur convenu, avec une trace." },
+            { "label": "Laisser, ce sera bon demain", "feedback": "Le P&L et les rapports de risque du jour partent à la direction et aux régulateurs : ils doivent être corrigés aujourd’hui." }
+          ]
+        },
+        {
+          "text": "Comment clôturez-vous l’incident ?",
+          "choices": [
+            { "label": "Confirmer avec le middle office que le P&L est revenu à la normale, et proposer une alerte quand un fixing manque avant le lancement du P&L", "best": true, "feedback": "Oui : un contrôle avant le traitement transforme cet incident en simple alerte la prochaine fois." },
+            { "label": "Clôturer dès que le fixing est chargé", "feedback": "Le métier doit confirmer le résultat, et la cause mérite une action préventive." },
+            { "label": "Accuser le fournisseur de données dans le ticket", "feedback": "Décrivez les faits et la correction ; accuser n’aide personne." }
+          ]
+        }
+      ],
+      "answer": "Un jour calme, un gros mouvement de P&L oriente vers les données de marché. Trouvez l’entrée manquante ou fausse, faites charger la valeur officielle par son responsable, relancez seulement ce qui est touché, faites confirmer par le métier et ajoutez un contrôle avant le traitement."
+    },
+    {
+      "q": "Expliquez à un recruteur, en quelques phrases, ce qu’est un swap de change et pourquoi il crée deux règlements.",
+      "answer": "Un swap de change, ce sont deux échanges de devises en sens inverse à deux dates : par exemple la banque vend des euros contre des dollars au comptant aujourd’hui, et rachète les mêmes euros dans trois mois au cours à terme fixé aujourd’hui. Cela revient à emprunter des dollars contre des euros pendant trois mois, l’écart entre les deux cours reflétant l’écart de taux d’intérêt. Chaque échange est un règlement distinct, la jambe proche au comptant et la jambe lointaine à l’échéance : le back office a donc deux paires de paiements à régler et à confirmer, et le support doit vérifier les deux jambes quand une opération est incomplète dans un système en aval."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Quelle est la différence entre front, middle et back office ?",
+      "a": "Le front office exécute les opérations avec les clients et les enregistre : vendeurs, traders, structureurs. Le middle office vérifie que les opérations sont bien saisies, calcule le P&L et les risques et contrôle les limites. Le back office confirme les opérations avec les contreparties, règle les espèces et les titres et s’occupe de la comptabilité. En support applicatif, je travaille avec les trois, car un incident apparaît souvent à un endroit mais vient d’un autre, par exemple une erreur de saisie qui ne se voit qu’au moment d’un échec de règlement."
+    },
+    {
+      "q": "Qu’est-ce qu’un swap de taux ?",
+      "a": "Un accord pour échanger des intérêts sur un notionnel pendant une période : une jambe paie un taux fixe, l’autre un taux variable comme l’EURIBOR ou un taux au jour le jour capitalisé comme l’€STR ou le SOFR. Le notionnel n’est pas échangé, et à chaque date de paiement seul le montant net est payé. Les entreprises s’en servent pour fixer le coût d’un prêt variable, les banques pour gérer leur risque de taux. Dans les systèmes, chaque période variable a besoin d’un fixing, donc un fixing manquant est un incident typique."
+    },
+    {
+      "q": "Pourquoi une opération de change au comptant se règle-t-elle deux jours plus tard ?",
+      "a": "Par convention de marché, la plupart des opérations au comptant se règlent à T+2 jours ouvrés, ce qui laissait historiquement le temps de confirmer et d’organiser les paiements dans deux pays ; USD/CAD se règle à T+1. La date de valeur doit être un jour ouvré dans les calendriers des deux devises, donc un jour férié dans l’un des deux pays la décale. Un calendrier faux dans le système donne une date de valeur fausse et peut provoquer un problème de règlement."
+    },
+    {
+      "q": "Qu’est devenu le LIBOR, et pourquoi est-ce important pour l’IT ?",
+      "a": "Le LIBOR a été remplacé par des taux sans risque au jour le jour après des scandales de manipulation : les fixings en euro et dans la plupart des autres devises se sont arrêtés fin 2021, les principaux fixings en dollar en juin 2023, et l’EONIA en janvier 2022. Les remplaçants sont l’€STR, le SOFR et le SONIA, capitalisés sur chaque période, tandis que l’EURIBOR existe toujours. Pour l’IT, cela a voulu dire de nouveaux indices, de nouveaux fixings, de nouvelles règles de capitalisation et la migration des opérations existantes, ce qui a créé beaucoup de changements et d’incidents dans les systèmes de trading et de risques."
+    },
+    {
+      "q": "Quelle est la différence entre un future et un forward ?",
+      "a": "Les deux fixent aujourd’hui le prix d’une transaction future. Un forward est un contrat OTC, sur mesure entre deux parties et réglé à l’échéance. Un future est un contrat standard négocié en bourse, compensé par une chambre de compensation et réglé chaque jour par la marge de variation, ce qui supprime l’essentiel du risque de contrepartie et permet de déboucler facilement les positions."
+    },
+    {
+      "q": "Expliquez un call et son delta à un non-spécialiste.",
+      "a": "Un call est le droit, pas l’obligation, d’acheter quelque chose à un prix fixé jusqu’à une date, contre une prime payée au départ. Si le prix du marché finit au-dessus de ce prix fixé, l’acheteur gagne la différence ; sinon, il ne perd que la prime. Le delta dit de combien bouge le prix de l’option quand le sous-jacent bouge : un delta de 0,5 signifie que l’option gagne environ 50 centimes quand le sous-jacent gagne un euro. Les traders s’en servent pour savoir combien de sous-jacent détenir pour rester couverts."
+    },
+    {
+      "q": "Qu’est-ce qu’un CDS ?",
+      "a": "Un credit default swap est une protection contre le défaut d’une entreprise ou d’un État. L’acheteur paie une prime régulière, le spread en points de base ; en cas d’événement de crédit comme une faillite ou un défaut de paiement, le vendeur paie à l’acheteur la perte, en général fixée par une enchère sur les obligations en défaut. Les banques utilisent les CDS pour couvrir une exposition de crédit ou prendre une position sur une signature."
+    }
+  ]
+}

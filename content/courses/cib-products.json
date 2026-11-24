@@ -1,0 +1,401 @@
+{
+  "why": "Application support teams in corporate and investment banks look after the systems that book, price, confirm and settle trades. Interviewers do not expect a trader's knowledge, but they always check that you understand what the products are, how their cash flows work and what can go wrong with them: a support analyst who knows that an FX spot settles two days later, or that a swap's notional is not exchanged, diagnoses incidents much faster.",
+  "outcome": "explain how a CIB is organised, describe money market deposits and repos, bonds and their accrued interest, FX spot, forwards and swaps, interest rate swaps after the end of LIBOR, futures and clearing, options and their Greeks, credit default swaps and structured products, compute the key amounts in Excel, and answer the product questions of a CIB application support interview.",
+  "lessons": [
+    {
+      "title": "How a CIB works, and why support needs the products",
+      "text": [
+        "A corporate and investment bank (CIB, BFI in French) serves large companies, institutions and governments. Its capital markets activity buys and sells financial products for clients and for its own risk management, organised in desks by asset class: rates (interest rates and bonds), FX (currencies), credit, equities and commodities. Each desk has salespeople who talk to clients, traders who price and take positions, and structurers who design tailor-made products.",
+        "Around the desks, the bank is organised front to back. The front office executes and books trades. The middle office checks them, calculates profit and loss (P&L) and risk, and makes sure trades are correctly captured. The back office confirms trades with the counterparty, settles cash and securities, and accounts for them. Risk and finance departments sit alongside, and IT and application support keep the whole chain running.",
+        "Application support analysts are called when a trade is missing in a downstream system, a price or rate did not load, a confirmation does not match, a settlement fails or the end-of-day P&L is wrong. To solve these incidents you must know what a correct trade looks like: which dates it has (trade date, value date, maturity), which amounts move and when, which reference data it needs (counterparty, book, currency calendar, rate index) and which systems it goes through.",
+        "Products are traded in two ways. Listed products, such as futures and listed options, trade on an exchange with standard contracts and are cleared by a central counterparty. Over-the-counter (OTC) products, such as most swaps, forwards and many options, are agreed bilaterally between two parties under an ISDA master agreement, although many standard OTC derivatives must now also be cleared centrally.",
+        "In interviews, a short clear explanation beats jargon. For each product in this course, practise answering three questions: what is it used for, what are its cash flows and dates, and what typically goes wrong in the systems."
+      ],
+      "points": [
+        "Desks by asset class: rates, FX, credit, equities, commodities.",
+        "Front office executes and books, middle office controls P&L and risk, back office confirms and settles.",
+        "Support needs the dates (trade, value, maturity), the amounts and the reference data of each trade.",
+        "Listed (exchange, standard, cleared) vs OTC (bilateral, ISDA, increasingly cleared).",
+        "For each product: use, cash flows and dates, typical system issues."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Trade: client buys 10,000,000 USD against EUR, spot, rate 1.0850\nFront office   Sales quotes the client, trader books the deal in the trading system (e.g. Murex)\nMiddle office  Trade checked, P&L and FX position updated, risk limits checked\nBack office    Confirmation sent (SWIFT MT300), matched with the client's\n               Settlement on value date T+2: bank pays 10,000,000 USD, receives 9,216,589.86 EUR\nSupport        Called if the trade does not reach the back office or the confirmation does not match",
+        "note": "One FX spot trade followed from the front office to the back office."
+      }
+    },
+    {
+      "title": "Money market and repo",
+      "text": [
+        "The money market covers borrowing and lending for short periods, from one day to about one year. A deposit or loan is the simplest product: one party lends an amount, the other repays it at maturity with interest. Banks also issue and buy short-term securities: Treasury bills from governments, commercial paper and certificates of deposit from companies and banks.",
+        "Interest on money market products is simple interest, calculated with a day count convention. The most common in euro and US dollar is ACT/360: interest = principal × rate × actual number of days / 360. Sterling uses ACT/365. Getting the convention wrong is a classic cause of small differences in confirmations and settlements.",
+        "Since the end of LIBOR (the euro and most dollar LIBOR settings stopped between 2021 and June 2023) and of EONIA (January 2022), overnight rates are risk-free rates published by central banks or regulators: €STR for the euro, SOFR for the US dollar, SONIA for sterling. EURIBOR still exists for euro term rates. Rate fixings are loaded into systems every day, and a missing or wrong fixing is a frequent support incident.",
+        "A repo (repurchase agreement) is a secured loan: one party sells securities, usually government bonds, and agrees to buy them back later at a slightly higher price. The difference is the repo interest. For the cash lender it is a reverse repo. The securities are collateral, and a haircut means the cash lent is a little less than their market value, to protect the lender if their price falls.",
+        "Repos are how banks finance their bond positions and manage liquidity every day. For support, a repo creates two settlements (the start leg and the end leg), depends on the collateral's price, and may require margin calls when that price moves."
+      ],
+      "points": [
+        "Money market: deposits and loans, Treasury bills, commercial paper, certificates of deposit, up to about one year.",
+        "Simple interest with a day count: EUR and USD usually ACT/360, GBP ACT/365.",
+        "Risk-free rates after LIBOR and EONIA: €STR, SOFR, SONIA; EURIBOR still used for euro term rates.",
+        "Repo: sell securities and buy them back later; a secured loan with a haircut.",
+        "A repo has two settlements, and its collateral may trigger margin calls."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Deposit: lend 50,000,000 EUR for 91 days at 3.20%, ACT/360\nInterest = 50,000,000 x 3.20% x 91 / 360 = 404,444.44 EUR\nRepay at maturity: 50,404,444.44 EUR\n\nRepo: bank sells bonds worth 102,000,000 EUR, haircut 2%\nCash received = 102,000,000 x (1 - 2%) = 99,960,000 EUR\nEnd leg after 30 days at 3.00% ACT/360: buys back for 99,960,000 x (1 + 3.00% x 30/360) = 100,209,900 EUR",
+        "note": "Simple interest with ACT/360, and the two legs of a repo with a haircut."
+      }
+    },
+    {
+      "title": "Bonds: price, yield and accrued interest",
+      "text": [
+        "A bond is a debt security: the issuer borrows from investors, pays a coupon (fixed or floating interest) at regular dates, and repays the nominal at maturity. Governments issue bonds (OATs in France, Bunds in Germany, Treasuries in the US), and so do companies. Each bond has an identifier, the ISIN (12 characters starting with a country code, FR for a French bond), and characteristics stored as static data: coupon, frequency, day count, maturity, issuer.",
+        "A bond's price is quoted as a percentage of its nominal. When market interest rates rise, the price of existing fixed-coupon bonds falls, and the other way round, because their coupons become less or more attractive. The yield to maturity is the single rate that makes the bond's future cash flows equal to its price. Duration measures how much the price moves when rates move.",
+        "Between two coupon dates, the seller has earned part of the next coupon. The buyer pays it to the seller as accrued interest. The quoted price without it is the clean price; the amount actually paid is the dirty price = clean price + accrued interest. Accrued interest = nominal × coupon × days since the last coupon / days in the year, with the bond's day count (often ACT/ACT for government bonds).",
+        "Credit quality matters: rating agencies (S&P, Moody's, Fitch) rate issuers from AAA down to D; below BBB- is high yield. Corporate bonds pay a spread above government yields to compensate for credit risk. A bank's bond desk trades these securities, finances them with repos and hedges them with futures and swaps.",
+        "Typical support issues on bonds: wrong static data (coupon, day count or calendar) giving a wrong accrued interest, a missing price at end of day, a corporate action (coupon payment, early redemption) not processed, or a settlement fail because the securities were not delivered on time."
+      ],
+      "points": [
+        "Bond: coupon at regular dates, nominal repaid at maturity; identified by its ISIN.",
+        "Rates up → bond prices down; yield to maturity and duration summarise the price-rate link.",
+        "Dirty price = clean price + accrued interest; accrued = nominal × coupon × days / year basis.",
+        "Ratings from AAA to D; below BBB- is high yield; corporate bonds pay a spread over government bonds.",
+        "Support issues: static data, missing prices, corporate actions, settlement fails."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Bond: nominal 1,000,000 EUR, annual coupon 4%, ACT/365 for this example\nLast coupon 15 March, trade settles 27 May: 73 days\nAccrued interest = 1,000,000 x 4% x 73 / 365 = 8,000.00 EUR\nClean price 98.50% -> 985,000.00 EUR\nDirty price (amount paid) = 985,000.00 + 8,000.00 = 993,000.00 EUR",
+        "note": "The buyer pays the clean price plus the coupon already earned by the seller."
+      }
+    },
+    {
+      "title": "FX: spot, forwards and FX swaps",
+      "text": [
+        "FX is the exchange of one currency for another and the largest market in the world. A currency pair is written BASE/QUOTE: EUR/USD 1.0850 means 1 euro costs 1.0850 US dollars. The market quotes a bid (where the bank buys the base currency) and an ask or offer (where it sells it). Most pairs are quoted with four or five decimals; the smallest usual move is a pip, 0.0001 for EUR/USD.",
+        "A spot trade settles on the spot date, two business days after the trade date (T+2) for most pairs, and one day for USD/CAD. Business days depend on the holiday calendars of both currencies, and a wrong calendar gives a wrong value date: a common support incident.",
+        "A forward fixes today the rate for an exchange at a later date. The forward rate is not a forecast: it comes from the interest rates of the two currencies. Forward = spot × (1 + quote rate × days/360) / (1 + base rate × days/360). The difference with the spot, in pips, is the forward points. A non-deliverable forward (NDF) settles only the difference in a convertible currency, for currencies that cannot be freely delivered.",
+        "An FX swap combines two exchanges in opposite directions: for example sell euros against dollars at spot, and buy them back in three months at the forward rate. Banks use FX swaps to borrow one currency against another. It is the most traded FX product, and it creates two settlements.",
+        "FX settles through each currency's correspondent banks (nostro accounts), or through CLS, a system that settles both sides at the same time to remove settlement risk. Support incidents include trades missing standard settlement instructions (SSIs), wrong value dates and unmatched MT300 confirmations."
+      ],
+      "points": [
+        "BASE/QUOTE: EUR/USD 1.0850 = 1 EUR costs 1.0850 USD; pip = 0.0001 for EUR/USD.",
+        "Spot settles T+2 (USD/CAD T+1), using both currencies' holiday calendars.",
+        "Forward = spot × (1 + r_quote × d/360) / (1 + r_base × d/360); forward points = forward − spot.",
+        "FX swap = spot leg + forward leg in opposite directions; NDF settles the difference only.",
+        "Settlement via nostros or CLS; issues: SSIs, value dates, unmatched MT300."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EUR/USD spot 1.0800, EUR rate 2.00%, USD rate 4.00%, 90 days\nForward = 1.0800 x (1 + 4.00% x 90/360) / (1 + 2.00% x 90/360)\n        = 1.0800 x 1.0100 / 1.0050 = 1.0854\nForward points = 1.0854 - 1.0800 = +54 pips\n(The higher-yielding currency, USD, is cheaper for later delivery)",
+        "note": "The forward rate comes from the interest rate difference between the two currencies."
+      }
+    },
+    {
+      "title": "Interest rate swaps",
+      "text": [
+        "An interest rate swap (IRS) is an agreement to exchange interest payments on a notional amount for a period: one party pays a fixed rate, the other pays a floating rate based on an index. The notional itself is not exchanged; it only serves to calculate the interest. Companies use swaps to turn a floating-rate loan into a fixed cost, and banks use them to manage the interest rate risk of their balance sheets.",
+        "Each side is a leg. The fixed leg pays the fixed rate on a schedule (often annual, 30/360 in euro). The floating leg pays the index plus any spread, reset at each period: in euro often EURIBOR 3 or 6 months, and since the end of LIBOR, compounded overnight rates such as €STR, SOFR or SONIA. An overnight index swap (OIS) exchanges a fixed rate against a compounded overnight rate.",
+        "On each payment date, the two amounts are usually netted: only the difference is paid. The swap's value (its mark-to-market) changes every day with market rates: if rates rise, the fixed-rate payer gains, because they receive more on the floating leg while still paying the same fixed rate.",
+        "A cross-currency swap exchanges interest in two currencies and, unlike an IRS, also exchanges the notionals at the start and at maturity. Swaps are documented under ISDA, many standard ones are cleared through central counterparties such as LCH SwapClear, and they must be reported under EMIR in Europe.",
+        "Support issues on swaps: a missing fixing (the floating rate of the period was not loaded), a wrong calendar or roll date, a wrong compounding convention for overnight rates, or differences between the bank's and the clearing house's cash flows."
+      ],
+      "points": [
+        "IRS: fixed leg vs floating leg on a notional that is not exchanged.",
+        "Floating indexes: EURIBOR, and overnight rates €STR, SOFR, SONIA (OIS) since the end of LIBOR.",
+        "Payments are netted; the mark-to-market moves with market rates.",
+        "Cross-currency swap: two currencies, notionals exchanged at start and maturity.",
+        "Issues: missing fixings, calendars and roll dates, compounding, clearing house differences."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "IRS, notional 10,000,000 EUR, bank pays fixed 3.00%, receives EURIBOR 6M\nPeriod of 180 days, EURIBOR 6M fixing = 3.40%, both legs ACT/360 for this example\nFixed leg     10,000,000 x 3.00% x 180/360 = 150,000 EUR (paid)\nFloating leg  10,000,000 x 3.40% x 180/360 = 170,000 EUR (received)\nNet payment   bank receives 20,000 EUR",
+        "note": "Only the difference moves; the notional never changes hands."
+      }
+    },
+    {
+      "title": "Futures, listed derivatives and clearing",
+      "text": [
+        "A future is a standard contract, traded on an exchange, to buy or sell an underlying at a set price on a future date: a government bond (the Euro-Bund future on Eurex), a stock index (Euro Stoxx 50, S&P 500), an interest rate (€STR or SOFR futures) or a commodity. The exchange defines everything except the price: contract size, maturity months, tick size and delivery rules.",
+        "A forward is the OTC cousin of a future: tailor-made, bilateral and settled at maturity. A future is standard, traded on an exchange and settled every day through margin, which is what makes it easy to trade and close before maturity.",
+        "Futures are cleared by a central counterparty (CCP), such as Eurex Clearing, LCH or CME Clearing, which stands between buyer and seller. Each party posts initial margin when it opens a position, a deposit that covers a possible loss. Every day the CCP marks positions to the closing price and exchanges variation margin: the gains and losses of the day are paid in cash.",
+        "Banks access exchanges through clearing members and brokers. Positions, prices and margins arrive in files or messages each day and must be reconciled with the bank's own systems. Index futures and bond futures are also used to hedge quickly, because they are liquid and cheap to trade.",
+        "Support issues: a position break between the bank and the broker, a missing end-of-day settlement price, a margin call not paid on time, or a contract rolled to the next maturity without the system following."
+      ],
+      "points": [
+        "Future: standard exchange contract; only the price is negotiated.",
+        "Forward: OTC, tailor-made, settled at maturity; future: standard, settled daily.",
+        "CCP between buyer and seller; initial margin at opening, variation margin every day.",
+        "Brokers and clearing members send positions, prices and margins to reconcile daily.",
+        "Issues: position breaks, missing settlement prices, unpaid margin calls, contract rolls."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Long 10 Euro-Bund futures, contract value 100,000 EUR nominal, tick 0.01 = 10 EUR\nDay 1 close 131.20, day 2 close 130.85: move of -0.35 = -35 ticks\nVariation margin = 10 contracts x -35 ticks x 10 EUR = -3,500 EUR (paid to the CCP)\nInitial margin stays posted as long as the position is open",
+        "note": "Gains and losses are settled every day through variation margin."
+      }
+    },
+    {
+      "title": "Options and the Greeks",
+      "text": [
+        "An option gives its buyer the right, not the obligation, to buy (call) or sell (put) an underlying at a fixed price, the strike, at or until a date, the expiry. The buyer pays a premium; the seller receives it and takes the risk. A European option can be exercised only at expiry, an American option at any time until expiry.",
+        "At expiry, a call is worth max(underlying price − strike, 0) and a put max(strike − underlying price, 0): this is the intrinsic value. Before expiry the premium also contains time value, which depends on the time left, volatility and interest rates. An option is in the money when it has intrinsic value, at the money when the strike equals the price, out of the money otherwise.",
+        "Options are priced with models such as Black-Scholes, whose key input that cannot be observed directly is implied volatility. Banks store volatility surfaces (volatility by strike and maturity) as market data, and a missing or stale surface is a typical cause of wrong prices and P&L.",
+        "The Greeks measure how an option's price reacts: delta to the underlying price (a delta of 0.5 means the option moves about half as much as the underlying), gamma to the change in delta, vega to volatility, theta to the passing of time, rho to interest rates. Traders hedge their delta with the underlying and watch the other Greeks as risk limits.",
+        "Banks trade FX options, equity options, interest rate options (caps, floors, swaptions) and exotic options such as barriers, which activate or disappear when the price touches a level. For support, an option adds an exercise event at expiry and depends on market data that must be complete every day."
+      ],
+      "points": [
+        "Call = right to buy, put = right to sell, at the strike, until or at expiry; buyer pays a premium.",
+        "Intrinsic value at expiry: call max(S − K, 0), put max(K − S, 0); plus time value before expiry.",
+        "Pricing models need implied volatility; banks store volatility surfaces as market data.",
+        "Greeks: delta (price), gamma (delta), vega (volatility), theta (time), rho (rates).",
+        "Products: FX, equity, rate options (caps, floors, swaptions), exotics (barriers); exercise events at expiry."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "EUR/USD call, strike 1.1000, notional 5,000,000 EUR, premium paid 1.2% = 60,000 EUR\nAt expiry, EUR/USD = 1.1250 -> in the money\nIntrinsic value = (1.1250 - 1.1000) x 5,000,000 = 125,000 USD\nThe buyer exercises: buys 5,000,000 EUR at 1.1000 (pays 5,500,000 USD)\nIf EUR/USD had ended at 1.0900: out of the money, the option expires worthless",
+        "note": "The buyer's loss is limited to the premium; the seller's risk is not."
+      }
+    },
+    {
+      "title": "Credit derivatives, equity derivatives and structured products",
+      "text": [
+        "A credit default swap (CDS) is insurance against the default of a company or a country. The protection buyer pays a regular premium, the spread, quoted in basis points per year on a notional. If a credit event happens (bankruptcy, failure to pay, restructuring), the seller pays the buyer the loss, usually set by an auction. CDS indexes such as iTraxx Europe and CDX cover baskets of names.",
+        "A total return swap (TRS) exchanges the total performance of an asset, its income plus price change, against a floating rate. Equity swaps do the same with a share or an index. They let a client get the economic exposure to an asset without holding it, and they generate regular resets and payments.",
+        "Structured products combine a bond and options to create a tailor-made payoff for investors, often issued as notes (EMTN) or certificates. A capital-protected note invests most of the money in a zero-coupon bond and buys a call with the rest. An autocall pays a coupon and redeems early if an index is above a level on observation dates, and exposes the investor to a loss if it falls below a barrier.",
+        "These products have many events over their life: observations, coupon dates, early redemptions, barrier checks. Each one depends on correct fixings and calendars. Structured products are often booked in specialised systems and need precise reference data on the underlying.",
+        "In an application support interview, you will rarely be asked to price these products. You will be asked to explain them simply and to say what can go wrong: a missed observation, a wrong fixing, a corporate action on an underlying share, or a lifecycle event not processed."
+      ],
+      "points": [
+        "CDS: protection buyer pays a spread; seller pays the loss after a credit event; indexes iTraxx, CDX.",
+        "TRS and equity swaps: performance of an asset against a floating rate, with regular resets.",
+        "Structured products: bond + options in a note (EMTN, certificate); capital-protected notes, autocalls.",
+        "Many lifecycle events: observations, coupons, early redemptions, barriers, all fixing-dependent.",
+        "Interview: explain simply, then name what can go wrong in the systems."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "CDS on company X, notional 10,000,000 EUR, spread 150 bp per year, paid quarterly\nQuarterly premium = 10,000,000 x 1.50% x 90/360 = 37,500 EUR (protection buyer pays)\nCredit event: auction recovery 40%\nProtection seller pays 10,000,000 x (1 - 40%) = 6,000,000 EUR",
+        "note": "The premium is small and regular; the payment after a credit event is large and rare."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "CIB and markets",
+      "items": [
+        ["CIB / BFI", "Corporate and investment bank (banque de financement et d’investissement)"],
+        ["Front / middle / back office", "Execute and book / control P&L and risk / confirm and settle"],
+        ["Listed vs OTC", "Exchange, standard, cleared / bilateral, tailor-made, under ISDA"],
+        ["Trade date / value date", "When the trade is agreed / when cash or securities move"],
+        ["ISIN", "12-character international identifier of a security, starting with a country code"]
+      ]
+    },
+    {
+      "group": "Rates and money market",
+      "items": [
+        ["ACT/360", "Interest = principal × rate × actual days / 360 (EUR, USD)"],
+        ["€STR, SOFR, SONIA", "Overnight risk-free rates for EUR, USD, GBP since the end of LIBOR"],
+        ["Repo", "Sell securities and buy them back later: a secured loan with a haircut"],
+        ["Dirty price", "Clean price + accrued interest: the amount actually paid for a bond"],
+        ["Duration", "Sensitivity of a bond’s price to a change in rates"]
+      ]
+    },
+    {
+      "group": "FX",
+      "items": [
+        ["EUR/USD 1.0850", "1 EUR (base) costs 1.0850 USD (quote)"],
+        ["Spot date", "T+2 for most pairs, T+1 for USD/CAD"],
+        ["Forward rate", "Spot × (1 + r_quote × d/360) / (1 + r_base × d/360)"],
+        ["FX swap", "Spot leg and forward leg in opposite directions"],
+        ["CLS", "Settles both sides of an FX trade at the same time"]
+      ]
+    },
+    {
+      "group": "Derivatives",
+      "items": [
+        ["Interest rate swap", "Fixed leg vs floating leg; notional not exchanged; payments netted"],
+        ["Future", "Standard exchange contract with daily variation margin through a CCP"],
+        ["Call / put", "Right to buy / to sell at the strike; buyer pays a premium"],
+        ["Delta", "How much the option price moves when the underlying moves"],
+        ["Vega", "Sensitivity of the option price to volatility"]
+      ]
+    },
+    {
+      "group": "Credit and structured",
+      "items": [
+        ["CDS", "Protection against default; buyer pays a spread, seller pays the loss"],
+        ["Credit event", "Bankruptcy, failure to pay or restructuring that triggers a CDS"],
+        ["TRS", "Total return of an asset against a floating rate"],
+        ["Autocall", "Structured note that redeems early if the underlying is above a level"],
+        ["Fixing", "The official rate or price of a day, used to calculate cash flows"]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Confusing trade date and value date when explaining a settlement problem.",
+    "Saying a swap exchanges its notional: only a cross-currency swap does.",
+    "Forgetting that spot FX settles two business days later, with both currencies' calendars.",
+    "Calling a forward rate a forecast: it comes from the two interest rates.",
+    "Mixing up the clean and dirty price of a bond.",
+    "Still talking about LIBOR as the main floating index: it ended in 2023 for the US dollar.",
+    "Answering product questions with jargon instead of the cash flows and what can go wrong."
+  ],
+  "exercises": [
+    {
+      "q": "Sort these products by type.",
+      "type": "groups",
+      "groups": [
+        { "name": "Money market", "items": ["Treasury bill", "Repo", "Commercial paper"] },
+        { "name": "OTC derivatives", "items": ["Interest rate swap", "FX forward", "Credit default swap"] },
+        { "name": "Listed derivatives", "items": ["Euro-Bund future", "Euro Stoxx 50 future", "Listed equity option"] }
+      ],
+      "answer": "Money market products are short-term borrowing and lending. OTC derivatives are agreed bilaterally, usually under ISDA, even when they are then cleared. Listed derivatives are standard contracts traded on an exchange and always cleared by a central counterparty."
+    },
+    {
+      "q": "Match each department with what it does with a trade.",
+      "type": "match",
+      "pairs": [
+        ["Front office", "Prices, executes and books the trade"],
+        ["Middle office", "Checks the trade and computes P&L and risk"],
+        ["Back office", "Confirms with the counterparty and settles"],
+        ["Application support", "Fixes the systems when the trade does not flow or a calculation is wrong"]
+      ],
+      "answer": "Front to back is the journey of a trade. Support works with all three: it must know which team owns which step to route an incident."
+    },
+    {
+      "q": "A trader books a EUR/USD spot trade on Wednesday 10 June. Both currencies are open every weekday that week and the next. What is the value date?",
+      "type": "choice",
+      "options": ["Wednesday 10 June", "Thursday 11 June", "Friday 12 June", "Monday 15 June"],
+      "correct": 2,
+      "answer": "Spot EUR/USD settles T+2 business days: Thursday is T+1, Friday 12 June is T+2. If Thursday were a holiday in either currency, the value date would move to the next business day open in both calendars."
+    },
+    {
+      "q": "In B5, compute the interest of a deposit with the ACT/360 day count.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "Value"], ["Principal (EUR)", 50000000], ["Rate", 0.032], ["Days", 91], ["Interest (EUR)", ""]],
+      "cell": "B5",
+      "answer": "=B2*B3*B4/360",
+      "explain": "50,000,000 × 3.2% × 91 / 360 = 404,444.44 EUR. With ACT/365 the interest would be lower (398,904.11 EUR): a wrong day count is a classic cause of small settlement differences."
+    },
+    {
+      "q": "In B6, compute the EUR/USD forward rate from the spot and the two interest rates (ACT/360).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "Value"], ["Spot EUR/USD", 1.08], ["EUR rate (base)", 0.02], ["USD rate (quote)", 0.04], ["Days", 90], ["Forward rate", ""]],
+      "cell": "B6",
+      "answer": "=B2*(1+B4*B5/360)/(1+B3*B5/360)",
+      "explain": "1.08 × (1 + 4% × 90/360) / (1 + 2% × 90/360) = 1.08 × 1.01 / 1.005 ≈ 1.0854. The forward is above the spot because the quote currency (USD) has the higher interest rate: +54 forward points."
+    },
+    {
+      "q": "In B5, compute the accrued interest the buyer of this bond pays the seller.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "Value"], ["Nominal (EUR)", 1000000], ["Annual coupon", 0.04], ["Days since last coupon", 73], ["Accrued interest (EUR)", ""]],
+      "cell": "B5",
+      "answer": "=B2*B3*B4/365",
+      "explain": "1,000,000 × 4% × 73 / 365 = 8,000 EUR, using ACT/365 here. The buyer pays the clean price plus this amount (the dirty price) and receives the full coupon on the next coupon date."
+    },
+    {
+      "q": "In B6, compute the net amount the bank receives on this swap period (positive = received). The bank pays the fixed rate and receives the floating rate, both ACT/360.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "Value"], ["Notional (EUR)", 10000000], ["Fixed rate (paid)", 0.03], ["Floating fixing (received)", 0.034], ["Days", 180], ["Net received (EUR)", ""]],
+      "cell": "B6",
+      "answer": "=B2*(B4-B3)*B5/360",
+      "explain": "10,000,000 × (3.4% − 3.0%) × 180 / 360 = 20,000 EUR. Only the net amount is paid. If the fixing were missing in the system, the floating leg could not be computed: a classic support incident on the fixing date."
+    },
+    {
+      "q": "In B4, compute the intrinsic value of a call at expiry, per unit (0 if it is out of the money).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Item", "Value"], ["Underlying price at expiry", 1.125], ["Strike", 1.1], ["Intrinsic value per unit", ""]],
+      "cell": "B4",
+      "answer": "=MAX(B2-B3,0)",
+      "explain": "max(1.125 − 1.100, 0) = 0.025 per euro of notional, so 125,000 USD on 5,000,000 EUR. If the underlying had ended below the strike, the call would expire worthless and the buyer would only lose the premium."
+    },
+    {
+      "q": "Match each Greek with what it measures.",
+      "type": "match",
+      "pairs": [
+        ["Delta", "Sensitivity to the underlying price"],
+        ["Gamma", "How fast delta changes"],
+        ["Vega", "Sensitivity to volatility"],
+        ["Theta", "Loss of value as time passes"],
+        ["Rho", "Sensitivity to interest rates"]
+      ],
+      "answer": "Traders hedge delta with the underlying, and the other Greeks are followed as risk limits. For support, wrong Greeks often come from missing market data, such as a volatility surface that was not loaded."
+    },
+    {
+      "q": "Fill in the blank: the overnight risk-free rate for the euro, published by the ECB since 2019, is the ___.",
+      "type": "fill",
+      "blanks": [["€STR", "ESTR", "€str", "estr", "euro short-term rate", "euro short term rate", "/^€?\\s*str$/i"]],
+      "answer": "€STR (euro short-term rate) replaced EONIA, which ended in January 2022. SOFR is the US dollar equivalent and SONIA the sterling one; EURIBOR still exists for euro term rates."
+    },
+    {
+      "q": "At 18:30 the middle office says the P&L of the rates desk jumped by 4 million euros on a quiet day. Walk through your first steps.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "What do you check first?",
+          "choices": [
+            { "label": "Whether today’s market data loaded correctly: curves, fixings and closing prices used by the P&L", "best": true, "feedback": "Right: on a quiet day, a big P&L jump usually comes from wrong or missing market data, not from real trading." },
+            { "label": "Restart the P&L server", "feedback": "Restarting without understanding risks hiding the cause, or running the batch again on the same wrong data." },
+            { "label": "Ask the traders what they did today", "feedback": "Useful later, but you can check the data yourself first and come with facts." }
+          ]
+        },
+        {
+          "text": "The EURIBOR 6M fixing of today is missing, so the system used zero. What next?",
+          "choices": [
+            { "label": "Tell the middle office and the market data team, have the fixing loaded from the official source, then rerun the P&L for the rates books", "best": true, "feedback": "Yes: the owner of market data loads the official value, and the P&L is recomputed for the affected books only." },
+            { "label": "Type the fixing yourself from a website", "feedback": "Support should not create market data by hand from an unofficial source: it must come from the agreed provider, with a trace." },
+            { "label": "Leave it, it will be fine tomorrow", "feedback": "Today’s P&L and risk reports go to management and regulators: they must be corrected today." }
+          ]
+        },
+        {
+          "text": "How do you close the incident?",
+          "choices": [
+            { "label": "Confirm the P&L is back to normal with the middle office, and propose an alert when a fixing is missing before the P&L batch runs", "best": true, "feedback": "Right: a check before the batch turns this incident into a warning next time." },
+            { "label": "Close it as soon as the fixing is loaded", "feedback": "The business must confirm the result, and the cause should get a preventive action." },
+            { "label": "Blame the data provider in the ticket", "feedback": "State the facts and the fix; blaming helps nobody." }
+          ]
+        }
+      ],
+      "answer": "On a quiet day, a big P&L move points to market data. Find the missing or wrong input, have its owner load the official value, rerun only what is affected, confirm with the business and add a check before the batch."
+    },
+    {
+      "q": "Explain to an interviewer, in a few sentences, what an FX swap is and why it creates two settlements.",
+      "answer": "An FX swap is two currency exchanges in opposite directions on two dates: for example the bank sells euros against dollars at the spot rate today, and buys the same euros back in three months at the forward rate agreed today. It works like borrowing dollars against euros for three months, the difference between the two rates reflecting the interest rate difference. Each exchange is a separate settlement, the near leg at spot and the far leg at maturity, so the back office has two pairs of payments to settle and confirm, and support must check both legs when a trade is incomplete in a downstream system."
+    }
+  ],
+  "interview": [
+    {
+      "q": "What is the difference between the front, middle and back office?",
+      "a": "The front office executes trades with clients and books them: sales, traders, structurers. The middle office checks that trades are correctly captured, computes P&L and risk and controls limits. The back office confirms trades with counterparties, settles cash and securities and handles accounting. As application support I work across all three, because an incident often appears in one place but comes from another, for example a booking error that only shows up as a settlement fail."
+    },
+    {
+      "q": "What is an interest rate swap?",
+      "a": "An agreement to exchange interest payments on a notional for a period: one leg pays a fixed rate, the other a floating rate such as EURIBOR or a compounded overnight rate like €STR or SOFR. The notional is not exchanged, and on each payment date only the net amount is paid. Companies use it to fix the cost of a floating loan, banks to manage interest rate risk. In the systems, each floating period needs a fixing, so a missing fixing is a typical incident."
+    },
+    {
+      "q": "Why does an FX spot trade settle two days later?",
+      "a": "By market convention most spot trades settle T+2 business days, which historically gave time to confirm and arrange the payments in two countries; USD/CAD settles T+1. The value date must be a business day in both currencies’ calendars, so a holiday in either country moves it. A wrong calendar in the system gives a wrong value date and can cause a settlement problem."
+    },
+    {
+      "q": "What happened to LIBOR, and why does it matter for IT?",
+      "a": "LIBOR was replaced by risk-free overnight rates after manipulation scandals: euro and most other LIBOR settings ended at the end of 2021, the main US dollar settings in June 2023, and EONIA in January 2022. The replacements are €STR, SOFR and SONIA, compounded over each period, while EURIBOR still exists. For IT it meant new indexes, new fixings, new compounding rules and the migration of existing trades, which created many changes and incidents in trading and risk systems."
+    },
+    {
+      "q": "What is the difference between a future and a forward?",
+      "a": "Both fix today a price for a future transaction. A forward is an OTC contract, tailor-made between two parties and settled at maturity. A future is a standard contract traded on an exchange, cleared by a central counterparty and settled every day through variation margin, which removes most counterparty risk and lets traders close positions easily."
+    },
+    {
+      "q": "Explain a call option and its delta to a non-specialist.",
+      "a": "A call is the right, not the obligation, to buy something at a fixed price until a date, in exchange for a premium paid upfront. If the market price ends above that fixed price, the buyer gains the difference; if not, they only lose the premium. Delta says how much the option’s price moves when the underlying moves: a delta of 0.5 means the option gains about 50 cents when the underlying gains one euro. Traders use delta to know how much of the underlying to hold to stay hedged."
+    },
+    {
+      "q": "What is a CDS?",
+      "a": "A credit default swap is protection against the default of a company or a country. The buyer pays a regular premium, the spread in basis points; if a credit event such as bankruptcy or a failure to pay happens, the seller pays the buyer the loss, usually fixed by an auction of the defaulted bonds. Banks use CDS to hedge credit exposure or to take a view on a credit."
+    }
+  ]
+}

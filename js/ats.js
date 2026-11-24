@@ -76,6 +76,25 @@ export const SKILLS = [
   ["MongoDB", "Databases", ["mongodb", "mongo"]],
   ["NoSQL", "Databases", ["nosql"]],
   ["Elasticsearch", "Databases", ["elasticsearch", "elastic search", "elk"]],
+  // Capital markets / CIB (2026-11-24, owner preparing application support interviews in investment banks; courses
+  // cib-products and cib-trade-lifecycle). No bare "var" (code), "taux" (any rate), "options" or "summit" (common words).
+  ["Capital markets", "Capital markets", ["capital markets", "marches de capitaux", "finance de marche", "marches financiers", "cib",
+    "corporate and investment banking", "investment banking", "banque de financement et d'investissement", "bfi", "salle de marche", "salles de marche"]],
+  ["Derivatives", "Capital markets", ["derivatives", "derivative", "produits derives", "otc derivatives", "derives otc", "interest rate swap", "interest rate swaps",
+    "irs", "credit default swap", "credit default swaps", "cds", "futures"]],
+  ["Fixed income", "Capital markets", ["fixed income", "bonds", "obligations", "obligataire", "produits de taux", "money market", "marche monetaire", "repo"]],
+  ["FX", "Capital markets", ["fx", "forex", "foreign exchange", "marche des changes", "fx swap", "fx swaps", "ndf"]],
+  ["Trade lifecycle", "Capital markets", ["trade lifecycle", "trade life cycle", "cycle de vie des operations", "cycle de vie des trades", "front office",
+    "middle office", "back office", "front-to-back", "front to back", "trade booking"]],
+  ["Murex", "Capital markets", ["murex", "mx.3", "mx3"]],
+  ["Calypso", "Capital markets", ["calypso"]],
+  ["Trading systems", "Capital markets", ["sophis", "fusion invest", "orchestrade", "kondor", "opics", "summit ft", "finastra summit", "front arena"]],
+  ["SWIFT", "Capital markets", ["swift", "mt103", "mt202", "mt300", "mt320", "mt540", "mt541", "mt542", "mt543", "iso 20022"]],
+  ["Settlement", "Capital markets", ["settlement", "settlements", "reglement-livraison", "reglement livraison", "dvp", "nostro", "reconciliation", "rapprochement"]],
+  ["Market risk", "Capital markets", ["market risk", "risque de marche", "value at risk", "sensitivities", "greeks", "pnl", "p&l explain", "pnl explain"]],
+  ["Collateral management", "Capital markets", ["collateral", "collateral management", "margin call", "margin calls", "appel de marge", "appels de marge", "isda", "csa"]],
+  ["Regulatory reporting", "Capital markets", ["regulatory reporting", "reporting reglementaire", "emir", "mifid", "mifid ii", "mifir", "sftr", "dodd-frank"]],
+  ["Market data", "Capital markets", ["market data", "donnees de marche", "bloomberg", "reuters", "refinitiv", "eikon"]],
   // Software development (audit 2026-11-23: a "Java Fullstack, strong backend" offer only showed Java and Oracle, so a
   // support CV with those two "covered" it 100%). No bare "react" (a common verb) or "spring" (the season).
   ["Backend development", "Software development", ["backend", "back-end", "back end"]],

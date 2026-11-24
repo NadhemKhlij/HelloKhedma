@@ -50,6 +50,7 @@ export default {
   "Databases": "Bases de données",
   "Cloud & DevOps": "Cloud et DevOps",
   "Software development": "Développement logiciel",
+  "Capital markets": "Marchés de capitaux",
   "Methods": "Méthodes",
   "Support & IT": "Support et IT",
   "Marketing": "Marketing",

@@ -1371,7 +1371,7 @@ test("fit score: minimum of skills, job-title skills weigh more, unscored offers
     const { extractSkills } = await import("/js/ats.js");
     const names = (txt) => new Set(extractSkills(txt).map((s) => s.name));
     const support = names("Application support analyst. SQL, Linux, Java, Oracle, Git, Python, ITIL, ServiceNow, Bash, incident management");
-    const dev = names("Java developer: Spring Boot, Angular, fullstack and backend development, Oracle, Git");
+    const dev = names("Java developer in capital markets: Spring Boot, Angular, fullstack and backend development, Oracle, Git");
     const title = "Développeur Java Fullstack Senior / Oracle – Finance de Marché (H/F) (IT)";
     const text = "Contexte de la mission Dans le cadre de la maintenance évolutive et de l'amélioration d'une application stratégique de refinancement des filiales d'un grand groupe bancaire, nous recherchons un Développeur Java Fullstack confirmé / senior, à forte dominante Backend.";
     const two = offerFit({ title: "Analyste support applicatif", text: "SQL et Linux.", cvNames: support });

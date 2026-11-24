@@ -1171,6 +1171,14 @@ select pg_temp.track('as','as-advanced','Reliability and certification','advance
  ["SRE book: postmortem culture","How to write blameless post-mortems that lead to change.","learn","Google SRE","https://sre.google/sre-book/postmortem-culture/",1],
  ["Project: runbook and post-mortem","Break a small Dockerised app on purpose, monitor it with Grafana, then write the runbook and a post-mortem.","project","Your repo","",10],
  ["ITIL 4 Foundation","Check current exam details with the certification body.","certification","PeopleCert","https://www.peoplecert.org",20,false]]'::jsonb);
+select pg_temp.track('as','as-cib','Application support in investment banks (CIB)','intermediate',
+ 'What CIB application support interviews check: the financial products, the life of a trade across the systems, and how to handle incidents when traders are waiting.',
+ 'Explain the main capital markets products and their cash flows, follow a trade from booking to settlement, and tell three CIB incident stories.',4,'[
+ ["Financial products for CIB support","HelloKhedma course: money market and repo, bonds, FX, swaps, futures, options, CDS and structured products, for support interviews.","learn","HelloKhedma","",4],
+ ["Trade lifecycle, systems and risk in CIB","HelloKhedma course: static and market data, Murex and Calypso interfaces, SWIFT, settlement, margin, the end-of-day batch, EMIR and incident handling.","learn","HelloKhedma","",4],
+ ["Interest rate swaps explained","A plain-language explanation of swaps, their legs and their uses.","learn","Investopedia","https://www.investopedia.com/terms/i/interestrateswap.asp",0.5],
+ ["Practice: tell the journey of one trade","Pick an FX swap or an interest rate swap and write, in one page, its journey front to back: systems, messages, dates, amounts and what could go wrong at each step.","practice","Your notes","",2],
+ ["Practice: three CIB incident stories","Prepare three STAR stories (situation, task, action, result) with times and amounts: a trade missing downstream, a P&L jump from market data, a late end-of-day batch.","practice","Your notes","",2]]'::jsonb);
 
 -- Data Analyst --------------------------------------------------------------------------------
 select pg_temp.track('da','da-foundations','SQL, statistics and clean data','beginner',
@@ -1484,6 +1492,8 @@ update public.training_steps s set course_id = v.c from (values
   ('grc-foundations','Incident management & ITIL','itil-incidents'), ('grc-foundations','Excel for analysis','excel'),
   ('grc-standards','BPMN & process mapping','bpmn'), ('grc-standards','SQL for data jobs','sql'),
   ('grc-audit','Cloud fundamentals with AWS','cloud-aws'), ('grc-audit','Power BI & DAX','power-bi'),
+  ('as-cib','Financial products for CIB support','cib-products'), ('as-cib','Interest rate swaps explained','cib-products'),
+  ('as-cib','Trade lifecycle, systems and risk in CIB','cib-trade-lifecycle'),
   ('sales-foundations','Digital marketing foundations','marketing-foundations'),
   ('sales-foundations','E-mail marketing, CRM and automation','email-crm'), ('sales-pipeline','Excel for analysis','excel'),
   ('sales-foundations','HubSpot Academy sales courses','sales-prospecting'),
@@ -1671,6 +1681,14 @@ select pg_temp.track_fr('as-advanced','Fiabilité et certification',
  ["SRE book: postmortem culture","Livre SRE : la culture du post-mortem","Rédiger des post-mortems sans reproche qui mènent à des changements."],
  ["Project: runbook and post-mortem","Projet : runbook et post-mortem","Cassez volontairement une petite application Docker, supervisez-la avec Grafana, puis rédigez le runbook et un post-mortem."],
  ["ITIL 4 Foundation","ITIL 4 Foundation","Vérifiez les détails actuels de l’examen auprès de l’organisme de certification."]]'::jsonb);
+select pg_temp.track_fr('as-cib','Support applicatif en banque d’investissement (BFI)',
+ 'Ce que vérifient les entretiens de support applicatif en BFI : les produits financiers, le parcours d’une opération dans les systèmes, et la gestion des incidents quand les traders attendent.',
+ 'Expliquer les principaux produits de marché et leurs flux, suivre une opération de la saisie au règlement, et raconter trois incidents en BFI.','[
+ ["Financial products for CIB support","Les produits financiers pour le support en BFI","Cours HelloKhedma : marché monétaire et pensions, obligations, change, swaps, futures, options, CDS et produits structurés, pour les entretiens de support."],
+ ["Trade lifecycle, systems and risk in CIB","Cycle de vie des opérations, systèmes et risques en BFI","Cours HelloKhedma : données statiques et de marché, interfaces Murex et Calypso, SWIFT, règlement, marges, batch de fin de journée, EMIR et gestion des incidents."],
+ ["Interest rate swaps explained","Les swaps de taux expliqués","Une explication simple des swaps, de leurs jambes et de leurs usages (en anglais)."],
+ ["Practice: tell the journey of one trade","Pratique : raconter le parcours d’une opération","Choisissez un swap de change ou un swap de taux et écrivez, en une page, son parcours du front au back : systèmes, messages, dates, montants et ce qui peut mal tourner à chaque étape."],
+ ["Practice: three CIB incident stories","Pratique : trois histoires d’incidents en BFI","Préparez trois histoires STAR (situation, tâche, action, résultat) avec heures et montants : une opération absente en aval, un saut de P&L dû aux données de marché, un batch de fin de journée en retard."]]'::jsonb);
 
 -- Learning tracks: Data Analyst ------------------------------------------------------
 select pg_temp.track_fr('da-foundations','SQL, statistiques et données propres',

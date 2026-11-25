@@ -48,9 +48,19 @@ Constats :
 - « Technicien Support Applicatif… – Lisbonne, Portugal » est affichée « Paris, FR ».
 
 À faire :
-- [ ] Vérifier source par source (Adzuna, JSearch, Jooble…) quel champ est utilisé pour le lieu. Le lieu affiché doit être celui renvoyé par la source pour l'offre, jamais le lieu de la recherche.
-- [ ] Si la source ne renvoie pas de lieu fiable, afficher « Lieu non précisé » plutôt que le lieu recherché.
-- [ ] Optionnel : signaler les offres dont l'intitulé ou la description mentionne une autre ville ou un autre pays que celui affiché.
+- [x] Vérifier source par source (Adzuna, JSearch, Jooble…) quel champ est utilisé pour le lieu. Le lieu affiché doit être celui renvoyé par la source pour l'offre, jamais le lieu de la recherche.
+- [x] Si la source ne renvoie pas de lieu fiable, afficher « Lieu non précisé » plutôt que le lieu recherché.
+- [x] Optionnel : signaler les offres dont l'intitulé ou la description mentionne une autre ville ou un autre pays que celui affiché.
+
+> **Fait le 25/11/2026 (Claude).** Vérifié : l'app n'affichait jamais le lieu de la recherche, mais celui que la source
+> renvoie pour l'offre (Adzuna `location.display_name`, JSearch `job_city / job_state / job_country`, etc.) ; ce sont les
+> sources qui se trompaient (Adzuna : NEXTON « à Lille » classée « Paris, Ile-de-France » ; JSearch : « … – Lisbonne,
+> Portugal » classée « Paris, FR »). Correction (`js/offerplace.js`) : le lieu écrit dans l'offre (ville ou pays de
+> l'intitulé, sinon une seule ville introduite par « à », « sur », « basé à », « Lieu : »…, en ignorant les
+> déplacements, sièges et agences) l'emporte quand la source indique une autre ville ou un autre pays, avec la note
+> « 📍 Lieu tiré du texte de l'offre ; la source indique … » ; « Lieu non précisé » sans lieu ; badge « Hors du pays
+> recherché ». Le Suivi reçoit le lieu corrigé. Sur les 65 offres de la recherche de l'audit en cache : seule NEXTON est
+> signalée (Lille), aucune fausse alerte (« Déplacements à Nantes » est ignoré). Test « offer place » sur les offres réelles.
 
 ## P1 — Textes de confidentialité contradictoires (page `#/privacy`, page CV)
 

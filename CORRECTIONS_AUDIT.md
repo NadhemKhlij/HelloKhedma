@@ -48,9 +48,19 @@ Constats :
 - « Technicien Support Applicatif… – Lisbonne, Portugal » est affichée « Paris, FR ».
 
 À faire :
-- [ ] Vérifier source par source (Adzuna, JSearch, Jooble…) quel champ est utilisé pour le lieu. Le lieu affiché doit être celui renvoyé par la source pour l'offre, jamais le lieu de la recherche.
-- [ ] Si la source ne renvoie pas de lieu fiable, afficher « Lieu non précisé » plutôt que le lieu recherché.
-- [ ] Optionnel : signaler les offres dont l'intitulé ou la description mentionne une autre ville ou un autre pays que celui affiché.
+- [x] Vérifier source par source (Adzuna, JSearch, Jooble…) quel champ est utilisé pour le lieu. Le lieu affiché doit être celui renvoyé par la source pour l'offre, jamais le lieu de la recherche.
+- [x] Si la source ne renvoie pas de lieu fiable, afficher « Lieu non précisé » plutôt que le lieu recherché.
+- [x] Optionnel : signaler les offres dont l'intitulé ou la description mentionne une autre ville ou un autre pays que celui affiché.
+
+> **Fait le 25/11/2026 (Claude).** Vérifié : l'app n'affichait jamais le lieu de la recherche, mais celui que la source
+> renvoie pour l'offre (Adzuna `location.display_name`, JSearch `job_city / job_state / job_country`, etc.) ; ce sont les
+> sources qui se trompaient (Adzuna : NEXTON « à Lille » classée « Paris, Ile-de-France » ; JSearch : « … – Lisbonne,
+> Portugal » classée « Paris, FR »). Correction (`js/offerplace.js`) : le lieu écrit dans l'offre (ville ou pays de
+> l'intitulé, sinon une seule ville introduite par « à », « sur », « basé à », « Lieu : »…, en ignorant les
+> déplacements, sièges et agences) l'emporte quand la source indique une autre ville ou un autre pays, avec la note
+> « 📍 Lieu tiré du texte de l'offre ; la source indique … » ; « Lieu non précisé » sans lieu ; badge « Hors du pays
+> recherché ». Le Suivi reçoit le lieu corrigé. Sur les 65 offres de la recherche de l'audit en cache : seule NEXTON est
+> signalée (Lille), aucune fausse alerte (« Déplacements à Nantes » est ignoré). Test « offer place » sur les offres réelles.
 
 ## P1 — Textes de confidentialité contradictoires (page `#/privacy`, page CV)
 
@@ -70,12 +80,24 @@ Constats :
 - Après la déconnexion, les CV (avec téléphone et e-mail) restent dans le stockage local.
 
 À faire :
-- [ ] **[À VÉRIFIER]** Vérifier la configuration du client Supabase : `persistSession` et `autoRefreshToken` sont-ils actifs, et le refresh token est-il bien conservé ? Reproduire en laissant un onglet ouvert plus d'une heure. Si la session expire sans action, corriger.
-- [ ] Si la session expire, afficher un message clair (« Vous avez été déconnecté, reconnectez-vous pour retrouver vos candidatures ») au lieu de basculer silencieusement en invité.
-- [ ] Suivi en invité : si un compte a déjà été utilisé sur cet appareil, afficher « Vos candidatures sont dans votre compte » avec un bouton « Se connecter ».
-- [ ] Lors d'une déconnexion volontaire, proposer d'effacer les CV et les données locales de cet appareil (case à cocher dans la confirmation), pour les ordinateurs partagés.
+- [x] **[À VÉRIFIER]** Vérifier la configuration du client Supabase : `persistSession` et `autoRefreshToken` sont-ils actifs, et le refresh token est-il bien conservé ? Reproduire en laissant un onglet ouvert plus d'une heure. Si la session expire sans action, corriger.
+- [x] Si la session expire, afficher un message clair (« Vous avez été déconnecté, reconnectez-vous pour retrouver vos candidatures ») au lieu de basculer silencieusement en invité.
+- [x] Suivi en invité : si un compte a déjà été utilisé sur cet appareil, afficher « Vos candidatures sont dans votre compte » avec un bouton « Se connecter ».
+- [x] Lors d'une déconnexion volontaire, proposer d'effacer les CV et les données locales de cet appareil (case à cocher dans la confirmation), pour les ordinateurs partagés.
 
 ---
+
+> **Fait le 26/11/2026 (Claude).** Vérifié : le client Supabase garde les réglages par défaut (`persistSession` et
+> `autoRefreshToken` actifs, session dans le stockage local), et le projet n'a ni durée maximale de session ni délai
+> d'inactivité (`sessions_timebox = 0`, `sessions_inactivity_timeout = 0`, jetons d'une heure renouvelés avec rotation et
+> 10 s de tolérance). La session du 23/11 n'existe plus côté serveur : elle a été fermée (déconnexion, données du
+> navigateur effacées ou renouvellement refusé, par exemple onglet en veille hors ligne), pas expirée par un réglage.
+> Non reproduit faute de compte de test : la correction rend toute déconnexion visible. `js/auth.js` : une déconnexion
+> non demandée ouvre la fenêtre de connexion avec « Vous avez été déconnecté. Reconnectez-vous pour retrouver vos
+> candidatures et votre progression. » ; « Se déconnecter » demande confirmation, avec « Effacer aussi mes CV et les
+> données de l'application sur cet appareil » (tout sauf langue et thème, puis rechargement). Suivi en invité : « Vos
+> candidatures sont dans votre compte » + « Se connecter » quand un compte a déjà servi sur l'appareil
+> (`hk.accountUsed`, local). Test « session » ajouté (invité ; la partie connectée reste à vérifier à la main).
 
 ## P2 — Bugs
 

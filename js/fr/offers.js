@@ -363,4 +363,8 @@ export default {
   "Not enough information": "Pas assez d’informations",
   "The offer names fewer than {n} skills: too little to score it.": "L’offre cite moins de {n} compétences : trop peu pour la noter.",
   "Core skills of the job title missing from your CV: {skills}": "Compétences clés de l’intitulé absentes de votre CV : {skills}",
+  // Offer place (offerplace.js, audit 2026-11-23 section 2)
+  "Location not stated": "Lieu non précisé",
+  "📍 Place from the offer’s text; the source says {source}": "📍 Lieu tiré du texte de l’offre ; la source indique {source}",
+  "Outside the country searched": "Hors du pays recherché",
 };

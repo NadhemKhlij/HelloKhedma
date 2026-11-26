@@ -151,4 +151,6 @@ export default {
   "💼 Negotiate": "💼 Négocier",
   "Compare the salary with the market and prepare the negotiation": "Comparer le salaire au marché et préparer la négociation",
   "Negotiate →": "Négocier →",
+  // Guest on a device where an account was used (applications.js, audit 2026-11-23 section 4)
+  "You are not signed in: your applications are in your account. Sign in to see them on this device.": "Vous n’êtes pas connecté : vos candidatures sont dans votre compte. Connectez-vous pour les voir sur cet appareil.",
 };

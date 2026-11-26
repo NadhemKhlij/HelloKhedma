@@ -8,6 +8,8 @@
 // Every offer gets its skills, contract / remote tags (from the text), a fit score against the active CV (fit.js: no
 // percentage below 4 skills found, "Not enough information" sorted last; skills named in the job title weigh more) and its salary
 // (salary.js: provider field or description; the "≥ N k€" filter and the salary sort use the yearly amount, euros only).
+// offerplace.js checks where it really is: the place written in the offer when the source names another city or country
+// ("📍 Place from the offer’s text"), "Location not stated" without any, "Outside the country searched" for another country.
 // offercheck.js adds its age ("Posted 3 days ago", date filter, "Most recent" sort), its level (Junior…Lead, level
 // filter) and the "⚠ Check this offer" warnings (scam signals, stale offer, no company; filter to hide them).
 // Contract, remote and "posted" are also sent to the sources with the search (jobs.js): changing one searches again.
@@ -35,6 +37,7 @@ import { searchJobs, boardLinks } from "./jobs.js";
 import { placeOptions, rememberPlace } from "./places.js";
 import { extractSkills, norm } from "./ats.js";
 import { offerFit, fitRank, MIN_SKILLS_FOR_FIT } from "./fit.js";
+import { offerPlace } from "./offerplace.js";
 import { offerSalary, formatSalary } from "./salary.js";
 import { searchRemote } from "./remote.js";
 import {
@@ -167,7 +170,7 @@ function markSeen(key) {
 
 async function track(job, btn) {
   try {
-    await state.store.add({ path_id: state.pathId, title: job.title, company: job.company, location: job.location,
+    await state.store.add({ path_id: state.pathId, title: job.title, company: job.company, location: job.placeInfo?.place || job.location,
       url: job.url, source: job.source, external_id: job.id, stage: "saved", cv_version: cvUsed(),
       salary: job.salaryInfo ? formatSalary(job.salaryInfo) : undefined }); // shown on the tracker card
     rememberTracked(job); // its text, for "Choose an offer" on the CV page (this browser only)
@@ -190,7 +193,7 @@ function trustPanel(flags) {
       : t("Look the company up and check the offer is still open on its website before applying.")));
 }
 
-function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
+function renderJob({ j, skills, fit, tags, key, salary, days, level, flags, where }) {
   const url = safeUrl(j.url);
   const tracked = state.cards.some((c) => c.external_id === j.id && c.source === j.source);
   const hidden = state.hidden.has(key), seen = state.seen.has(key);
@@ -213,7 +216,12 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags }) {
     h("div", { class: "flex items-start gap-2" },
       h("div", { class: "min-w-0" },
         h("b", { class: "block" }, j.title),
-        h("span", { class: "mute text-sm block" }, [j.company, j.location].filter(Boolean).join(" · "))),
+        h("span", { class: "mute text-sm block", "data-place": where.conflict ? "conflict" : where.place ? "ok" : "none" },
+          [j.company, where.place || t("Location not stated")].filter(Boolean).join(" · ")),
+        where.conflict && where.source ? h("span", { class: "text-xs block", style: "color:var(--warn)" },
+          t("📍 Place from the offer’s text; the source says {source}", { source: where.source })) : null,
+        where.abroad ? h("span", { class: "chip !py-0 text-xs mt-1", style: "border-color:var(--warn);color:var(--warn)", "data-abroad": "" },
+          t("Outside the country searched")) : null),
       badge),
     salary || tags.contract || tags.remote || seen || hidden || j.isNew || days != null || level || /\bvisa sponsorship\b/i.test(j.text || "") ? h("div", { class: "flex flex-wrap gap-1.5 mt-2" },
       days != null ? h("span", { class: "chip !py-0 text-xs", style: days > STALE_DAYS ? "border-color:var(--warn);color:var(--warn)" : "",
@@ -258,7 +266,11 @@ export function renderOffers() {
     const salary = offerSalary(j);
     j.salaryInfo = salary; // kept for Track, which copies it into the application
     const days = offerAge(j);
-    return { j, skills, fit, tags: offerTags(j), key: offerKey(j), salary, days, level: seniority(j), flags: trustFlags(j, days) };
+    // Where the offer really is: the place written in the offer when the source contradicts it (offerplace.js).
+    const where = offerPlace({ title: j.title, text: j.text || j.snippet || "", location: j.location,
+      searchCountry: state.offerMode === "search" ? $("#country").value : "" });
+    j.placeInfo = where; // kept for Track, which copies the place into the application
+    return { j, skills, fit, tags: offerTags(j), key: offerKey(j), salary, days, level: seniority(j), flags: trustFlags(j, days), where };
   });
   recordOffers(list); // market pulse on Home (pulse.js): every result counts, hidden ones too
   rememberOffers(state.pathId, list.filter((x) => !state.hidden.has(x.key))); // "Choose an offer" on the CV page

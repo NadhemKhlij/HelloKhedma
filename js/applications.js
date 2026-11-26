@@ -1,6 +1,8 @@
 // Applications page (#/applications): connects the tracker UI (tracker.js) to the store (state.store, store.js).
 // refreshTracker() reloads the cards and redraws everything that shows them: board, stats, Home, the "Tracked"
 // markers on Offers, the upcoming interviews and "Choose an offer" on the CV page. Also the "Add application" form and CSV export / import.
+// A guest on a device where an account was used sees "your applications are in your account" with a Sign in button
+// (#accountHint, audit 2026-11-23 section 4).
 // New applications record the active CV version as "CV sent" (cvUsed, cvpage.js).
 import { $, safeUrl, ls, toast, download } from "./lib.js";
 import { t, tn } from "./i18n.js";
@@ -12,6 +14,7 @@ import { renderHome } from "./home.js";
 import { renderOffers } from "./offers.js";
 import { cvUsed, renderOfferPick } from "./cvpage.js";
 import { refreshInterview } from "./router.js";
+import { ACCOUNT_USED } from "./auth.js";
 
 const GOAL_KEY = "hk.weeklyGoal";
 const weeklyGoal = () => Number(ls.get(GOAL_KEY)) || 5;
@@ -20,6 +23,8 @@ export async function refreshTracker() {
   try { state.cards = await state.store.list(); } catch (e) { fail(e); state.cards = []; }
   const [detailsOk, cvOk] = await Promise.all([state.store.detailsSupported(), state.store.cvSupported()]);
   $("#detailsNotice").hidden = detailsOk;
+  // A guest on a device where an account was used: the applications are in that account (auth.js ACCOUNT_USED).
+  $("#accountHint").hidden = Boolean(state.user) || !ls.get(ACCOUNT_USED);
   // Run a store action, then redraw everything that depends on the cards.
   const act = (fn) => async (...args) => { try { await fn(...args); await refreshTracker(); } catch (e) { fail(e); } };
   renderBoard($("#board"), state.cards, {
@@ -80,6 +85,7 @@ async function onAdd(e) {
 
 export function initApplications() {
   $("#csvExport").addEventListener("click", onCsvExport);
+  $("#accountHintSignIn").addEventListener("click", () => $("#authOpen").click());
   $("#csvImport").addEventListener("change", onCsvImport);
   $("#addForm").addEventListener("submit", onAdd);
 }

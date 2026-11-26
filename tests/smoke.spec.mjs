@@ -1407,3 +1407,71 @@ test("fit score: minimum of skills, job-title skills weigh more, unscored offers
   await expect(cards.nth(0).locator('[data-fit="scored"]')).toContainText("100% fit");
   await expect(cards.nth(1).locator('[data-fit="few"]')).toHaveText("Not enough information");
 });
+
+// Where an offer really is (js/offerplace.js, audit 2026-11-23 section 2): the two offers of the audit, a business trip
+// that is not the workplace, and the card that shows the offer's place with the source's in a note.
+test("offer place: the place written in the offer wins over a wrong source, trips are ignored", async ({ page }) => {
+  await open(page, "#/offers");
+  const r = await page.evaluate(async () => {
+    const { offerPlace } = await import("/js/offerplace.js");
+    return {
+      nexton: offerPlace({ title: "Support applicatif N1/N2 F/H", location: "Paris, Ile-de-France", searchCountry: "fr",
+        text: "NEXTON recrute un Support applicatif N1/N2 H/F , en CDI , à Lille ! Ton futur environnement de travail : Tu rejoins l'équipe support." }),
+      lisbon: offerPlace({ title: "Technicien Support Applicatif SQL Francophone (H/F) – Lisbonne, Portugal", location: "Paris, FR", searchCountry: "fr", text: "" }),
+      trip: offerPlace({ title: "Technicien Support Applicatif H/F", location: "Paris, Ile-de-France", searchCountry: "fr",
+        text: "CONTEXTE DE LA MISSION- Déplacements à Nantes environ toutes les 6 semaines (2 à 3 jours)" }),
+      none: offerPlace({ title: "Analyste support", location: "", searchCountry: "fr", text: "Missions variées." }),
+    };
+  });
+  expect(r.nexton).toMatchObject({ place: "Lille", conflict: true, source: "Paris, Ile-de-France", abroad: false });
+  expect(r.lisbon).toMatchObject({ place: "Lisbonne, Portugal", conflict: true, abroad: true });
+  expect(r.trip).toMatchObject({ place: "Paris, Ile-de-France", conflict: false });
+  expect(r.none.place).toBeNull();
+
+  await page.evaluate(async () => {
+    document.querySelector("#fTitle").checked = false; // the test path is Data Engineer: show the support offers too
+    const { state } = await import("/js/state.js");
+    const { renderOffers } = await import("/js/offers.js");
+    state.jobs = [
+      { id: "lis", source: "jsearch", title: "Technicien Support Applicatif SQL Francophone (H/F) – Lisbonne, Portugal", company: "A",
+        location: "Paris, FR", url: "https://example.com/l", snippet: "", text: "Support applicatif." },
+      { id: "nol", source: "adzuna", title: "Analyste support", company: "B", location: "", url: "https://example.com/n", snippet: "", text: "Missions variées." },
+    ];
+    renderOffers();
+  });
+  const cards = page.locator("#results > li");
+  await expect(cards.nth(0).locator('[data-place="conflict"]')).toContainText("Lisbonne, Portugal");
+  await expect(cards.nth(0)).toContainText("the source says Paris, FR");
+  await expect(cards.nth(0).locator("[data-abroad]")).toHaveText("Outside the country searched");
+  await expect(cards.nth(1).locator('[data-place="none"]')).toContainText("Location not stated");
+});
+
+// Session and sign-out (js/auth.js, audit 2026-11-23 section 4). Tests never sign in, so they check what a guest sees on
+// a device where an account was used, and that the sign-in and sign-out dialogs are accessible.
+test("session: a guest is told the applications are in the account; sign-in and sign-out dialogs are accessible", async ({ page }) => {
+  await open(page, "#/applications");
+  await page.evaluate(() => localStorage.setItem("hk.accountUsed", "1"));
+  await page.reload();
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  const hint = page.locator("#accountHint");
+  await expect(hint).toBeVisible();
+  await expect(hint).toContainText("your applications are in your account");
+  await hint.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.locator("#authDialog")).toBeVisible();
+  await expect(page.locator("#authNotice")).toBeHidden(); // opened by the visitor: no "you were signed out" notice
+  await page.locator("#authClose").click();
+
+  // Without a past account on this device, no hint.
+  await page.evaluate(() => localStorage.removeItem("hk.accountUsed"));
+  await page.reload();
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator("#accountHint")).toBeHidden();
+
+  // The sign-out dialog: the "clear this device" choice has a label and the dialog passes axe.
+  await page.evaluate(() => document.querySelector("#signOutDialog").showModal());
+  await expect(page.getByLabel(/Also delete my CVs/)).not.toBeChecked();
+  const r = await new AxeBuilder({ page }).include("#signOutDialog").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(r.violations.filter((v) => ["serious", "critical"].includes(v.impact)).map((v) => v.id)).toEqual([]);
+  await page.locator("#signOutCancel").click();
+  await expect(page.locator("#signOutDialog")).toBeHidden();
+});

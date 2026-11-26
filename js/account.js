@@ -14,7 +14,7 @@ import { cvSyncOn, setCvSync, cvSyncExport } from "./cvsync.js";
 import { insightsChoice, setInsights } from "./insights.js";
 import { learnSyncExport } from "./learnsync.js";
 import { checkAdmin, renderAdmin } from "./admin.js";
-import { openPasswordDialog } from "./auth.js";
+import { leaving, openPasswordDialog } from "./auth.js";
 import { renderReminders } from "./reminders.js";
 
 export function renderStatus() {
@@ -113,6 +113,7 @@ async function onDelete() {
         try { msg = (await error.context.json()).error || msg; } catch { /* keep message */ }
         throw new Error(t("Could not delete the account: {msg}", { msg }));
       }
+      leaving(); // our own sign-out: not reported as unexpected (auth.js)
       await sb.auth.signOut().catch(() => {}); // the session belongs to a deleted user
     }
     clearLocalData();

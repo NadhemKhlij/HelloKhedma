@@ -244,7 +244,8 @@ Read the header comment of any file before modifying it; update the header if be
 - js/supabase.js — Supabase client and runtime CONFIG
 - js/config.example.js — template for js/config.js (generated in production, gitignored)
 - js/auth.js — sign-in dialog, "Forgot password?" (reset e-mail) and the new-password dialog (reset link or Account →
-  Change password); the reset e-mail text is supabase/templates/reset-password.html (pasted in Supabase by the owner)
+  Change password); sign-out confirmation (#signOutDialog, optional "clear this device"), notice on an unexpected
+  sign-out, "hk.accountUsed" for the tracker's "your applications are in your account"; the reset e-mail text is supabase/templates/reset-password.html (pasted in Supabase by the owner)
 - js/store.js — LocalStore / CloudStore and guest import
 - js/tracker.js — tracker board, details dialog, stats, CSV, calendar files
 - js/jobs.js — client for the job-search function, job-board fallback links

@@ -224,4 +224,10 @@ export default {
   "Improve my CV": "Améliorer mon CV",
   "Next fix: {fix}": "Prochaine correction : {fix}",
   "Scored for the {path} path.": "Noté pour le métier {path}.",
+  // Session and sign-out (auth.js, audit 2026-11-23 section 4)
+  "You were signed out. Sign in again to get your applications and progress back.": "Vous avez été déconnecté. Reconnectez-vous pour retrouver vos candidatures et votre progression.",
+  "Sign out?": "Se déconnecter ?",
+  "Your applications and learning progress stay in your account.": "Vos candidatures et votre progression restent dans votre compte.",
+  "Also delete my CVs and the app’s data from this device (shared or public computer). CVs not saved to your account are lost.": "Effacer aussi mes CV et les données de l’application sur cet appareil (ordinateur partagé ou public). Les CV non enregistrés dans votre compte seront perdus.",
+  "Signed out.": "Déconnecté.",
 };

@@ -1445,3 +1445,33 @@ test("offer place: the place written in the offer wins over a wrong source, trip
   await expect(cards.nth(0).locator("[data-abroad]")).toHaveText("Outside the country searched");
   await expect(cards.nth(1).locator('[data-place="none"]')).toContainText("Location not stated");
 });
+
+// Session and sign-out (js/auth.js, audit 2026-11-23 section 4). Tests never sign in, so they check what a guest sees on
+// a device where an account was used, and that the sign-in and sign-out dialogs are accessible.
+test("session: a guest is told the applications are in the account; sign-in and sign-out dialogs are accessible", async ({ page }) => {
+  await open(page, "#/applications");
+  await page.evaluate(() => localStorage.setItem("hk.accountUsed", "1"));
+  await page.reload();
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  const hint = page.locator("#accountHint");
+  await expect(hint).toBeVisible();
+  await expect(hint).toContainText("your applications are in your account");
+  await hint.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.locator("#authDialog")).toBeVisible();
+  await expect(page.locator("#authNotice")).toBeHidden(); // opened by the visitor: no "you were signed out" notice
+  await page.locator("#authClose").click();
+
+  // Without a past account on this device, no hint.
+  await page.evaluate(() => localStorage.removeItem("hk.accountUsed"));
+  await page.reload();
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator("#accountHint")).toBeHidden();
+
+  // The sign-out dialog: the "clear this device" choice has a label and the dialog passes axe.
+  await page.evaluate(() => document.querySelector("#signOutDialog").showModal());
+  await expect(page.getByLabel(/Also delete my CVs/)).not.toBeChecked();
+  const r = await new AxeBuilder({ page }).include("#signOutDialog").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(r.violations.filter((v) => ["serious", "critical"].includes(v.impact)).map((v) => v.id)).toEqual([]);
+  await page.locator("#signOutCancel").click();
+  await expect(page.locator("#signOutDialog")).toBeHidden();
+});

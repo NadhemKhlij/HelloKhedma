@@ -1511,3 +1511,26 @@ test("CV score: action verbs at the start of a line are recognised in English an
   expect(r.yes).toEqual([]); // every action line is recognised
   expect(r.no).toEqual([]); // adjectives and descriptions are not
 });
+
+// Training figures agree (audit 2026-11-23 P2): header weeks = study plan weeks, "Next up" hours = the step's hours,
+// week 1 is the current week; "Resume" shows a course of the active path, with lessons done, not another path's course.
+test("training: one source for hours and weeks, plan starts this week, resume stays on the path", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("hk.path", "as"); localStorage.setItem("hk.lastCourse", JSON.stringify({ id: "ai-tools-agents", lesson: 6 })); });
+  await open(page, "#/training");
+  await expect(page.locator("#studyPlan summary")).toBeVisible({ timeout: 15_000 });
+  const header = await page.locator("#progress").textContent();
+  const plan = await page.locator("#studyPlan summary").textContent();
+  const hw = header.match(/roughly (\d+) weeks?/)?.[1], pw = plan.match(/(\d+) weeks? at/)?.[1];
+  expect(hw).toBeTruthy();
+  expect(hw).toBe(pw);
+  // "Next up" shows the same hours as that step's own card when it is not started.
+  const nextHours = (await page.locator("#nextUp").textContent()).match(/· ([\d.]+) h/)?.[1];
+  const nextTitle = (await page.locator("#nextUp b").first().textContent()).trim();
+  const card = page.locator("#tracks li", { hasText: nextTitle }).first();
+  await expect(card).toContainText(`${nextHours} h`);
+  // Week 1 starts this week's Monday.
+  const monday = await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); });
+  await expect(page.locator("#studyPlan")).toContainText(`Week 1 · from ${monday}`);
+  // The AI-track course opened last is not offered to resume on the Application Support path.
+  await expect(page.locator("#learnHub")).not.toContainText("Tools, MCP and agents");
+});

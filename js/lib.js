@@ -46,6 +46,13 @@ export function inkFor(hex, mode) {
 // their own browser data, stored as "preview:hk.…", so testing never touches the live site's data. Theme and language
 // stay shared (index.html reads them before the app loads).
 export const PREVIEW = (location.pathname.match(/\/preview\/([^/]+)\//) || [])[1] || null;
+// Technical details for developers only (audit 2026-11-23 P2: "Job sources" was logged on every search): shown in the
+// console on a local server, or after localStorage.setItem("hk.debug", "1") in the browser console.
+export const debugLog = (...args) => {
+  let on = /^(localhost|127\.)/.test(location.hostname);
+  try { on = on || localStorage.getItem("hk.debug") === "1"; } catch { /* storage blocked */ }
+  if (on) console.info(...args);
+};
 const NS = PREVIEW ? "preview:" : "", SHARED = new Set(["hk.theme", "hk.lang"]);
 const key = (k) => (NS && !SHARED.has(k) ? NS + k : k);
 

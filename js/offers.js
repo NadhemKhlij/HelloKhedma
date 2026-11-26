@@ -26,7 +26,7 @@
 // A source that fails shows visitors only its name ("Adzuna is unavailable right now", sourceNote); the technical
 // message goes to the browser console (and to the job-search function's logs).
 // Source credits required by the providers' terms: CREDITS.
-import { $, h, safeUrl, ls, toast } from "./lib.js";
+import { $, h, safeUrl, ls, toast, debugLog } from "./lib.js";
 import { t, tn, LOCALE } from "./i18n.js";
 import { CONFIG } from "./supabase.js";
 import { offerAge, ageLabel, seniority, trustFlags, STALE_DAYS } from "./offercheck.js";
@@ -38,7 +38,7 @@ import { placeOptions, rememberPlace } from "./places.js";
 import { extractSkills, norm } from "./ats.js";
 import { offerFit, fitRank, MIN_SKILLS_FOR_FIT } from "./fit.js";
 import { offerPlace } from "./offerplace.js";
-import { dedupeJobs } from "./dedupe.js";
+import { dedupeJobs, cleanJob } from "./dedupe.js";
 import { offerSalary, formatSalary } from "./salary.js";
 import { searchRemote } from "./remote.js";
 import {
@@ -262,7 +262,7 @@ export function renderOffers() {
   $("#moreBtn").hidden = !(state.offerMode === "search" && state.more && state.jobs.length);
   if (!state.jobs.length) { $("#offerTools").hidden = true; $("#results").replaceChildren(); $("#sourceCredits").replaceChildren(); return; }
   // The same offer from two sources or under a job board's name appears once (dedupe.js).
-  let list = dedupeJobs(state.jobs).map((j) => {
+  let list = dedupeJobs(state.jobs.map(cleanJob)).map((j) => {
     const skills = extractSkills(jobText(j)).map((s) => s.name);
     const fit = hasCv ? offerFit({ title: j.title, skills, cvNames: state.cv.names }) : null;
     const salary = offerSalary(j);
@@ -399,10 +399,10 @@ function runSavedSearch(s) {
 }
 
 // Source problems, as visitors see them: only the names of the sources that did not answer ("Adzuna is unavailable
-// right now"); the technical detail (status, provider message) goes to the browser console.
+// right now"); the technical detail (status, provider message) goes to the console in debug mode only (lib.js debugLog).
 function sourceNote(warnings) {
   if (!warnings?.length) return "";
-  console.warn("Job sources:", warnings);
+  debugLog("Job sources:", warnings); // the details, for developers only (lib.js debugLog)
   const names = [...new Set(warnings.map((w) => Object.values(SOURCE_NAMES).find((n) => String(w).toLowerCase().startsWith(n.toLowerCase()))).filter(Boolean))];
   return " " + (names.length ? tn(names.length, "{list} is unavailable right now.", "{list} are unavailable right now.", { list: names.join(", ") })
     : t("Some job sources are unavailable right now."));
@@ -588,6 +588,19 @@ export async function loadCompanyJobs({ force = false } = {}) {
     : pathOnly ? t("No open {path} roles {where} right now. Untick \"Only roles for my path\" to see every job.", { path: p?.name, where })
     : t("No open roles {where} right now.", { where }))
     + (errors.length ? t(" Could not load: {list}.", { list: errors.join("; ") }) : ""));
+}
+
+// First visit of the Offers page in a session (audit 2026-11-23 P2: the page stayed empty until "Search" was pressed):
+// run the search once with what the form holds (the path's first title, the last place searched). The job-search
+// function caches each search, so this costs little quota. Not in automated browsers (the smoke tests) unless they set
+// "hk.autoSearch", and only on the Job search tab.
+let autoSearched = false;
+export function maybeAutoSearch() {
+  if (autoSearched || !path() || state.offerMode !== "search" || state.jobs.length || $("#searchBtn").disabled) return;
+  if (navigator.webdriver && ls.get("hk.autoSearch") !== "1") return;
+  if (!$("#role").value) return;
+  autoSearched = true;
+  $("#searchForm").requestSubmit();
 }
 
 export function initOffers() {

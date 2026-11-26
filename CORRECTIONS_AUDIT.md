@@ -101,20 +101,36 @@ Constats :
 
 ## P2 — Bugs
 
-- [ ] **Compte › Vos CV** (`js/account.js`) : le texte « null » s'affiche sous le paragraphe d'explication. Trouver la valeur non initialisée et ne rien afficher, ou afficher la liste des CV, quand elle est vide.
-- [ ] **Règle « commencer par un verbe »** (`js/atsscore.js` ou `js/ats.js`) : des lignes en anglais qui commencent par un verbe d'action (« Provided L2/L3 production application support… ») sont signalées à tort. Ajouter les verbes d'action anglais courants (provided, managed, led, built, designed, automated, monitored, coordinated, resolved, implemented, etc.) et les formes au passé. Ajouter des tests pour le français et l'anglais.
-- [ ] **Formation : chiffres incohérents** (`js/training.js`, `js/coursetime.js`) :
+- [x] **Compte › Vos CV** (`js/account.js`) : le texte « null » s'affiche sous le paragraphe d'explication. Trouver la valeur non initialisée et ne rien afficher, ou afficher la liste des CV, quand elle est vide.
+- [x] **Règle « commencer par un verbe »** (`js/atsscore.js` ou `js/ats.js`) : des lignes en anglais qui commencent par un verbe d'action (« Provided L2/L3 production application support… ») sont signalées à tort. Ajouter les verbes d'action anglais courants (provided, managed, led, built, designed, automated, monitored, coordinated, resolved, implemented, etc.) et les formes au passé. Ajouter des tests pour le français et l'anglais.
+- [x] **Formation : chiffres incohérents** (`js/training.js`, `js/coursetime.js`) :
   - l'en-tête annonce « environ 72 h restantes · environ 15 semaine(s) à 5 h/semaine », mais le planning dit « 12 semaines à 5 h/semaine » ;
   - « À suivre : Linux Journey · 8 h », mais la fiche Linux Journey indique 3,5 h ;
   - l'étape 1 annonce « 20 h », mais ses 4 ressources totalisent 16 h (3,5 + 3,5 + 5 + 4).
   - Il faut une seule source de vérité pour les durées, utilisée partout.
-- [ ] **Formation : « Reprendre »** : le bloc affiche « Outils, MCP et agents · Leçon 7 · 0 % fait » pour le parcours Support applicatif. Il faut proposer en priorité un cours du parcours actif. Le pourcentage doit être cohérent avec la leçon en cours : être en leçon 7 implique plus de 0 %.
-- [ ] **Formation : planning** : la semaine 1 commence « à partir du 30 nov. » alors que nous sommes le lundi 23. Faire démarrer la semaine 1 à la semaine en cours.
-- [ ] **Offres en double** (`js/offers.js`) : dédupliquer en normalisant le nom de l'entreprise et l'intitulé. Exemples : « Collective » et « Collective.work », « Brink's » et « Brinks Careers », la même offre « Développeur C++ IT Quant » via Free-Work et via INGENIANCE.
-- [ ] **Caractères cassés** : « au c?ur » au lieu de « au cœur » (offre INGENIANCE). Normaliser l'encodage des descriptions reçues (Unicode NFC, ligatures œ/æ) et repérer les « ? » isolés au milieu d'un mot.
-- [ ] **Route inconnue** (`js/router.js`) : une adresse comme `#/page-qui-nexiste-pas` affiche l'accueil sans message, et l'URL reste fausse. Afficher un message « Page introuvable » avec un lien vers l'accueil, ou rediriger vers `#/` en corrigeant l'URL.
-- [ ] **Console** : supprimer le `console.warn('Job sources', …)` laissé dans `js/offers.js` (vers la ligne 387), ou le passer derrière un mode debug.
-- [ ] **Offres au premier passage** : la page restait vide tant qu'on ne cliquait pas sur « Rechercher ». Lancer automatiquement la dernière recherche, ou la recherche par défaut du parcours, à l'ouverture de la page.
+- [x] **Formation : « Reprendre »** : le bloc affiche « Outils, MCP et agents · Leçon 7 · 0 % fait » pour le parcours Support applicatif. Il faut proposer en priorité un cours du parcours actif. Le pourcentage doit être cohérent avec la leçon en cours : être en leçon 7 implique plus de 0 %.
+- [x] **Formation : planning** : la semaine 1 commence « à partir du 30 nov. » alors que nous sommes le lundi 23. Faire démarrer la semaine 1 à la semaine en cours.
+- [x] **Offres en double** (`js/offers.js`) : dédupliquer en normalisant le nom de l'entreprise et l'intitulé. Exemples : « Collective » et « Collective.work », « Brink's » et « Brinks Careers », la même offre « Développeur C++ IT Quant » via Free-Work et via INGENIANCE.
+- [x] **Caractères cassés** : « au c?ur » au lieu de « au cœur » (offre INGENIANCE). Normaliser l'encodage des descriptions reçues (Unicode NFC, ligatures œ/æ) et repérer les « ? » isolés au milieu d'un mot.
+- [x] **Route inconnue** (`js/router.js`) : une adresse comme `#/page-qui-nexiste-pas` affiche l'accueil sans message, et l'URL reste fausse. Afficher un message « Page introuvable » avec un lien vers l'accueil, ou rediriger vers `#/` en corrigeant l'URL.
+- [x] **Console** : supprimer le `console.warn('Job sources', …)` laissé dans `js/offers.js` (vers la ligne 387), ou le passer derrière un mode debug.
+- [x] **Offres au premier passage** : la page restait vide tant qu'on ne cliquait pas sur « Rechercher ». Lancer automatiquement la dernière recherche, ou la recherche par défaut du parcours, à l'ouverture de la page.
+
+> **Fait le 26/11/2026 (Claude), un commit par groupe, chaque bug reproduit puis testé :**
+> - « null » : `replaceChildren(null)` pour un invité (page Compte) ; nouveau test qui cherche « null / undefined / NaN » sur
+>   toutes les pages principales (il échouait sur l'ancien code).
+> - Verbes : tout passé anglais régulier compte (sauf adjectifs comme « experienced »), verbes irréguliers et participes
+>   français ajoutés, noms d'action français acceptés (« Mise en place… », « Gestion… ») ; tests EN / FR.
+> - Formation : une seule fonction pour les heures (`stepHours`) ; l'en-tête prend les mêmes éléments et semaines que le
+>   planning ; un cours compté une fois ; « À suivre » = heures de l'étape ; « Reprendre » : cours du parcours actif
+>   seulement, « 2 leçons faites sur 9 · 22 % » ; semaine 1 = semaine en cours.
+> - Doublons : fusion à l'affichage (`js/dedupe.js`) : domaine, apostrophe, « Careers », site d'emploi affiché comme
+>   entreprise (même intitulé de 3 mots et plus, même ville) ; on garde l'entreprise réelle et le texte le plus long.
+> - « c?ur » : venait de la source elle-même ; réparé (« œ » des mots courants, apostrophes perdues « l?équipe »,
+>   10 offres sur 743 en cache), sans toucher aux vrais « ? » ni aux liens.
+> - Route inconnue : « Page introuvable », adresse corrigée en `#/` (les liens de connexion Supabase restent intacts).
+> - Console : « Job sources » seulement en mode debug (`hk.debug` ou serveur local).
+> - Offres : la recherche se lance seule à la première ouverture de la page dans la visite (cache côté serveur).
 
 ## P2 — Contenus et textes (`js/i18n-fr.js`, `js/fr/*.js`)
 

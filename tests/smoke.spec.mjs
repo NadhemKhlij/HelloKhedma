@@ -1552,3 +1552,36 @@ test("duplicate offers: same offer under another company spelling or a job board
   });
   expect(r).toEqual(["Collective", "Brink's", "INGENIANCE", "Acme", "Globex"]);
 });
+
+// Broken characters from the sources (js/dedupe.js fixText, audit 2026-11-23 P2: « au c?ur »).
+test("broken characters: lost œ and apostrophes are repaired, real question marks and links kept", async ({ page }) => {
+  await open(page, "#/offers");
+  const r = await page.evaluate(async () => {
+    const { fixText } = await import("/js/dedupe.js");
+    return ["au c?ur des activités", "l?expert et d?un poste, qu?il", "C?ur de métier, man?uvre", "Pourquoi ? Parce que", "https://youtube.com/watch?v=abc"].map(fixText);
+  });
+  expect(r).toEqual(["au cœur des activités", "l’expert et d’un poste, qu’il", "Cœur de métier, manœuvre", "Pourquoi ? Parce que", "https://youtube.com/watch?v=abc"]);
+});
+
+// Unknown address (router.js) and the first visit of Offers (offers.js maybeAutoSearch), audit 2026-11-23 P2.
+test("unknown address shows home with a message; Offers searches by itself on the first visit", async ({ page }) => {
+  await open(page, "#/page-qui-nexiste-pas");
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(page.locator("#toast, [role=status]").filter({ hasText: "Page not found" }).first()).toBeVisible();
+
+  let searches = 0;
+  await page.route("**/functions/v1/job-search", async (route) => {
+    searches++;
+    await route.fulfill(fake({ jobs: [{ id: "a", source: "jsearch", title: "Data Engineer", company: "Acme", location: "Lyon",
+      url: "https://example.com/a", snippet: "", text: "Python SQL Airflow Docker", salary: "" }], warnings: [] }));
+  });
+  await page.evaluate(() => localStorage.setItem("hk.autoSearch", "1")); // allowed in this automated browser
+  await page.reload();
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await page.goto("/index.html#/offers");
+  await expect(page.locator("#results > li")).toHaveCount(1, { timeout: 15_000 });
+  await page.goto("/index.html#/");
+  await page.goto("/index.html#/offers");
+  await page.waitForTimeout(500);
+  expect(searches).toBe(1); // once per visit, not on every return to the page
+});

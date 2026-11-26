@@ -1,6 +1,6 @@
 // Training page (#/training): learning tracks and steps (Supabase training_tracks / training_steps), step progress
 // (guests: "hk.progress.v2"; signed in: step_progress, guest progress imported on sign-in by app.js), the weekly
-// study plan ("hk.hours" h/week), tools, tips, the course list (courses.js) and the portfolio projects (projects.js).
+// study plan ("hk.hours" h/week; week 1 = this week; header, "Next up", track totals and plan all use stepHours()), tools, tips, the course list (courses.js) and the portfolio projects (projects.js).
 // Tracks are drawn as a roadmap (done / current / upcoming nodes); "My learning" shows the streak, XP and the course to
 // resume (activity.js), then "Learn smarter": the flashcards due for review (#/review) and the skill check
 // (#/skillcheck), srs.js. The study plan leaves out the courses whose skill check was passed. Ticking a step adds XP.
@@ -58,12 +58,26 @@ async function toggleStep(id, done) {
   }
 }
 
+// Hours, one source for every figure on the page (audit 2026-11-23, P2: the header, "Next up", the track totals and the
+// study plan disagreed: 15 vs 12 weeks, Linux Journey 8 h vs 3.5 h, a 20 h track whose steps made 16 h). A step that
+// opens one of our courses takes the course's computed time (index minutes; what is left of it when `left`), any other
+// step its estimate; a course is counted once even when several steps open it.
+const half = (h) => Math.max(0.5, Math.round(h * 2) / 2);
+export function stepHours(s, left = false) {
+  const c = stepCourse(s);
+  return c ? half((c.minutes / 60) * (left ? 1 - c.done : 1)) : Number(s.est_hours) || 1;
+}
+function sumHours(steps, left = false) {
+  const seen = new Set();
+  return steps.reduce((a, s) => { const c = stepCourse(s); if (c) { if (seen.has(c.id)) return a; seen.add(c.id); } return a + stepHours(s, left); }, 0);
+}
+
 function stepRow(s) {
   const url = safeUrl(s.url), on = stepDone(s), course = stepCourse(s);
   const box = h("button", { type: "button", class: `check ${on ? "on" : ""}`, "aria-pressed": String(on),
     "aria-label": t("Mark \"{title}\" as done", { title: s.title }), onClick: () => toggleStep(s.id, !on) }, on ? "✓" : "");
   const badge = (txt) => h("span", { class: "chip !py-0 text-xs" }, txt);
-  const hours = course ? Math.max(0.5, Math.round((course.minutes / 60) * 2) / 2) : Number(s.est_hours);
+  const hours = stepHours(s);
   const extra = course && url && s.provider !== "HelloKhedma"; // the outside resource, now optional
   return h("li", { class: "flex gap-3 rounded-xl p-2 -mx-2 hover:bg-[var(--soft)]" }, box, h("div", { class: "min-w-0" },
     course ? h("a", { href: `#/course/${course.id}`, class: `font-medium underline underline-offset-2 ${on ? "mute line-through" : ""}` }, `📘 ${s.title}`)
@@ -82,7 +96,7 @@ function stepRow(s) {
 function trackCard(tr, status, i) {
   const steps = stepsOf(tr), n = steps.filter(stepDone).length;
   const pct = steps.length ? Math.round((n / steps.length) * 100) : 0;
-  const hours = steps.reduce((a, s) => a + Number(s.est_hours), 0);
+  const hours = sumHours(steps);
   const dot = status === "done" ? ["✓", "background:var(--ok-fill);color:#fff"]
     : status === "current" ? [String(i + 1), "background:var(--accent-fill);color:#fff;box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 22%,transparent)"]
     : [String(i + 1), "background:var(--panel);border:1px solid var(--line);color:var(--mute)"];
@@ -117,16 +131,17 @@ function renderTracks() {
     state.openInit = true;
   }
   const left = all.filter((s) => !stepDone(s));
-  const hoursLeft = left.reduce((a, s) => a + Number(s.est_hours), 0);
-  const perWeek = Math.max(1, Number($("#hoursPerWeek").value) || 5);
+  // The same items and weeks as the study plan below, so both say the same thing.
+  const perWeek = Math.max(1, Number($("#hoursPerWeek").value) || 5), plan = planItems();
+  const hoursLeft = plan.reduce((a, x) => a + x.hours, 0), weeks = packWeeks(plan, perWeek).length;
   $("#progress").textContent = all.length
     ? t("{done}/{all} steps done · about {left} h left · roughly {weeks} weeks at {perWeek} h/week", {
-        done: all.length - left.length, all: all.length, left: Math.round(hoursLeft), weeks: Math.ceil(hoursLeft / perWeek), perWeek })
+        done: all.length - left.length, all: all.length, left: Math.round(hoursLeft), weeks, perWeek })
     : t("No tracks for this path yet.");
   const next = left[0], nextCourse = next && stepCourse(next), url = next && !nextCourse && safeUrl(next.url);
   $("#nextUp").replaceChildren(...(next
     ? [h("div", { class: "flex flex-wrap items-center gap-3 rounded-xl p-3", style: "background:color-mix(in srgb,var(--accent) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)" },
-        h("span", { class: "text-sm" }, h("span", { class: "mute" }, t("Next up: ")), h("b", {}, next.title), h("span", { class: "mute" }, ` · ${Number(next.est_hours)} h`)),
+        h("span", { class: "text-sm" }, h("span", { class: "mute" }, t("Next up: ")), h("b", {}, next.title), h("span", { class: "mute" }, ` · ${stepHours(next, true)} h`)),
         h("span", { class: "flex gap-2 ml-auto" },
           nextCourse ? h("a", { href: `#/course/${nextCourse.id}`, class: "btn !py-1.5" }, nextCourse.done > 0 ? t("Continue the course") : t("Start the course"))
             : url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: "btn !py-1.5" }, t("Open ↗")) : null,
@@ -141,14 +156,22 @@ function renderTracks() {
 
 // "My learning": streak, XP, this week's study days and the course to resume.
 function renderHub() {
-  const last = lastCourse(), c = last && courseMeta(last.id);
+  // Resume a course of the active path (audit 2026-11-23, P2: an AI-track course showed on Application Support): the
+  // last course opened if it belongs to this path, else the path's most advanced unfinished course, else nothing.
+  const onPath = (x) => x && (x.paths || []).includes(state.pathId) && x.done < 1;
+  let last = lastCourse(), c = last && courseMeta(last.id);
+  if (!onPath(c)) {
+    const started = state.tracks.flatMap(stepsOf).map(stepCourse).filter((x) => x && x.done > 0 && x.done < 1).sort((a, b) => b.done - a.done)[0];
+    c = started || null; last = c ? { id: c.id, lesson: Math.round(c.done * c.lessonCount) } : null;
+  }
   $("#learnHub").replaceChildren(h("div", { class: "flex flex-wrap items-center justify-between gap-5" },
     activityStrip(),
     c ? h("a", { href: `#/course/${c.id}`, class: "panel !shadow-none flex items-center gap-3 !py-3 !px-4 min-w-[240px]" },
       h("span", { class: "text-2xl", "aria-hidden": "true" }, "📘"),
       h("span", { class: "min-w-0" }, h("span", { class: "eyebrow" }, t("Resume")),
         h("b", { class: "block truncate" }, c.name),
-        h("span", { class: "mute text-xs" }, t("Lesson {n} · {p}% done", { n: (last.lesson || 0) + 1, p: Math.round(c.done * 100) }))),
+        // Lessons finished, not the lesson last opened: "Lesson 7 · 0% done" mixed the two.
+        h("span", { class: "mute text-xs" }, tn(Math.round(c.done * c.lessonCount), "{n} of {all} lesson done · {p}%", "{n} of {all} lessons done · {p}%", { all: c.lessonCount, p: Math.round(c.done * 100) }))),
       h("span", { class: "ml-auto", style: "color:var(--accent-ink)" }, "→"))
       : h("p", { class: "mute text-sm max-w-xs" }, streak() ? t("Keep the streak going: one lesson or ten flashcards is enough today.")
         : t("Study a little every day: lessons, quizzes and flashcards all count toward your streak."))),
@@ -170,8 +193,7 @@ function learnSmarter() {
 
 // Weekly study plan: courses for skills the CV lacks (path keywords) first, then unfinished track steps,
 // packed into weeks of `h/week` hours. Items longer than the time left in a week continue the next week.
-export function renderStudyPlan() {
-  const perWeek = Math.max(1, Number($("#hoursPerWeek").value) || 5);
+function planItems() {
   const items = [];
   const skipped = passedCourses(); // skill check passed: nothing to learn there
   const seen = new Set(); // each course once, whether a missing skill or a roadmap step brings it
@@ -181,7 +203,7 @@ export function renderStudyPlan() {
       const id = courseForSkill(skill), c = id && courseMeta(id);
       if (!c || seen.has(id) || c.done >= 1 || skipped.has(id)) continue;
       seen.add(id);
-      items.push({ title: c.name, hours: Math.max(0.5, Math.round((c.minutes / 60) * (1 - c.done) * 2) / 2), href: `#/course/${id}`, why: t("missing in your CV: {skill}", { skill }), gap: true });
+      items.push({ title: c.name, hours: half((c.minutes / 60) * (1 - c.done)), href: `#/course/${id}`, why: t("missing in your CV: {skill}", { skill }), gap: true });
     }
   }
   for (const tr of state.tracks) for (const s of stepsOf(tr)) {
@@ -190,9 +212,12 @@ export function renderStudyPlan() {
     if (c) {
       if (seen.has(c.id) || skipped.has(c.id)) continue;
       seen.add(c.id);
-      items.push({ title: c.name, hours: Math.max(0.5, Math.round((c.minutes / 60) * (1 - c.done) * 2) / 2), href: `#/course/${c.id}`, why: tr.title });
-    } else items.push({ title: s.title, hours: Number(s.est_hours) || 1, href: safeUrl(s.url), why: tr.title });
+      items.push({ title: c.name, hours: stepHours(s, true), href: `#/course/${c.id}`, why: tr.title });
+    } else items.push({ title: s.title, hours: stepHours(s), href: safeUrl(s.url), why: tr.title });
   }
+  return items;
+}
+function packWeeks(items, perWeek) {
   const weeks = [];
   let week = [], room = perWeek;
   for (const it of items) {
@@ -205,9 +230,15 @@ export function renderStudyPlan() {
     }
   }
   if (week.length) weeks.push(week);
+  return weeks;
+}
 
+export function renderStudyPlan() {
+  const perWeek = Math.max(1, Number($("#hoursPerWeek").value) || 5);
+  const weeks = packWeeks(planItems(), perWeek);
+  // Week 1 is the current week (audit 2026-11-23, P2: it started next Monday).
   const monday = new Date(); monday.setHours(0, 0, 0, 0);
-  monday.setDate(monday.getDate() + ((8 - monday.getDay()) % 7 || 7)); // next Monday
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // this week's Monday
   const label = (i) => new Date(monday.getTime() + i * 7 * 86_400_000).toLocaleDateString(LOCALE, { day: "numeric", month: "short" });
   const SHOW = 4;
   $("#studyPlan").replaceChildren(...(weeks.length ? [h("details", { class: "rounded-lg mb-3", style: "background:var(--bg);border:1px solid var(--line)", open: true },

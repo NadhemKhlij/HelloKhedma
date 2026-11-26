@@ -1,7 +1,8 @@
 // Hash router: #/<route>[/<param>] shows <section data-page="route"> (ROUTES), highlights the nav tab (NAV_OF for
-// sub-pages) and moves focus to the page title. Anything else shows Home, untouched, so supabase-js can read
-// "#access_token=..." after a magic link. Also refreshes pages that depend on data changed elsewhere.
-import { $ } from "./lib.js";
+// sub-pages) and moves focus to the page title. An unknown "#/…" address (audit 2026-11-23 P2: it showed Home with no
+// message and kept the wrong address) shows Home with "Page not found" and corrects the address to "#/"; anything that
+// is not "#/…" shows Home, untouched, so supabase-js can read "#access_token=..." after a magic link. Also refreshes pages that depend on data changed elsewhere.
+import { $, toast } from "./lib.js";
 import { t } from "./i18n.js";
 import { state, path } from "./state.js";
 import { loadCourseIndex, renderCourse } from "./courses.js";
@@ -14,6 +15,7 @@ import { renderHome } from "./home.js";
 import { renderAdmin } from "./admin.js";
 import { renderReview } from "./review.js";
 import { renderSkillCheck } from "./skillcheck.js";
+import { maybeAutoSearch } from "./offers.js";
 
 const ROUTES = {
   home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course",
@@ -25,13 +27,18 @@ export const coursesReady = loadCourseIndex();
 
 const routeOf = () => {
   const [, r = "home", param = null] = location.hash.match(/^#\/([a-z]*)(?:\/([a-z0-9-]+))?/) || [];
-  return r in ROUTES ? { r: r || "home", param } : { r: "home", param: null };
+  if (r in ROUTES || r === "") return { r: r || "home", param };
+  return { r: "home", param: null, unknown: /^#\/./.test(location.hash) };
 };
 
 export function showRoute(moveFocus) {
   // Switching tabs with the keyboard (#/cv ↔ #/cv/maker): the focus stays on the tab, not the page title.
   if (document.activeElement?.matches?.('[role="tab"]')) moveFocus = false;
-  const { r, param } = routeOf();
+  const { r, param, unknown } = routeOf();
+  if (unknown) {
+    history.replaceState(null, "", `${location.pathname}${location.search}#/`);
+    toast(t("Page not found. Here is the home page."));
+  }
   const nav = NAV_OF[r] || r;
   document.querySelectorAll("[data-page]").forEach((s) => { s.hidden = s.dataset.page !== r; });
   document.querySelectorAll("[data-route]").forEach((a) => {
@@ -51,6 +58,7 @@ export function showRoute(moveFocus) {
     renderProject(param).then(() => { if (moveFocus) $("#h-project")?.focus({ preventScroll: true }); });
   } else if (moveFocus) $(`#h-${r}`)?.focus({ preventScroll: true });
   if (r === "interview") refreshInterview();
+  if (r === "offers") maybeAutoSearch(); // first visit in this session: run the search (offers.js)
   if (r === "admin") renderAdmin(); // admins only: the database refuses everyone else
   if (r === "cv" && path()) showCvTab(param); // #/cv/maker opens the CV maker tab
   if (r === "training" && path()) refreshLearning(); // lessons, quiz scores and XP may have changed on a course page

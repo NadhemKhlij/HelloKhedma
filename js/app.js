@@ -23,7 +23,7 @@ import { pathArt } from "./icons.js";
 import { showRoute, refreshInterview, refreshSkillCheck, coursesReady } from "./router.js";
 import { PROG_KEY, loadTracks, loadProgress, renderLearn, initTraining } from "./training.js";
 import { initGuide, markPathChosen, guideSeenOnAccount, pathFromLink } from "./guide.js";
-import { renderSearchControls, renderOffers, resetOffers, loadCompanyJobs, initOffers, renderSavedSearches } from "./offers.js";
+import { renderSearchControls, renderOffers, resetOffers, loadCompanyJobs, initOffers, renderSavedSearches, maybeAutoSearch } from "./offers.js";
 import { renderCvVersions, renderCvSkills, useCvForPath, initCvPage } from "./cvpage.js";
 import { refreshTracker, initApplications } from "./applications.js";
 import { renderStatus, initAccount } from "./account.js";
@@ -261,6 +261,7 @@ async function init() {
 
   await loadProgress();
   renderAll(); refreshSkillCheck();
+  if (/^#\/offers/.test(location.hash)) maybeAutoSearch(); // opened directly on Offers: search once the path is loaded
   await refreshTracker();
   initGuide({ selectPath }); // guided first visit for a newcomer (Home, guide.js)
   initAuth({ onUser });

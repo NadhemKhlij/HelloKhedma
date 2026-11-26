@@ -1475,3 +1475,113 @@ test("session: a guest is told the applications are in the account; sign-in and 
   await page.locator("#signOutCancel").click();
   await expect(page.locator("#signOutDialog")).toBeHidden();
 });
+
+// No stray "null" or "undefined" printed in a page (audit 2026-11-23, P2: "null" under "Your CVs" on the Account page,
+// from replaceChildren(null)). Checks the visible text nodes of every main page, as a guest.
+test("no page prints null or undefined", async ({ page }) => {
+  const found = [];
+  for (const route of ["#/", "#/offers", "#/training", "#/course/sql", "#/cv", "#/cv/maker", "#/interview", "#/applications", "#/account", "#/ai", "#/review", "#/skillcheck"]) {
+    await open(page, route);
+    await page.waitForTimeout(400);
+    const bad = await page.evaluate(() => {
+      const out = [], w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      while (w.nextNode()) {
+        const n = w.currentNode, el = n.parentElement;
+        if (/(^|\s)(null|undefined|NaN)(\s|$)/.test(n.textContent) && el && el.closest("section:not([hidden]), header, nav, dialog[open]") && !el.closest("pre, code, script, style")) out.push(n.textContent.trim().slice(0, 60));
+      }
+      return out;
+    });
+    bad.forEach((b) => found.push(`${route}: ${b}`));
+  }
+  expect(found).toEqual([]);
+});
+
+// "Start with an action verb" (js/atsscore.js, audit 2026-11-23 P2): "Provided L2/L3…" was flagged by mistake.
+test("CV score: action verbs at the start of a line are recognised in English and French", async ({ page }) => {
+  await open(page, "#/cv");
+  const r = await page.evaluate(async () => {
+    const { startsWithAction } = await import("/js/atsscore.js");
+    const yes = ["Provided L2/L3 production application support for 12 trading applications", "Handled 40 incidents a week",
+      "Investigated settlement fails with the back office", "Ran the end-of-day batch", "Oversaw the migration to Murex",
+      "Géré les incidents N2 sur 15 applications", "Fourni un support fonctionnel aux traders", "Mise en place de la supervision",
+      "Gestion des incidents et des problèmes", "Pilotage de la recette", "- Automated the monthly report"];
+    const no = ["Experienced support analyst", "Team player", "Responsible for team meetings", "Missions variées", "Motivated and curious"];
+    return { yes: yes.filter((l) => !startsWithAction(l)), no: no.filter((l) => startsWithAction(l)) };
+  });
+  expect(r.yes).toEqual([]); // every action line is recognised
+  expect(r.no).toEqual([]); // adjectives and descriptions are not
+});
+
+// Training figures agree (audit 2026-11-23 P2): header weeks = study plan weeks, "Next up" hours = the step's hours,
+// week 1 is the current week; "Resume" shows a course of the active path, with lessons done, not another path's course.
+test("training: one source for hours and weeks, plan starts this week, resume stays on the path", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("hk.path", "as"); localStorage.setItem("hk.lastCourse", JSON.stringify({ id: "ai-tools-agents", lesson: 6 })); });
+  await open(page, "#/training");
+  await expect(page.locator("#studyPlan summary")).toBeVisible({ timeout: 15_000 });
+  const header = await page.locator("#progress").textContent();
+  const plan = await page.locator("#studyPlan summary").textContent();
+  const hw = header.match(/roughly (\d+) weeks?/)?.[1], pw = plan.match(/(\d+) weeks? at/)?.[1];
+  expect(hw).toBeTruthy();
+  expect(hw).toBe(pw);
+  // "Next up" shows the same hours as that step's own card when it is not started.
+  const nextHours = (await page.locator("#nextUp").textContent()).match(/· ([\d.]+) h/)?.[1];
+  const nextTitle = (await page.locator("#nextUp b").first().textContent()).trim();
+  const card = page.locator("#tracks li", { hasText: nextTitle }).first();
+  await expect(card).toContainText(`${nextHours} h`);
+  // Week 1 starts this week's Monday.
+  const monday = await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); });
+  await expect(page.locator("#studyPlan")).toContainText(`Week 1 · from ${monday}`);
+  // The AI-track course opened last is not offered to resume on the Application Support path.
+  await expect(page.locator("#learnHub")).not.toContainText("Tools, MCP and agents");
+});
+
+// Duplicate offers (js/dedupe.js, audit 2026-11-23 P2): the audit's three pairs appear once; a bare title shared by two
+// companies stays twice.
+test("duplicate offers: same offer under another company spelling or a job board's name appears once", async ({ page }) => {
+  await open(page, "#/offers");
+  const r = await page.evaluate(async () => {
+    const { dedupeJobs } = await import("/js/dedupe.js");
+    const j = (id, title, company, location, text = "") => ({ id, source: "x", title, company, location, url: `https://example.com/${id}`, text });
+    const out = dedupeJobs([
+      j(1, "Product Designer", "Collective", "Paris"), j(2, "Product Designer (H/F)", "Collective.work", "Paris, France"),
+      j(3, "Agent de sûreté", "Brink's", "Lyon"), j(4, "Agent de sûreté H/F", "Brinks Careers", "Lyon"),
+      j(5, "Développeur C++ IT Quant", "Free-Work", "Paris", "short"), j(6, "Développeur C++ IT Quant (H/F)", "INGENIANCE", "Paris", "the full description"),
+      j(7, "Data Engineer", "Acme", "Paris"), j(8, "Data Engineer", "Globex", "Paris"),
+    ]);
+    return out.map((x) => x.company);
+  });
+  expect(r).toEqual(["Collective", "Brink's", "INGENIANCE", "Acme", "Globex"]);
+});
+
+// Broken characters from the sources (js/dedupe.js fixText, audit 2026-11-23 P2: « au c?ur »).
+test("broken characters: lost œ and apostrophes are repaired, real question marks and links kept", async ({ page }) => {
+  await open(page, "#/offers");
+  const r = await page.evaluate(async () => {
+    const { fixText } = await import("/js/dedupe.js");
+    return ["au c?ur des activités", "l?expert et d?un poste, qu?il", "C?ur de métier, man?uvre", "Pourquoi ? Parce que", "https://youtube.com/watch?v=abc"].map(fixText);
+  });
+  expect(r).toEqual(["au cœur des activités", "l’expert et d’un poste, qu’il", "Cœur de métier, manœuvre", "Pourquoi ? Parce que", "https://youtube.com/watch?v=abc"]);
+});
+
+// Unknown address (router.js) and the first visit of Offers (offers.js maybeAutoSearch), audit 2026-11-23 P2.
+test("unknown address shows home with a message; Offers searches by itself on the first visit", async ({ page }) => {
+  await open(page, "#/page-qui-nexiste-pas");
+  await expect(page).toHaveURL(/#\/$/);
+  await expect(page.locator("#toast, [role=status]").filter({ hasText: "Page not found" }).first()).toBeVisible();
+
+  let searches = 0;
+  await page.route("**/functions/v1/job-search", async (route) => {
+    searches++;
+    await route.fulfill(fake({ jobs: [{ id: "a", source: "jsearch", title: "Data Engineer", company: "Acme", location: "Lyon",
+      url: "https://example.com/a", snippet: "", text: "Python SQL Airflow Docker", salary: "" }], warnings: [] }));
+  });
+  await page.evaluate(() => localStorage.setItem("hk.autoSearch", "1")); // allowed in this automated browser
+  await page.reload();
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await page.goto("/index.html#/offers");
+  await expect(page.locator("#results > li")).toHaveCount(1, { timeout: 15_000 });
+  await page.goto("/index.html#/");
+  await page.goto("/index.html#/offers");
+  await page.waitForTimeout(500);
+  expect(searches).toBe(1); // once per visit, not on every return to the page
+});

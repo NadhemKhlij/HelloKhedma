@@ -230,4 +230,5 @@ export default {
   "Your applications and learning progress stay in your account.": "Vos candidatures et votre progression restent dans votre compte.",
   "Also delete my CVs and the app’s data from this device (shared or public computer). CVs not saved to your account are lost.": "Effacer aussi mes CV et les données de l’application sur cet appareil (ordinateur partagé ou public). Les CV non enregistrés dans votre compte seront perdus.",
   "Signed out.": "Déconnecté.",
+  "Page not found. Here is the home page.": "Page introuvable. Voici la page d’accueil.",
 };

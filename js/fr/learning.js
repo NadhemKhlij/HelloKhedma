@@ -295,4 +295,7 @@ export default {
   "Practice exercises": "Exercices pratiques",
   "⚡ Quick check": "⚡ Vérification rapide",
   "{s}/{n} right · these cards come back in your reviews.": "{s}/{n} juste(s) · ces cartes reviendront dans vos révisions.",
+  // Resume card (training.js, audit 2026-11-23 P2)
+  "{n} of {all} lesson done · {p}%": "{n} leçon faite sur {all} · {p} %",
+  "{n} of {all} lessons done · {p}%": "{n} leçons faites sur {all} · {p} %",
 };

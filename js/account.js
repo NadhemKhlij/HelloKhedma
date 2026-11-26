@@ -58,14 +58,15 @@ function renderChoices() {
     const r = await setCvSync(false);
     toast(r.ok ? t("Your CVs are no longer saved to your account.") : t("Could not change the setting. Try again."));
   };
-  panel.replaceChildren(h("h2", { class: "!mb-0" }, t("Your CVs")),
+  // filter(Boolean): replaceChildren(null) would print "null" (audit 2026-11-23, P2: "null" under the text for guests).
+  panel.replaceChildren(...[h("h2", { class: "!mb-0" }, t("Your CVs")),
     h("p", { class: "text-sm" }, !u ? t("Your CVs are saved in this browser only. Sign in to keep them in your account and find them on all your devices.")
       : on ? t("✓ Your CVs are saved to your account and synced on every device where you sign in.")
       : t("Your CVs are saved on this device only (off by default). Save them to your account to find them on your phone, the installed app and your computer.")),
     u ? h("div", { class: "flex flex-wrap gap-2" }, on
       ? h("button", { type: "button", class: "btn-ghost", onClick: turnOff }, t("Stop saving my CVs to my account"))
       : h("button", { type: "button", class: "btn", onClick: ask }, t("Save my CVs to my account"))) : null,
-    notice);
+    notice].filter(Boolean));
 
   const yes = insightsChoice() === "yes";
   $("#insightsPanel").replaceChildren(h("h2", { class: "!mb-0" }, t("Help improve HelloKhedma")),

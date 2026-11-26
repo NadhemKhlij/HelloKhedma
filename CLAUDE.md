@@ -228,7 +228,8 @@ Read the header comment of any file before modifying it; update the header if be
 - `#/account` → account → account.js
 - `#/admin` → admin → admin.js (site statistics; admins only: admins table + admin_stats(), migration 20261106000200)
 - `#/legal`, `#/privacy` → legal, privacy → static HTML in index.html
-- Anything else → home (keeps Supabase's `#access_token=` for supabase-js)
+- An unknown `#/…` address → home with "Page not found", address corrected to `#/`; anything else → home (keeps
+  Supabase's `#access_token=` for supabase-js)
 
 ## Layout
 - index.html — page shell, nav, one `<section data-page>` per route, dialogs, legal and privacy text
@@ -293,6 +294,9 @@ Read the header comment of any file before modifying it; update the header if be
 - js/cvpdf.js — "Download PDF": real text PDF built in the browser with pdf-lib (js/vendor/, self-hosted, loaded on
   demand), A4, Helvetica, no browser header/footer, controlled page breaks; print is only the fallback
 - js/salary.js — salary of an offer (provider field or description, FR + EN wording), yearly amount, display
+- js/dedupe.js — duplicate offers merged on every Offers list (company spellings, job boards shown as the company) and
+  fixText() for characters the sources send broken (lost œ and apostrophes); js/fit.js, js/offerplace.js — fit score and
+  the offer's real place (audit 2026-11-23)
 - js/offercheck.js — age of an offer, level (Junior…Lead) and trust warnings (scam signals, stale, no company)
 - js/pulse.js — path market pulse on Home, from the offers seen on the Offers page (local only, "hk.pulse.<path>"), and
   Adzuna's statistics for the path's main title (advertised salaries; who's hiring: top companies, regions, offers of the

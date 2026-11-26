@@ -38,6 +38,7 @@ import { placeOptions, rememberPlace } from "./places.js";
 import { extractSkills, norm } from "./ats.js";
 import { offerFit, fitRank, MIN_SKILLS_FOR_FIT } from "./fit.js";
 import { offerPlace } from "./offerplace.js";
+import { dedupeJobs } from "./dedupe.js";
 import { offerSalary, formatSalary } from "./salary.js";
 import { searchRemote } from "./remote.js";
 import {
@@ -260,7 +261,8 @@ export function renderOffers() {
   const hasCv = state.cv.skills.length > 0;
   $("#moreBtn").hidden = !(state.offerMode === "search" && state.more && state.jobs.length);
   if (!state.jobs.length) { $("#offerTools").hidden = true; $("#results").replaceChildren(); $("#sourceCredits").replaceChildren(); return; }
-  let list = state.jobs.map((j) => {
+  // The same offer from two sources or under a job board's name appears once (dedupe.js).
+  let list = dedupeJobs(state.jobs).map((j) => {
     const skills = extractSkills(jobText(j)).map((s) => s.name);
     const fit = hasCv ? offerFit({ title: j.title, skills, cvNames: state.cv.names }) : null;
     const salary = offerSalary(j);

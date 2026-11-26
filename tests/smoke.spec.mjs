@@ -1534,3 +1534,21 @@ test("training: one source for hours and weeks, plan starts this week, resume st
   // The AI-track course opened last is not offered to resume on the Application Support path.
   await expect(page.locator("#learnHub")).not.toContainText("Tools, MCP and agents");
 });
+
+// Duplicate offers (js/dedupe.js, audit 2026-11-23 P2): the audit's three pairs appear once; a bare title shared by two
+// companies stays twice.
+test("duplicate offers: same offer under another company spelling or a job board's name appears once", async ({ page }) => {
+  await open(page, "#/offers");
+  const r = await page.evaluate(async () => {
+    const { dedupeJobs } = await import("/js/dedupe.js");
+    const j = (id, title, company, location, text = "") => ({ id, source: "x", title, company, location, url: `https://example.com/${id}`, text });
+    const out = dedupeJobs([
+      j(1, "Product Designer", "Collective", "Paris"), j(2, "Product Designer (H/F)", "Collective.work", "Paris, France"),
+      j(3, "Agent de sûreté", "Brink's", "Lyon"), j(4, "Agent de sûreté H/F", "Brinks Careers", "Lyon"),
+      j(5, "Développeur C++ IT Quant", "Free-Work", "Paris", "short"), j(6, "Développeur C++ IT Quant (H/F)", "INGENIANCE", "Paris", "the full description"),
+      j(7, "Data Engineer", "Acme", "Paris"), j(8, "Data Engineer", "Globex", "Paris"),
+    ]);
+    return out.map((x) => x.company);
+  });
+  expect(r).toEqual(["Collective", "Brink's", "INGENIANCE", "Acme", "Globex"]);
+});

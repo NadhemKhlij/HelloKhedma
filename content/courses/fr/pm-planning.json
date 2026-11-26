@@ -177,6 +177,28 @@
         "code": "     A               B (Duration)  C (% complete)\n1    Task            Duration      Complete\n2    Requirements    10            100%\n3    Design          5             60%\n4    Build           8             25%\n5    Testing         2             0%\n6    Weighted        =SUMPRODUCT(B2:B5,C2:C5)/SUM(B2:B5)   -> 60%\n\nMilestone   Baseline  Forecast  Variance (days)\nGo-live     day 39    day 43    =43-39 -> 4 days late",
         "note": "Pondérer par la durée évite qu’une petite tâche terminée fasse paraître le projet plus avancé qu’il ne l’est."
       }
+    },
+    {
+      "title": "Projets IT : phases de test, bascule et mise en production",
+      "text": [
+        "Dans un projet IT, le planning se termine par les semaines les plus risquées : les tests, la bascule et la mise en production. En France, on parle de MOA (maîtrise d’ouvrage : le métier qui exprime le besoin et accepte le résultat) et de MOE (maîtrise d’œuvre : l’équipe IT ou le prestataire qui le réalise) ; le chef de projet IT coordonne les deux. Le travail passe d’un environnement à l’autre : développement (dev), test ou recette, préproduction (proche de la production : mêmes versions, volumes de données réalistes) et production. Un défaut trouvé en dev coûte quelques minutes ; le même défaut trouvé en production coûte un incident, une correction sous pression et parfois la confiance des utilisateurs.",
+        "Chaque phase de test a un objectif et un responsable. Les tests unitaires vérifient un composant et appartiennent aux développeurs. Les tests d’intégration vérifient que les composants et les interfaces fonctionnent ensemble (le prestataire ou l’équipe IT). Les tests système vérifient la solution complète par rapport aux spécifications (l’équipe de test de la MOE, souvent appelée recette usine ou qualification). La recette utilisateur (UAT, recette fonctionnelle) vérifie que la solution supporte le vrai processus métier ; elle est menée par les utilisateurs clés côté MOA, qui la signent (PV de recette). Les tests de non-régression vérifient qu’une correction ou une nouvelle version n’a pas cassé ce qui marchait, idéalement automatisés ; les tests de performance vérifient les temps de réponse et la charge en préproduction ; les tests d’exploitabilité vérifient que l’équipe de run peut exploiter la solution (supervision, sauvegardes, procédures de redémarrage). Dans les marchés publics français, vous croiserez aussi la VABF (vérification d’aptitude au bon fonctionnement) et la VSR (vérification de service régulier, une période de fonctionnement normal en production).",
+        "Fixez des critères d’entrée et de sortie pour chaque phase, validés avant qu’elle commence. Entrée : l’environnement est prêt, la version est livrée, les cas de test sont écrits et la phase précédente a atteint ses critères de sortie. Sortie : une part de cas de test réussis convenue à l’avance, aucun défaut bloquant ou critique ouvert, les défauts restants acceptés avec un contournement ou une correction planifiée, et une validation écrite. Planifiez les phases de test comme toute autre tâche, avec des cycles de correction et de retest : l’erreur classique est un planning où la recette occupe les deux dernières semaines avant la mise en production et où chaque défaut décale la date.",
+        "La bascule (cutover) est le passage de l’ancienne situation à la nouvelle, et elle se planifie à la minute dans un runbook (plan de bascule) : étapes numérotées, heure de début, durée, responsable, point de contrôle et qui appeler. Elle comprend en général un gel (plus de changements, et parfois plus de saisie, dans l’ancien système), une sauvegarde finale, la reprise de données avec rapprochement (nombres d’enregistrements et totaux comparés), le déploiement, la bascule des interfaces et des tests de bon fonctionnement par les utilisateurs clés. Répétez-la au moins une fois en préproduction pour mesurer les durées réelles. Le plan de retour arrière (rollback) dit comment revenir à l’ancien système et combien de temps cela prend ; le point de non-retour est le moment après lequel le retour arrière n’est plus réaliste, en général quand de vrais utilisateurs commencent à créer des données dans le nouveau système. Le comité go / no-go, juste avant la bascule, vérifie les critères (recette signée, aucun défaut bloquant, répétition de reprise rapprochée, retour arrière testé, support prêt, changement approuvé) et trace la décision.",
+        "Dans la plupart des entreprises, la mise en production est un changement au sens ITIL : une demande de changement approuvée par l’autorité de changement ou le CAB (change advisory board), dans une fenêtre de changement convenue. Communiquez avant (date, ce qui change, le gel, où trouver de l’aide), pendant (messages d’état aux points de contrôle) et après (c’est en ligne, problèmes connus, contacts du support). Vient ensuite l’hypercare, ou soutien post-démarrage (early life support) : quelques semaines fixées à l’avance où l’équipe projet et le prestataire restent d’astreinte aux côtés du support, avec une revue quotidienne des incidents. Le transfert au run (support et exploitation) a lieu quand les critères de sortie de l’hypercare sont atteints : volume d’incidents revenu à la normale, documentation et fiches de connaissance livrées, support formé. Terminez par un retour d’expérience (REX) tant que les souvenirs sont frais, et notez ce qu’il faut garder et changer pour la prochaine version."
+      ],
+      "points": [
+        "Environnements : dev, test (recette), préproduction, production.",
+        "Unitaires et intégration : développeurs ; système : équipe de test MOE ; recette (UAT) : utilisateurs clés (MOA), qui la signent.",
+        "Des critères d’entrée et de sortie pour chaque phase de test, validés avant qu’elle commence.",
+        "Runbook de bascule : étapes minutées, responsables, points de contrôle, répété, avec un plan de retour arrière et un point de non-retour.",
+        "Comité go / no-go, changement approuvé, communication, hypercare, puis transfert au run et retour d’expérience."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "TEST-PHASE SCHEDULE (CRM replacement, go-live weekend of week 24)\nPhase              Environment      Owner                        Weeks   Exit criterion\nUnit tests         dev              Developers                   1-14    Coverage agreed, build green\nIntegration tests  test             Supplier / IT team (MOE)     12-16   Interfaces exchange real formats\nSystem tests       test             Test team (MOE)              15-18   No blocking or critical defect open\nPerformance tests  pre-production   Performance specialists      18-19   500 users, response < 2 s\nUAT (recette)      pre-production   Key users (MOA)              19-22   Business sign-off, test cases passed\nNon-regression     pre-production   Test team (automated)        22-23   Same results as before the last fixes\nCutover rehearsal  pre-production   Cutover team                 23      Timings measured, rollback tested\n\nCUTOVER RUNBOOK (extract)\n#   Time (Sat)  Step                                         Owner            Checkpoint\n1   18:00       Go / no-go confirmed, freeze starts           Project manager  Decision logged in the change\n2   18:15       Old CRM set to read-only, final backup        Ops (run)        Backup verified\n3   19:00       Extract, load and reconcile customer data     Data lead        Counts and totals match\n4   22:00       Deploy release 1.0, switch interfaces         Supplier         Deployment log clean\n5   23:00       Smoke tests and business checks               Key users        12/12 checks passed\n6   00:30       Final go: users opened (point of no return)   Project manager  Sponsor informed\n7   00:45       Go-live message sent, hypercare starts        Project manager  Support rota active\nRollback (steps 2-5 only): restore the backup, reopen the old CRM, switch interfaces back: 90 min.",
+        "note": "Répétez la bascule en préproduction : les durées mesurées disent si la fenêtre et le retour arrière tiennent."
+      }
     }
   ],
   "cheatsheet": [
@@ -247,6 +269,17 @@
         ["Baseline", "Plan approuvé par rapport auquel on mesure l’avancement"],
         ["Écart de planning en jours", "Date prévisionnelle − date de référence"]
       ]
+    },
+    {
+      "group": "Tests et mise en production",
+      "items": [
+        ["Recette (UAT)", "Les utilisateurs clés vérifient le vrai processus métier et valident"],
+        ["Critères d’entrée / de sortie", "Conditions convenues à l’avance pour démarrer et terminer une phase de test"],
+        ["Runbook de bascule", "Étapes minutées, responsables et points de contrôle pour passer au nouveau système"],
+        ["Comité go / no-go", "Vérifie les critères convenus juste avant la bascule et trace la décision"],
+        ["Point de non-retour", "Moment après lequel le retour arrière n’est plus réaliste"],
+        ["Hypercare", "Semaines de support renforcé convenues après la mise en production, avant le transfert au run"]
+      ]
     }
   ],
   "pitfalls": [
@@ -256,7 +289,8 @@
     "Cacher du gras dans chaque estimation au lieu de garder des estimations honnêtes et une réserve pour aléas visible.",
     "Vouloir accélérer le projet en raccourcissant des tâches non critiques, ce qui ne change rien à la date de fin.",
     "Croire au « fini à 90 % » pendant des semaines au lieu de demander le reste à faire.",
-    "Mettre à jour la baseline chaque semaine : tous les projets paraissent à l’heure et l’écart réel disparaît."
+    "Mettre à jour la baseline chaque semaine : tous les projets paraissent à l’heure et l’écart réel disparaît.",
+    "Basculer sans répétition de la bascule ni plan de retour arrière testé : personne ne sait combien de temps prennent les étapes ni où se trouve le point de non-retour."
   ],
   "exercises": [
     {
@@ -381,6 +415,128 @@
     {
       "q": "Rédigez un WBS (trois niveaux) pour organiser une convention d’entreprise d’une journée pour 150 personnes. Citez ensuite deux éléments que vous mettriez hors périmètre.",
       "answer": "1 Convention d’entreprise. 1.1 Pilotage du projet (planning, budget, points d’avancement, contrats fournisseurs). 1.2 Programme (ordre du jour ; intervenants confirmés et briefés ; présentations collectées). 1.3 Lieu (salle réservée ; aménagement et matériel audiovisuel ; vérification accessibilité et sécurité). 1.4 Restauration (menu choisi avec les régimes particuliers ; pauses café ; déjeuner). 1.5 Participants (invitation ; site d’inscription ; badges ; relances). 1.6 Communication (annonce interne ; page de l’événement ; photos après l’événement). 1.7 Logistique du jour J (déroulé minute par minute, équipe et accueil, installation et démontage). 1.8 Clôture (questionnaire de satisfaction, factures fournisseurs, retour d’expérience). Chaque élément de niveau 3 est un lot de travail avec un responsable. Hors périmètre, par exemple : réservation des trajets et hôtels des participants, soirée festive, retransmission en direct. Vérification des 100 % : si tout cela est fait, la convention a eu lieu et a été clôturée."
+    },
+    {
+      "q": "Remettez dans l’ordre les étapes d’un week-end de bascule.",
+      "type": "order",
+      "steps": [
+        "Le comité go / no-go confirme la bascule et le changement est approuvé",
+        "Gel : plus de changements ni de saisie dans l’ancien système",
+        "Sauvegarde finale de l’ancien système",
+        "Reprendre les données et rapprocher les nombres et les totaux",
+        "Déployer la nouvelle version et basculer les interfaces",
+        "Tests de bon fonctionnement et vérifications métier par les utilisateurs clés",
+        "Go final : ouverture du nouveau système aux utilisateurs (point de non-retour)",
+        "Message de mise en production envoyé et début de l’hypercare"
+      ],
+      "answer": "D’abord décider, puis geler et sauvegarder pour que rien ne bouge derrière vous, reprendre les données et rapprocher, déployer, faire vérifier par les utilisateurs clés, et seulement ensuite ouvrir aux utilisateurs : c’est le point de non-retour. La communication et l’hypercare suivent immédiatement."
+    },
+    {
+      "q": "Au comité go / no-go, classez ces éléments : lesquels sont des critères go / no-go, lesquels sont des « plus » qui ne doivent pas bloquer la mise en production ?",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Critères go / no-go",
+          "items": [
+            "Recette signée par le métier",
+            "Aucun défaut bloquant ou critique ouvert",
+            "Répétition de reprise de données rapprochée",
+            "Plan de retour arrière testé en préproduction",
+            "Support formé et planning d’hypercare pourvu",
+            "Changement approuvé par l’autorité de changement (CAB)"
+          ]
+        },
+        {
+          "name": "Les « plus »",
+          "items": [
+            "Tous les défauts cosmétiques mineurs corrigés",
+            "Guide utilisateur traduit dans toutes les langues",
+            "Nouveau tableau de bord de pilotage pour le sponsor",
+            "Montage final des vidéos de formation"
+          ]
+        }
+      ],
+      "answer": "Un critère go / no-go protège le métier dès le premier jour : il est convenu avant le comité et vérifié avec des preuves. Les défauts mineurs et les extras vont dans le backlog avec une date, ils ne retiennent pas la mise en production."
+    },
+    {
+      "q": "Associez chaque phase de test à son objectif.",
+      "type": "match",
+      "pairs": [
+        ["Tests unitaires", "Vérifier qu’un composant fonctionne comme le développeur l’a prévu"],
+        ["Tests d’intégration", "Vérifier que les composants et les interfaces échangent correctement les données"],
+        ["Tests système", "Vérifier la solution complète par rapport aux spécifications"],
+        ["Recette utilisateur (UAT)", "Vérifier que les utilisateurs clés peuvent dérouler le vrai processus métier, et obtenir leur validation"],
+        ["Tests de non-régression", "Vérifier qu’une correction ou une nouvelle version n’a pas cassé ce qui marchait"],
+        ["Tests de performance", "Vérifier les temps de réponse sous la charge attendue en préproduction"]
+      ],
+      "answer": "Les phases vont du plus petit morceau à la solution complète, puis au métier : les développeurs portent les tests unitaires, l’équipe IT ou le prestataire l’intégration et les tests système, les utilisateurs clés la recette ; non-régression et performance sont rejouées à chaque version importante."
+    },
+    {
+      "q": "Samedi 17 h 30, comité go / no-go du nouveau CRM. La recette a trouvé hier un défaut : les devis des clients belges sont créés avec le mauvais taux de TVA. Une correction existe mais n’a pas été retestée. Le directeur commercial veut basculer quand même.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Que recommandez-vous ?",
+          "choices": [
+            {
+              "label": "No-go : un défaut bloquant est ouvert et la correction n’est pas testée. On garde l’ancien CRM, on reteste la correction et on planifie la prochaine fenêtre de changement",
+              "best": true,
+              "feedback": "Les critères ont été convenus à l’avance : un défaut bloquant ouvert, c’est no-go. Décaler d’une semaine coûte moins cher que des devis faux envoyés aux clients et une correction précipitée en production."
+            },
+            {
+              "label": "Go, et déployer la correction non testée en production lundi",
+              "feedback": "Une correction non testée en production ajoute un nouveau risque au premier, et les devis faux partent jusqu’à lundi."
+            },
+            {
+              "label": "Go, en retirant les clients belges de la reprise de données",
+              "feedback": "Un changement de périmètre improvisé le soir même, sans répétition : le rapprochement et le retour arrière ne correspondent plus à ce qui a été testé."
+            }
+          ]
+        },
+        {
+          "text": "Deux semaines plus tard, la bascule commence. À 1 h, après le point de non-retour (les utilisateurs créent des commandes depuis une heure), l’interface qui envoie les commandes à l’entrepôt tombe en panne. Que faites-vous ?",
+          "choices": [
+            {
+              "label": "Ouvrir un incident majeur, corriger en avant avec le prestataire, lancer le contournement prévu (envoi des commandes à l’entrepôt par fichier) et informer le sponsor et les utilisateurs",
+              "best": true,
+              "feedback": "Après le point de non-retour, un retour arrière ferait perdre les commandes déjà créées : on corrige en avant, avec un contournement pour que le métier continue de tourner."
+            },
+            {
+              "label": "Revenir à l’ancien CRM",
+              "feedback": "Passé le point de non-retour, le retour arrière ne tient plus : une heure de vraies commandes serait perdue ou ressaisie à la main."
+            },
+            {
+              "label": "Ne rien dire tant que l’interface n’est pas réparée",
+              "feedback": "L’entrepôt et l’équipe commerciale doivent le savoir maintenant ; le silence transforme un incident technique en incident métier."
+            }
+          ]
+        },
+        {
+          "text": "La mise en production est stable. Qu’est-ce qui clôt proprement le projet ?",
+          "choices": [
+            {
+              "label": "Une hypercare avec revue quotidienne des incidents, le transfert au support une fois ses critères de sortie atteints, puis un retour d’expérience",
+              "best": true,
+              "feedback": "Un transfert sur critères (volume d’incidents, documentation, support formé) et des enseignements notés pour la prochaine version."
+            },
+            {
+              "label": "Libérer l’équipe projet lundi et laisser le support découvrir le système",
+              "feedback": "Sans hypercare, les premières semaines d’incidents tombent sur une équipe de support qui ne connaît pas encore le système."
+            }
+          ]
+        }
+      ],
+      "answer": "Appliquez les critères go / no-go convenus à l’avance : un défaut bloquant avec une correction non testée, c’est no-go. Après le point de non-retour, corrigez en avant avec un contournement plutôt que de revenir en arrière, et communiquez. Ensuite l’hypercare, le transfert au run sur critères et le retour d’expérience."
+    },
+    {
+      "q": "Excel : les étapes de la bascule ont été chronométrées pendant la répétition en préproduction. En B9, calculez la marge en heures entre la fenêtre de changement (B8) et la durée totale des étapes.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Cutover step", "Minutes"], ["Freeze and final backup", 45], ["Stop the old CRM and export data", 60], ["Data migration and reconciliation", 180], ["Deploy the new release", 60], ["Smoke tests and business checks", 90], ["Final go and opening to users", 15], ["Change window (hours)", 10], ["Margin (hours)", ""]],
+      "cell": "B9",
+      "answer": "=B8-SUM(B2:B7)/60",
+      "hint": "Additionnez les minutes, convertissez-les en heures et retirez-les de la fenêtre.",
+      "explain": "45 + 60 + 180 + 60 + 90 + 15 = 450 minutes = 7,5 heures ; 10 − 7,5 = 2,5 heures de marge. Vérifiez que la marge suffit pour dérouler le retour arrière si une étape échoue avant le point de non-retour."
     }
   ],
   "interview": [
@@ -415,6 +571,14 @@
     {
       "q": "Qu’est-ce qu’une baseline et quand la changeriez-vous ?",
       "a": "C’est le périmètre, le planning et le coût approuvés par rapport auxquels je mesure l’avancement, enregistrés avant le démarrage de la réalisation. Je mets à jour la prévision chaque semaine, mais je ne rebaseline qu’après une demande de changement approuvée, comme un nouveau périmètre ou une décision du sponsor de décaler la mise en production, et je garde l’ancienne baseline et la raison, pour que l’historique des écarts reste honnête."
+    },
+    {
+      "q": "Comment préparez-vous et pilotez-vous la mise en production d’un projet IT ?",
+      "a": "Je planifie les phases de test avec des critères d’entrée et de sortie et de la place pour les cycles de correction et de retest, avec une recette signée par les utilisateurs clés. J’écris un runbook de bascule avec des étapes minutées, des responsables et des points de contrôle, je le répète en préproduction pour mesurer les durées, et je teste le plan de retour arrière pour connaître le point de non-retour. La mise en production passe par la gestion des changements, un comité go / no-go vérifie les critères convenus, et je communique avant, pendant et après. Ensuite quelques semaines d’hypercare avec une revue quotidienne des incidents, un transfert au support sur critères et un retour d’expérience."
+    },
+    {
+      "q": "Au comité go / no-go, un directeur métier veut basculer malgré un défaut critique ouvert. Que faites-vous ?",
+      "a": "Je ramène la décision aux critères convenus à l’avance et je rends le risque concret : ce que le défaut fait aux clients ou aux données, s’il existe un contournement que le métier peut vraiment appliquer, et ce que coûte un report. S’il n’y a pas de contournement acceptable, je recommande le no-go et une nouvelle fenêtre. Si le sponsor décide quand même de basculer, la décision et le risque accepté sont tracés dans le changement, avec le contournement, la date de correction et une hypercare renforcée sur ce point."
     }
   ]
 }

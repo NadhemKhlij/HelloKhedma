@@ -177,6 +177,28 @@
         "code": "     A               B (Duration)  C (% complete)\n1    Task            Duration      Complete\n2    Requirements    10            100%\n3    Design          5             60%\n4    Build           8             25%\n5    Testing         2             0%\n6    Weighted        =SUMPRODUCT(B2:B5,C2:C5)/SUM(B2:B5)   -> 60%\n\nMilestone   Baseline  Forecast  Variance (days)\nGo-live     day 39    day 43    =43-39 -> 4 days late",
         "note": "Weighting by duration stops a small finished task from making the project look further along than it is."
       }
+    },
+    {
+      "title": "IT projects: test phases, cutover and go-live",
+      "text": [
+        "In an IT project, the plan ends with the riskiest weeks: testing, the cutover and the go-live. In France you will hear the client side called the MOA (maîtrise d’ouvrage: the business owner who expresses the need and accepts the result) and the delivery side the MOE (maîtrise d’œuvre: the IT team or supplier who builds it); the IT project manager (chef de projet IT) coordinates both. The work moves through environments: development (dev), test or recette, pre-production (close to production: same versions, realistic data volumes) and production. A defect found in dev costs minutes; the same defect found in production costs an incident, a fix under pressure and sometimes the users’ trust.",
+        "Each test phase has a goal and an owner. Unit tests check one component and belong to the developers. Integration tests check that components and interfaces work together (the supplier or IT team). System tests check the whole solution against the specifications (the MOE test team, often called the factory acceptance or qualification). User acceptance testing (UAT, recette fonctionnelle) checks that the solution supports the real business process, run by key users on the MOA side, who sign it off. Non-regression tests check that a fix or a new release has not broken what worked, ideally automated; performance tests check response times and load on pre-production; operational acceptance checks that the run team can operate it (monitoring, backups, restart procedures). In French public contracts you may also meet VABF (vérification d’aptitude au bon fonctionnement) and VSR (vérification de service régulier, a period of normal running in production).",
+        "Put entry and exit criteria on every phase, agreed before it starts. Entry: the environment is ready, the build is delivered, the test cases are written and the previous phase met its exit criteria. Exit: a share of test cases passed agreed in advance, no blocking or critical defect open, the remaining defects accepted with a workaround or a planned fix, and a written sign-off. Plan the test phases in the schedule like any other task, with fix-and-retest cycles: the classic mistake is a plan where UAT is the last two weeks before go-live and any defect moves the date.",
+        "The cutover is the move from the old situation to the new one, and it is planned to the minute in a runbook: numbered steps, start time, duration, owner, checkpoint, and who to call. It usually includes a freeze (no more changes, and sometimes no more data entry, in the old system), a final backup, the data migration with reconciliation (record counts and totals compared), the deployment, the interface switch and smoke tests by key users. Rehearse it at least once on pre-production to measure the real durations. The rollback plan says how to return to the old system and how long it takes; the point of no return is the moment after which rollback is no longer realistic, usually when real users start creating data in the new system. The go / no-go meeting, just before the cutover, checks the criteria (UAT signed, no blocking defect, migration rehearsal reconciled, rollback tested, support ready, change approved) and records the decision.",
+        "In most companies the go-live is a change in the ITIL sense: a change request approved by the change authority or the change advisory board (CAB), within an agreed change window. Communicate before (date, what changes, the freeze, where to get help), during (status messages at the checkpoints) and after (it is live, known issues, support contacts). Then comes hypercare, or early life support: a few weeks agreed in advance where the project team and the supplier stay on call next to the support team, with a daily review of incidents. Handover to run (support and operations) happens when the exit criteria of hypercare are met: incident volume back to normal, documentation and knowledge articles delivered, support trained. Close with a lessons-learned session while the memories are fresh, and record what to keep and what to change for the next release."
+      ],
+      "points": [
+        "Environments: dev, test (recette), pre-production, production.",
+        "Unit and integration: developers; system: MOE test team; UAT: key users (MOA), who sign off.",
+        "Entry and exit criteria on every test phase, agreed before it starts.",
+        "Cutover runbook: timed steps, owners, checkpoints, rehearsed, with a rollback plan and a point of no return.",
+        "Go / no-go meeting, approved change, communication, hypercare, then handover to run and lessons learned."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "TEST-PHASE SCHEDULE (CRM replacement, go-live weekend of week 24)\nPhase              Environment      Owner                        Weeks   Exit criterion\nUnit tests         dev              Developers                   1-14    Coverage agreed, build green\nIntegration tests  test             Supplier / IT team (MOE)     12-16   Interfaces exchange real formats\nSystem tests       test             Test team (MOE)              15-18   No blocking or critical defect open\nPerformance tests  pre-production   Performance specialists      18-19   500 users, response < 2 s\nUAT (recette)      pre-production   Key users (MOA)              19-22   Business sign-off, test cases passed\nNon-regression     pre-production   Test team (automated)        22-23   Same results as before the last fixes\nCutover rehearsal  pre-production   Cutover team                 23      Timings measured, rollback tested\n\nCUTOVER RUNBOOK (extract)\n#   Time (Sat)  Step                                         Owner            Checkpoint\n1   18:00       Go / no-go confirmed, freeze starts           Project manager  Decision logged in the change\n2   18:15       Old CRM set to read-only, final backup        Ops (run)        Backup verified\n3   19:00       Extract, load and reconcile customer data     Data lead        Counts and totals match\n4   22:00       Deploy release 1.0, switch interfaces         Supplier         Deployment log clean\n5   23:00       Smoke tests and business checks               Key users        12/12 checks passed\n6   00:30       Final go: users opened (point of no return)   Project manager  Sponsor informed\n7   00:45       Go-live message sent, hypercare starts        Project manager  Support rota active\nRollback (steps 2-5 only): restore the backup, reopen the old CRM, switch interfaces back: 90 min.",
+        "note": "Rehearse the cutover on pre-production: the measured timings decide whether the window and the rollback fit."
+      }
     }
   ],
   "cheatsheet": [
@@ -247,6 +269,17 @@
         ["Baseline", "Approved plan that progress is measured against"],
         ["Schedule variance in days", "Forecast date − baseline date"]
       ]
+    },
+    {
+      "group": "Test and go-live",
+      "items": [
+        ["UAT (recette)", "Key users check the real business process and sign off"],
+        ["Entry / exit criteria", "Conditions agreed in advance to start and to end a test phase"],
+        ["Cutover runbook", "Timed steps, owners and checkpoints to switch to the new system"],
+        ["Go / no-go meeting", "Checks the agreed criteria just before the cutover and records the decision"],
+        ["Point of no return", "Moment after which rollback is no longer realistic"],
+        ["Hypercare", "Agreed weeks of extra support after go-live, before handover to run"]
+      ]
     }
   ],
   "pitfalls": [
@@ -256,7 +289,8 @@
     "Hiding padding in every task estimate instead of keeping honest estimates and a visible contingency reserve.",
     "Trying to speed up the project by shortening non-critical tasks, which changes nothing to the end date.",
     "Believing “90 % complete” for weeks instead of asking for the remaining duration.",
-    "Updating the baseline every week, which makes every project look on time and hides the real variance."
+    "Updating the baseline every week, which makes every project look on time and hides the real variance.",
+    "Going live without a rehearsed cutover and a tested rollback plan: nobody knows how long the steps take or where the point of no return is."
   ],
   "exercises": [
     {
@@ -381,6 +415,128 @@
     {
       "q": "Write a WBS (three levels) for organising a one-day company conference for 150 people. Then name two items you would put out of scope.",
       "answer": "1 Company conference. 1.1 Project management (plan, budget, status meetings, supplier contracts). 1.2 Programme (agenda; speakers booked and briefed; presentations collected). 1.3 Venue (venue booked; room layout and AV equipment; accessibility and safety check). 1.4 Catering (menu chosen including dietary needs; coffee breaks; lunch). 1.5 Attendees (invitation; registration site; badges; reminders). 1.6 Communication (internal announcement; event page; photos after the event). 1.7 On-the-day operations (run sheet, staff and welcome desk, set-up and dismantling). 1.8 Closure (feedback survey, supplier invoices, lessons learned). Each level-3 item is a work package with one owner. Out of scope, for example: travel and hotel booking for attendees, an evening party, live streaming. The 100 % check: if all of these are done, the conference has happened and been closed."
+    },
+    {
+      "q": "Put the steps of a cutover weekend in order.",
+      "type": "order",
+      "steps": [
+        "Go / no-go meeting confirms the cutover and the change is approved",
+        "Freeze: no more changes or data entry in the old system",
+        "Final backup of the old system",
+        "Migrate the data and reconcile counts and totals",
+        "Deploy the new release and switch the interfaces",
+        "Smoke tests and business checks by key users",
+        "Final go: users are opened to the new system (point of no return)",
+        "Go-live message sent and hypercare starts"
+      ],
+      "answer": "Decide first, then freeze and back up so nothing changes behind you, migrate and reconcile, deploy, let key users check, and only then open to users: that is the point of no return. Communication and hypercare follow immediately."
+    },
+    {
+      "q": "At the go / no-go meeting, sort these items: which are go / no-go criteria, and which are nice-to-haves that should not block the go-live?",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Go / no-go criteria",
+          "items": [
+            "UAT signed off by the business",
+            "No blocking or critical defect open",
+            "Data migration rehearsal reconciled",
+            "Rollback plan tested on pre-production",
+            "Support team trained and hypercare rota staffed",
+            "Change approved by the change authority (CAB)"
+          ]
+        },
+        {
+          "name": "Nice-to-haves",
+          "items": [
+            "Every minor cosmetic defect fixed",
+            "User guide translated into all languages",
+            "New management dashboard for the sponsor",
+            "Final edit of the training videos"
+          ]
+        }
+      ],
+      "answer": "A go / no-go criterion protects the business on day 1: it is agreed before the meeting and checked with evidence. Minor defects and extras go into the backlog with a date, they do not hold the go-live."
+    },
+    {
+      "q": "Match each test phase with its goal.",
+      "type": "match",
+      "pairs": [
+        ["Unit tests", "Check that one component works as the developer intended"],
+        ["Integration tests", "Check that components and interfaces exchange data correctly"],
+        ["System tests", "Check the whole solution against the specifications"],
+        ["User acceptance testing (UAT)", "Check that key users can run the real business process, and get their sign-off"],
+        ["Non-regression tests", "Check that a fix or a new release has not broken what worked"],
+        ["Performance tests", "Check response times under the expected load on pre-production"]
+      ],
+      "answer": "The phases go from the smallest piece to the whole solution and then to the business: developers own unit tests, the IT team or supplier integration and system tests, key users UAT; non-regression and performance tests are repeated on every significant release."
+    },
+    {
+      "q": "Saturday 17:30, go / no-go meeting for the new CRM. UAT found a defect yesterday: quotes for Belgian customers are created with the wrong VAT rate. A fix exists but has not been retested. The sales director wants to go live anyway.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "What do you recommend?",
+          "choices": [
+            {
+              "label": "No-go: a blocking defect is open and the fix is untested. Keep the old CRM, retest the fix and plan the next change window",
+              "best": true,
+              "feedback": "The criteria were agreed in advance: an open blocking defect means no-go. Postponing a week costs less than wrong quotes sent to customers and a rushed fix in production."
+            },
+            {
+              "label": "Go, and deploy the untested fix in production on Monday",
+              "feedback": "An untested fix in production is a new risk on top of the first one, and the wrong quotes go out until Monday."
+            },
+            {
+              "label": "Go, and remove the Belgian customers from the migration",
+              "feedback": "An improvised scope change on the night itself, with no rehearsal: the reconciliation and the rollback no longer match what was tested."
+            }
+          ]
+        },
+        {
+          "text": "Two weeks later the cutover starts. At 01:00, after the point of no return (users have been creating orders for an hour), the interface that sends orders to the warehouse fails. What do you do?",
+          "choices": [
+            {
+              "label": "Open a major incident, fix forward with the supplier, start the agreed workaround (export the orders to the warehouse by file) and inform the sponsor and users",
+              "best": true,
+              "feedback": "After the point of no return, rollback would lose the orders already created: you fix forward, with a workaround so the business keeps running."
+            },
+            {
+              "label": "Roll back to the old CRM",
+              "feedback": "Past the point of no return the rollback no longer fits: an hour of real orders would be lost or re-keyed by hand."
+            },
+            {
+              "label": "Say nothing until the interface is fixed",
+              "feedback": "The warehouse and the sales team need to know now; silence turns a technical incident into a business one."
+            }
+          ]
+        },
+        {
+          "text": "The go-live is stable. What closes the project properly?",
+          "choices": [
+            {
+              "label": "Hypercare with daily incident reviews, handover to support once its exit criteria are met, then a lessons-learned session",
+              "best": true,
+              "feedback": "Handover on criteria (incident volume, documentation, trained support) and lessons recorded for the next release."
+            },
+            {
+              "label": "Release the project team on Monday and let support discover the system",
+              "feedback": "Without hypercare, the first weeks of incidents land on a support team that does not know the system yet."
+            }
+          ]
+        }
+      ],
+      "answer": "Apply the go / no-go criteria agreed in advance: a blocking defect with an untested fix means no-go. After the point of no return, fix forward with a workaround instead of rolling back, and communicate. Then hypercare, handover to run on criteria, and lessons learned."
+    },
+    {
+      "q": "Excel: the cutover steps were timed during the rehearsal on pre-production. In B9, compute the margin in hours between the change window (B8) and the total duration of the steps.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [["Cutover step", "Minutes"], ["Freeze and final backup", 45], ["Stop the old CRM and export data", 60], ["Data migration and reconciliation", 180], ["Deploy the new release", 60], ["Smoke tests and business checks", 90], ["Final go and opening to users", 15], ["Change window (hours)", 10], ["Margin (hours)", ""]],
+      "cell": "B9",
+      "answer": "=B8-SUM(B2:B7)/60",
+      "hint": "Add up the minutes, convert them to hours, and subtract them from the window.",
+      "explain": "45 + 60 + 180 + 60 + 90 + 15 = 450 minutes = 7.5 hours; 10 − 7.5 = 2.5 hours of margin. Check that the margin is enough to run the rollback if a step fails before the point of no return."
     }
   ],
   "interview": [
@@ -415,6 +571,14 @@
     {
       "q": "What is a baseline and when would you change it?",
       "a": "It is the approved scope, schedule and cost that I measure progress against, saved before execution starts. I update the forecast every week, but I re-baseline only after an approved change request, such as new scope or a sponsor decision to move go-live, and I keep the old baseline and the reason, so the variance history stays honest."
+    },
+    {
+      "q": "How do you prepare and run the go-live of an IT project?",
+      "a": "I plan the test phases with entry and exit criteria and room for fix-and-retest cycles, with UAT signed off by the key users. I write a cutover runbook with timed steps, owners and checkpoints, rehearse it on pre-production to measure the durations, and test the rollback plan so I know the point of no return. The go-live goes through change management, a go / no-go meeting checks the agreed criteria, and I communicate before, during and after. Then a few weeks of hypercare with daily incident reviews, a handover to support on criteria, and a lessons-learned session."
+    },
+    {
+      "q": "At the go / no-go meeting, a business director wants to go live despite an open critical defect. What do you do?",
+      "a": "I bring the decision back to the criteria we agreed in advance and make the risk concrete: what the defect does to customers or to the data, whether there is a workaround that the business can actually run, and what a postponement costs. If there is no acceptable workaround, I recommend no-go and a new window. If the sponsor still decides to go, the decision and the accepted risk are recorded in the change, with the workaround, the fix date and extra hypercare on that point."
     }
   ]
 }

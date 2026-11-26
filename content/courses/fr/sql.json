@@ -188,6 +188,28 @@
         "code": "-- Load staging rows into customers; safe to run again\nBEGIN;\n\nINSERT INTO customers (id, email, city, updated_at)\nSELECT DISTINCT ON (id) id, LOWER(TRIM(email)), city, loaded_at\nFROM staging_customers\nORDER BY id, loaded_at DESC\nON CONFLICT (id) DO UPDATE\nSET email = EXCLUDED.email,\n    city = EXCLUDED.city,\n    updated_at = EXCLUDED.updated_at\nWHERE customers.updated_at < EXCLUDED.updated_at\nRETURNING id;\n\nCOMMIT;",
         "note": "DISTINCT ON (PostgreSQL) garde la ligne de staging la plus récente par id : sans lui, deux lignes avec le même id font échouer ON CONFLICT DO UPDATE."
       }
+    },
+    {
+      "title": "Cohortes, rétention et funnels en SQL",
+      "text": [
+        "Les tests en direct et les cas pratiques de Data Analyst reviennent aux trois mêmes questions : les clients que l’on recrute reviennent-ils (cohortes et rétention), combien achètent plus d’une fois (réachat), et où les visiteurs abandonnent-ils avant d’acheter (funnel, ou entonnoir de conversion). Aucune ne demande de fonction exotique : une CTE, MIN(), une date tronquée au mois, COUNT(DISTINCT ...) et un CASE dans un agrégat suffisent. Ce que le recruteur vérifie vraiment, c’est que vous définissez l’indicateur avant d’écrire la requête et que vos chiffres résistent à une vérification de cohérence.",
+        "Une cohorte est un groupe d’utilisateurs qui partagent un événement de départ sur la même période. Deux définitions sont courantes : la cohorte d’inscription (mois de customers.created_at) et la cohorte de premier achat (mois de MIN(ordered_at) par client). Elles répondent à des questions différentes, alors dites laquelle vous utilisez. Construisez-la en deux temps : une CTE avec une ligne par client et sa date de cohorte, puis une jointure vers l’activité. Dans PostgreSQL, DATE_TRUNC('month', ts) donne le mois ; dans SQLite strftime('%Y-%m', ts) ; dans BigQuery DATE_TRUNC(d, MONTH) ; dans SQL Server DATEFROMPARTS(YEAR(d), MONTH(d), 1).",
+        "La rétention par cohorte est un tableau avec une ligne par cohorte et une colonne par décalage en mois : le décalage 0 est le mois de la cohorte lui-même, le décalage 1 le mois suivant, et ainsi de suite. Le décalage vaut (année de l’activité − année de la cohorte) × 12 + (mois de l’activité − mois de la cohorte). Le pivot est une agrégation conditionnelle : COUNT(DISTINCT CASE WHEN month_offset = 1 THEN customer_id END) compte chaque client une fois, et un CASE sans ELSE renvoie NULL, que COUNT ignore. Divisez par la taille de la cohorte, multipliée par 100.0, pour obtenir un pourcentage. Précisez si la rétention signifie « a commandé ce mois-là » (classique) ou « a commandé ce mois-là ou plus tard » (non bornée) : la seconde est toujours plus élevée.",
+        "Le taux de réachat est la part des acheteurs qui ont au moins deux commandes : agrégez d’abord les commandes par client, puis comptez les clients avec SUM(CASE WHEN orders >= 2 THEN 1 ELSE 0 END) et divisez par le nombre d’acheteurs, pas par tous les clients inscrits. Un funnel suit le même schéma sur des données d’événements : un COUNT(DISTINCT CASE WHEN event = '...' THEN user_id END) par étape (avec des noms façon GA4 comme view_item, add_to_cart, begin_checkout, purchase), puis la conversion de chaque étape depuis la précédente et le taux global depuis la première. C’est un funnel ouvert ; un funnel strict ne compte une étape que si la précédente a eu lieu avant, souvent dans une fenêtre de temps, ce qui demande MIN(at) par utilisateur et par étape.",
+        "La plupart des mauvaises réponses viennent de quatre pièges. Les doublons : une jointure avec les commandes ou un événement répété multiplie les lignes, donc COUNT(*) compte des lignes, pas des personnes ; comptez les identifiants DISTINCT. Le dernier mois incomplet : si les données s’arrêtent le 13, le dernier mois ressemble à un effondrement, alors excluez-le ou indiquez qu’il est partiel, et laissez vides, plutôt qu’à 0, les décalages pas encore atteints par les cohortes récentes. Les fuseaux horaires : les horodatages sont souvent stockés en UTC, et une commande à 23 h 30 UTC le 31 janvier a été passée le 1er février à Paris ; convertissez avant de tronquer (PostgreSQL : ts AT TIME ZONE 'Europe/Paris' sur un timestamptz). Enfin, les petites cohortes : une cohorte de 3 clients avance par paliers de 33 %, alors affichez la taille de la cohorte à côté de chaque taux."
+      ],
+      "points": [
+        "Définissez la cohorte (inscription ou premier achat) et la règle de rétention avant d’écrire le SQL.",
+        "Une ligne par utilisateur et date de cohorte dans une CTE, puis une jointure vers l’activité.",
+        "COUNT(DISTINCT CASE WHEN ... THEN user_id END) pivote et compte des personnes, pas des lignes.",
+        "Signalez le dernier mois incomplet et laissez vides, pas à 0, les décalages non atteints.",
+        "Convertissez les horodatages UTC dans le fuseau du métier avant de tronquer au jour ou au mois."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "WITH first_orders AS (\n  SELECT customer_id, DATE_TRUNC('month', MIN(ordered_at)) AS cohort\n  FROM orders\n  GROUP BY customer_id\n),\nactivity AS (\n  SELECT DISTINCT f.cohort, o.customer_id,\n         (EXTRACT(YEAR FROM o.ordered_at) - EXTRACT(YEAR FROM f.cohort)) * 12\n         + EXTRACT(MONTH FROM o.ordered_at) - EXTRACT(MONTH FROM f.cohort) AS month_offset\n  FROM orders o\n  JOIN first_orders f ON f.customer_id = o.customer_id\n)\nSELECT cohort,\n       COUNT(DISTINCT customer_id) AS customers,\n       ROUND(100.0 * COUNT(DISTINCT CASE WHEN month_offset = 1 THEN customer_id END)\n             / COUNT(DISTINCT customer_id), 1) AS m1_pct,\n       ROUND(100.0 * COUNT(DISTINCT CASE WHEN month_offset = 2 THEN customer_id END)\n             / COUNT(DISTINCT customer_id), 1) AS m2_pct,\n       ROUND(100.0 * COUNT(DISTINCT CASE WHEN month_offset = 3 THEN customer_id END)\n             / COUNT(DISTINCT customer_id), 1) AS m3_pct\nFROM activity\nGROUP BY cohort\nORDER BY cohort;",
+        "note": "PostgreSQL. Rétention en % par cohorte de premier achat ; le DISTINCT de la CTE activity garde une ligne par client et décalage. Dans SQLite (la base d’entraînement), utilisez strftime('%Y-%m', ordered_at) pour le mois."
+      }
     }
   ],
   "cheatsheet": [
@@ -395,6 +417,35 @@
           "Afficher les lignes modifiées (SQL Server : OUTPUT)"
         ]
       ]
+    },
+    {
+      "group": "Cohortes et funnels",
+      "items": [
+        [
+          "MIN(ordered_at) ... GROUP BY customer_id",
+          "Premier achat par client : la date de cohorte"
+        ],
+        [
+          "DATE_TRUNC('month', ts) / strftime('%Y-%m', ts)",
+          "Mois d’un horodatage (PostgreSQL / SQLite)"
+        ],
+        [
+          "(y2 - y1) * 12 + (m2 - m1)",
+          "Décalage en mois depuis la cohorte"
+        ],
+        [
+          "COUNT(DISTINCT CASE WHEN k = 1 THEN user_id END)",
+          "Pivot : personnes actives au décalage 1"
+        ],
+        [
+          "100.0 * step / NULLIF(previous_step, 0)",
+          "Conversion d’une étape en %"
+        ],
+        [
+          "ts AT TIME ZONE 'Europe/Paris'",
+          "timestamptz UTC en heure locale avant de tronquer (PostgreSQL)"
+        ]
+      ]
     }
   ],
   "pitfalls": [
@@ -404,7 +455,8 @@
     "Utiliser SELECT * dans des requêtes de production : c’est plus lent et cela casse quand les colonnes changent.",
     "Utiliser NOT IN avec une sous-requête qui peut renvoyer NULL : la requête ne renvoie aucune ligne. Utilisez NOT EXISTS.",
     "Compter sur le cadre de fenêtre par défaut pour un cumul : avec RANGE, les lignes qui partagent la même valeur d’ORDER BY obtiennent le même total. Écrivez ROWS BETWEEN ... et ajoutez un critère de départage unique.",
-    "Lancer un UPDATE ou un DELETE hors transaction sans avoir vérifié son WHERE avec un SELECT : une seule faute de frappe peut modifier toute la table."
+    "Lancer un UPDATE ou un DELETE hors transaction sans avoir vérifié son WHERE avec un SELECT : une seule faute de frappe peut modifier toute la table.",
+    "Compter des lignes au lieu de personnes dans les cohortes et les funnels : après une jointure avec les commandes ou avec des événements répétés, COUNT(*) gonfle les chiffres. Comptez les identifiants DISTINCT et signalez un dernier mois encore incomplet."
   ],
   "exercises": [
     {
@@ -610,6 +662,62 @@
       "q": "Cas pratique, Data Analyst (5/5). Rédigez votre réponse au directeur en 4 à 6 lignes : ce qui s’est passé (avec les chiffres), votre degré de certitude, ce qu’il faut vérifier ensuite et ce que vous recommandez.",
       "hint": "La conclusion d’abord, puis les preuves, puis la suite. Chiffres arrondis, pas de SQL.",
       "answer": "Le chiffre d’affaires du T2 progresse de 23 % (22,0 k → 27,1 k) et tous les magasins progressent sauf Lyon, en baisse de 45 % (4,8 k → 2,6 k). Toute la baisse vient de l’électronique : Lyon n’a vendu aucun article électronique depuis le 26 mars (2,5 k au T1, 0 au T2), et les accessoires, souvent achetés avec un ordinateur, ont été divisés par deux ; Furniture et Office progressent. Une chute à zéro du jour au lendemain oriente vers un problème de stock ou de référencement plutôt que de demande, mais les données ne le prouvent pas. Ensuite : vérifier avec le responsable du magasin le stock et le référencement électronique de Lyon depuis fin mars, et si les clients lyonnais sont passés au site en ligne (+56 %). Recommandation : rétablir l’approvisionnement, puis ajouter une alerte hebdomadaire magasin × catégorie pour repérer une catégorie à zéro en quelques jours, pas en un trimestre."
+    },
+    {
+      "q": "Cohortes (base d’entraînement shop). Regroupez les clients par mois de leur PREMIÈRE commande : renvoyez le mois de cohorte (format AAAA-MM) et le nombre de clients, la plus ancienne cohorte en premier.",
+      "hint": "Une CTE avec MIN(ordered_at) par customer_id, puis GROUP BY sur le mois. SQLite : strftime('%Y-%m', date).",
+      "code": "sql",
+      "answer": "WITH first_orders AS (\n  SELECT customer_id, MIN(ordered_at) AS first_at\n  FROM orders\n  GROUP BY customer_id\n)\nSELECT strftime('%Y-%m', first_at) AS cohort,\n       COUNT(*) AS customers\nFROM first_orders\nGROUP BY cohort\nORDER BY cohort;",
+      "run": {
+        "db": "shop",
+        "ordered": true
+      },
+      "explain": "24 acheteurs répartis en 5 cohortes : 2025-11 : 5, 2025-12 : 11, 2026-01 : 4, 2026-02 : 1, 2026-03 : 3. Prenez d’abord MIN() par client : grouper directement les commandes par mois compte les clients actifs de chaque mois, pas des cohortes."
+    },
+    {
+      "q": "Rétention (shop). Pour chaque cohorte de premier achat (AAAA-MM), comptez les clients distincts qui ont commandé le mois de la cohorte (m0), puis 1, 2 et 3 mois plus tard (m1, m2, m3). Renvoyez cohort, m0, m1, m2, m3, la plus ancienne cohorte en premier.",
+      "hint": "Décalage en mois = (année de la commande − année du premier achat) × 12 + (mois − mois) ; dans SQLite, strftime('%Y', ...) - strftime('%Y', ...) fonctionne. Puis COUNT(DISTINCT CASE WHEN month_offset = 1 THEN customer_id END).",
+      "code": "sql",
+      "answer": "WITH first_orders AS (\n  SELECT customer_id, MIN(ordered_at) AS first_at\n  FROM orders\n  GROUP BY customer_id\n),\nactivity AS (\n  SELECT DISTINCT o.customer_id,\n         strftime('%Y-%m', f.first_at) AS cohort,\n         (strftime('%Y', o.ordered_at) - strftime('%Y', f.first_at)) * 12\n         + (strftime('%m', o.ordered_at) - strftime('%m', f.first_at)) AS month_offset\n  FROM orders o\n  JOIN first_orders f ON f.customer_id = o.customer_id\n)\nSELECT cohort,\n       COUNT(DISTINCT CASE WHEN month_offset = 0 THEN customer_id END) AS m0,\n       COUNT(DISTINCT CASE WHEN month_offset = 1 THEN customer_id END) AS m1,\n       COUNT(DISTINCT CASE WHEN month_offset = 2 THEN customer_id END) AS m2,\n       COUNT(DISTINCT CASE WHEN month_offset = 3 THEN customer_id END) AS m3\nFROM activity\nGROUP BY cohort\nORDER BY cohort;",
+      "run": {
+        "db": "shop",
+        "ordered": true
+      },
+      "explain": "2025-11 : 5, 2, 0, 1 ; 2025-12 : 11, 5, 5, 2 ; 2026-01 : 4, 1, 2, 0 ; 2026-02 : 1, 1, 0, 0 ; 2026-03 : 3, 0, 0, 0. Les données s’arrêtent le 13 mars 2026 : mars est partiel, et les zéros des cohortes récentes sont des décalages pas encore atteints, qu’un rapport doit laisser vides. La cohorte de décembre est la plus grande et garde 5 clients sur 11 chacun des deux mois suivants."
+    },
+    {
+      "q": "Réachat (shop). Renvoyez le nombre de clients qui ont commandé au moins une fois (buyers), combien ont commandé au moins deux fois (repeat_buyers) et le taux de réachat en % arrondi à 1 décimale.",
+      "hint": "Comptez les commandes par client dans une CTE, puis SUM(CASE WHEN orders >= 2 THEN 1 ELSE 0 END). Divisez par les acheteurs et multipliez par 100.0.",
+      "code": "sql",
+      "answer": "WITH per_customer AS (\n  SELECT customer_id, COUNT(*) AS orders\n  FROM orders\n  GROUP BY customer_id\n)\nSELECT COUNT(*) AS buyers,\n       SUM(CASE WHEN orders >= 2 THEN 1 ELSE 0 END) AS repeat_buyers,\n       ROUND(100.0 * SUM(CASE WHEN orders >= 2 THEN 1 ELSE 0 END) / COUNT(*), 1) AS repeat_rate_pct\nFROM per_customer;",
+      "run": {
+        "db": "shop",
+        "minColumns": 3
+      },
+      "explain": "24 acheteurs, dont 16 avec au moins deux commandes : 66,7 %. Le dénominateur est le nombre d’acheteurs (24), pas les 30 clients inscrits : 16 / 30 = 53,3 % mélangerait le taux de réachat et la conversion de l’inscription vers le premier achat."
+    },
+    {
+      "q": "Corrigez cette requête (shop) : pour chaque mois d’inscription (customers.created_at), le nombre d’inscrits et combien d’entre eux ont déjà commandé. Les acheteurs semblent justes, mais février 2025 affiche 10 inscrits alors que seulement 7 clients se sont inscrits ce mois-là.",
+      "hint": "Le LEFT JOIN avec orders donne une ligne par commande : que compte COUNT(*) après la jointure ?",
+      "code": "sql",
+      "answer": "SELECT strftime('%Y-%m', c.created_at) AS signup_month,\n       COUNT(DISTINCT c.id) AS signups,\n       COUNT(DISTINCT o.customer_id) AS buyers\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nGROUP BY signup_month\nORDER BY signup_month;",
+      "run": {
+        "db": "shop",
+        "ordered": true
+      },
+      "start": "SELECT strftime('%Y-%m', c.created_at) AS signup_month,\n       COUNT(*) AS signups,\n       COUNT(DISTINCT o.customer_id) AS buyers\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nGROUP BY signup_month\nORDER BY signup_month;",
+      "explain": "Après la jointure, un client avec 3 commandes fait 3 lignes, donc COUNT(*) compte des commandes (plus une ligne par client sans commande). COUNT(DISTINCT c.id) compte des personnes : février 2025 a 7 inscrits et 6 acheteurs. Les clients sans commande restent dans le résultat grâce au LEFT JOIN, et COUNT(DISTINCT o.customer_id) ignore leur NULL."
+    },
+    {
+      "q": "Funnel (shop, table events : user_id, event, at, heures en UTC). Pour mars 2026, renvoyez le nombre d’utilisateurs distincts qui ont fait view_item, add_to_cart, begin_checkout et purchase, et la conversion globale view_item → purchase en % arrondie à 1 décimale. Certains événements sont enregistrés deux fois.",
+      "hint": "Un COUNT(DISTINCT CASE WHEN event = '...' THEN user_id END) par étape dans un seul SELECT ; filtrez le mois avec at >= '2026-03-01' AND at < '2026-04-01'.",
+      "code": "sql",
+      "answer": "SELECT COUNT(DISTINCT CASE WHEN event = 'view_item' THEN user_id END) AS viewed,\n       COUNT(DISTINCT CASE WHEN event = 'add_to_cart' THEN user_id END) AS added_to_cart,\n       COUNT(DISTINCT CASE WHEN event = 'begin_checkout' THEN user_id END) AS began_checkout,\n       COUNT(DISTINCT CASE WHEN event = 'purchase' THEN user_id END) AS purchased,\n       ROUND(100.0 * COUNT(DISTINCT CASE WHEN event = 'purchase' THEN user_id END)\n             / COUNT(DISTINCT CASE WHEN event = 'view_item' THEN user_id END), 1) AS conversion_pct\nFROM events\nWHERE at >= '2026-03-01' AND at < '2026-04-01';",
+      "run": {
+        "db": "shop",
+        "minColumns": 5
+      },
+      "explain": "40 visiteurs ont vu un produit, 22 ont ajouté au panier (55,0 % des visiteurs), 13 ont commencé le paiement (59,1 % des paniers), 8 ont acheté (61,5 % des paiements commencés) : 20,0 % au global. COUNT(*) compterait 53 vues et 26 ajouts au panier à cause des événements répétés. Un intervalle semi-ouvert sur at garde tout le dernier jour sans l’astuce du 23:59:59 avec BETWEEN."
     }
   ],
   "interview": [
@@ -644,6 +752,14 @@
     {
       "q": "Comment rendez-vous un chargement de données sûr s’il est exécuté deux fois ?",
       "a": "Je le rends idempotent : je charge dans une table de staging, je la dédoublonne, puis je fais un upsert dans la cible sur sa clé métier avec INSERT ... ON CONFLICT ou MERGE, ou je remplace une partition entière (supprimer le jour, insérer le jour) dans une seule transaction. Relancer le même chargement donne alors le même résultat au lieu de doublons, ce qui sécurise les relances et les rattrapages."
+    },
+    {
+      "q": "Comment construiriez-vous un tableau de rétention mensuelle en SQL ?",
+      "a": "Je fixe d’abord les définitions : la cohorte est le mois du premier achat (ou de l’inscription), et la rétention au mois k signifie que le client a commandé ce mois-là. Une CTE donne une ligne par client avec son mois de cohorte ; je la joins aux commandes, je calcule le décalage en mois à partir de l’écart d’années et de mois, et je garde les triplets client, cohorte, décalage DISTINCT. Puis je pivote avec COUNT(DISTINCT CASE WHEN month_offset = k THEN customer_id END) par colonne et je divise par la taille de la cohorte. Je signale le dernier mois partiel et je laisse vides les décalages pas encore atteints."
+    },
+    {
+      "q": "La conversion au paiement de votre funnel a baissé de moitié le mois dernier. Que vérifiez-vous avant de donner l’alerte ?",
+      "a": "D’abord les données : le mois est-il complet, le tracking a-t-il changé (événement renommé, balise absente sur une page, bandeau de consentement), les événements sont-ils dupliqués ou dédoublonnés autrement, les fuseaux horaires sont-ils les mêmes des deux côtés. Ensuite la définition : utilisateurs distincts ou sessions, funnel ouvert ou strict, même filtre de dates. Puis je segmente par appareil, navigateur, pays et source de trafic pour voir si la baisse est locale, par exemple une version de l’application, et seulement ensuite je compare avec les commandes du back-office, qui font foi pour les achats."
     }
   ]
 }

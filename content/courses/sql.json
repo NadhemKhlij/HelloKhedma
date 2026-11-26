@@ -188,6 +188,28 @@
         "code": "-- Load staging rows into customers; safe to run again\nBEGIN;\n\nINSERT INTO customers (id, email, city, updated_at)\nSELECT DISTINCT ON (id) id, LOWER(TRIM(email)), city, loaded_at\nFROM staging_customers\nORDER BY id, loaded_at DESC\nON CONFLICT (id) DO UPDATE\nSET email = EXCLUDED.email,\n    city = EXCLUDED.city,\n    updated_at = EXCLUDED.updated_at\nWHERE customers.updated_at < EXCLUDED.updated_at\nRETURNING id;\n\nCOMMIT;",
         "note": "DISTINCT ON (PostgreSQL) keeps the latest staging row per id: without it, two rows with the same id make ON CONFLICT DO UPDATE fail."
       }
+    },
+    {
+      "title": "Cohorts, retention and funnels in SQL",
+      "text": [
+        "Data Analyst live tests and take-home cases come back to the same three questions: do the customers we acquire come back (cohorts and retention), how many buy more than once (repeat purchase), and where do visitors drop out before buying (funnel). None needs an exotic function: a CTE, MIN(), a date truncated to the month, COUNT(DISTINCT ...) and CASE inside an aggregate are enough. What the interviewer really checks is whether you define the metric before writing the query, and whether your numbers survive a sanity check.",
+        "A cohort is a group of users who share a starting event in the same period. Two definitions are common: the signup cohort (month of customers.created_at) and the first-order cohort (month of MIN(ordered_at) per customer). They answer different questions, so say which one you use. Build it in two steps: a CTE with one row per customer and their cohort date, then a join back to the activity. In PostgreSQL, DATE_TRUNC('month', ts) gives the month; in SQLite strftime('%Y-%m', ts); in BigQuery DATE_TRUNC(d, MONTH); in SQL Server DATEFROMPARTS(YEAR(d), MONTH(d), 1).",
+        "Retention by cohort is a table with one row per cohort and one column per month offset: offset 0 is the cohort month itself, offset 1 the next month, and so on. The offset is (year of activity − year of cohort) × 12 + (month of activity − month of cohort). The pivot is conditional aggregation: COUNT(DISTINCT CASE WHEN month_offset = 1 THEN customer_id END) counts each customer once, and CASE without ELSE returns NULL, which COUNT ignores. Divide by the cohort size, multiplied by 100.0, to get a percentage. State whether retention means 'ordered in that month' (classic) or 'ordered in that month or later' (unbounded): the second is always higher.",
+        "The repeat-purchase rate is the share of buyers with at least two orders: aggregate orders per customer first, then count customers with SUM(CASE WHEN orders >= 2 THEN 1 ELSE 0 END) and divide by the number of buyers, not by all registered customers. A funnel follows the same pattern on event data: one COUNT(DISTINCT CASE WHEN event = '...' THEN user_id END) per step (with GA4-style names such as view_item, add_to_cart, begin_checkout, purchase), then the conversion of each step from the previous one and the overall rate from the first step. That is an open funnel; a strict funnel only counts a step when the previous one happened before it, usually within a time window, which needs MIN(at) per user and step.",
+        "Most wrong answers come from four pitfalls. Duplicates: a join with orders or a repeated event multiplies rows, so COUNT(*) counts rows, not people; count DISTINCT ids. The incomplete last month: if the data stops on the 13th, the last month looks like a collapse, so exclude it or label it as partial, and leave offsets not yet reached for the newest cohorts empty rather than 0. Time zones: timestamps are often stored in UTC, and an order at 23:30 UTC on 31 January was placed on 1 February in Paris; convert before truncating (PostgreSQL: ts AT TIME ZONE 'Europe/Paris' on a timestamptz). Finally, small cohorts: a cohort of 3 customers gives 33% steps, so show the cohort size next to every rate."
+      ],
+      "points": [
+        "Define the cohort (signup or first order) and the retention rule before writing SQL.",
+        "One row per user and cohort date in a CTE, then join back to the activity.",
+        "COUNT(DISTINCT CASE WHEN ... THEN user_id END) pivots and counts people, not rows.",
+        "Flag the incomplete last month and leave unreached offsets empty, not 0.",
+        "Convert UTC timestamps to the business time zone before truncating to day or month."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "WITH first_orders AS (\n  SELECT customer_id, DATE_TRUNC('month', MIN(ordered_at)) AS cohort\n  FROM orders\n  GROUP BY customer_id\n),\nactivity AS (\n  SELECT DISTINCT f.cohort, o.customer_id,\n         (EXTRACT(YEAR FROM o.ordered_at) - EXTRACT(YEAR FROM f.cohort)) * 12\n         + EXTRACT(MONTH FROM o.ordered_at) - EXTRACT(MONTH FROM f.cohort) AS month_offset\n  FROM orders o\n  JOIN first_orders f ON f.customer_id = o.customer_id\n)\nSELECT cohort,\n       COUNT(DISTINCT customer_id) AS customers,\n       ROUND(100.0 * COUNT(DISTINCT CASE WHEN month_offset = 1 THEN customer_id END)\n             / COUNT(DISTINCT customer_id), 1) AS m1_pct,\n       ROUND(100.0 * COUNT(DISTINCT CASE WHEN month_offset = 2 THEN customer_id END)\n             / COUNT(DISTINCT customer_id), 1) AS m2_pct,\n       ROUND(100.0 * COUNT(DISTINCT CASE WHEN month_offset = 3 THEN customer_id END)\n             / COUNT(DISTINCT customer_id), 1) AS m3_pct\nFROM activity\nGROUP BY cohort\nORDER BY cohort;",
+        "note": "PostgreSQL. Retention in % by first-order cohort; DISTINCT in the activity CTE keeps one row per customer and month offset. In SQLite (the practice database) use strftime('%Y-%m', ordered_at) for the month."
+      }
     }
   ],
   "cheatsheet": [
@@ -395,6 +417,35 @@
           "Show the rows changed (SQL Server: OUTPUT)"
         ]
       ]
+    },
+    {
+      "group": "Cohorts & funnels",
+      "items": [
+        [
+          "MIN(ordered_at) ... GROUP BY customer_id",
+          "First order per customer: the cohort date"
+        ],
+        [
+          "DATE_TRUNC('month', ts) / strftime('%Y-%m', ts)",
+          "Month of a timestamp (PostgreSQL / SQLite)"
+        ],
+        [
+          "(y2 - y1) * 12 + (m2 - m1)",
+          "Month offset since the cohort"
+        ],
+        [
+          "COUNT(DISTINCT CASE WHEN k = 1 THEN user_id END)",
+          "Pivot: people active at offset 1"
+        ],
+        [
+          "100.0 * step / NULLIF(previous_step, 0)",
+          "Step conversion in %"
+        ],
+        [
+          "ts AT TIME ZONE 'Europe/Paris'",
+          "UTC timestamptz to local time before truncating (PostgreSQL)"
+        ]
+      ]
     }
   ],
   "pitfalls": [
@@ -404,7 +455,8 @@
     "Using SELECT * in production queries: slower and breaks when columns change.",
     "Using NOT IN with a subquery that can return NULL: the query returns no rows at all. Use NOT EXISTS.",
     "Relying on the default window frame for a running total: with RANGE, rows sharing the same ORDER BY value get the same total. Write ROWS BETWEEN ... and add a unique tie-breaker.",
-    "Running an UPDATE or DELETE outside a transaction without first checking its WHERE with a SELECT: one typo can change the whole table."
+    "Running an UPDATE or DELETE outside a transaction without first checking its WHERE with a SELECT: one typo can change the whole table.",
+    "Counting rows instead of people in cohorts and funnels: after a join with orders or with repeated events, COUNT(*) inflates the numbers. Count DISTINCT user ids, and flag a last month that is still incomplete."
   ],
   "exercises": [
     {
@@ -610,6 +662,62 @@
       "q": "Take-home case, Data Analyst (5/5). Write your answer to the director in 4 to 6 lines: what happened (with the numbers), how sure you are, what to check next and what you recommend.",
       "hint": "Lead with the conclusion, then the evidence, then the next step. Numbers rounded, no SQL.",
       "answer": "Q2 revenue is up 23% (22.0k → 27.1k) and every store grows except Lyon, down 45% (4.8k → 2.6k). The whole drop is Electronics: Lyon has not sold a single electronics item since 26 March (2.5k in Q1, 0 in Q2), and Accessories, usually bought with a laptop, halved; Furniture and Office are up. A drop to zero overnight points to a stock or listing problem rather than demand, but the data cannot prove it. Next: check Lyon's electronics stock and listings since late March with the store manager, and whether Lyon customers switched to the online shop (+56%). Recommendation: fix the supply, then add a weekly store × category alert so a category at zero is caught within days, not a quarter."
+    },
+    {
+      "q": "Cohorts (practice database shop). Group the customers by the month of their FIRST order: return the cohort month (format YYYY-MM) and the number of customers in it, oldest cohort first.",
+      "hint": "A CTE with MIN(ordered_at) per customer_id, then GROUP BY the month. SQLite: strftime('%Y-%m', date).",
+      "code": "sql",
+      "answer": "WITH first_orders AS (\n  SELECT customer_id, MIN(ordered_at) AS first_at\n  FROM orders\n  GROUP BY customer_id\n)\nSELECT strftime('%Y-%m', first_at) AS cohort,\n       COUNT(*) AS customers\nFROM first_orders\nGROUP BY cohort\nORDER BY cohort;",
+      "run": {
+        "db": "shop",
+        "ordered": true
+      },
+      "explain": "24 buyers in 5 cohorts: 2025-11: 5, 2025-12: 11, 2026-01: 4, 2026-02: 1, 2026-03: 3. Take MIN() per customer first: grouping orders by month directly counts active customers per month, not cohorts."
+    },
+    {
+      "q": "Retention (shop). For each first-order cohort (YYYY-MM), count the distinct customers who ordered in the cohort month (m0) and 1, 2 and 3 months later (m1, m2, m3). Return cohort, m0, m1, m2, m3, oldest cohort first.",
+      "hint": "Month offset = (year of the order − year of the first order) × 12 + (month − month); in SQLite strftime('%Y', ...) - strftime('%Y', ...) works. Then COUNT(DISTINCT CASE WHEN month_offset = 1 THEN customer_id END).",
+      "code": "sql",
+      "answer": "WITH first_orders AS (\n  SELECT customer_id, MIN(ordered_at) AS first_at\n  FROM orders\n  GROUP BY customer_id\n),\nactivity AS (\n  SELECT DISTINCT o.customer_id,\n         strftime('%Y-%m', f.first_at) AS cohort,\n         (strftime('%Y', o.ordered_at) - strftime('%Y', f.first_at)) * 12\n         + (strftime('%m', o.ordered_at) - strftime('%m', f.first_at)) AS month_offset\n  FROM orders o\n  JOIN first_orders f ON f.customer_id = o.customer_id\n)\nSELECT cohort,\n       COUNT(DISTINCT CASE WHEN month_offset = 0 THEN customer_id END) AS m0,\n       COUNT(DISTINCT CASE WHEN month_offset = 1 THEN customer_id END) AS m1,\n       COUNT(DISTINCT CASE WHEN month_offset = 2 THEN customer_id END) AS m2,\n       COUNT(DISTINCT CASE WHEN month_offset = 3 THEN customer_id END) AS m3\nFROM activity\nGROUP BY cohort\nORDER BY cohort;",
+      "run": {
+        "db": "shop",
+        "ordered": true
+      },
+      "explain": "2025-11: 5, 2, 0, 1; 2025-12: 11, 5, 5, 2; 2026-01: 4, 1, 2, 0; 2026-02: 1, 1, 0, 0; 2026-03: 3, 0, 0, 0. The data stops on 13 March 2026: March is partial, and the zeros of the newest cohorts are offsets not reached yet, which a report should leave empty. December's cohort is the largest and keeps 5 of 11 customers in each of the next two months."
+    },
+    {
+      "q": "Repeat purchase (shop). Return the number of customers who ordered at least once (buyers), how many ordered at least twice (repeat_buyers) and the repeat-purchase rate in % rounded to 1 decimal.",
+      "hint": "Count orders per customer in a CTE, then SUM(CASE WHEN orders >= 2 THEN 1 ELSE 0 END). Divide by the buyers and multiply by 100.0.",
+      "code": "sql",
+      "answer": "WITH per_customer AS (\n  SELECT customer_id, COUNT(*) AS orders\n  FROM orders\n  GROUP BY customer_id\n)\nSELECT COUNT(*) AS buyers,\n       SUM(CASE WHEN orders >= 2 THEN 1 ELSE 0 END) AS repeat_buyers,\n       ROUND(100.0 * SUM(CASE WHEN orders >= 2 THEN 1 ELSE 0 END) / COUNT(*), 1) AS repeat_rate_pct\nFROM per_customer;",
+      "run": {
+        "db": "shop",
+        "minColumns": 3
+      },
+      "explain": "24 buyers, 16 with two orders or more: 66.7%. The denominator is the buyers (24), not the 30 registered customers: 16 / 30 = 53.3% would mix the repeat rate with the signup-to-first-order conversion."
+    },
+    {
+      "q": "Fix this query (shop): for each signup month (customers.created_at), the number of signups and how many of them ever ordered. The buyers look right, but February 2025 shows 10 signups when only 7 customers signed up that month.",
+      "hint": "The LEFT JOIN with orders gives one row per order: what does COUNT(*) count after it?",
+      "code": "sql",
+      "answer": "SELECT strftime('%Y-%m', c.created_at) AS signup_month,\n       COUNT(DISTINCT c.id) AS signups,\n       COUNT(DISTINCT o.customer_id) AS buyers\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nGROUP BY signup_month\nORDER BY signup_month;",
+      "run": {
+        "db": "shop",
+        "ordered": true
+      },
+      "start": "SELECT strftime('%Y-%m', c.created_at) AS signup_month,\n       COUNT(*) AS signups,\n       COUNT(DISTINCT o.customer_id) AS buyers\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nGROUP BY signup_month\nORDER BY signup_month;",
+      "explain": "After the join, a customer with 3 orders is 3 rows, so COUNT(*) counts orders (plus one row per customer without any). COUNT(DISTINCT c.id) counts people: February 2025 has 7 signups and 6 buyers. Customers without an order stay in the result thanks to the LEFT JOIN, and COUNT(DISTINCT o.customer_id) ignores their NULL."
+    },
+    {
+      "q": "Funnel (shop, table events: user_id, event, at, times in UTC). For March 2026, return the number of distinct users who did view_item, add_to_cart, begin_checkout and purchase, and the overall conversion view_item → purchase in % rounded to 1 decimal. Some events are logged twice.",
+      "hint": "One COUNT(DISTINCT CASE WHEN event = '...' THEN user_id END) per step in a single SELECT; filter the month with at >= '2026-03-01' AND at < '2026-04-01'.",
+      "code": "sql",
+      "answer": "SELECT COUNT(DISTINCT CASE WHEN event = 'view_item' THEN user_id END) AS viewed,\n       COUNT(DISTINCT CASE WHEN event = 'add_to_cart' THEN user_id END) AS added_to_cart,\n       COUNT(DISTINCT CASE WHEN event = 'begin_checkout' THEN user_id END) AS began_checkout,\n       COUNT(DISTINCT CASE WHEN event = 'purchase' THEN user_id END) AS purchased,\n       ROUND(100.0 * COUNT(DISTINCT CASE WHEN event = 'purchase' THEN user_id END)\n             / COUNT(DISTINCT CASE WHEN event = 'view_item' THEN user_id END), 1) AS conversion_pct\nFROM events\nWHERE at >= '2026-03-01' AND at < '2026-04-01';",
+      "run": {
+        "db": "shop",
+        "minColumns": 5
+      },
+      "explain": "40 viewers, 22 added to cart (55.0% of viewers), 13 began checkout (59.1% of carts), 8 purchased (61.5% of checkouts): 20.0% overall. COUNT(*) would count 53 views and 26 add_to_cart events because of repeated events. A half-open range on at keeps the whole last day without BETWEEN's 23:59:59 trick."
     }
   ],
   "interview": [
@@ -644,6 +752,14 @@
     {
       "q": "How do you make a data load safe to run twice?",
       "a": "I make it idempotent: load into a staging table, deduplicate it, then upsert into the target on its business key with INSERT ... ON CONFLICT or MERGE, or replace a whole partition (delete the day, insert the day) inside one transaction. Rerunning the same load then gives the same result instead of duplicates, which makes retries and backfills safe."
+    },
+    {
+      "q": "How would you build a monthly retention table in SQL?",
+      "a": "I first fix the definitions: the cohort is the month of the first order (or of signup), and retention in month k means the customer ordered in that month. A CTE gives one row per customer with the cohort month; I join it back to the orders, compute the month offset from the year and month difference, and keep DISTINCT customer, cohort and offset. Then I pivot with COUNT(DISTINCT CASE WHEN month_offset = k THEN customer_id END) per column and divide by the cohort size. I flag the partial last month and leave offsets not reached yet empty."
+    },
+    {
+      "q": "The checkout conversion in your funnel dropped by half last month. What do you check before raising the alarm?",
+      "a": "First the data: is the month complete, did tracking change (event renamed, tag missing on a page, consent banner), are events duplicated or deduplicated differently, and are the time zones the same on both sides. Then the definition: distinct users or sessions, open or strict funnel, same date filter. Then I segment by device, browser, country and traffic source to see whether the drop is local, for example one app version, and only then compare with orders in the back office, which is the source of truth for purchases."
     }
   ]
 }

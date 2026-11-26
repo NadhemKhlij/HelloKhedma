@@ -178,7 +178,7 @@ export default {
   /* ---------- CV page: score without an offer (cvpage.js, atsscore.js) ---------- */
   "Your CV": "Votre CV",
   "No CV yet? Build one in the CV maker →": "Pas encore de CV ? Créez-en un avec le créateur de CV →",
-  "Upload your CV (PDF or .txt) or paste its text: you get its ATS score right away, no job offer needed. Your CV stays in this browser and is never uploaded.": "Importez votre CV (PDF ou .txt) ou collez son texte : vous obtenez tout de suite son score ATS, sans offre d’emploi. Votre CV reste dans ce navigateur et n’est jamais envoyé.",
+  "Upload your CV (PDF or .txt) or paste its text: you get its ATS score right away, no job offer needed. Your CV stays in this browser: it leaves it only if you ask for an AI rewrite or turn on \"Save my CVs to my account\".": "Importez votre CV (PDF ou .txt) ou collez son texte : vous obtenez tout de suite son score ATS, sans offre d’emploi. Votre CV reste dans ce navigateur : il n’en sort que si vous demandez une réécriture par IA ou activez « Enregistrer mes CV dans mon compte ».",
   "Unsaved changes: save to update your score.": "Modifications non enregistrées : enregistrez pour mettre à jour votre score.",
   "Save and score my CV": "Enregistrer et noter mon CV",
   "Your CV score": "Le score de votre CV",

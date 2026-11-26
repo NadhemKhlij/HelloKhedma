@@ -26,7 +26,7 @@ export function renderStatus() {
   $("#changePassword").hidden = !u;
   $("#accountWho").textContent = u
     ? t("Signed in as {email}. Your applications, path and learning progress (lessons, quizzes, projects, interview prep) are synced to your account.", { email: u.email })
-    : t("You are using HelloKhedma as a guest: everything is stored in this browser only, nothing on our servers.");
+    : t("You are using HelloKhedma as a guest: your CVs, applications and progress are stored in this browser only. Our servers only receive anonymous usage counts and, if you turned them on, anonymous statistics.");
   $("#deleteInfo").textContent = u
     ? t("Permanently deletes your account and everything linked to it (applications, progress, profile, CVs saved to the account), then clears this browser. This cannot be undone.")
     : t("Clears every HelloKhedma data from this browser: applications, progress, CV text and settings. This cannot be undone.");

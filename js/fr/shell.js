@@ -95,8 +95,8 @@ export default {
   "Sign out": "Se déconnecter",
   "Signed in as {email}. Your applications, training progress and path are synced to your account; your CV stays on this device.":
     "Connecté en tant que {email}. Vos candidatures, votre progression et votre parcours sont synchronisés avec votre compte ; votre CV reste sur cet appareil.",
-  "You are using HelloKhedma as a guest: everything is stored in this browser only, nothing on our servers.":
-    "Vous utilisez HelloKhedma en invité : tout est stocké uniquement dans ce navigateur, rien sur nos serveurs.",
+  "You are using HelloKhedma as a guest: your CVs, applications and progress are stored in this browser only. Our servers only receive anonymous usage counts and, if you turned them on, anonymous statistics.":
+    "Vous utilisez HelloKhedma en invité : vos CV, candidatures et progression sont stockés uniquement dans ce navigateur. Nos serveurs ne reçoivent que des compteurs d’utilisation anonymes et, si vous les avez activées, les statistiques anonymes.",
   "Permanently deletes your account and everything linked to it (applications, progress, profile), then clears this browser. This cannot be undone.":
     "Supprime définitivement votre compte et tout ce qui y est lié (candidatures, progression, profil), puis vide ce navigateur. Action irréversible.",
   "Clears every HelloKhedma data from this browser: applications, progress, CV text and settings. This cannot be undone.":

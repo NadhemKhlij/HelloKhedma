@@ -66,11 +66,12 @@ Constats :
 
 **Avant de commiter cette section, montre-moi le diff.**
 
-- [ ] Dans « En bref », remplacer « pas de mesure d'audience » par une formulation exacte. Cloudflare Web Analytics est bien chargé (`static.cloudflareinsights.com/beacon.min.js`) et il est décrit plus bas dans la même page.
-- [ ] Corriger la phrase « Les polices et bibliothèques sont servies par HelloKhedma lui-même, sans service tiers » : pdf.js est chargé depuis cdnjs et le script de mesure depuis Cloudflare.
-- [ ] Page CV : la phrase « Votre CV reste dans ce navigateur et n'est jamais envoyé » est trop absolue. Ajouter les exceptions : réécriture par IA à la demande, enregistrement dans le compte si l'option est activée.
-- [ ] Page Compte en invité : « rien sur nos serveurs » doit rester cohérent avec les statistiques anonymes et les compteurs d'utilisation décrits dans la politique.
-- [ ] **[À VÉRIFIER]** Statistiques anonymes : sur le navigateur audité, la page Compte affichait « Vous partagez des statistiques anonymes », alors que la politique les annonce désactivées par défaut. Tester sur un profil de navigateur vierge. Si l'option est activée sans action de l'utilisateur, corriger la valeur par défaut. Si l'utilisateur l'avait activée lui-même, ne rien changer.
+- [x] Dans « En bref », remplacer « pas de mesure d'audience » par une formulation exacte. Cloudflare Web Analytics est bien chargé (`static.cloudflareinsights.com/beacon.min.js`) et il est décrit plus bas dans la même page.
+- [x] Corriger la phrase « Les polices et bibliothèques sont servies par HelloKhedma lui-même, sans service tiers » : pdf.js est chargé depuis cdnjs et le script de mesure depuis Cloudflare.
+- [x] Page CV : la phrase « Votre CV reste dans ce navigateur et n'est jamais envoyé » est trop absolue. Ajouter les exceptions : réécriture par IA à la demande, enregistrement dans le compte si l'option est activée.
+- [x] Page Compte en invité : « rien sur nos serveurs » doit rester cohérent avec les statistiques anonymes et les compteurs d'utilisation décrits dans la politique.
+- [x] **[À VÉRIFIER]** Statistiques anonymes : sur le navigateur audité, la page Compte affichait « Vous partagez des statistiques anonymes », alors que la politique les annonce désactivées par défaut. Tester sur un profil de navigateur vierge. Si l'option est activée sans action de l'utilisateur, corriger la valeur par défaut. Si l'utilisateur l'avait activée lui-même, ne rien changer.
+  → Vérifié le 26/11 sur un profil vierge : « hk.insights » est vide, rien n'est envoyé et la page Compte propose « Partager ». L'option avait été activée sur le navigateur audité ; rien à corriger.
 
 ## P1 — Session, déconnexion et mode invité (`js/auth.js`, `js/supabase.js`, `js/store.js`, `js/applications.js`)
 

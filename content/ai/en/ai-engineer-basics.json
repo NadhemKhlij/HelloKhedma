@@ -161,6 +161,28 @@
         "code": "# Support ticket classifier (Claude API)\n\n## Problem\nClassify customer tickets written in Derja, French or Arabic into 5 categories.\n\n## How it works\nPython + anthropic SDK, model claude-haiku-5-5, prompt in prompts/classify.txt.\nPersonal data is masked before each API call.\n\n## Results\nTested on 100 labelled tickets: accuracy, cost per 1,000 tickets, average latency.\n\n## Limits\nTickets mixing languages and slang are harder to classify.\n\n## Run it\npip install -r requirements.txt\nSet ANTHROPIC_API_KEY in your environment, then run: python classify.py",
         "note": "A README skeleton: the recruiter reads the problem, the results and the limits in one minute."
       }
+    },
+    {
+      "title": "The EU AI Act for AI engineers",
+      "text": [
+        "The AI Act is Regulation (EU) 2024/1689, the European Union's law on artificial intelligence. It concerns anyone who places an AI system on the EU market or uses one in the EU, even from outside: a Tunisian company that sells an AI feature to French clients is concerned, and so is a system whose output is used in the EU. Two roles matter for you. The provider develops an AI system (or has it developed) and puts it on the market under its own name; the deployer uses an AI system under its authority, for example a company that uses your assistant with its customers. If your company builds a product on Claude, Anthropic is the provider of the general-purpose model, and your company is usually the provider of the AI system built on it. The law works by risk: the more an AI use can harm people, the more obligations.",
+        "Four tiers. Prohibited practices: social scoring of people, manipulation that exploits people's vulnerabilities, untargeted scraping of face images to build facial recognition databases, emotion recognition at work or at school (except for medical or safety reasons), and some uses of biometrics. High-risk: AI used in sensitive areas listed by the law, such as recruitment (sorting CVs, evaluating candidates), education (admissions, grading exams), access to essential services (the creditworthiness of a person, some insurance), critical infrastructure, law enforcement, migration and justice, plus AI that is a safety component of regulated products. Limited risk, with transparency duties: a chatbot must tell people they are talking to an AI, and generated or manipulated content (deepfakes) must be disclosed or marked. Minimal risk: a spam filter or a video game AI, with no new obligation. Key idea: the tier depends on the use, not on the model. The same LLM that sorts support tickets (minimal risk) becomes high-risk when it ranks job applicants.",
+        "General-purpose AI models (GPAI), such as Claude, GPT or Mistral's models, have their own obligations, which fall on the companies that build those models: technical documentation, information for the companies that build on them, a policy to respect copyright, and a public summary of the content used for training. Models with systemic risk, the most capable ones trained with very large compute, have more duties: evaluations, adversarial testing, reporting serious incidents and cybersecurity. A Code of Practice published in 2025 helps providers comply. For you, calling the API does not make you a GPAI provider; on the other hand you can ask your provider for its documentation, and you need it for your own.",
+        "The timeline, in general terms. The AI Act entered into force on 1 August 2024 and applies step by step: the prohibitions, and the duty to train staff in AI literacy, from February 2025; the obligations for general-purpose AI models from August 2025; most of the other rules, including high-risk systems and the transparency duties, later, from 2026 and 2027. In late 2025 the European Commission proposed to postpone part of the high-risk rules, so check the current dates on official sources (EUR-Lex, the Commission's AI Act pages) before you tell a client anything. The fines are serious: up to 35 million euros or 7% of worldwide annual turnover for prohibited practices.",
+        "What it means day to day for an AI engineer. Transparency: the user knows they are talking to an AI and generated content is labelled. Logging: keep traces of requests, model and prompt versions and decisions, without needless personal data (high-risk systems must log events automatically). Human oversight: a competent person can check, correct or stop the system, and no AI takes a final decision on people alone. Documentation: intended use, data, model, limits, eval results. And the GDPR still applies in parallel as soon as there is personal data: a legal basis, minimisation, information to people and their rights, an impact assessment (DPIA) for risky processing, and article 22 on decisions based solely on automated processing that significantly affect people. In France the CNIL publishes recommendations on AI and the GDPR. One project = two checklists, and the legal team or the DPO validates; you bring the technical facts."
+      ],
+      "points": [
+        "The tier depends on the use, not on the model: the same LLM can be minimal risk or high-risk.",
+        "Provider builds and markets the AI system; deployer uses it under its authority.",
+        "A chatbot must say it is an AI; generated or deepfake content must be disclosed.",
+        "Dates are staggered and parts were being postponed: check the current dates on official sources.",
+        "The AI Act does not replace the GDPR: both apply when there is personal data."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "AI Act sheet - support assistant of an online shop (first draft for the team)\n\nUse:           answers customers about their orders, opens tickets for humans\nRoles:         we build it and run it -> provider and deployer of the AI system\n               Anthropic -> provider of the general-purpose AI model (Claude)\nRisk tier:     limited risk (a chatbot) -> transparency duty\n               not high-risk: no decision on hiring, credit, insurance or access to services\nTransparency:  first message: \"I am an AI assistant. Type 'agent' to talk to a person.\"\nLogging:       request_id, model, prompt version, tools called, ticket ids (no names, no phone numbers)\nHuman:         refunds and complaints -> ticket for a person; the assistant never decides them\nDocumentation: intended use, limits, eval set results, model and prompt versions, known failures\nGDPR:          personal data (order ids, messages) -> legal basis, retention period, masking before logs\nReview again:  when the use changes (e.g. it starts deciding refunds or scoring customers)",
+        "note": "A first sheet so the team asks the right questions; the classification is confirmed by the legal team or the DPO, it is not legal advice."
+      }
     }
   ],
   "cheatsheet": [
@@ -305,6 +327,35 @@
           "Tell the user they are talking to an AI"
         ]
       ]
+    },
+    {
+      "group": "EU AI Act",
+      "items": [
+        [
+          "Regulation (EU) 2024/1689",
+          "The AI Act, in force since 1 August 2024, applied step by step"
+        ],
+        [
+          "Prohibited / high-risk / limited / minimal",
+          "The four risk tiers; the use decides the tier"
+        ],
+        [
+          "Provider vs deployer",
+          "Builds and markets the AI system vs uses it under its authority"
+        ],
+        [
+          "GPAI model obligations",
+          "Documentation, copyright policy, training content summary (from August 2025)"
+        ],
+        [
+          "Transparency (limited risk)",
+          "Say it is an AI; disclose generated or deepfake content"
+        ],
+        [
+          "AI Act + GDPR",
+          "Both apply when personal data is involved"
+        ]
+      ]
     }
   ],
   "exercises": [
@@ -343,6 +394,138 @@
     {
       "q": "A support ticket contains: the customer's name, email, phone number, bank card number, and a description of the problem. What do you send to the API to classify it?",
       "answer": "Only the description of the problem, after masking any personal data in it with placeholders (email, phone, name). The bank card number is never sent. The name, email and phone are not needed for classification: keep them on your side and link them to the result with the ticket's identifier."
+    },
+    {
+      "type": "groups",
+      "q": "Sort these AI uses into the AI Act's risk tiers.",
+      "groups": [
+        {
+          "name": "Prohibited",
+          "items": [
+            "Social scoring of citizens that leads to unfair treatment",
+            "Scraping face images from the internet to build a facial recognition database",
+            "Recognising employees' emotions at work to rate them"
+          ]
+        },
+        {
+          "name": "High-risk",
+          "items": [
+            "Ranking CVs to shortlist job applicants",
+            "Assessing a person's creditworthiness for a loan",
+            "Grading exams that decide admission to a school"
+          ]
+        },
+        {
+          "name": "Limited risk (transparency)",
+          "items": [
+            "A customer-service chatbot",
+            "A tool that generates realistic deepfake videos"
+          ]
+        },
+        {
+          "name": "Minimal risk",
+          "items": [
+            "A spam filter",
+            "An AI opponent in a video game"
+          ]
+        }
+      ],
+      "answer": "The tier comes from the use and its effect on people. Prohibited: practices the EU considers unacceptable. High-risk: decisions about jobs, education, credit and other areas listed in the law. Limited: people must know they deal with an AI or with generated content. Minimal: no new obligation."
+    },
+    {
+      "type": "match",
+      "q": "Match each term to its meaning.",
+      "pairs": [
+        [
+          "Provider",
+          "Develops the AI system and puts it on the market under its name"
+        ],
+        [
+          "Deployer",
+          "Uses an AI system under its authority, in its work"
+        ],
+        [
+          "General-purpose AI model",
+          "A model like Claude, GPT or Mistral's, usable for many tasks"
+        ],
+        [
+          "Human oversight",
+          "A competent person can check, correct or stop the system"
+        ],
+        [
+          "Article 22 of the GDPR",
+          "Limits decisions based solely on automated processing with significant effects"
+        ]
+      ],
+      "answer": "Provider and deployer are the two roles you meet most. GPAI obligations fall on the model makers. Human oversight is a high-risk requirement and good practice everywhere. Article 22 is the GDPR side: no purely automated decision with significant effects on a person, except in specific cases with safeguards."
+    },
+    {
+      "type": "order",
+      "q": "Put the AI Act's milestones in order.",
+      "steps": [
+        "Entry into force (1 August 2024)",
+        "Prohibited practices and AI literacy apply (February 2025)",
+        "Obligations for general-purpose AI models apply (August 2025)",
+        "Most high-risk rules apply (later: check the current dates)"
+      ],
+      "answer": "The law applies step by step: first what is forbidden, then the model makers, and the heavy high-risk rules last, which are also the ones being postponed. Always check the current dates on official sources."
+    },
+    {
+      "type": "scenario",
+      "q": "A French recruitment start-up asks you to add a feature: Claude ranks the CVs and automatically rejects the bottom half.",
+      "steps": [
+        {
+          "text": "How do you classify this feature?",
+          "choices": [
+            {
+              "label": "High-risk (recruitment is listed in the law): flag it to the team before building",
+              "best": true,
+              "feedback": "Right: sorting and evaluating candidates is a high-risk use, with heavy obligations."
+            },
+            {
+              "label": "Minimal risk: it only sorts text",
+              "feedback": "The technique is the same as sorting tickets, but the use affects people's jobs: that is what makes it high-risk."
+            },
+            {
+              "label": "Prohibited: refuse the whole project",
+              "feedback": "Recruitment tools are not prohibited; they are high-risk and must meet the requirements."
+            }
+          ]
+        },
+        {
+          "text": "The product owner says: 'Just ship it, we will see later.'",
+          "choices": [
+            {
+              "label": "Propose a design where the AI suggests and explains and a recruiter decides, with logs and documentation, and ask the legal team / DPO to check the AI Act and the GDPR (article 22, DPIA)",
+              "best": true,
+              "feedback": "Yes: human oversight, traceability and the legal check are what make the feature defensible."
+            },
+            {
+              "label": "Ship it as it is with a small disclaimer in the footer",
+              "feedback": "A disclaimer does not replace human oversight, documentation or the GDPR rules on automated decisions."
+            },
+            {
+              "label": "Turn off the logs so there is nothing to audit",
+              "feedback": "The opposite: logging is an obligation for high-risk systems, and without logs you cannot explain or fix anything."
+            }
+          ]
+        },
+        {
+          "text": "A candidate writes: 'Did an AI read my CV?'",
+          "choices": [
+            {
+              "label": "Answer honestly that an AI tool assists the recruiters, and explain how to reach a person and exercise their rights",
+              "best": true,
+              "feedback": "Transparency builds trust and is what the GDPR and the AI Act expect."
+            },
+            {
+              "label": "Answer no, to avoid problems",
+              "feedback": "Lying to a candidate about automated processing breaks the GDPR's duty to inform, and trust."
+            }
+          ]
+        }
+      ],
+      "answer": "Classify by the use, keep a human on decisions about people, log and document, and be transparent; the legal team validates."
     }
   ],
   "pitfalls": [
@@ -352,7 +535,8 @@
     "Sending a whole document or a long history with every request without measuring: the cost climbs fast. Watch usage from day one.",
     "Sending personal data or confidential code to the API without a need and without the company's permission.",
     "Copying code from an old tutorial (temperature, prefill, a dated model id): the new models reject it with a 400 error.",
-    "Counting Claude tokens with tiktoken: the count is wrong; use usage or count_tokens."
+    "Counting Claude tokens with tiktoken: the count is wrong; use usage or count_tokens.",
+    "Thinking the AI Act replaces the GDPR, or that a limited-risk chatbot needs nothing: both laws apply, and the chatbot must still say it is an AI."
   ],
   "interview": [
     {
@@ -386,6 +570,14 @@
     {
       "q": "Does the Claude API remember the conversation? How do you build a chatbot with many messages?",
       "a": "No, the Messages API is stateless. The application keeps the history and sends all of it with every request: messages with roles 'user' and 'assistant' in order. That means the input grows with every turn, and we have to factor that into the cost."
+    },
+    {
+      "q": "What does the EU AI Act change for you if you build a customer-service chatbot on Claude?",
+      "a": "A chatbot is usually limited risk: the main duty is transparency, users must know they are talking to an AI, and generated content is disclosed where needed. Anthropic has the general-purpose model obligations; my company is the provider of the system it builds. In practice I keep logs without needless personal data, a way to reach a human, documentation of the intended use and the evals, and the GDPR still applies. If the use changes towards decisions on people, I classify it again."
+    },
+    {
+      "q": "A client wants an LLM to score loan applicants automatically. What do you tell them?",
+      "a": "Creditworthiness of a person is a high-risk use under the AI Act: risk management, data quality, documentation, logging, human oversight, accuracy and robustness, among others. The GDPR also limits decisions based solely on automated processing with significant effects (article 22) and calls for an impact assessment. So I propose that the model assists and a person decides, with logs and evals, and I involve the legal team and the DPO early, and I check the current application dates."
     }
   ]
 }

@@ -31,6 +31,28 @@ const VERBS = ["led", "built", "designed", "developed", "created", "improved", "
   "concu", "developpe", "cree", "ameliore", "reduit", "augmente", "automatise", "gere", "lance", "livre", "analyse", "mis",
   "migre", "optimise", "deploye", "maintenu", "redige", "forme", "resolu", "accompagne", "coordonne", "organise", "pilote",
   "encadre", "supervise", "realise", "documente", "teste", "defini", "construit", "configure", "integre", "modelise", "assure"];
+// Audit 2026-11-23 (P2): "Provided L2/L3 production application support…" was flagged as not starting with a verb. A list
+// always misses some, so: any regular English past tense of 5+ letters ("provided", "handled", "investigated") counts,
+// except adjectives that open profile lines; common irregular verbs and more French participles are listed; French CVs
+// often open a line with an action noun ("Mise en place…", "Gestion des incidents…"), which recruiters accept.
+const MORE_VERBS = ["ran", "oversaw", "won", "sold", "taught", "made", "took", "gave", "wrote", "drew", "rebuilt", "brought", "sought", "fought",
+  "fourni", "traite", "diagnostique", "escalade", "administre", "exploite", "contribue", "participe", "conseille", "anime", "negocie",
+  "vendu", "prospecte", "recrute", "surveille", "installe", "securise", "audite", "evalue", "identifie", "prepare", "produit",
+  "presente", "suivi", "conduit", "planifie", "mene", "obtenu", "remporte", "accru", "diminue", "simplifie", "standardise", "fiabilise"];
+const ACTION_NOUNS_FR = ["mise", "gestion", "pilotage", "conception", "creation", "developpement", "automatisation", "analyse",
+  "migration", "support", "accompagnement", "redaction", "suivi", "coordination", "animation", "formation", "administration",
+  "maintenance", "supervision", "resolution", "traitement", "participation", "amelioration", "optimisation", "deploiement",
+  "realisation", "elaboration", "encadrement", "organisation", "integration", "modelisation", "construction", "refonte",
+  "parametrage", "recette", "diagnostic", "surveillance", "negociation", "prospection", "audit", "evaluation", "definition",
+  "conduite", "lancement", "reduction", "augmentation", "securisation", "fiabilisation", "industrialisation"];
+const NOT_VERBS = new Set(["experienced", "skilled", "motivated", "dedicated", "detailed", "talented", "accomplished", "seasoned",
+  "certified", "qualified", "based", "interested", "focused", "advanced", "varied", "limited", "related", "united", "need"]);
+const ACTION = new Set([...VERBS, ...MORE_VERBS, ...ACTION_NOUNS_FR]);
+export const startsWithAction = (line) => {
+  const w = norm(line.replace(BULLET, "")).split(/[\s,:;.()/]+/).filter(Boolean)[0] || "";
+  return ACTION.has(w) || (/^[a-z]{3,}ed$/.test(w) && !NOT_VERBS.has(w));
+};
+
 const BULLET = /^\s*([-•*▪●–◦]|\d+[.)])\s+/;
 
 export function atsReport(text, { required = [], jobTitles = [], source = "offer" } = {}) {
@@ -74,7 +96,7 @@ export function atsReport(text, { required = [], jobTitles = [], source = "offer
   // 5. Impact (15): achievement lines with numbers (10) and starting with an action verb (5).
   let bullets = lines.filter((l) => BULLET.test(l)).map((l) => l.replace(BULLET, ""));
   if (bullets.length < 3) bullets = lines.filter((l) => { const w = l.split(/\s+/).length; return w >= 6 && w <= 45; });
-  const hasNum = (b) => /\d/.test(b), hasVerb = (b) => VERBS.includes(norm(b).split(/[\s,]+/)[0]);
+  const hasNum = (b) => /\d/.test(b), hasVerb = startsWithAction;
   const withNum = bullets.filter(hasNum).length;
   const withVerb = bullets.filter(hasVerb).length;
   // The lines to strengthen, in CV order: { line, number: false when it has no number, verb: false when it does not

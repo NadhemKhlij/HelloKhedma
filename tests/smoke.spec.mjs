@@ -1495,3 +1495,19 @@ test("no page prints null or undefined", async ({ page }) => {
   }
   expect(found).toEqual([]);
 });
+
+// "Start with an action verb" (js/atsscore.js, audit 2026-11-23 P2): "Provided L2/L3…" was flagged by mistake.
+test("CV score: action verbs at the start of a line are recognised in English and French", async ({ page }) => {
+  await open(page, "#/cv");
+  const r = await page.evaluate(async () => {
+    const { startsWithAction } = await import("/js/atsscore.js");
+    const yes = ["Provided L2/L3 production application support for 12 trading applications", "Handled 40 incidents a week",
+      "Investigated settlement fails with the back office", "Ran the end-of-day batch", "Oversaw the migration to Murex",
+      "Géré les incidents N2 sur 15 applications", "Fourni un support fonctionnel aux traders", "Mise en place de la supervision",
+      "Gestion des incidents et des problèmes", "Pilotage de la recette", "- Automated the monthly report"];
+    const no = ["Experienced support analyst", "Team player", "Responsible for team meetings", "Missions variées", "Motivated and curious"];
+    return { yes: yes.filter((l) => !startsWithAction(l)), no: no.filter((l) => startsWithAction(l)) };
+  });
+  expect(r.yes).toEqual([]); // every action line is recognised
+  expect(r.no).toEqual([]); // adjectives and descriptions are not
+});

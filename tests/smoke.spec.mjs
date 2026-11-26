@@ -1475,3 +1475,23 @@ test("session: a guest is told the applications are in the account; sign-in and 
   await page.locator("#signOutCancel").click();
   await expect(page.locator("#signOutDialog")).toBeHidden();
 });
+
+// No stray "null" or "undefined" printed in a page (audit 2026-11-23, P2: "null" under "Your CVs" on the Account page,
+// from replaceChildren(null)). Checks the visible text nodes of every main page, as a guest.
+test("no page prints null or undefined", async ({ page }) => {
+  const found = [];
+  for (const route of ["#/", "#/offers", "#/training", "#/course/sql", "#/cv", "#/cv/maker", "#/interview", "#/applications", "#/account", "#/ai", "#/review", "#/skillcheck"]) {
+    await open(page, route);
+    await page.waitForTimeout(400);
+    const bad = await page.evaluate(() => {
+      const out = [], w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      while (w.nextNode()) {
+        const n = w.currentNode, el = n.parentElement;
+        if (/(^|\s)(null|undefined|NaN)(\s|$)/.test(n.textContent) && el && el.closest("section:not([hidden]), header, nav, dialog[open]") && !el.closest("pre, code, script, style")) out.push(n.textContent.trim().slice(0, 60));
+      }
+      return out;
+    });
+    bad.forEach((b) => found.push(`${route}: ${b}`));
+  }
+  expect(found).toEqual([]);
+});

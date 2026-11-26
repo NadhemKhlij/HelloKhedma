@@ -143,6 +143,50 @@
         "code": "| Field           | Definition                                 | Type / format     | Allowed values                  | Source    | Mandatory | Sensitive  |\n|-----------------|--------------------------------------------|-------------------|---------------------------------|-----------|-----------|------------|\n| claim_id        | Unique claim reference                     | Text, CL-000000   | -                               | ClaimsApp | Yes       | No         |\n| claim_status    | Current step of the claim                  | Code              | OPEN, IN_REVIEW, PAID, REJECTED | ClaimsApp | Yes       | No         |\n| claim_amount    | Amount claimed, VAT included               | Decimal(10,2) EUR | >= 0                            | ClaimsApp | Yes       | No         |\n| customer_email  | Contact email of the policyholder          | Text, email       | -                               | CRM       | No        | Yes (GDPR) |\n| active_customer | Has at least one policy in force today     | Boolean           | true / false                    | Derived   | Yes       | No         |",
         "note": "Extract of a data dictionary: one line per business field, agreed with the data owners."
       }
+    },
+    {
+      "title": "Test plan, test cases and defect triage (UAT / recette)",
+      "text": [
+        "UAT is the last check before go-live, so it needs a plan, not a list of things to click. A test strategy says what is tested, at which level and by whom: the supplier or the IT team runs the unit, integration and system tests (in France often called 'recette usine' or 'recette technique'), and the business users run the acceptance tests ('recette fonctionnelle' or 'recette utilisateur'). The test plan for a campaign then fixes the scope (which stories and processes), the dates, the environment, the test data, the testers and their availability, the tools, and two sets of criteria agreed with the sponsor up front: entry criteria (the build is installed, the data is loaded, the testers are trained) and exit criteria (what must be true to say go).",
+        "Test cases are written from the acceptance criteria, before the build arrives. Each one has an identifier, the story or requirement it covers, a precondition, the steps, the test data and the expected result; the tester then records the actual result and a status (passed, failed, blocked, not run). Cover the normal case, then each rule, the boundary values (49,999.99, 50,000.00 and 50,000.01 when the limit is 50,000) and the error cases, with realistic data that respects GDPR: anonymised or invented customers, never a copy of real records shared by email. In France the set of test cases for a campaign is often called the 'cahier de recette'. The traceability matrix then shows that every Must requirement has at least one test case, and after the run, which ones passed.",
+        "A UAT campaign is run with the business, not for it. Pick testers who know the real work, block their time with their managers, give them a short briefing and a test environment that looks like production. Hold a short daily meeting during the campaign: test cases run and passed, new defects, blocking points. Testers should also try their real daily cases outside the script (exploratory testing): it is often where the missing rule appears. The BA prepares the cases, helps the testers, checks each defect report and keeps the figures up to date.",
+        "Every failed check becomes a defect ('anomalie') with a title, the steps to reproduce, the data used, the expected and actual results, a screenshot, the environment and the version. Severity is the impact on the business or the system; priority is how urgently it must be fixed, decided in triage with the product owner. French teams usually grade severity as 'bloquante' (blocking: a main process cannot be done and there is no workaround), 'majeure' (major: a function is wrong but a workaround exists) and 'mineure' (minor: cosmetic or low impact). The two differ: a typo in the company name on the login page is minor but high priority; a wrong total in a yearly report used in December may be major but less urgent in March. A defect goes through a life cycle: new, triaged (or rejected as not a defect, or marked duplicate), assigned, fixed, ready for retest, then closed when the tester confirms the fix, or reopened. Each fix also needs a short regression test on the nearby functions.",
+        "At the end of the campaign, the go / no-go meeting compares the figures with the exit criteria: share of test cases run and passed, open defects by severity, workarounds and fix dates for what remains. The decision belongs to the sponsor or the business owner, not to the BA. The result is written in the 'PV de recette' (procès-verbal de recette, the acceptance report), signed by the business owner: acceptance without reservations, acceptance with reservations (the open defects listed, each with an owner and a fix date), or refusal. Tools: Jira with Xray or Zephyr for test cases linked to stories, Squash TM (open source, widely used in France), or a shared spreadsheet for a small campaign, as long as the traceability is kept."
+      ],
+      "points": [
+        "Agree on entry and exit criteria with the sponsor before the campaign starts, not during the go / no-go meeting.",
+        "One test case checks one thing: precondition, steps, data, expected result.",
+        "Test the boundaries and the error cases, not only the normal path.",
+        "Severity is the impact, priority is the urgency: grade them separately.",
+        "A fixed defect is closed only after a retest by the business, plus a regression check around it."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Test plan  UAT claims app v2      Campaign 02-13 March   Testers: 6 claims handlers\nEntry: build 2.4 on the UAT environment, test data loaded, testers trained\nExit:  100% of Must test cases run, 0 blocking and at most 2 major defects open (workaround + fix date)\n\nID      Story   Precondition                Steps / data                             Expected result\nTC-301  CL-120  Policy P-1001 in force      Submit claim, water damage, 1,200 EUR    Reference CL-xxxxxx shown, status OPEN\nTC-302  CL-120  Policy P-1001 in force      Submit claim dated tomorrow              Error: incident date in the future\nTC-303  CL-120  Policy P-1001 in force      Submit claim of 50,000.01 EUR            Message: call your advisor, no claim created\nTC-304  CL-121  Policy P-2002 cancelled     Submit claim, theft, 300 EUR             Error: no policy in force on that date\n\nDefect D-17  TC-303  Severity: major  Priority: high  Status: Fixed -> Ready for retest\nSteps: policy P-1001, amount 50,000.01, Submit  |  Actual: claim CL-004512 created  |  Screenshot attached",
+        "note": "Extract of a test plan, its test cases and one defect: each case traces to a story, each defect to a case."
+      }
+    },
+    {
+      "title": "Writing a functional specification (SFD)",
+      "text": [
+        "In French projects you will meet three documents that are often confused. The 'cahier des charges' (fonctionnel) is written by the client side, the business owner ('maîtrise d'ouvrage', MOA): it describes the context, the goals, the expected functions at a high level and the constraints (budget, deadline, standards), often to choose a supplier in a call for tenders. The SFD ('spécifications fonctionnelles détaillées', detailed functional specification) describes precisely how the solution must behave, screen by screen and rule by rule; it is written by the BA, on the client or the supplier side ('maîtrise d'oeuvre', MOE), sometimes after more general specifications (SFG). User stories slice the same need into small backlog items with acceptance criteria. The technical design (STD, 'spécifications techniques détaillées') belongs to the development team.",
+        "A useful SFD follows a stable structure: the context and goals, the scope (in and out), the actors and their roles, the processes or use cases with their main and alternative flows, the screens with every field (format, mandatory or not, default value, checks), the business rules, the error cases and their messages, the data (with links to the data dictionary), the interfaces with other systems, the non-functional requirements, and the open questions. Give every rule and every message an identifier (RG-07, E-03) so that test cases, defects and discussions point to it instead of quoting a paragraph.",
+        "Write rules that can be tested. 'Large claims are checked' is not a rule; 'A claim above 50,000.00 EUR cannot be submitted online; the advisor's phone number is shown' is. Name the actor, the condition, the exact threshold with its unit, whether the limit is included, and the result, and add a worked example with figures that the business validates. One rule per line, no 'etc.', no 'if possible', and the same term everywhere: if the glossary says 'policyholder', do not switch to 'client' two pages later. A rule written this way gives you its test cases almost for free: one at the threshold, one just above, one just below.",
+        "An SFD is a living document under change control. Keep a version number, a change log saying what changed, why and on whose decision, and a status: draft, under review, validated. Sign-off ('validation') by the business owner turns it into the reference for development, testing and acceptance; after that, every change goes through the change process, with its impact on cost, dates and tests. Store it where the team works (Confluence, SharePoint) and link it to the Jira epics rather than copying text into every ticket, so there is one source of truth.",
+        "Agile teams do not write a 300-page SFD before starting, but many still need specifications. Teams write them when the rules are complex or regulated (insurance, banking, payroll, healthcare), when a supplier builds the solution under a fixed-price contract, when an interface must be agreed with another team or company, or when auditors and the support team need a reference after go-live. The common compromise is a light, living specification per epic or feature (rules, screens, data, error cases) next to the stories, which keep the acceptance criteria for each slice. In interviews, show that you choose the level of detail according to the risk and the audience, not out of habit."
+      ],
+      "points": [
+        "Cahier des charges = the need (client side); SFD = how the solution behaves, in detail; user story = one slice of value in the backlog.",
+        "Give every business rule and error message an identifier and trace it to its test cases.",
+        "A testable rule names the actor, the condition, the exact threshold and unit, and the result.",
+        "Version, change log, status and a named business sign-off: without them, nobody knows which version is the reference.",
+        "In agile teams, keep a light, living specification per feature for complex or regulated rules, linked to the stories."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "SFD  Claims app v2  Section 4.2: Submit a claim online       Version 1.3, validated 12/02 (claims manager)\n\nActor: policyholder signed in            Trigger: \"Declare a claim\" button\nFields: incident date (mandatory, date), type (list: water, theft, glass, fire), amount (mandatory, EUR, 2 decimals),\n        description (optional, 1,000 characters), photos (optional, JPG / PNG / PDF, 10 MB each)\n\nRG-07  The incident date is on or before today and on or after the policy start date.\nRG-08  An amount above 50,000.00 EUR is not submitted online: the advisor's phone number is shown.\nRG-09  A glass claim under 300.00 EUR is approved automatically (status PAID within 2 working days).\n\nE-03   \"The incident date cannot be in the future.\"            (RG-07)\nE-04   \"Please call your advisor for claims above 50,000 EUR.\"  (RG-08)\n\nChange log: 1.2 -> 1.3  RG-09 threshold 250 -> 300 EUR (decision of 10/02, claims committee)",
+        "note": "Extract of an SFD section: actor, fields, numbered rules and messages, and the change log."
+      }
     }
   ],
   "cheatsheet": [
@@ -258,6 +302,35 @@
           "Measures with rules, filters, refresh, access"
         ]
       ]
+    },
+    {
+      "group": "Testing & specification",
+      "items": [
+        [
+          "Cahier de recette",
+          "The set of test cases for a UAT campaign"
+        ],
+        [
+          "Entry / exit criteria",
+          "When the campaign can start / what must be true to say go"
+        ],
+        [
+          "Severity vs priority",
+          "Impact on the business vs urgency of the fix"
+        ],
+        [
+          "Bloquante / majeure / mineure",
+          "Blocking (no workaround) / major (workaround) / minor"
+        ],
+        [
+          "PV de recette",
+          "Signed acceptance report: accepted, with reservations, or refused"
+        ],
+        [
+          "SFD",
+          "Detailed functional specification: rules, screens, fields, errors"
+        ]
+      ]
     }
   ],
   "pitfalls": [
@@ -267,7 +340,8 @@
     "Starting UAT without agreed exit criteria.",
     "Running a workshop without a clear objective or without a decision-maker in the room: a lot of discussion, no decision.",
     "Discovering non-functional requirements at go-live ('it must handle 5,000 users') because nobody asked during discovery.",
-    "Report measures without a written calculation rule, so each team computes 'active customer' its own way."
+    "Report measures without a written calculation rule, so each team computes 'active customer' its own way.",
+    "Starting UAT with test cases that only follow the normal path: the boundary values and the error cases are where the defects are."
   ],
   "exercises": [
     {
@@ -350,7 +424,246 @@
     {"q": "Take-home case, Business Analyst (2/5). Put the to-be process for one click & collect order in order, from payment to pickup.", "type": "order", "steps": ["The customer pays online and picks a shop and a slot", "The order reaches the shop’s preparation list", "A shop employee picks the items and marks the order “ready”", "The customer gets a message with a pickup code", "The customer shows the code at the counter", "The employee hands over the order and marks it “collected”"], "hint": "Follow the order: online, then the shop’s back office, then the customer, then the counter.", "answer": "This sequence is the backbone of a BPMN diagram (one lane for the customer, one for the shop) and of the story map: each step becomes one or more user stories. The status changes (ready, collected) are what the system must record, so they are also your data requirements and the basis of the reports (orders not collected after 48 h, preparation time per shop)."},
     {"q": "Take-home case, Business Analyst (3/5). The sponsor wants to pilot in 3 cities. Use the order history (practice database shop): the 3 cities with the most orders, with the number of customers who ordered, the number of orders and the revenue (sum of total, rounded to 2 decimals), most orders first.", "hint": "Join customers and orders, GROUP BY city, COUNT(DISTINCT c.id) for customers, ORDER BY orders DESC LIMIT 3.", "code": "sql", "answer": "SELECT c.city,\n       COUNT(DISTINCT c.id) AS customers,\n       COUNT(o.id) AS orders,\n       ROUND(SUM(o.total), 2) AS revenue\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nGROUP BY c.city\nORDER BY orders DESC\nLIMIT 3;", "run": {"db": "shop", "ordered": true}, "explain": "Paris (5 customers, 14 orders, 3,569.05), Lyon (3 customers, 9 orders, 1,361.56) and Marseille (4 customers, 6 orders, 867.08). Note what the data cannot say: Lille has fewer orders (5) but more revenue (1,331.01) than Marseille. A business analyst gives the sponsor both views and the question to decide: do we pilot where most orders are (operations test) or where the money is?"},
     {"q": "Take-home case, Business Analyst (4/5). Release 1 has 6 weeks. With MoSCoW, which item is a Must: without it, click & collect cannot work at all?", "type": "choice", "options": ["Choosing the pickup shop when paying", "A text message when the order is ready (an e-mail could do it)", "A map of the shops on the home page", "Pickup slots of 15 minutes instead of half-days"], "correct": 0, "answer": "A Must is something release 1 cannot go live without: without a chosen shop, no order can be prepared or collected. The text message is a Should (an e-mail covers the need), the map and finer slots are Coulds. Write the reason next to each priority: it ends most arguments in the planning meeting."},
-    {"q": "Take-home case, Business Analyst (5/5). Write the user story for “the customer is told the order is ready”, with 2 or 3 acceptance criteria in Given / When / Then, and 2 questions you still need to ask the shops.", "hint": "As a … I want … so that …; one scenario per behaviour (ready on time, not collected, wrong shop); questions about how the shops really work.", "answer": "Story: As a click & collect customer, I want to be told when my order is ready, so that I only go to the shop when I can collect it.\nAC1: Given my order is marked “ready” by the shop, When the status changes, Then I receive a message within 5 minutes with the shop’s address, opening hours and my pickup code.\nAC2: Given my order has been ready for 48 hours, When it is still not collected, Then I receive one reminder, and the shop sees the order in its “not collected” list.\nAC3: Given the shop marks an item as missing, When the order is marked ready, Then the message lists the missing item and the refunded amount.\nQuestions for the shops: How long do you keep an order that is not collected, and what happens then (refund, back to stock)? Who marks orders ready at busy times, and on which device?"}
+    {"q": "Take-home case, Business Analyst (5/5). Write the user story for “the customer is told the order is ready”, with 2 or 3 acceptance criteria in Given / When / Then, and 2 questions you still need to ask the shops.", "hint": "As a … I want … so that …; one scenario per behaviour (ready on time, not collected, wrong shop); questions about how the shops really work.", "answer": "Story: As a click & collect customer, I want to be told when my order is ready, so that I only go to the shop when I can collect it.\nAC1: Given my order is marked “ready” by the shop, When the status changes, Then I receive a message within 5 minutes with the shop’s address, opening hours and my pickup code.\nAC2: Given my order has been ready for 48 hours, When it is still not collected, Then I receive one reminder, and the shop sees the order in its “not collected” list.\nAC3: Given the shop marks an item as missing, When the order is marked ready, Then the message lists the missing item and the refunded amount.\nQuestions for the shops: How long do you keep an order that is not collected, and what happens then (refund, back to stock)? Who marks orders ready at busy times, and on which device?"},
+    {
+      "q": "Put the steps of a UAT campaign in order.",
+      "type": "order",
+      "steps": [
+        "Agree on the scope, the dates and the entry and exit criteria with the sponsor",
+        "Write the test cases from the acceptance criteria and prepare the test data",
+        "Check the entry criteria: build installed, data loaded, testers trained",
+        "Run the test cases and log each defect with steps to reproduce",
+        "Triage the defects, fix them, then retest and run regression checks",
+        "Hold the go / no-go meeting and sign the acceptance report (PV de recette)"
+      ],
+      "answer": "The criteria come first so the go / no-go meeting compares figures with rules agreed in advance, not opinions. Test cases are written before the build arrives, from the acceptance criteria; the campaign starts only when the entry criteria are met, otherwise testers lose days on an environment that is not ready."
+    },
+    {
+      "q": "Grade each defect found during the UAT of a claims app: blocking, major or minor.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Blocking (bloquante)",
+          "items": [
+            "No claim can be submitted: the Submit button returns an error, with no other way to do it",
+            "The payment file sent to the bank doubles every amount"
+          ]
+        },
+        {
+          "name": "Major (majeure)",
+          "items": [
+            "The status filter ignores “In review”, but handlers can sort the list by status instead",
+            "The CSV export fails; the same list can be printed from the screen"
+          ]
+        },
+        {
+          "name": "Minor (mineure)",
+          "items": [
+            "A typo in the label of the Cancel button",
+            "Column widths are uneven on a small laptop screen"
+          ]
+        }
+      ],
+      "answer": "Blocking: a main process cannot be done, or the result is wrong with serious consequences, and there is no workaround. Major: a function is wrong but a workaround exists. Minor: cosmetic or low impact. Priority is decided separately in triage: a minor typo in the company name on the login page can still be fixed first."
+    },
+    {
+      "q": "Match each test term to its definition.",
+      "type": "match",
+      "pairs": [
+        [
+          "Test case",
+          "Precondition, steps, data and expected result for one check"
+        ],
+        [
+          "Traceability matrix",
+          "Links each requirement to its stories and test cases"
+        ],
+        [
+          "Severity",
+          "The impact of a defect on the business or the system"
+        ],
+        [
+          "Priority",
+          "How urgently a defect must be fixed"
+        ],
+        [
+          "Regression test",
+          "Re-runs existing tests to check that a fix broke nothing else"
+        ],
+        [
+          "Exit criteria",
+          "The conditions agreed in advance to say go at the end of the campaign"
+        ]
+      ],
+      "answer": "These terms are how a BA, the testers and the delivery team talk about a campaign. Severity and priority are set separately: the tester proposes the severity, the product owner sets the priority in triage."
+    },
+    {
+      "q": "Scenario: the UAT of the claims app ends on Thursday and go-live is planned on Monday. Make each decision.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "96% of the test cases passed, but one blocking defect is open: claims above 10,000 EUR cannot be paid.",
+          "choices": [
+            {
+              "label": "Go live and fix it in the first week",
+              "feedback": "The exit criteria say 0 blocking defects. Large claims would be stuck from day one, with angry customers and a manual backlog to clear."
+            },
+            {
+              "best": true,
+              "label": "Report it to the sponsor: no-go unless the fix is delivered and retested before the decision",
+              "feedback": "You state the facts against the agreed criteria and leave the decision to the sponsor, with a clear condition for go."
+            },
+            {
+              "label": "Downgrade it to major so the figures meet the criteria",
+              "feedback": "Hiding a blocking defect destroys the trust in the campaign figures, and the problem is still there on Monday."
+            }
+          ]
+        },
+        {
+          "text": "The fix arrives on Friday morning.",
+          "choices": [
+            {
+              "label": "Close the defect: the developer says it is fixed",
+              "feedback": "A defect is closed by a retest on the UAT environment, not by the person who fixed it."
+            },
+            {
+              "best": true,
+              "label": "Retest the failed case with a business tester, plus a short regression check on payments, then update the figures",
+              "feedback": "The fix is confirmed where it failed, and you check it did not break the nearby payment cases."
+            },
+            {
+              "label": "Rerun the whole campaign of 300 test cases",
+              "feedback": "Not possible before Monday and not needed: target the retest and the regression on the impacted area."
+            }
+          ]
+        },
+        {
+          "text": "Two major defects remain, each with a documented workaround and a fix planned in the release two weeks later. The exit criteria allow up to two.",
+          "choices": [
+            {
+              "best": true,
+              "label": "Go, with an acceptance report signed with reservations listing both defects, their owners and fix dates",
+              "feedback": "The decision matches the agreed criteria and the reservations are written down, so the fixes are tracked after go-live."
+            },
+            {
+              "label": "No-go until every defect is closed",
+              "feedback": "Stricter than the criteria everyone agreed: a release with known, managed defects and workarounds is normal."
+            },
+            {
+              "label": "Go, and mention the two defects in a chat message",
+              "feedback": "Nothing formal: after go-live nobody can prove what was accepted, and the fixes may be forgotten."
+            }
+          ]
+        }
+      ],
+      "answer": "Compare the facts with the exit criteria agreed before the campaign, let the sponsor decide, close defects only after a business retest, and write the reservations in the PV de recette."
+    },
+    {
+      "q": "In E2, count the defects that are still open (status “Open”) with severity Blocking or Major, for the go / no-go meeting.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Defect",
+          "Severity",
+          "Status",
+          "",
+          "Open blocking or major"
+        ],
+        [
+          "D-01",
+          "Blocking",
+          "Closed",
+          "",
+          ""
+        ],
+        [
+          "D-02",
+          "Major",
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "D-03",
+          "Minor",
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "D-04",
+          "Major",
+          "Closed",
+          "",
+          ""
+        ],
+        [
+          "D-05",
+          "Blocking",
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "D-06",
+          "Major",
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "D-07",
+          "Minor",
+          "Closed",
+          "",
+          ""
+        ],
+        [
+          "D-08",
+          "Major",
+          "Retest",
+          "",
+          ""
+        ]
+      ],
+      "cell": "E2",
+      "answer": "=COUNTIFS(B2:B9,\"Blocking\",C2:C9,\"Open\")+COUNTIFS(B2:B9,\"Major\",C2:C9,\"Open\")",
+      "explain": "3 defects: D-05 (blocking) and D-02, D-06 (major). COUNTIFS applies all its criteria together (AND), so add two COUNTIFS for “Blocking or Major”. D-08 is waiting for a retest: it is not closed either, so mention it in the meeting, and agree in the exit criteria which statuses count as open."
+    },
+    {
+      "q": "Sort each item into the document where it belongs.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Cahier des charges (the need)",
+          "items": [
+            "The business goals, the context, the budget and the deadline",
+            "The functions expected at a high level, written by the client for a call for tenders"
+          ]
+        },
+        {
+          "name": "SFD (detailed specification)",
+          "items": [
+            "Every field of the claim screen with its format, mandatory flag and checks",
+            "The numbered business rules (RG-07, RG-08…) and their error messages"
+          ]
+        },
+        {
+          "name": "User story (backlog item)",
+          "items": [
+            "“As a policyholder, I want…, so that…” with a few acceptance criteria",
+            "A slice of value small enough to be built in one sprint"
+          ]
+        }
+      ],
+      "answer": "The cahier des charges says what the client needs and within which constraints; the SFD describes in detail how the solution behaves; user stories slice the work for the team and carry the acceptance criteria of each slice. In agile teams the SFD is often a light page per feature, linked to the stories."
+    },
+    {
+      "q": "Write 5 test cases (ID, precondition, steps and data, expected result) for the story “Submit a claim online”, from these acceptance criteria: (1) a policyholder with a policy in force can submit a claim with an incident date, a type and an amount, and gets a reference CL-xxxxxx; (2) the incident date cannot be in the future or before the policy start date; (3) the amount must be above 0 and at most 50,000.00 EUR, above that the advisor's phone number is shown and no claim is created; (4) photos are optional, JPG, PNG or PDF, 10 MB each at most.",
+      "hint": "One check per case; the normal case first, then each rule with its boundaries and an error case.",
+      "answer": "TC-01  Policy P-1001 in force since 01/01. Submit: today's date, water damage, 1,200.00 EUR, no photo. Expected: reference CL-xxxxxx shown, claim status OPEN.\nTC-02  Same policy. Submit with the incident date = tomorrow. Expected: error “The incident date cannot be in the future”, no claim created.\nTC-03  Policy P-3003 starting on 01/03. Submit with the incident date 28/02. Expected: error, the date is before the policy start; no claim created.\nTC-04  Policy P-1001. Submit 50,000.00 EUR, then a second claim of 50,000.01 EUR. Expected: the first is accepted (limit included); the second shows the advisor's phone number and creates no claim.\nTC-05  Policy P-1001. Attach a 9 MB JPG, then a 12 MB PDF, then a .docx file. Expected: the JPG is accepted; the 12 MB file and the .docx are refused with a message naming the allowed formats and size.\nAlso worth adding: amount 0 or negative (refused), a cancelled policy (refused), and a check that the claim appears in the handler's list. Link each case to the story in the traceability matrix."
+    }
   ],
   "interview": [
     {
@@ -384,6 +697,18 @@
     {
       "q": "How do you specify a report or a dashboard?",
       "a": "I start from the decisions it supports and its audience, then define each measure with a precise calculation rule, the dimensions, filters, refresh frequency, sources and access rights, and I check the terms against the data dictionary. I validate a mock-up with real figures and a worked example per measure, which then become the test cases for UAT."
+    },
+    {
+      "q": "What is the difference between severity and priority of a defect? Give an example.",
+      "a": "Severity is the impact on the business or the system, usually blocking, major or minor; priority is how urgently we fix it, decided in triage with the product owner. They are independent: a typo in the company name on the login page is minor but high priority because every customer sees it; a wrong total in a yearly report used in December can be major but wait until the next release if we are in March."
+    },
+    {
+      "q": "UAT ends tomorrow and some defects are still open. How do you prepare the go / no-go decision?",
+      "a": "I compare the figures with the exit criteria agreed before the campaign: share of test cases run and passed, open defects by severity, and for each remaining one the impact, the workaround and the fix date. I check that fixed defects were retested by the business. I present the facts and a recommendation, the sponsor decides, and the result goes into the PV de recette, with the open defects listed as reservations if we go."
+    },
+    {
+      "q": "Do agile teams still need a functional specification (SFD)?",
+      "a": "Not a large document written before the work starts, but often a light, living specification per feature: the business rules with identifiers, the screens and fields, the error cases and the data, linked to the stories. It is needed when the rules are complex or regulated, when a supplier works under a fixed-price contract, when an interface is agreed with another team, and for support and audits after go-live. I choose the level of detail by risk and audience."
     }
   ]
 }

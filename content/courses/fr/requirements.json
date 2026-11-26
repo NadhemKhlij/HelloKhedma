@@ -143,6 +143,50 @@
         "code": "| Field           | Definition                                 | Type / format     | Allowed values                  | Source    | Mandatory | Sensitive  |\n|-----------------|--------------------------------------------|-------------------|---------------------------------|-----------|-----------|------------|\n| claim_id        | Unique claim reference                     | Text, CL-000000   | -                               | ClaimsApp | Yes       | No         |\n| claim_status    | Current step of the claim                  | Code              | OPEN, IN_REVIEW, PAID, REJECTED | ClaimsApp | Yes       | No         |\n| claim_amount    | Amount claimed, VAT included               | Decimal(10,2) EUR | >= 0                            | ClaimsApp | Yes       | No         |\n| customer_email  | Contact email of the policyholder          | Text, email       | -                               | CRM       | No        | Yes (GDPR) |\n| active_customer | Has at least one policy in force today     | Boolean           | true / false                    | Derived   | Yes       | No         |",
         "note": "Extrait d’un dictionnaire de données : une ligne par champ métier, validée avec les propriétaires des données."
       }
+    },
+    {
+      "title": "Plan de test, cas de test et tri des anomalies (UAT / recette)",
+      "text": [
+        "La recette est le dernier contrôle avant la mise en production : elle demande un plan, pas une liste de choses à cliquer. Une stratégie de test dit ce qui est testé, à quel niveau et par qui : le fournisseur ou l’équipe informatique mène les tests unitaires, d’intégration et système (la « recette usine » ou « recette technique »), et les utilisateurs métier mènent les tests d’acceptation (la « recette fonctionnelle » ou « recette utilisateur »). Le plan de test d’une campagne fixe ensuite le périmètre (quelles stories et quels processus), les dates, l’environnement, les données de test, les testeurs et leur disponibilité, les outils, et deux jeux de critères convenus d’avance avec le sponsor : les critères d’entrée (la version est installée, les données sont chargées, les testeurs sont formés) et les critères de sortie (ce qui doit être vrai pour dire go).",
+        "Les cas de test s’écrivent à partir des critères d’acceptation, avant l’arrivée de la version. Chacun a un identifiant, la story ou l’exigence qu’il couvre, un prérequis, les étapes, les données de test et le résultat attendu ; le testeur note ensuite le résultat obtenu et un statut (réussi, échoué, bloqué, non passé). Couvrez le cas nominal, puis chaque règle, les valeurs limites (49 999,99, 50 000,00 et 50 000,01 quand la limite est 50 000) et les cas d’erreur, avec des données réalistes qui respectent le RGPD : des clients anonymisés ou inventés, jamais une copie de dossiers réels envoyée par e-mail. L’ensemble des cas de test d’une campagne s’appelle souvent le « cahier de recette ». La matrice de traçabilité montre alors que chaque exigence Must a au moins un cas de test et, après l’exécution, lesquels ont réussi.",
+        "Une campagne de recette se mène avec le métier, pas pour lui. Choisissez des testeurs qui connaissent le travail réel, réservez leur temps avec leurs responsables, faites-leur un court briefing et donnez-leur un environnement de test proche de la production. Tenez un point quotidien court pendant la campagne : cas passés et réussis, nouvelles anomalies, points bloquants. Les testeurs doivent aussi essayer leurs vrais cas du quotidien hors scénario (tests exploratoires) : c’est souvent là qu’apparaît la règle oubliée. Le BA prépare les cas, accompagne les testeurs, relit chaque anomalie et tient les chiffres à jour.",
+        "Chaque contrôle en échec devient une anomalie avec un titre, les étapes pour la reproduire, les données utilisées, les résultats attendu et obtenu, une capture d’écran, l’environnement et la version. La sévérité (ou criticité) est l’impact sur le métier ou le système ; la priorité est l’urgence de la correction, décidée en comité de tri avec le product owner. Les équipes françaises classent souvent la sévérité en « bloquante » (un processus principal est impossible et il n’existe pas de contournement), « majeure » (une fonction est fausse mais un contournement existe) et « mineure » (cosmétique ou faible impact). Les deux sont distinctes : une faute dans le nom de l’entreprise sur la page de connexion est mineure mais prioritaire ; un total faux dans un rapport annuel utilisé en décembre peut être majeur mais moins urgent en mars. Une anomalie suit un cycle de vie : nouvelle, qualifiée (ou rejetée car ce n’est pas une anomalie, ou marquée doublon), affectée, corrigée, à retester, puis close quand le testeur confirme la correction, ou réouverte. Chaque correction demande aussi un court test de non-régression sur les fonctions voisines.",
+        "En fin de campagne, le comité go / no-go compare les chiffres aux critères de sortie : part des cas de test passés et réussis, anomalies ouvertes par sévérité, contournements et dates de correction pour ce qui reste. La décision appartient au sponsor ou au responsable métier, pas au BA. Le résultat est écrit dans le PV de recette (procès-verbal de recette), signé par le responsable métier : recette prononcée sans réserve, avec réserves (les anomalies ouvertes listées, chacune avec un responsable et une date de correction), ou refusée. Outils : Jira avec Xray ou Zephyr pour des cas de test liés aux stories, Squash TM (open source, très utilisé en France), ou un tableur partagé pour une petite campagne, tant que la traçabilité est conservée."
+      ],
+      "points": [
+        "Convenez des critères d’entrée et de sortie avec le sponsor avant le début de la campagne, pas pendant le comité go / no-go.",
+        "Un cas de test vérifie une seule chose : prérequis, étapes, données, résultat attendu.",
+        "Testez les valeurs limites et les cas d’erreur, pas seulement le chemin nominal.",
+        "La sévérité est l’impact, la priorité est l’urgence : évaluez-les séparément.",
+        "Une anomalie corrigée n’est close qu’après un retest par le métier, plus un contrôle de non-régression autour."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Test plan  UAT claims app v2      Campaign 02-13 March   Testers: 6 claims handlers\nEntry: build 2.4 on the UAT environment, test data loaded, testers trained\nExit:  100% of Must test cases run, 0 blocking and at most 2 major defects open (workaround + fix date)\n\nID      Story   Precondition                Steps / data                             Expected result\nTC-301  CL-120  Policy P-1001 in force      Submit claim, water damage, 1,200 EUR    Reference CL-xxxxxx shown, status OPEN\nTC-302  CL-120  Policy P-1001 in force      Submit claim dated tomorrow              Error: incident date in the future\nTC-303  CL-120  Policy P-1001 in force      Submit claim of 50,000.01 EUR            Message: call your advisor, no claim created\nTC-304  CL-121  Policy P-2002 cancelled     Submit claim, theft, 300 EUR             Error: no policy in force on that date\n\nDefect D-17  TC-303  Severity: major  Priority: high  Status: Fixed -> Ready for retest\nSteps: policy P-1001, amount 50,000.01, Submit  |  Actual: claim CL-004512 created  |  Screenshot attached",
+        "note": "Extrait d’un plan de test, de ses cas de test et d’une anomalie : chaque cas renvoie à une story, chaque anomalie à un cas."
+      }
+    },
+    {
+      "title": "Rédiger une spécification fonctionnelle détaillée (SFD)",
+      "text": [
+        "Dans les projets français, vous rencontrerez trois documents souvent confondus. Le cahier des charges (fonctionnel) est rédigé côté client, par la maîtrise d’ouvrage (MOA) : il décrit le contexte, les objectifs, les fonctions attendues à haut niveau et les contraintes (budget, délai, normes), souvent pour choisir un fournisseur lors d’un appel d’offres. Les SFD (spécifications fonctionnelles détaillées) décrivent précisément comment la solution doit se comporter, écran par écran et règle par règle ; elles sont rédigées par le BA, côté client ou côté fournisseur (maîtrise d’oeuvre, MOE), parfois après des spécifications plus générales (SFG). Les user stories découpent le même besoin en petits éléments de backlog avec des critères d’acceptation. La conception technique (STD, spécifications techniques détaillées) revient à l’équipe de développement.",
+        "Une SFD utile suit une structure stable : le contexte et les objectifs, le périmètre (inclus et exclu), les acteurs et leurs rôles, les processus ou cas d’utilisation avec leurs flux nominal et alternatifs, les écrans avec chaque champ (format, obligatoire ou non, valeur par défaut, contrôles), les règles de gestion, les cas d’erreur et leurs messages, les données (avec des liens vers le dictionnaire de données), les interfaces avec les autres systèmes, les exigences non fonctionnelles et les questions ouvertes. Donnez un identifiant à chaque règle et à chaque message (RG-07, E-03) pour que les cas de test, les anomalies et les discussions y renvoient au lieu de citer un paragraphe.",
+        "Rédigez des règles testables. « Les gros sinistres sont contrôlés » n’est pas une règle ; « Un sinistre de plus de 50 000,00 EUR ne peut pas être déclaré en ligne ; le numéro du conseiller s’affiche » en est une. Nommez l’acteur, la condition, le seuil exact avec son unité, si la limite est incluse, et le résultat, et ajoutez un exemple chiffré que le métier valide. Une règle par ligne, pas de « etc. », pas de « si possible », et le même terme partout : si le glossaire dit « assuré », ne passez pas à « client » deux pages plus loin. Une règle écrite ainsi vous donne presque gratuitement ses cas de test : un au seuil, un juste au-dessus, un juste en dessous.",
+        "Une SFD est un document vivant, sous contrôle des changements. Tenez un numéro de version, un historique des modifications qui dit ce qui a changé, pourquoi et sur la décision de qui, et un statut : brouillon, en relecture, validé. La validation par le responsable métier en fait la référence pour le développement, les tests et la recette ; ensuite, chaque changement passe par le processus de demande de changement, avec son impact sur le coût, les dates et les tests. Rangez-la là où l’équipe travaille (Confluence, SharePoint) et liez-la aux epics Jira plutôt que de recopier du texte dans chaque ticket, pour garder une seule source de vérité.",
+        "Les équipes agiles n’écrivent pas une SFD de 300 pages avant de commencer, mais beaucoup ont encore besoin de spécifications. Elles en rédigent quand les règles sont complexes ou réglementées (assurance, banque, paie, santé), quand un fournisseur construit la solution au forfait, quand une interface doit être convenue avec une autre équipe ou une autre entreprise, ou quand les auditeurs et l’équipe support ont besoin d’une référence après la mise en production. Le compromis courant est une spécification légère et vivante par epic ou par fonctionnalité (règles, écrans, données, cas d’erreur), à côté des stories qui gardent les critères d’acceptation de chaque tranche. En entretien, montrez que vous choisissez le niveau de détail selon le risque et le public, pas par habitude."
+      ],
+      "points": [
+        "Cahier des charges = le besoin (côté client) ; SFD = le comportement détaillé de la solution ; user story = une tranche de valeur dans le backlog.",
+        "Donnez un identifiant à chaque règle de gestion et à chaque message d’erreur, et reliez-les à leurs cas de test.",
+        "Une règle testable nomme l’acteur, la condition, le seuil exact et son unité, et le résultat.",
+        "Version, historique, statut et validation par un responsable métier nommé : sans eux, personne ne sait quelle version fait référence.",
+        "En agile, gardez une spécification légère et vivante par fonctionnalité pour les règles complexes ou réglementées, liée aux stories."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "SFD  Claims app v2  Section 4.2: Submit a claim online       Version 1.3, validated 12/02 (claims manager)\n\nActor: policyholder signed in            Trigger: \"Declare a claim\" button\nFields: incident date (mandatory, date), type (list: water, theft, glass, fire), amount (mandatory, EUR, 2 decimals),\n        description (optional, 1,000 characters), photos (optional, JPG / PNG / PDF, 10 MB each)\n\nRG-07  The incident date is on or before today and on or after the policy start date.\nRG-08  An amount above 50,000.00 EUR is not submitted online: the advisor's phone number is shown.\nRG-09  A glass claim under 300.00 EUR is approved automatically (status PAID within 2 working days).\n\nE-03   \"The incident date cannot be in the future.\"            (RG-07)\nE-04   \"Please call your advisor for claims above 50,000 EUR.\"  (RG-08)\n\nChange log: 1.2 -> 1.3  RG-09 threshold 250 -> 300 EUR (decision of 10/02, claims committee)",
+        "note": "Extrait d’une section de SFD : acteur, champs, règles et messages numérotés, et historique des modifications."
+      }
     }
   ],
   "cheatsheet": [
@@ -258,6 +302,35 @@
           "Indicateurs avec règles, filtres, rafraîchissement, accès"
         ]
       ]
+    },
+    {
+      "group": "Tests et spécification",
+      "items": [
+        [
+          "Cahier de recette",
+          "L’ensemble des cas de test d’une campagne de recette"
+        ],
+        [
+          "Critères d’entrée / de sortie",
+          "Quand la campagne peut démarrer / ce qui doit être vrai pour dire go"
+        ],
+        [
+          "Sévérité vs priorité",
+          "Impact sur le métier vs urgence de la correction"
+        ],
+        [
+          "Bloquante / majeure / mineure",
+          "Sans contournement / avec contournement / faible impact"
+        ],
+        [
+          "PV de recette",
+          "Procès-verbal signé : recette prononcée, avec réserves, ou refusée"
+        ],
+        [
+          "SFD",
+          "Spécifications fonctionnelles détaillées : règles, écrans, champs, erreurs"
+        ]
+      ]
     }
   ],
   "pitfalls": [
@@ -267,7 +340,8 @@
     "Lancer la recette sans critères de sortie convenus.",
     "Animer un atelier sans objectif clair ou sans décideur dans la salle : beaucoup de discussion, aucune décision.",
     "Découvrir les exigences non fonctionnelles à la mise en production (« il faut tenir 5 000 utilisateurs ») parce que personne ne les a demandées pendant la découverte.",
-    "Des indicateurs de rapport sans règle de calcul écrite, si bien que chaque équipe calcule « client actif » à sa façon."
+    "Des indicateurs de rapport sans règle de calcul écrite, si bien que chaque équipe calcule « client actif » à sa façon.",
+    "Démarrer la recette avec des cas de test qui ne suivent que le chemin nominal : les valeurs limites et les cas d’erreur sont là où se trouvent les anomalies."
   ],
   "exercises": [
     {
@@ -350,7 +424,246 @@
     {"q": "Cas pratique, Business Analyst (2/5). Remettez dans l’ordre le processus cible d’une commande click & collect, du paiement au retrait.", "type": "order", "steps": ["Le client paie en ligne et choisit une boutique et un créneau", "La commande arrive dans la liste de préparation de la boutique", "Un employé prépare les articles et passe la commande à « prête »", "Le client reçoit un message avec un code de retrait", "Le client présente le code au comptoir", "L’employé remet la commande et la passe à « retirée »"], "hint": "Suivez la commande : en ligne, puis l’arrière-boutique, puis le client, puis le comptoir.", "answer": "Cette séquence est la colonne vertébrale d’un diagramme BPMN (un couloir pour le client, un pour la boutique) et de la story map : chaque étape devient une ou plusieurs user stories. Les changements de statut (prête, retirée) sont ce que le système doit enregistrer : ce sont donc aussi vos exigences de données et la base des rapports (commandes non retirées après 48 h, temps de préparation par boutique)."},
     {"q": "Cas pratique, Business Analyst (3/5). Le sponsor veut un pilote dans 3 villes. Utilisez l’historique des commandes (base d’entraînement shop) : les 3 villes avec le plus de commandes, avec le nombre de clients ayant commandé, le nombre de commandes et le chiffre d’affaires (somme de total, arrondie à 2 décimales), la ville avec le plus de commandes en premier.", "hint": "Joignez customers et orders, GROUP BY city, COUNT(DISTINCT c.id) pour les clients, ORDER BY orders DESC LIMIT 3.", "code": "sql", "answer": "SELECT c.city,\n       COUNT(DISTINCT c.id) AS customers,\n       COUNT(o.id) AS orders,\n       ROUND(SUM(o.total), 2) AS revenue\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nGROUP BY c.city\nORDER BY orders DESC\nLIMIT 3;", "run": {"db": "shop", "ordered": true}, "explain": "Paris (5 clients, 14 commandes, 3 569,05), Lyon (3 clients, 9 commandes, 1 361,56) et Marseille (4 clients, 6 commandes, 867,08). Notez ce que les données ne disent pas : Lille a moins de commandes (5) mais plus de chiffre d’affaires (1 331,01) que Marseille. Un business analyst donne les deux lectures au sponsor, avec la question à trancher : pilote là où il y a le plus de commandes (test des opérations) ou là où est l’argent ?"},
     {"q": "Cas pratique, Business Analyst (4/5). La version 1 a 6 semaines. Avec MoSCoW, quel élément est un Must : sans lui, le click & collect ne peut pas fonctionner du tout ?", "type": "choice", "options": ["Choisir la boutique de retrait au paiement", "Un SMS quand la commande est prête (un e-mail peut suffire)", "Une carte des boutiques sur la page d’accueil", "Des créneaux de retrait de 15 minutes au lieu de demi-journées"], "correct": 0, "answer": "Un Must est ce sans quoi la version 1 ne peut pas sortir : sans boutique choisie, aucune commande ne peut être préparée ni retirée. Le SMS est un Should (un e-mail couvre le besoin), la carte et les créneaux plus fins sont des Could. Écrivez la raison à côté de chaque priorité : cela clôt la plupart des débats en réunion de planification."},
-    {"q": "Cas pratique, Business Analyst (5/5). Écrivez la user story « le client est prévenu que sa commande est prête », avec 2 ou 3 critères d’acceptation en Given / When / Then (Étant donné / Quand / Alors), et 2 questions que vous devez encore poser aux boutiques.", "hint": "En tant que … je veux … afin de … ; un scénario par comportement (prête à temps, non retirée, article manquant) ; des questions sur le fonctionnement réel des boutiques.", "answer": "Story : En tant que client click & collect, je veux être prévenu quand ma commande est prête, afin de n’aller en boutique que lorsque je peux la retirer.\nCA1 : Étant donné que la boutique a passé ma commande à « prête », Quand le statut change, Alors je reçois en moins de 5 minutes un message avec l’adresse de la boutique, ses horaires et mon code de retrait.\nCA2 : Étant donné que ma commande est prête depuis 48 heures, Quand elle n’est toujours pas retirée, Alors je reçois un seul rappel, et la boutique voit la commande dans sa liste « non retirées ».\nCA3 : Étant donné que la boutique marque un article manquant, Quand la commande passe à prête, Alors le message indique l’article manquant et le montant remboursé.\nQuestions aux boutiques : Combien de temps gardez-vous une commande non retirée, et que se passe-t-il ensuite (remboursement, remise en stock) ? Qui passe les commandes à « prête » aux heures de pointe, et sur quel appareil ?"}
+    {"q": "Cas pratique, Business Analyst (5/5). Écrivez la user story « le client est prévenu que sa commande est prête », avec 2 ou 3 critères d’acceptation en Given / When / Then (Étant donné / Quand / Alors), et 2 questions que vous devez encore poser aux boutiques.", "hint": "En tant que … je veux … afin de … ; un scénario par comportement (prête à temps, non retirée, article manquant) ; des questions sur le fonctionnement réel des boutiques.", "answer": "Story : En tant que client click & collect, je veux être prévenu quand ma commande est prête, afin de n’aller en boutique que lorsque je peux la retirer.\nCA1 : Étant donné que la boutique a passé ma commande à « prête », Quand le statut change, Alors je reçois en moins de 5 minutes un message avec l’adresse de la boutique, ses horaires et mon code de retrait.\nCA2 : Étant donné que ma commande est prête depuis 48 heures, Quand elle n’est toujours pas retirée, Alors je reçois un seul rappel, et la boutique voit la commande dans sa liste « non retirées ».\nCA3 : Étant donné que la boutique marque un article manquant, Quand la commande passe à prête, Alors le message indique l’article manquant et le montant remboursé.\nQuestions aux boutiques : Combien de temps gardez-vous une commande non retirée, et que se passe-t-il ensuite (remboursement, remise en stock) ? Qui passe les commandes à « prête » aux heures de pointe, et sur quel appareil ?"},
+    {
+      "q": "Remettez dans l’ordre les étapes d’une campagne de recette.",
+      "type": "order",
+      "steps": [
+        "Convenir du périmètre, des dates et des critères d’entrée et de sortie avec le sponsor",
+        "Écrire les cas de test à partir des critères d’acceptation et préparer les données de test",
+        "Vérifier les critères d’entrée : version installée, données chargées, testeurs formés",
+        "Exécuter les cas de test et saisir chaque anomalie avec les étapes pour la reproduire",
+        "Trier les anomalies, les corriger, puis retester et faire les contrôles de non-régression",
+        "Tenir le comité go / no-go et signer le PV de recette"
+      ],
+      "answer": "Les critères viennent en premier pour que le comité go / no-go compare des chiffres à des règles convenues d’avance, pas des opinions. Les cas de test s’écrivent avant l’arrivée de la version, à partir des critères d’acceptation ; la campagne ne démarre que lorsque les critères d’entrée sont remplis, sinon les testeurs perdent des jours sur un environnement qui n’est pas prêt."
+    },
+    {
+      "q": "Classez chaque anomalie trouvée pendant la recette d’une application de sinistres : bloquante, majeure ou mineure.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Bloquante",
+          "items": [
+            "Aucun sinistre ne peut être déclaré : le bouton Valider renvoie une erreur, sans autre moyen de le faire",
+            "Le fichier de paiement envoyé à la banque double tous les montants"
+          ]
+        },
+        {
+          "name": "Majeure",
+          "items": [
+            "Le filtre de statut ignore « En instruction », mais les gestionnaires peuvent trier la liste par statut",
+            "L’export CSV échoue ; la même liste peut être imprimée depuis l’écran"
+          ]
+        },
+        {
+          "name": "Mineure",
+          "items": [
+            "Une faute de frappe dans le libellé du bouton Annuler",
+            "Les largeurs de colonnes sont irrégulières sur un petit écran d’ordinateur portable"
+          ]
+        }
+      ],
+      "answer": "Bloquante : un processus principal est impossible, ou le résultat est faux avec des conséquences graves, et il n’existe pas de contournement. Majeure : une fonction est fausse mais un contournement existe. Mineure : cosmétique ou faible impact. La priorité se décide à part, en comité de tri : une faute mineure dans le nom de l’entreprise sur la page de connexion peut quand même être corrigée en premier."
+    },
+    {
+      "q": "Associez chaque terme de test à sa définition.",
+      "type": "match",
+      "pairs": [
+        [
+          "Cas de test",
+          "Prérequis, étapes, données et résultat attendu pour un contrôle"
+        ],
+        [
+          "Matrice de traçabilité",
+          "Relie chaque exigence à ses stories et à ses cas de test"
+        ],
+        [
+          "Sévérité",
+          "L’impact d’une anomalie sur le métier ou le système"
+        ],
+        [
+          "Priorité",
+          "L’urgence avec laquelle une anomalie doit être corrigée"
+        ],
+        [
+          "Test de non-régression",
+          "Rejoue des tests existants pour vérifier qu’une correction n’a rien cassé d’autre"
+        ],
+        [
+          "Critères de sortie",
+          "Les conditions convenues d’avance pour dire go en fin de campagne"
+        ]
+      ],
+      "answer": "Ces termes sont la langue commune du BA, des testeurs et de l’équipe de réalisation pendant une campagne. Sévérité et priorité se fixent séparément : le testeur propose la sévérité, le product owner fixe la priorité en comité de tri."
+    },
+    {
+      "q": "Scénario : la recette de l’application de sinistres se termine jeudi et la mise en production est prévue lundi. Prenez chaque décision.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "96 % des cas de test ont réussi, mais une anomalie bloquante reste ouverte : les sinistres de plus de 10 000 EUR ne peuvent pas être payés.",
+          "choices": [
+            {
+              "label": "Mettre en production et corriger la première semaine",
+              "feedback": "Les critères de sortie disent 0 anomalie bloquante. Les gros sinistres seraient bloqués dès le premier jour, avec des clients mécontents et un stock manuel à rattraper."
+            },
+            {
+              "best": true,
+              "label": "L’annoncer au sponsor : no-go sauf si la correction est livrée et retestée avant la décision",
+              "feedback": "Vous exposez les faits au regard des critères convenus et laissez la décision au sponsor, avec une condition claire pour le go."
+            },
+            {
+              "label": "La rétrograder en majeure pour que les chiffres respectent les critères",
+              "feedback": "Cacher une anomalie bloquante détruit la confiance dans les chiffres de la campagne, et le problème est toujours là lundi."
+            }
+          ]
+        },
+        {
+          "text": "La correction arrive vendredi matin.",
+          "choices": [
+            {
+              "label": "Clore l’anomalie : le développeur dit qu’elle est corrigée",
+              "feedback": "Une anomalie se clôt après un retest sur l’environnement de recette, pas par la personne qui l’a corrigée."
+            },
+            {
+              "best": true,
+              "label": "Retester le cas en échec avec un testeur métier, plus un court contrôle de non-régression sur les paiements, puis mettre les chiffres à jour",
+              "feedback": "La correction est confirmée là où elle échouait, et vous vérifiez qu’elle n’a pas cassé les cas de paiement voisins."
+            },
+            {
+              "label": "Rejouer toute la campagne de 300 cas de test",
+              "feedback": "Impossible avant lundi et inutile : ciblez le retest et la non-régression sur la zone impactée."
+            }
+          ]
+        },
+        {
+          "text": "Deux anomalies majeures restent, chacune avec un contournement documenté et une correction prévue dans la version livrée deux semaines plus tard. Les critères de sortie en autorisent deux.",
+          "choices": [
+            {
+              "best": true,
+              "label": "Go, avec un PV de recette signé avec réserves listant les deux anomalies, leurs responsables et leurs dates de correction",
+              "feedback": "La décision respecte les critères convenus et les réserves sont écrites : les corrections sont suivies après la mise en production."
+            },
+            {
+              "label": "No-go tant que toutes les anomalies ne sont pas closes",
+              "feedback": "Plus strict que les critères acceptés par tous : une version avec des anomalies connues, maîtrisées et contournables est normale."
+            },
+            {
+              "label": "Go, en signalant les deux anomalies dans un message de chat",
+              "feedback": "Rien de formel : après la mise en production, personne ne peut prouver ce qui a été accepté, et les corrections risquent d’être oubliées."
+            }
+          ]
+        }
+      ],
+      "answer": "Comparez les faits aux critères de sortie convenus avant la campagne, laissez le sponsor décider, ne clôturez une anomalie qu’après un retest métier, et écrivez les réserves dans le PV de recette."
+    },
+    {
+      "q": "En E2, comptez les anomalies encore ouvertes (statut « Open ») de sévérité Blocking (bloquante) ou Major (majeure), pour le comité go / no-go.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Defect",
+          "Severity",
+          "Status",
+          "",
+          "Open blocking or major"
+        ],
+        [
+          "D-01",
+          "Blocking",
+          "Closed",
+          "",
+          ""
+        ],
+        [
+          "D-02",
+          "Major",
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "D-03",
+          "Minor",
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "D-04",
+          "Major",
+          "Closed",
+          "",
+          ""
+        ],
+        [
+          "D-05",
+          "Blocking",
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "D-06",
+          "Major",
+          "Open",
+          "",
+          ""
+        ],
+        [
+          "D-07",
+          "Minor",
+          "Closed",
+          "",
+          ""
+        ],
+        [
+          "D-08",
+          "Major",
+          "Retest",
+          "",
+          ""
+        ]
+      ],
+      "cell": "E2",
+      "answer": "=COUNTIFS(B2:B9,\"Blocking\",C2:C9,\"Open\")+COUNTIFS(B2:B9,\"Major\",C2:C9,\"Open\")",
+      "explain": "3 anomalies : D-05 (bloquante) et D-02, D-06 (majeures). NB.SI.ENS (COUNTIFS) applique tous ses critères ensemble (ET) : additionnez deux COUNTIFS pour « Blocking ou Major ». D-08 attend un retest : elle n’est pas close non plus, signalez-la en comité, et précisez dans les critères de sortie quels statuts comptent comme ouverts."
+    },
+    {
+      "q": "Rangez chaque élément dans le document auquel il appartient.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Cahier des charges (le besoin)",
+          "items": [
+            "Les objectifs métier, le contexte, le budget et le délai",
+            "Les fonctions attendues à haut niveau, rédigées par le client pour un appel d’offres"
+          ]
+        },
+        {
+          "name": "SFD (spécification détaillée)",
+          "items": [
+            "Chaque champ de l’écran de déclaration avec son format, son caractère obligatoire et ses contrôles",
+            "Les règles de gestion numérotées (RG-07, RG-08…) et leurs messages d’erreur"
+          ]
+        },
+        {
+          "name": "User story (élément de backlog)",
+          "items": [
+            "« En tant qu’assuré, je veux…, afin de… » avec quelques critères d’acceptation",
+            "Une tranche de valeur assez petite pour être réalisée en un sprint"
+          ]
+        }
+      ],
+      "answer": "Le cahier des charges dit ce dont le client a besoin et sous quelles contraintes ; la SFD décrit en détail le comportement de la solution ; les user stories découpent le travail pour l’équipe et portent les critères d’acceptation de chaque tranche. En agile, la SFD est souvent une page légère par fonctionnalité, liée aux stories."
+    },
+    {
+      "q": "Écrivez 5 cas de test (ID, prérequis, étapes et données, résultat attendu) pour la story « Déclarer un sinistre en ligne », à partir de ces critères d’acceptation : (1) un assuré dont le contrat est en vigueur peut déclarer un sinistre avec une date de survenance, un type et un montant, et reçoit une référence CL-xxxxxx ; (2) la date de survenance ne peut pas être dans le futur ni avant la date d’effet du contrat ; (3) le montant doit être supérieur à 0 et au plus de 50 000,00 EUR, au-delà le numéro du conseiller s’affiche et aucun sinistre n’est créé ; (4) les photos sont facultatives, en JPG, PNG ou PDF, 10 Mo chacune au maximum.",
+      "hint": "Un contrôle par cas ; d’abord le cas nominal, puis chaque règle avec ses limites et un cas d’erreur.",
+      "answer": "TC-01  Contrat P-1001 en vigueur depuis le 01/01. Déclarer : date du jour, dégât des eaux, 1 200,00 EUR, sans photo. Attendu : référence CL-xxxxxx affichée, statut du sinistre OPEN.\nTC-02  Même contrat. Déclarer avec une date de survenance = demain. Attendu : erreur « La date de survenance ne peut pas être dans le futur », aucun sinistre créé.\nTC-03  Contrat P-3003 prenant effet le 01/03. Déclarer avec une date de survenance au 28/02. Attendu : erreur, la date est antérieure à la date d’effet ; aucun sinistre créé.\nTC-04  Contrat P-1001. Déclarer 50 000,00 EUR, puis un second sinistre de 50 000,01 EUR. Attendu : le premier est accepté (limite incluse) ; le second affiche le numéro du conseiller et ne crée aucun sinistre.\nTC-05  Contrat P-1001. Joindre un JPG de 9 Mo, puis un PDF de 12 Mo, puis un fichier .docx. Attendu : le JPG est accepté ; le fichier de 12 Mo et le .docx sont refusés avec un message qui indique les formats et la taille autorisés.\nÀ ajouter aussi : un montant de 0 ou négatif (refusé), un contrat résilié (refusé), et un contrôle que le sinistre apparaît dans la liste du gestionnaire. Reliez chaque cas à la story dans la matrice de traçabilité."
+    }
   ],
   "interview": [
     {
@@ -384,6 +697,18 @@
     {
       "q": "Comment spécifiez-vous un rapport ou un tableau de bord ?",
       "a": "Je pars des décisions qu’il doit éclairer et de son public, puis je définis chaque indicateur avec une règle de calcul précise, les axes, les filtres, la fréquence de rafraîchissement, les sources et les droits d’accès, et je vérifie les termes dans le dictionnaire de données. Je fais valider une maquette avec des chiffres réels et un exemple chiffré par indicateur, qui deviennent ensuite les cas de test de la recette."
+    },
+    {
+      "q": "Quelle différence faites-vous entre la sévérité et la priorité d’une anomalie ? Donnez un exemple.",
+      "a": "La sévérité est l’impact sur le métier ou le système, en général bloquante, majeure ou mineure ; la priorité est l’urgence de la correction, décidée en comité de tri avec le product owner. Elles sont indépendantes : une faute dans le nom de l’entreprise sur la page de connexion est mineure mais prioritaire, car tous les clients la voient ; un total faux dans un rapport annuel utilisé en décembre peut être majeur mais attendre la version suivante si nous sommes en mars."
+    },
+    {
+      "q": "La recette se termine demain et des anomalies sont encore ouvertes. Comment préparez-vous la décision go / no-go ?",
+      "a": "Je compare les chiffres aux critères de sortie convenus avant la campagne : part des cas de test passés et réussis, anomalies ouvertes par sévérité, et pour chacune de celles qui restent l’impact, le contournement et la date de correction. Je vérifie que les anomalies corrigées ont été retestées par le métier. Je présente les faits et une recommandation, le sponsor décide, et le résultat va dans le PV de recette, avec les anomalies ouvertes listées en réserves si nous passons en production."
+    },
+    {
+      "q": "Les équipes agiles ont-elles encore besoin d’une spécification fonctionnelle détaillée (SFD) ?",
+      "a": "Pas d’un gros document écrit avant de commencer, mais souvent d’une spécification légère et vivante par fonctionnalité : les règles de gestion avec leurs identifiants, les écrans et les champs, les cas d’erreur et les données, liés aux stories. Elle est nécessaire quand les règles sont complexes ou réglementées, quand un fournisseur travaille au forfait, quand une interface est convenue avec une autre équipe, et pour le support et les audits après la mise en production. Je choisis le niveau de détail selon le risque et le public."
     }
   ]
 }

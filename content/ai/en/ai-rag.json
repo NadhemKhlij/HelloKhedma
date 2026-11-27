@@ -316,7 +316,8 @@
       "q": "Write a function cosine(a, b) with numpy that returns the cosine similarity between two non-normalised vectors.",
       "hint": "The dot product divided by the product of the norms.",
       "code": "python",
-      "answer": "import numpy as np\n\n\ndef cosine(a, b):\n    \"\"\"Cosine similarity of two vectors: 1 = same direction, 0 = unrelated.\"\"\"\n    a, b = np.asarray(a, dtype=float), np.asarray(b, dtype=float)\n    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))"
+      "answer": "import numpy as np\n\n\ndef cosine(a, b):\n    \"\"\"Cosine similarity of two vectors: 1 = same direction, 0 = unrelated.\"\"\"\n    a, b = np.asarray(a, dtype=float), np.asarray(b, dtype=float)\n    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))",
+      "run": { "python": "assert abs(cosine([1, 0], [5, 0]) - 1.0) < 1e-9, \"same direction, different length: 1\"\nassert abs(cosine([1, 0], [0, 3])) < 1e-9, \"perpendicular vectors: 0\"\nassert abs(cosine([1, 2], [-1, -2]) + 1.0) < 1e-9, \"opposite directions: -1\"\nassert abs(cosine([1, 2, 3], [4, 5, 6]) - 0.9746318461970762) < 1e-9, \"cosine([1, 2, 3], [4, 5, 6]) should be about 0.9746\"\nassert isinstance(cosine([1, 1], [1, 0]), float), \"return a Python float\"\n" }
     },
     {
       "q": "RAG, long context or fine-tuning? (a) a bot that answers about an internal rulebook of 30 pages that doesn't change; (b) a support assistant over 20,000 tickets and documentation that changes every week; (c) you want the model to always write reports in the company's format.",
@@ -333,7 +334,8 @@
       "q": "Write a function mrr(runs) that computes the Mean Reciprocal Rank: runs is a list of (ranked_ids, relevant_ids).",
       "hint": "For each question: 1/rank of the first correct id, and 0 if there is none.",
       "code": "python",
-      "answer": "def mrr(runs):\n    \"\"\"runs: list of (ranked_ids, relevant_ids). Mean of 1/rank of the first relevant hit (0 if none).\"\"\"\n    total = 0.0\n    for ranked_ids, relevant_ids in runs:\n        for rank, chunk_id in enumerate(ranked_ids, start=1):\n            if chunk_id in relevant_ids:\n                total += 1.0 / rank\n                break\n    return total / len(runs) if runs else 0.0"
+      "answer": "def mrr(runs):\n    \"\"\"runs: list of (ranked_ids, relevant_ids). Mean of 1/rank of the first relevant hit (0 if none).\"\"\"\n    total = 0.0\n    for ranked_ids, relevant_ids in runs:\n        for rank, chunk_id in enumerate(ranked_ids, start=1):\n            if chunk_id in relevant_ids:\n                total += 1.0 / rank\n                break\n    return total / len(runs) if runs else 0.0",
+      "run": { "python": "assert abs(mrr([([\"a\", \"b\", \"c\"], {\"a\"})]) - 1.0) < 1e-9, \"first hit at rank 1: 1.0\"\nassert abs(mrr([([\"a\", \"b\", \"c\"], {\"c\"})]) - 1 / 3) < 1e-9, \"first hit at rank 3: 1/3\"\nassert abs(mrr([([\"a\", \"b\"], {\"z\"})])) < 1e-9, \"no relevant id: 0\"\nassert abs(mrr([([\"a\", \"b\", \"c\"], {\"b\", \"c\"})]) - 0.5) < 1e-9, \"only the first relevant hit counts: rank 2 gives 0.5\"\nassert abs(mrr([([\"a\", \"b\"], {\"a\"}), ([\"x\", \"y\"], {\"y\"}), ([\"p\"], {\"q\"})]) - 0.5) < 1e-9, \"mean of 1, 1/2 and 0 = 0.5\"\n" }
     },
     {
       "q": "Your bot gives an old delivery price (7 DT) as well as the new price of 8 DT, even though you changed the file. What are the possible causes and how do you fix it?",
@@ -351,7 +353,8 @@
       "q": "Write check_quotes(quotes, passages) that returns the quotes that can't be found character for character in their passage (a simple groundedness check).",
       "hint": "Clean up the spaces before comparing.",
       "code": "python",
-      "answer": "def check_quotes(quotes, passages):\n    \"\"\"quotes: list of (source, quoted_text); passages: list of dicts with 'source' and 'content'.\n    Return the quotes that do NOT appear word for word in their source passage.\"\"\"\n    by_source = {p[\"source\"]: \" \".join(p[\"content\"].split()) for p in passages}\n    missing = []\n    for source, quoted in quotes:\n        text = by_source.get(source, \"\")\n        if \" \".join(quoted.split()) not in text:\n            missing.append((source, quoted))\n    return missing"
+      "answer": "def check_quotes(quotes, passages):\n    \"\"\"quotes: list of (source, quoted_text); passages: list of dicts with 'source' and 'content'.\n    Return the quotes that do NOT appear word for word in their source passage.\"\"\"\n    by_source = {p[\"source\"]: \" \".join(p[\"content\"].split()) for p in passages}\n    missing = []\n    for source, quoted in quotes:\n        text = by_source.get(source, \"\")\n        if \" \".join(quoted.split()) not in text:\n            missing.append((source, quoted))\n    return missing",
+      "run": { "python": "_passages = [\n    {\"source\": \"faq.md\", \"content\": \"Delivery takes   48 hours\\nin Tunis.\"},\n    {\"source\": \"prices.md\", \"content\": \"Delivery costs 8 DT.\"},\n]\nassert list(check_quotes([(\"faq.md\", \"Delivery takes 48 hours in Tunis.\")], _passages)) == [], \"a quote found word for word (after cleaning the spaces) is fine\"\nassert list(check_quotes([(\"prices.md\", \"Delivery costs 7 DT.\")], _passages)) == [(\"prices.md\", \"Delivery costs 7 DT.\")], \"a quote that is not in its passage must be returned\"\nassert list(check_quotes([(\"faq.md\", \"Delivery costs 8 DT.\")], _passages)) == [(\"faq.md\", \"Delivery costs 8 DT.\")], \"the quote must be in ITS source, not in another passage\"\nassert list(check_quotes([(\"old.md\", \"Delivery takes\")], _passages)) == [(\"old.md\", \"Delivery takes\")], \"a quote from an unknown source must be returned\"\nassert list(check_quotes([(\"faq.md\", \"48 hours\"), (\"prices.md\", \"9 DT\")], _passages)) == [(\"prices.md\", \"9 DT\")], \"return only the quotes that are missing\"\n" }
     }
   ],
   "pitfalls": [

@@ -267,7 +267,8 @@
       "q": "اكتب next_action(response) ترجّع 'done'، 'run_tools'، 'resume'، 'retry_bigger' ولا 'stop' حسب الـ stop_reason.",
       "hint": "max_tokens مع tool_use: الـ arguments ينجموا يكونوا مقصوصين. refusal: ما تخدّم شي.",
       "code": "python",
-      "answer": "def next_action(response):\n    \"\"\"Decide what the agent loop does after one API response.\"\"\"\n    reason = response.stop_reason\n    if reason == \"end_turn\":\n        return \"done\"\n    if reason == \"tool_use\":\n        return \"run_tools\"\n    if reason == \"pause_turn\":\n        return \"resume\"        # re-send user + assistant content, no extra message\n    if reason == \"max_tokens\":\n        return \"retry_bigger\"  # tool input may be cut off: never run it\n    return \"stop\"              # refusal or anything unknown: run nothing"
+      "answer": "def next_action(response):\n    \"\"\"Decide what the agent loop does after one API response.\"\"\"\n    reason = response.stop_reason\n    if reason == \"end_turn\":\n        return \"done\"\n    if reason == \"tool_use\":\n        return \"run_tools\"\n    if reason == \"pause_turn\":\n        return \"resume\"        # re-send user + assistant content, no extra message\n    if reason == \"max_tokens\":\n        return \"retry_bigger\"  # tool input may be cut off: never run it\n    return \"stop\"              # refusal or anything unknown: run nothing",
+      "run": { "python": "from types import SimpleNamespace as _NS\n\nfor _reason, _want in [(\"end_turn\", \"done\"), (\"tool_use\", \"run_tools\"), (\"pause_turn\", \"resume\"), (\"max_tokens\", \"retry_bigger\"), (\"refusal\", \"stop\"), (\"something_new\", \"stop\")]:\n    _got = next_action(_NS(stop_reason=_reason))\n    assert _got == _want, f\"stop_reason '{_reason}' should give '{_want}', not {_got!r}\"\n" }
     },
     {
       "q": "عاود اكتب الـ lookup_order متاع الـ projet بالـ tool runner، مع budget متاع 10 tours.",

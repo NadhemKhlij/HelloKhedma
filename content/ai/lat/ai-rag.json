@@ -203,7 +203,8 @@
       "q": "Ekteb function cosine(a, b) b numpy traja3 el cosine similarity bin zouz vectors mouch normalisés.",
       "hint": "El dot product ma9soum 3la dharb el normes.",
       "code": "python",
-      "answer": "import numpy as np\n\n\ndef cosine(a, b):\n    \"\"\"Cosine similarity of two vectors: 1 = same direction, 0 = unrelated.\"\"\"\n    a, b = np.asarray(a, dtype=float), np.asarray(b, dtype=float)\n    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))"
+      "answer": "import numpy as np\n\n\ndef cosine(a, b):\n    \"\"\"Cosine similarity of two vectors: 1 = same direction, 0 = unrelated.\"\"\"\n    a, b = np.asarray(a, dtype=float), np.asarray(b, dtype=float)\n    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))",
+      "run": { "python": "assert abs(cosine([1, 0], [5, 0]) - 1.0) < 1e-9, \"same direction, different length: 1\"\nassert abs(cosine([1, 0], [0, 3])) < 1e-9, \"perpendicular vectors: 0\"\nassert abs(cosine([1, 2], [-1, -2]) + 1.0) < 1e-9, \"opposite directions: -1\"\nassert abs(cosine([1, 2, 3], [4, 5, 6]) - 0.9746318461970762) < 1e-9, \"cosine([1, 2, 3], [4, 5, 6]) should be about 0.9746\"\nassert isinstance(cosine([1, 1], [1, 0]), float), \"return a Python float\"\n" }
     },
     {
       "q": "RAG, long context wala fine-tuning? (a) bot yjaweb 3la règlement intérieur mta3 30 saf7a ma yetbaddelch; (b) assistant lel support 3la 20 000 ticket w documentation tetbaddel kol jem3a; (c) t7eb el model yekteb dima rapports bel format mta3 el chirka.",
@@ -220,7 +221,8 @@
       "q": "Ekteb function mrr(runs) t7seb el Mean Reciprocal Rank: runs hiya list mta3 (ranked_ids, relevant_ids).",
       "hint": "L kol sou2el: 1/rang mta3 awel id s7i7, w 0 ken ma famech.",
       "code": "python",
-      "answer": "def mrr(runs):\n    \"\"\"runs: list of (ranked_ids, relevant_ids). Mean of 1/rank of the first relevant hit (0 if none).\"\"\"\n    total = 0.0\n    for ranked_ids, relevant_ids in runs:\n        for rank, chunk_id in enumerate(ranked_ids, start=1):\n            if chunk_id in relevant_ids:\n                total += 1.0 / rank\n                break\n    return total / len(runs) if runs else 0.0"
+      "answer": "def mrr(runs):\n    \"\"\"runs: list of (ranked_ids, relevant_ids). Mean of 1/rank of the first relevant hit (0 if none).\"\"\"\n    total = 0.0\n    for ranked_ids, relevant_ids in runs:\n        for rank, chunk_id in enumerate(ranked_ids, start=1):\n            if chunk_id in relevant_ids:\n                total += 1.0 / rank\n                break\n    return total / len(runs) if runs else 0.0",
+      "run": { "python": "assert abs(mrr([([\"a\", \"b\", \"c\"], {\"a\"})]) - 1.0) < 1e-9, \"first hit at rank 1: 1.0\"\nassert abs(mrr([([\"a\", \"b\", \"c\"], {\"c\"})]) - 1 / 3) < 1e-9, \"first hit at rank 3: 1/3\"\nassert abs(mrr([([\"a\", \"b\"], {\"z\"})])) < 1e-9, \"no relevant id: 0\"\nassert abs(mrr([([\"a\", \"b\", \"c\"], {\"b\", \"c\"})]) - 0.5) < 1e-9, \"only the first relevant hit counts: rank 2 gives 0.5\"\nassert abs(mrr([([\"a\", \"b\"], {\"a\"}), ([\"x\", \"y\"], {\"y\"}), ([\"p\"], {\"q\"})]) - 0.5) < 1e-9, \"mean of 1, 1/2 and 0 = 0.5\"\n" }
     },
     {
       "q": "El bot mte3ek ya3ti soum livraison 9dim (7 DT) w es-soum el jdid 8 DT, m3a ennek baddalt el fichier. Chnouma el asbab el momkna w kifech tsalla7?",
@@ -238,7 +240,8 @@
       "q": "Ekteb check_quotes(quotes, passages) traja3 el quotes elli ma tetl9ach 7arf b 7arf fel passage mte3ha (check groundedness bsit).",
       "hint": "Nadhdhef el espaces 9bal ma t9aren.",
       "code": "python",
-      "answer": "def check_quotes(quotes, passages):\n    \"\"\"quotes: list of (source, quoted_text); passages: list of dicts with 'source' and 'content'.\n    Return the quotes that do NOT appear word for word in their source passage.\"\"\"\n    by_source = {p[\"source\"]: \" \".join(p[\"content\"].split()) for p in passages}\n    missing = []\n    for source, quoted in quotes:\n        text = by_source.get(source, \"\")\n        if \" \".join(quoted.split()) not in text:\n            missing.append((source, quoted))\n    return missing"
+      "answer": "def check_quotes(quotes, passages):\n    \"\"\"quotes: list of (source, quoted_text); passages: list of dicts with 'source' and 'content'.\n    Return the quotes that do NOT appear word for word in their source passage.\"\"\"\n    by_source = {p[\"source\"]: \" \".join(p[\"content\"].split()) for p in passages}\n    missing = []\n    for source, quoted in quotes:\n        text = by_source.get(source, \"\")\n        if \" \".join(quoted.split()) not in text:\n            missing.append((source, quoted))\n    return missing",
+      "run": { "python": "_passages = [\n    {\"source\": \"faq.md\", \"content\": \"Delivery takes   48 hours\\nin Tunis.\"},\n    {\"source\": \"prices.md\", \"content\": \"Delivery costs 8 DT.\"},\n]\nassert list(check_quotes([(\"faq.md\", \"Delivery takes 48 hours in Tunis.\")], _passages)) == [], \"a quote found word for word (after cleaning the spaces) is fine\"\nassert list(check_quotes([(\"prices.md\", \"Delivery costs 7 DT.\")], _passages)) == [(\"prices.md\", \"Delivery costs 7 DT.\")], \"a quote that is not in its passage must be returned\"\nassert list(check_quotes([(\"faq.md\", \"Delivery costs 8 DT.\")], _passages)) == [(\"faq.md\", \"Delivery costs 8 DT.\")], \"the quote must be in ITS source, not in another passage\"\nassert list(check_quotes([(\"old.md\", \"Delivery takes\")], _passages)) == [(\"old.md\", \"Delivery takes\")], \"a quote from an unknown source must be returned\"\nassert list(check_quotes([(\"faq.md\", \"48 hours\"), (\"prices.md\", \"9 DT\")], _passages)) == [(\"prices.md\", \"9 DT\")], \"return only the quotes that are missing\"\n" }
     }
   ],
   "pitfalls": [

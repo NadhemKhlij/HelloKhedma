@@ -267,7 +267,8 @@
       "q": "Ekteb next_action(response) traja3 'done', 'run_tools', 'resume', 'retry_bigger' walla 'stop' 7asb el stop_reason.",
       "hint": "max_tokens m3a tool_use: el arguments ynajmou ykounou ma9sousin. refusal: ma t5addem chay.",
       "code": "python",
-      "answer": "def next_action(response):\n    \"\"\"Decide what the agent loop does after one API response.\"\"\"\n    reason = response.stop_reason\n    if reason == \"end_turn\":\n        return \"done\"\n    if reason == \"tool_use\":\n        return \"run_tools\"\n    if reason == \"pause_turn\":\n        return \"resume\"        # re-send user + assistant content, no extra message\n    if reason == \"max_tokens\":\n        return \"retry_bigger\"  # tool input may be cut off: never run it\n    return \"stop\"              # refusal or anything unknown: run nothing"
+      "answer": "def next_action(response):\n    \"\"\"Decide what the agent loop does after one API response.\"\"\"\n    reason = response.stop_reason\n    if reason == \"end_turn\":\n        return \"done\"\n    if reason == \"tool_use\":\n        return \"run_tools\"\n    if reason == \"pause_turn\":\n        return \"resume\"        # re-send user + assistant content, no extra message\n    if reason == \"max_tokens\":\n        return \"retry_bigger\"  # tool input may be cut off: never run it\n    return \"stop\"              # refusal or anything unknown: run nothing",
+      "run": { "python": "from types import SimpleNamespace as _NS\n\nfor _reason, _want in [(\"end_turn\", \"done\"), (\"tool_use\", \"run_tools\"), (\"pause_turn\", \"resume\"), (\"max_tokens\", \"retry_bigger\"), (\"refusal\", \"stop\"), (\"something_new\", \"stop\")]:\n    _got = next_action(_NS(stop_reason=_reason))\n    assert _got == _want, f\"stop_reason '{_reason}' should give '{_want}', not {_got!r}\"\n" }
     },
     {
       "q": "3awed ekteb el lookup_order mta3 el projet b el tool runner, m3a budget 10 tours.",

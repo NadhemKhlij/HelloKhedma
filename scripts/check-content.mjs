@@ -23,7 +23,7 @@
 //   - Excel formula exercises (type sheet, training step 5, js/excelcheck.js): rows of text / numbers, a target cell, an
 //     answer formula that uses cells, evaluates without error and is accepted by the grader; same rows, cell and
 //     answer in the French copy;
-//   - runnable Python exercises (exercise.run = { python: tests }, training step 5): code "python", the course answer
+//   - runnable Python exercises (exercise.run = { python: tests }, training step 5; courses and the AI track, English copy): code "python", the course answer
 //     passes the hidden tests in Pyodide (devDependency pyodide, the same engine as the browser; pandas from the built
 //     js/vendor/pyodide/), the tests alone fail
 //     (they test something), a starting code (exercise.start) fails them;
@@ -377,6 +377,11 @@ const pyRunnable = [];
 for (const e of index) {
   const c = existsSync(C("courses", `${e.id}.json`)) ? load(C("courses", `${e.id}.json`)) : null;
   arr(c?.exercises).forEach((x, i) => { if (x.run?.python != null) pyRunnable.push({ where: `courses/${e.id}.json exercise ${i + 1}`, x }); });
+}
+// AI track: answers and tests are identical in the four languages (checked above), so the English copy is run.
+for (const e of aiIndex) {
+  const c = existsSync(C("ai", "en", `${e.id}.json`)) ? load(C("ai", "en", `${e.id}.json`)) : null;
+  arr(c?.exercises).forEach((x, i) => { if (x.run?.python != null) pyRunnable.push({ where: `ai/en/${e.id}.json exercise ${i + 1}`, x }); });
 }
 if (pyRunnable.length) {
   const { loadPyodide } = await import("pyodide");

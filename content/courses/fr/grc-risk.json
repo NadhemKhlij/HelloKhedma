@@ -873,6 +873,438 @@
         ]
       ],
       "answer": "L’appétence est la disposition générale fixée par la direction, la tolérance la traduit en limites par domaine auxquelles on compare les indicateurs, et la capacité est le plafond que l’organisation pourrait encaisser. L’appétence doit toujours rester bien en dessous de la capacité."
+    },
+    {
+      "q": "Cas pratique, GRC (1/7). Atelier Lumen (fictive) vend des luminaires et de la décoration en ligne depuis Nantes : 25 salariés, Microsoft 365 pour la messagerie et les fichiers, la boutique sur la plateforme SaaS Shopora (paiements par carte via un prestataire de paiement, environ 40 000 comptes clients) et une informatique confiée à un infogérant, Ouest Infogérance. Le gérant vous demande une première revue des risques et des accès avant le pic de Noël, avec une appétence de 12 sur une échelle de 1 à 25. Voici le registre provisoire (score = vraisemblance × impact, appétence en G2). En H2, comptez les risques dont le score dépasse l’appétence.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Risk ID",
+          "Risk",
+          "Owner",
+          "Likelihood (1-5)",
+          "Impact (1-5)",
+          "Score (L×I)",
+          "Appetite",
+          "Above appetite"
+        ],
+        [
+          "R-01",
+          "Mailbox takeover by phishing (MFA not enforced)",
+          "Managing director",
+          4,
+          4,
+          16,
+          12,
+          ""
+        ],
+        [
+          "R-02",
+          "Shopora outage during the Christmas peak",
+          "E-commerce manager",
+          2,
+          5,
+          10,
+          "",
+          ""
+        ],
+        [
+          "R-03",
+          "Customer data leak through the shared Shopora admin account",
+          "E-commerce manager",
+          3,
+          5,
+          15,
+          "",
+          ""
+        ],
+        [
+          "R-04",
+          "Ransomware on the warehouse PCs and file share",
+          "Operations manager",
+          3,
+          4,
+          12,
+          "",
+          ""
+        ],
+        [
+          "R-05",
+          "Leavers keep access to Microsoft 365",
+          "HR manager",
+          3,
+          3,
+          9,
+          "",
+          ""
+        ],
+        [
+          "R-06",
+          "Compromise of the IT provider's global admin account",
+          "Managing director",
+          2,
+          5,
+          10,
+          "",
+          ""
+        ],
+        [
+          "R-07",
+          "Payment to a fake supplier bank account",
+          "Finance manager",
+          3,
+          4,
+          12,
+          "",
+          ""
+        ],
+        [
+          "R-08",
+          "Loss of an unencrypted laptop",
+          "Operations manager",
+          3,
+          2,
+          6,
+          "",
+          ""
+        ]
+      ],
+      "cell": "H2",
+      "answer": "=COUNTIFS(F2:F9,\">\"&G2)",
+      "hint": "COUNTIFS (NB.SI.ENS) sur les scores avec le critère \">\"&G2, pour que le compte suive la cellule de l’appétence.",
+      "explain": "R-01 (16) et R-03 (15) dépassent 12 ; R-04 et R-07 sont exactement à l’appétence (12), ce qui ne la dépasse pas. Réponse : 2. Précisez dans le rapport comment un score égal à l’appétence est traité : c’est à la politique d’en décider, pas à l’analyste le jour même."
+    },
+    {
+      "q": "Cas pratique, GRC (2/7). Même registre. En H2, l’identifiant du risque au score le plus élevé, avec INDEX et MATCH (EQUIV).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Risk ID",
+          "Risk",
+          "Owner",
+          "Likelihood (1-5)",
+          "Impact (1-5)",
+          "Score (L×I)",
+          "Appetite",
+          "Highest risk"
+        ],
+        [
+          "R-01",
+          "Mailbox takeover by phishing (MFA not enforced)",
+          "Managing director",
+          4,
+          4,
+          16,
+          12,
+          ""
+        ],
+        [
+          "R-02",
+          "Shopora outage during the Christmas peak",
+          "E-commerce manager",
+          2,
+          5,
+          10,
+          "",
+          ""
+        ],
+        [
+          "R-03",
+          "Customer data leak through the shared Shopora admin account",
+          "E-commerce manager",
+          3,
+          5,
+          15,
+          "",
+          ""
+        ],
+        [
+          "R-04",
+          "Ransomware on the warehouse PCs and file share",
+          "Operations manager",
+          3,
+          4,
+          12,
+          "",
+          ""
+        ],
+        [
+          "R-05",
+          "Leavers keep access to Microsoft 365",
+          "HR manager",
+          3,
+          3,
+          9,
+          "",
+          ""
+        ],
+        [
+          "R-06",
+          "Compromise of the IT provider's global admin account",
+          "Managing director",
+          2,
+          5,
+          10,
+          "",
+          ""
+        ],
+        [
+          "R-07",
+          "Payment to a fake supplier bank account",
+          "Finance manager",
+          3,
+          4,
+          12,
+          "",
+          ""
+        ],
+        [
+          "R-08",
+          "Loss of an unencrypted laptop",
+          "Operations manager",
+          3,
+          2,
+          6,
+          "",
+          ""
+        ]
+      ],
+      "cell": "H2",
+      "answer": "=INDEX(A2:A9,MATCH(MAX(F2:F9),F2:F9,0))",
+      "hint": "MATCH(MAX(F2:F9),F2:F9,0) donne la position du score maximal ; INDEX renvoie l’identifiant de la colonne A.",
+      "explain": "Le score maximal est 16 : R-01, la prise de contrôle d’une boîte mail par hameçonnage faute de MFA imposée. C’est par lui que commence le rapport au gérant. XLOOKUP(MAX(F2:F9),F2:F9,A2:A9) fonctionne aussi ; en cas d’égalité, MATCH renvoie le premier, vérifiez donc les ex æquo avant d’annoncer un seul risque principal."
+    },
+    {
+      "q": "Cas pratique, GRC (3/7). Le gérant a validé ces décisions. Classez-les par option de traitement.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Réduire (modifier)",
+          "items": [
+            "Imposer la MFA sur tous les comptes Microsoft 365 avec l’accès conditionnel",
+            "Donner à chaque administrateur Shopora un compte nominatif et supprimer le compte partagé"
+          ]
+        },
+        {
+          "name": "Maintenir (accepter)",
+          "items": [
+            "Garder l’ancien PC de l’imprimante d’étiquettes jusqu’au remplacement de l’imprimante en mars, avec la signature du responsable des opérations et cette date de fin",
+            "Vivre avec de courtes pannes de Shopora hors haute saison (score 4, sous l’appétence)"
+          ]
+        },
+        {
+          "name": "Refuser (éviter)",
+          "items": [
+            "Arrêter d’envoyer la liste complète des clients sous Excel à l’agence marketing",
+            "Fermer la seconde boutique en ligne inutilisée plutôt que de corriger ses modules"
+          ]
+        },
+        {
+          "name": "Partager (transférer)",
+          "items": [
+            "Souscrire une cyberassurance couvrant la réponse à incident et les ventes perdues",
+            "Négocier des pénalités de service en cas de panne dans le contrat Shopora"
+          ]
+        }
+      ],
+      "answer": "La MFA et les comptes administrateurs nominatifs agissent sur la vraisemblance : réduire. L’ancien PC et les courtes pannes hors saison sont gardés volontairement, avec un propriétaire, une raison et une date de fin : maintenir. Arrêter l’export des clients et fermer la seconde boutique suppriment l’activité qui crée le risque : refuser. L’assurance et les pénalités de service transfèrent une partie du coût, mais Atelier Lumen reste responsable des données de ses clients : partager."
+    },
+    {
+      "q": "Cas pratique, GRC (4/7). Ouest Infogérance a rapproché la liste RH de la liste des utilisateurs Microsoft 365 (Entra ID) sur l’adresse e-mail. En G2, comptez les personnes parties (statut RH Left) dont le compte est encore actif (Enabled).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "User",
+          "Department",
+          "HR status",
+          "Account",
+          "MFA",
+          "Last sign-in (days ago)",
+          "Leavers still enabled"
+        ],
+        [
+          "c.bernard",
+          "Management",
+          "Employee",
+          "Enabled",
+          "Yes",
+          0,
+          ""
+        ],
+        [
+          "l.petit",
+          "Customer service",
+          "Employee",
+          "Enabled",
+          "No",
+          1,
+          ""
+        ],
+        [
+          "m.roux",
+          "Customer service",
+          "Left",
+          "Enabled",
+          "No",
+          35,
+          ""
+        ],
+        [
+          "s.moreau",
+          "Warehouse",
+          "Employee",
+          "Enabled",
+          "No",
+          2,
+          ""
+        ],
+        [
+          "j.fournier",
+          "Marketing",
+          "Left",
+          "Disabled",
+          "No",
+          120,
+          ""
+        ],
+        [
+          "n.girard",
+          "Finance",
+          "Employee",
+          "Enabled",
+          "Yes",
+          0,
+          ""
+        ],
+        [
+          "t.lambert",
+          "Warehouse",
+          "Left",
+          "Enabled",
+          "No",
+          3,
+          ""
+        ],
+        [
+          "e.bonnet",
+          "Marketing",
+          "Employee",
+          "Enabled",
+          "Yes",
+          4,
+          ""
+        ],
+        [
+          "admin.ouest",
+          "IT provider",
+          "External",
+          "Enabled",
+          "No",
+          6,
+          ""
+        ],
+        [
+          "compta.partage",
+          "Finance",
+          "Shared",
+          "Enabled",
+          "No",
+          9,
+          ""
+        ],
+        [
+          "h.dupont",
+          "Customer service",
+          "Left",
+          "Enabled",
+          "Yes",
+          60,
+          ""
+        ],
+        [
+          "p.mercier",
+          "Warehouse",
+          "Employee",
+          "Enabled",
+          "Yes",
+          1,
+          ""
+        ]
+      ],
+      "cell": "G2",
+      "answer": "=COUNTIFS(C2:C13,\"Left\",D2:D13,\"Enabled\")",
+      "hint": "COUNTIFS (NB.SI.ENS) avec deux critères : \"Left\" sur le statut RH et \"Enabled\" sur le compte.",
+      "explain": "m.roux, t.lambert et h.dupont sont partis mais peuvent encore se connecter : 3. t.lambert s’est connecté il y a 3 jours : comparez avec sa date de départ et, si la connexion est postérieure, traitez-la comme un incident de sécurité. Le même export montre 6 comptes actifs sans MFA, COUNTIFS(D2:D13,\"Enabled\",E2:E13,\"No\"), dont le compte administrateur de l’infogérant et une boîte partagée de la comptabilité sans propriétaire nommé. Chaque ligne devient un constat avec un responsable : les RH préviennent l’informatique le jour du départ, l’informatique désactive le compte le jour même."
+    },
+    {
+      "q": "Cas pratique, GRC (5/7). Atelier Lumen veut s’aligner sur l’ISO/IEC 27001:2022. Rédigez quatre lignes de sa déclaration d’applicabilité (DdA, Statement of Applicability) pour ces mesures de l’annexe A : 5.18 Droits d’accès, 8.5 Authentification sécurisée, 5.19 Sécurité de l’information dans les relations avec les fournisseurs, 8.28 Codage sécurisé. Pour chacune : applicable ou non, justification, état de mise en œuvre et preuves.",
+      "hint": "La norme demande les mesures nécessaires, la justification de leur inclusion, si elles sont mises en œuvre, et la justification de toute exclusion. Appuyez-vous sur ce que le cas a trouvé.",
+      "answer": "5.18 Droits d’accès : applicable. Justification : risque R-05 (les partants gardent leurs accès) et la revue des accès qui a trouvé 3 partants encore actifs. État : partiellement mise en œuvre ; les comptes sont créés sur demande mais il n’y a ni processus de départ ni revue périodique. Preuves : procédure d’arrivée et de départ (à rédiger), revue trimestrielle de l’export RH / Entra ID rapproché, signée par les managers. 8.5 Authentification sécurisée : applicable. Justification : R-01 (prise de contrôle d’une boîte mail, score 16, au-dessus de l’appétence) et 6 comptes actifs sans MFA. État : non mise en œuvre ; la MFA est facultative. Preuves : stratégie d’accès conditionnel imposant la MFA à tous les comptes, rapport mensuel d’enregistrement MFA, comptes administrateurs nominatifs. 5.19 Relations avec les fournisseurs : applicable. Justification : la boutique (Shopora) et l’informatique (Ouest Infogérance) sont externalisées et détiennent des données clients et des droits d’administration (R-03, R-06). État : partiellement mise en œuvre ; les contrats existent mais sans clauses de sécurité ni évaluation. Preuves : liste des fournisseurs avec leur criticité, questionnaires de sécurité, clauses contractuelles (accord de sous-traitance des données, notification des incidents, réversibilité). 8.28 Codage sécurisé : non applicable. Justification : Atelier Lumen ne développe aucun logiciel ; la boutique est paramétrée dans l’éditeur de Shopora et la sécurité de son code relève des mesures fournisseurs 5.19 à 5.23. État et preuves : aucun ; revoir l’exclusion si l’entreprise fait un jour développer sur mesure. Une exclusion demande une raison qu’un auditeur de certification peut vérifier, pas « pas prioritaire »."
+    },
+    {
+      "q": "Cas pratique, GRC (6/7). Shopora, qui fait tourner toute la boutique en ligne, n’a ni SOC 2 ni ISO/IEC 27001.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Que faites-vous d’abord ?",
+          "choices": [
+            {
+              "label": "Évaluer la criticité de Shopora (toutes les ventes en ligne, 40 000 comptes clients) et demander les preuves dont il dispose : documentation de sécurité, synthèse d’un test d’intrusion, certificats de son hébergeur, accord de sous-traitance des données",
+              "best": true,
+              "feedback": "Pas de certificat ne veut pas dire pas de sécurité : demandez des preuves proportionnées et jugez les réponses au regard de la criticité."
+            },
+            {
+              "label": "Prévoir une migration vers une plateforme certifiée avant Noël",
+              "feedback": "Migrer la boutique quelques semaines avant le pic crée un risque plus grand que celui que vous traitez, et rien n’a encore été évalué."
+            },
+            {
+              "label": "Rien : des milliers de boutiques utilisent Shopora, c’est donc sûr",
+              "feedback": "La popularité n’est pas une preuve. Shopora détient toutes les données clients, il faut donc l’évaluer."
+            }
+          ]
+        },
+        {
+          "text": "Shopora répond : hébergé chez un fournisseur cloud certifié ISO/IEC 27001, MFA disponible pour les administrateurs de la boutique, un accord de sous-traitance au sens du RGPD, mais pas de rapport de test d’intrusion et aucun moyen testé d’exporter les données de la boutique. Ensuite ?",
+          "choices": [
+            {
+              "label": "Inscrire le risque fournisseur avec des mesures compensatoires : MFA sur chaque compte administrateur Shopora, export hebdomadaire des commandes et des clients conservé par Atelier Lumen, clauses de notification des incidents et de réversibilité, demande d’une synthèse de test et revue annuelle",
+              "best": true,
+              "feedback": "Vous réduisez ce qui est entre vos mains et fixez ce qu’il faudra demander à Shopora à la prochaine revue."
+            },
+            {
+              "label": "Déclarer le fournisseur conforme : son hébergeur est certifié ISO/IEC 27001",
+              "feedback": "Le certificat couvre le périmètre de l’hébergeur, pas l’application de Shopora ni ses équipes."
+            },
+            {
+              "label": "Exiger un rapport SOC 2 Type II sous 30 jours ou résilier le contrat",
+              "feedback": "Un client de 25 personnes pèse peu et le délai n’est pas réaliste : un ultimatum que vous ne pouvez pas tenir laisse le risque tel quel."
+            }
+          ]
+        },
+        {
+          "text": "Après ces mesures, le score résiduel est de 10, sous l’appétence. Qui décide de garder Shopora ?",
+          "choices": [
+            {
+              "label": "Le propriétaire du risque, le responsable e-commerce, signe la décision dans le registre avec une date de revue, et le gérant en est informé dans le rapport",
+              "best": true,
+              "feedback": "La décision revient au propriétaire métier, consignée avec une date pour la réexaminer."
+            },
+            {
+              "label": "L’analyste GRC, puisque c’est lui qui a fait l’évaluation",
+              "feedback": "La GRC évalue et conseille ; le propriétaire métier accepte le risque."
+            }
+          ]
+        }
+      ],
+      "answer": "Évaluer la criticité, demander des preuves proportionnées en l’absence de certificat, ne pas prendre le certificat de l’hébergeur pour celui du fournisseur, ajouter des mesures compensatoires de votre côté (MFA, exports à vous, clauses contractuelles) et laisser le propriétaire du risque signer la décision avec une date de revue."
+    },
+    {
+      "q": "Cas pratique, GRC (7/7). Rédigez le constat et le plan d’action pour le gérant (8 à 10 lignes) : le constat principal, son risque en termes métier et des actions datées avec leurs responsables.",
+      "hint": "Situation constatée (avec les chiffres), référentiel (ce qui est attendu), risque, recommandation ; puis des actions avec un responsable et une date, les plus urgentes d’abord.",
+      "answer": "Constat : les accès à Microsoft 365 et à Shopora ne sont pas assez maîtrisés. 6 comptes actifs n’ont pas de MFA, dont le compte administrateur global de l’infogérant et une boîte partagée de la comptabilité ; 3 personnes parties peuvent encore se connecter, l’une d’elles il y a 3 jours ; Shopora est administré avec un seul compte partagé. Attendu : MFA pour tous les comptes, comptes désactivés le jour du départ, un compte nominatif par personne. Risque : deux risques dépassent l’appétence de 12, la prise de contrôle d’une boîte mail par hameçonnage (16) et une fuite de données clients via Shopora (15) ; un incident signifierait une notification de violation de données à la CNIL sous 72 heures, des ventes perdues pendant le pic et le coût de la réponse. Actions : cette semaine, désactiver les comptes des 3 partants et vérifier la connexion de t.lambert (infogérant) ; sous 2 semaines, MFA pour tous les comptes via l’accès conditionnel et comptes administrateurs Shopora nominatifs (infogérant, responsable e-commerce) ; sous 1 mois, une liste de contrôle de départ envoyée par les RH à l’informatique le jour du départ (responsable RH) et les clauses fournisseur et l’export hebdomadaire pour Shopora (responsable e-commerce) ; chaque trimestre, une revue des accès signée par les managers (gérant). Résultat attendu : les deux risques principaux ramenés à 8 ou moins, suivis dans le registre en comité de direction mensuel."
     }
   ],
   "interview": [

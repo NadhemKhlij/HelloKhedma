@@ -148,11 +148,11 @@ export const SKILLS = [
   ["Prometheus", "Support & IT", ["prometheus", "promql"]],
   ["Kibana", "Support & IT", ["kibana"]],
   ["Splunk", "Support & IT", ["splunk"]],
-  ["Dynatrace", "Support & IT", ["dynatrace", "datadog", "nagios", "zabbix"]],
+  ["Dynatrace", "Support & IT", ["dynatrace", "datadog", "nagios", "zabbix", "centreon", "appdynamics"]],
   ["Log analysis", "Support & IT", ["log analysis", "analyse de logs", "analyse des logs", "logs"]],
   ["SLA", "Support & IT", ["sla", "slas"]],
   ["On-call", "Support & IT", ["on-call", "on call", "astreinte", "astreintes"]],
-  ["Batch scheduling", "Support & IT", ["control-m", "autosys", "ordonnanceur", "ordonnancement"]],
+  ["Batch scheduling", "Support & IT", ["control-m", "autosys", "ordonnanceur", "ordonnancement", "vtom", "dollar universe", "$universe"]],
   // Methods & business
   ["Agile", "Methods", ["agile", "agilite", "methodes agiles"]],
   ["Scrum", "Methods", ["scrum"]],

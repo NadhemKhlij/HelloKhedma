@@ -128,6 +128,50 @@
         "code": "# Prometheus alerting rule: checkout SLO 99.9% (allowed error ratio 0.001)\ngroups:\n  - name: checkout-slo\n    rules:\n      - alert: CheckoutErrorBudgetFastBurn\n        expr: |\n          (\n            sum(rate(http_requests_total{route=\"/checkout\",code=~\"5..\"}[1h]))\n              / sum(rate(http_requests_total{route=\"/checkout\"}[1h]))\n          ) > (14.4 * 0.001)\n          and\n          (\n            sum(rate(http_requests_total{route=\"/checkout\",code=~\"5..\"}[5m]))\n              / sum(rate(http_requests_total{route=\"/checkout\"}[5m]))\n          ) > (14.4 * 0.001)\n        for: 2m\n        labels:\n          severity: page\n        annotations:\n          summary: \"Checkout is burning its monthly error budget 14x too fast\"\n          description: \"Check recent deploys and the payment provider latency dashboard.\"",
         "note": "The same logic can be built as a Grafana alert rule with two queries and a math expression."
       }
+    },
+    {
+      "title": "Batch chains and job schedulers: Control-M, VTOM, $Universe",
+      "text": [
+        "Most companies still run a large part of their business at night, in batch: payroll, invoicing, stock updates, data loads for reporting, files sent to banks and partners. A batch chain is a set of jobs (scripts, programs, file transfers, database procedures) that must run in a given order. Each job has dependencies (it starts when the jobs before it ended OK, or when a file has arrived), a calendar (working days, month end, never on public holidays), a start window and sometimes resources: a counter that stops two jobs writing to the same table at the same time.",
+        "A job scheduler starts the jobs at the right moment, checks their result and shows the whole chain in a console. French job offers for “ingénieur de production”, “pilote d’exploitation” or application support often name Control-M (BMC), VTOM (Visual TOM, Absyss), Dollar Universe ($U, now Broadcom) or Autosys (Broadcom). Their words differ (folders and conditions in Control-M, applications in VTOM, uprocs and sessions in $Universe) but the ideas are the same. cron is enough for a few independent scripts on one server; as soon as jobs depend on each other across servers, need calendars, reruns and a shared view, a scheduler is used.",
+        "When a job fails, the scheduler marks it (Ended Not OK, aborted, in error) from its return code: 0 means success, anything else is a failure unless the job definition says otherwise. Read the job's output (its sysout or log) from the first error, note the return code and the step that failed, and check what waits behind it. The usual actions are: rerun the whole job once the cause is fixed; rerun from a step (restart), when the job is built in steps, so finished steps are not done twice; hold a job so it does not start, then free it; or force it OK (Set to OK) so the jobs behind it start. Forcing OK is the dangerous one: the next jobs then run on missing or partial data, and a payroll or bank file can go out wrong. Only do it when the handbook or the application owner says the job's output is not needed, and write down who decided.",
+        "At night the chains are watched by the operations team (pilotage, often 24/7) and an engineer on call (astreinte) for each application. The operations handbook (consignes d’exploitation, runbook) says for each job what it does, whether a rerun is safe, from which step, the deadline, and who to call. The operator follows it; when the case is not in the handbook, or the deadline is at risk, they escalate to the on-call engineer, who may call the application team or the software vendor. Waking someone is part of the job; guessing is not.",
+        "In the morning, before users arrive, the day team checks the night: every chain ended, outputs produced (the bank file was sent and acknowledged, the reporting tables are loaded), no job still on hold, nothing forced without a note. Incidents of the night are written up in the shift handover (passation) and in tickets, with the cause and what was done. Investment banks run the same discipline on their end-of-day batch (see the Trade lifecycle course); the method here applies to any industry."
+      ],
+      "points": [
+        "Batch chain = jobs + dependencies (conditions, files) + calendars + start windows + resources.",
+        "Schedulers in French offers: Control-M, VTOM, Dollar Universe, Autosys; cron only for simple, independent jobs.",
+        "Failed job: read its log from the first error and its return code, see what waits behind it, then rerun, restart from a step, hold / free.",
+        "Force OK only with the handbook or the owner's agreement: the next jobs would use missing data.",
+        "Night: operations follow the handbook, escalate to the on-call engineer; morning: check every chain and its outputs, hand over."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "PAYROLL chain, night of 26/11 (scheduler console)\n21:30 PAY_IMPORT_HR     Ended OK      rc=0   HR file received (4,812 employees)\n22:05 PAY_CHECK_INPUT   Ended OK      rc=0\n23:10 PAY_COMPUTE       Ended Not OK  rc=12  ORA-00060 deadlock detected\n      PAY_BANK_FILE     Wait condition (needs PAY_COMPUTE-OK)\n      PAY_GL_POSTING    Wait condition (needs PAY_COMPUTE-OK)\n\nHandbook, PAY_COMPUTE: rerun allowed once, from step 3 (restart). Never Set to OK.\nDeadline: bank file sent before 05:00. If the rerun fails: call the payroll on-call.\n\n23:25 rerun from step 3 -> 00:40 Ended OK -> PAY_BANK_FILE 00:55 OK -> PAY_GL_POSTING 01:20 OK\n07:30 morning check: chain complete, bank file acknowledged, incident ticket updated",
+        "note": "Read the return code and the first error, follow the handbook, and check the outputs the next morning."
+      }
+    },
+    {
+      "title": "Enterprise supervision: Zabbix, Centreon, Nagios and APM",
+      "text": [
+        "Many companies watch their servers and applications with a supervision tool built on checks: Nagios, Centreon (French, born from Nagios, very common in France) or Zabbix. A host check answers “is the machine reachable?” (UP, DOWN, UNREACHABLE when a router in front of it is down). A service check tests one thing on a host: disk space, CPU load, a process running, a port answering, a web page returning 200 in less than 2 seconds, a database query working. In Nagios and Centreon each check is a small plugin that prints a line of text and returns 0 (OK), 1 (WARNING), 2 (CRITICAL) or 3 (UNKNOWN). Zabbix collects items through its agent and turns them into problems with triggers, with severities from Information to Disaster.",
+        "Each check has two thresholds. WARNING means “look at it soon”: the disk has 15% free. CRITICAL means “act now”: 5% free, or the service no longer answers. To avoid alerts for one slow answer, a check is retried before the state becomes final (soft then hard state in Nagios and Centreon), and a check that keeps switching between OK and CRITICAL is marked as flapping. Thresholds are chosen per service: 80% CPU is normal for a batch server at night and worrying on a web front end at noon.",
+        "Two actions keep the console readable. Acknowledging an alert says “someone is on it”: notifications stop for that problem and the console shows who took it, but the state stays red until it is fixed. A downtime is planned in advance for maintenance (patching, a release): during that window no notification goes out for that host or service. Both must end: an alert acknowledged and forgotten, or a downtime longer than the work, hides the next real failure. Routing sends each alert to the right team (contact groups, escalation after 30 minutes without action); too many useless alerts cause alert fatigue, as in the earlier lesson on alerts.",
+        "In larger companies a NOC or operations team (pilotage, supervision) watches these consoles 24/7, often next to the batch scheduler. Application Performance Monitoring tools (Dynatrace, Datadog, AppDynamics) go inside the application: an agent instruments the code and records traces, so for one slow request you see each call it made (the SQL query that took 2.8 seconds, the partner API that timed out) and a map of which service calls which. A check says that something is wrong; a trace often says where. Prometheus and Grafana, seen earlier in this course, play the metrics role in cloud and Kubernetes teams; the same company often has Centreon or Zabbix for servers, an APM for key applications and Grafana dashboards, and support has to read all of them.",
+        "An alert becomes an incident ticket when users are, or will be, affected. Write it so the next person needs nothing else: what is failing (host, service, check output), since when, the business impact (who cannot do what), the priority (impact and urgency, as in the ITIL incidents course), what you have already checked or done, and the team it is assigned to. Link the alert, acknowledge it with the ticket number, and update the ticket at the times you announced."
+      ],
+      "points": [
+        "Host check: UP / DOWN / UNREACHABLE; service check: OK / WARNING / CRITICAL / UNKNOWN (plugin return codes 0 / 1 / 2 / 3).",
+        "WARNING = act soon, CRITICAL = act now; retries (soft / hard) and flapping avoid noise.",
+        "Acknowledge = someone is on it (notifications stop, still red); downtime = planned maintenance window. End both.",
+        "APM (Dynatrace, Datadog, AppDynamics): traces show where a slow request spends its time.",
+        "Ticket from an alert: what, since when, impact, priority, actions done, assigned team, next update."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Supervision console, 03:12\nHOST     SERVICE          STATE     DURATION  INFO\napp-02   Disk /var        WARNING   2h 05m    DISK WARNING - free space: /var 14% (thresholds w=20% c=10%)\ndb-01    Oracle listener  CRITICAL  0h 04m    CRITICAL - connection refused on port 1521\napp-01   HTTP /login      CRITICAL  0h 03m    HTTP CRITICAL - 503 Service Unavailable\napp-03   (host)           DOWN      0h 00m    in scheduled downtime (patching 03:00-04:00)\n\nTicket: P2 - Customer portal login unavailable since 03:09\nWhat: /login returns 503 on app-01; db-01 Oracle listener refuses connections since 03:08.\nImpact: customers cannot log in (portal); back office not affected.\nDone: alerts acknowledged 03:13, listener status checked, DBA on-call called 03:15.\nGroup: DBA (level 2), application support informed. Next update 03:45.",
+        "note": "Two red lines, one cause: the listener on db-01 explains the 503 on app-01. app-03 is in planned downtime and sends nothing."
+      }
     }
   ],
   "cheatsheet": [
@@ -285,6 +329,60 @@
           "Where alerts go / routing rules"
         ]
       ]
+    },
+    {
+      "group": "Batch scheduling",
+      "items": [
+        [
+          "Control-M, VTOM, Dollar Universe, Autosys",
+          "Job schedulers named in French ops offers"
+        ],
+        [
+          "Return code 0 / not 0",
+          "Job ended OK / failed"
+        ],
+        [
+          "Rerun / restart from a step",
+          "Run again / run again without the finished steps"
+        ],
+        [
+          "Hold / free",
+          "Stop a job from starting / let it start"
+        ],
+        [
+          "Force OK (Set to OK)",
+          "Mark failed as OK: next jobs start, only with the owner's agreement"
+        ],
+        [
+          "Consignes d’exploitation (runbook)",
+          "Per job: rerun allowed?, deadline, who to call"
+        ]
+      ]
+    },
+    {
+      "group": "Supervision",
+      "items": [
+        [
+          "OK / WARNING / CRITICAL / UNKNOWN",
+          "Service states (plugin return codes 0 / 1 / 2 / 3)"
+        ],
+        [
+          "UP / DOWN / UNREACHABLE",
+          "Host states"
+        ],
+        [
+          "Acknowledge",
+          "Someone is on it: notifications stop, still red"
+        ],
+        [
+          "Downtime",
+          "Planned maintenance window: no notifications"
+        ],
+        [
+          "APM trace",
+          "Every call one request made, with its duration"
+        ]
+      ]
     }
   ],
   "pitfalls": [
@@ -294,7 +392,9 @@
     "Average latency dashboards that hide slow requests.",
     "Putting user ids or raw URLs in labels and exploding the number of time series.",
     "Using rate() on a gauge, or summing counters before applying rate().",
-    "Averaging percentiles across instances instead of aggregating histogram buckets."
+    "Averaging percentiles across instances instead of aggregating histogram buckets.",
+    "Forcing a failed batch job OK to meet a deadline without checking what the next jobs will read.",
+    "Leaving an alert acknowledged or a downtime running after the work is done, so the next failure stays silent."
   ],
   "exercises": [
     {
@@ -382,6 +482,243 @@
       "answer": ".data.result[] | select(.value[1] == \"0\") | .metric.instance",
       "hint": "The value is a pair [timestamp, \"value\"], and the value is a string: compare .value[1] with \"0\".",
       "explain": "jq '.data.result[] | select(.value[1] == \"0\") | .metric.instance' returns \"db-1:9100\" and \"api-2:8080\". The same question in PromQL is up == 0, and the alert rule is usually up == 0 for 5 minutes."
+    },
+    {
+      "q": "A night batch job has failed. Put the steps of handling it in order.",
+      "type": "order",
+      "steps": [
+        "See which job failed in the scheduler console and what waits behind it",
+        "Read the job's log from the first error and note the return code",
+        "Look up the job in the operations handbook (rerun allowed? from which step? deadline?)",
+        "Fix or work around the cause, or escalate to the on-call engineer",
+        "Rerun the job (or restart from the failed step) and watch the jobs behind it",
+        "Check the chain's outputs in the morning and write the incident ticket and handover"
+      ],
+      "answer": "Locate first, understand from the log, check what the handbook allows, act on the cause, rerun in the right place, then check the outputs and leave a written trace. Rerunning before reading the log often fails again, or runs twice something that half worked."
+    },
+    {
+      "q": "02:10, you are the night operator. In the PAYROLL chain, PAY_IMPORT_HR (the job that loads the HR file) ends Not OK. PAY_COMPUTE, PAY_BANK_FILE and the accounting postings wait behind it; the bank file must leave before 05:00. Walk through your actions.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "What do you do first?",
+          "choices": [
+            {
+              "label": "Open the job's log and its return code, and read the handbook entry for PAY_IMPORT_HR",
+              "best": true,
+              "feedback": "Right: you need the cause and what the handbook allows before touching anything."
+            },
+            {
+              "label": "Set the job to OK so the chain goes on and the deadline is met",
+              "feedback": "Dangerous: PAY_COMPUTE would run without the HR data and could pay wrong amounts. Forcing OK is never a first move."
+            },
+            {
+              "label": "Rerun it straight away, it is probably a temporary error",
+              "feedback": "Maybe, but without reading the log you do not know whether a rerun is safe or will fail the same way."
+            }
+          ]
+        },
+        {
+          "text": "The log says: “input file PAY_HR_20261127.csv: 0 lines”. The handbook says: rerun allowed when the file is complete; otherwise call the payroll on-call. What next?",
+          "choices": [
+            {
+              "label": "Hold the jobs behind it and call the payroll on-call engineer, giving the error and the 05:00 deadline",
+              "best": true,
+              "feedback": "Yes: an empty file is a case for the application team, and holding the chain stops anything from running on bad data."
+            },
+            {
+              "label": "Rerun the job: it will read the same file",
+              "feedback": "The file is empty, so the rerun fails again or, worse, loads zero employees."
+            },
+            {
+              "label": "Copy yesterday's HR file in its place and rerun",
+              "feedback": "Never change business data yourself: yesterday's file has the wrong employees, hires and leavers."
+            }
+          ]
+        },
+        {
+          "text": "03:20: the HR team resends the file (4,812 lines). The on-call engineer agrees to a rerun. Then?",
+          "choices": [
+            {
+              "label": "Rerun PAY_IMPORT_HR, free the held jobs, watch the chain until the bank file is sent, update the ticket",
+              "best": true,
+              "feedback": "Right: you follow the chain to the end and leave a written trace with the times and who decided."
+            },
+            {
+              "label": "Rerun the job and go back to the other consoles",
+              "feedback": "The jobs you held will not start by themselves, and the deadline is still at risk: follow it to the end."
+            }
+          ]
+        }
+      ],
+      "answer": "Read the log and the handbook, never force OK on a payroll input, hold what depends on bad data, escalate with the facts and the deadline, then rerun once the cause is fixed and follow the chain to its outputs. The morning team checks the bank file and reads the ticket."
+    },
+    {
+      "q": "Supervision thresholds: disk free space WARNING below 20%, CRITICAL below 10%; page response time WARNING above 2 s, CRITICAL above 5 s. Sort these check results.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "OK",
+          "items": [
+            "/tmp: 35% free",
+            "Home page: 0.8 s"
+          ]
+        },
+        {
+          "name": "WARNING",
+          "items": [
+            "/var: 15% free",
+            "/home: 19% free",
+            "Login page: 3.1 s"
+          ]
+        },
+        {
+          "name": "CRITICAL",
+          "items": [
+            "/data: 7% free",
+            "/opt: 4% free",
+            "Search API: 6.4 s"
+          ]
+        }
+      ],
+      "answer": "A value between the two thresholds is WARNING, beyond the second one CRITICAL. 19% free is already WARNING: thresholds are limits, and a disk that fills a little every night reaches CRITICAL quickly. A check that cannot measure (timeout, plugin error) is UNKNOWN, which also needs a look."
+    },
+    {
+      "q": "Match each scheduler term with its meaning.",
+      "type": "match",
+      "pairs": [
+        [
+          "Dependency (condition)",
+          "The job starts only when another job has ended OK"
+        ],
+        [
+          "Calendar",
+          "The days on which the job runs (working days, month end)"
+        ],
+        [
+          "Return code",
+          "The number a job ends with: 0 for success"
+        ],
+        [
+          "Hold",
+          "Stop a job from starting until it is freed"
+        ],
+        [
+          "Restart from a step",
+          "Rerun a job without redoing the steps already finished"
+        ],
+        [
+          "Force OK",
+          "Mark a failed job as successful so the next jobs start"
+        ]
+      ],
+      "answer": "Control-M, VTOM, Dollar Universe and Autosys use different words, but every scheduler has these ideas. Force OK changes nothing in the data: the jobs behind it run as if the failed job had done its work."
+    },
+    {
+      "q": "Cron: a small log purge script on one server must run at 05:45, Monday to Saturday. Write its crontab schedule (the five time fields).",
+      "type": "cron",
+      "code": "cron",
+      "answer": "45 5 * * 1-6",
+      "hint": "Order: minute hour day-of-month month day-of-week. Monday is 1, Sunday is 0 (or 7).",
+      "explain": "45 5 * * 1-6: minute 45, hour 5, every day of the month, every month, Monday (1) to Saturday (6). cron fits this independent script; a job that waits for other jobs or a file belongs in the scheduler."
+    },
+    {
+      "q": "In B5, compute the availability of the customer portal over November (30 days = 43,200 minutes) from the downtime of its three incidents, as a fraction (format it as a percentage).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Incident",
+          "Downtime (minutes)"
+        ],
+        [
+          "INC-4102 listener down",
+          12
+        ],
+        [
+          "INC-4187 disk full",
+          25
+        ],
+        [
+          "INC-4230 failed release",
+          17
+        ],
+        [
+          "Availability",
+          ""
+        ],
+        [
+          "Minutes in the month",
+          43200
+        ]
+      ],
+      "cell": "B5",
+      "answer": "=1-SUM(B2:B4)/B6",
+      "explain": "12 + 25 + 17 = 54 minutes down; 1 − 54 / 43,200 = 0.99875, that is 99.875%. A 99.9% target allows 43.2 minutes a month, so this month misses it. Planned downtime is usually excluded when the contract says so: check the SLA's definition."
+    },
+    {
+      "q": "In D2, compute the share of night jobs that ended Not OK (as a fraction).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Job",
+          "Chain",
+          "Status",
+          "Failed share"
+        ],
+        [
+          "PAY_IMPORT_HR",
+          "PAYROLL",
+          "Not OK",
+          ""
+        ],
+        [
+          "PAY_COMPUTE",
+          "PAYROLL",
+          "OK",
+          ""
+        ],
+        [
+          "PAY_BANK_FILE",
+          "PAYROLL",
+          "OK",
+          ""
+        ],
+        [
+          "INV_EXTRACT",
+          "INVOICING",
+          "OK",
+          ""
+        ],
+        [
+          "INV_PRINT",
+          "INVOICING",
+          "Not OK",
+          ""
+        ],
+        [
+          "STK_UPDATE",
+          "STOCK",
+          "OK",
+          ""
+        ],
+        [
+          "DWH_LOAD",
+          "REPORTING",
+          "OK",
+          ""
+        ],
+        [
+          "DWH_AGG",
+          "REPORTING",
+          "OK",
+          ""
+        ]
+      ],
+      "cell": "D2",
+      "answer": "=COUNTIF(C2:C9,\"Not OK\")/COUNTA(C2:C9)",
+      "explain": "2 of 8 jobs failed: 0.25, that is 25%. Teams follow this rate over weeks, together with the reruns and the jobs forced OK, to find the chains that fail most often and fix their cause."
     }
   ],
   "interview": [
@@ -416,6 +753,14 @@
     {
       "q": "How would you alert on an SLO instead of a raw threshold?",
       "a": "I compute the error ratio and compare it with the ratio the SLO allows, which gives a burn rate. A fast burn, for example 14.4 times the allowed rate measured over both 1 hour and 5 minutes, pages someone; a slow burn over several hours opens a ticket. This alerts only when users are really affected and the budget is at risk."
+    },
+    {
+      "q": "At 3 a.m. a night batch job fails and the operator suggests forcing it OK so the chain can finish on time. What do you do?",
+      "a": "I first read the job's log and return code and the handbook entry: what the job produces and who uses it. If the jobs behind it need its output, forcing OK would let them run on missing data, so I refuse, hold them and fix the cause or call the application on-call with the deadline. I only force OK when the handbook or the application owner confirms the output is not needed, and I write down who decided, then check the outputs in the morning."
+    },
+    {
+      "q": "What is the difference between acknowledging an alert and putting a host in downtime?",
+      "a": "Acknowledging is done after the problem appears: it says someone is working on it, stops the notifications for that problem and keeps it visible on the console until it is fixed. A downtime is planned before a maintenance: during that window no notification is sent for the host or service. Both must be removed or end on time, otherwise the next real failure stays silent."
     }
   ]
 }

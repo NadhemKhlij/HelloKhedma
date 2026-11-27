@@ -128,6 +128,50 @@
         "code": "# Prometheus alerting rule: checkout SLO 99.9% (allowed error ratio 0.001)\ngroups:\n  - name: checkout-slo\n    rules:\n      - alert: CheckoutErrorBudgetFastBurn\n        expr: |\n          (\n            sum(rate(http_requests_total{route=\"/checkout\",code=~\"5..\"}[1h]))\n              / sum(rate(http_requests_total{route=\"/checkout\"}[1h]))\n          ) > (14.4 * 0.001)\n          and\n          (\n            sum(rate(http_requests_total{route=\"/checkout\",code=~\"5..\"}[5m]))\n              / sum(rate(http_requests_total{route=\"/checkout\"}[5m]))\n          ) > (14.4 * 0.001)\n        for: 2m\n        labels:\n          severity: page\n        annotations:\n          summary: \"Checkout is burning its monthly error budget 14x too fast\"\n          description: \"Check recent deploys and the payment provider latency dashboard.\"",
         "note": "La même logique peut être construite comme règle d’alerte Grafana avec deux requêtes et une expression math."
       }
+    },
+    {
+      "title": "Chaînes batch et ordonnanceurs : Control-M, VTOM, $Universe",
+      "text": [
+        "La plupart des entreprises font encore tourner une grande partie de leur activité la nuit, en batch : paie, facturation, mises à jour de stock, chargements de données pour le reporting, fichiers envoyés aux banques et aux partenaires. Une chaîne batch est un ensemble de jobs (scripts, programmes, transferts de fichiers, procédures en base) qui doivent s’exécuter dans un ordre donné. Chaque job a des dépendances (il démarre quand les jobs précédents se sont terminés OK, ou quand un fichier est arrivé), un calendrier (jours ouvrés, fin de mois, jamais les jours fériés), une fenêtre de démarrage et parfois des ressources : un compteur qui empêche deux jobs d’écrire en même temps dans la même table.",
+        "Un ordonnanceur lance les jobs au bon moment, vérifie leur résultat et montre toute la chaîne dans une console. Les offres françaises d’ingénieur de production, de pilote d’exploitation ou de support applicatif citent souvent Control-M (BMC), VTOM (Visual TOM, Absyss), Dollar Universe ($U, aujourd’hui Broadcom) ou Autosys (Broadcom). Leur vocabulaire diffère (folders et conditions dans Control-M, applications dans VTOM, uprocs et sessions dans $Universe) mais les idées sont les mêmes. cron suffit pour quelques scripts indépendants sur un serveur ; dès que des jobs dépendent les uns des autres sur plusieurs serveurs, ont besoin de calendriers, de reprises et d’une vue partagée, on utilise un ordonnanceur.",
+        "Quand un job échoue, l’ordonnanceur le marque (Ended Not OK, abort, en erreur) d’après son code retour : 0 signifie succès, toute autre valeur est un échec sauf si la définition du job dit autre chose. Lisez la sortie du job (sa sysout ou son log) à partir de la première erreur, notez le code retour et l’étape en échec, et regardez ce qui attend derrière. Les actions habituelles sont : relancer tout le job une fois la cause corrigée ; reprendre à partir d’une étape (restart), quand le job est découpé en étapes, pour ne pas refaire les étapes terminées ; mettre un job en attente (hold) pour qu’il ne démarre pas, puis le libérer (free) ; ou le forcer OK (Set to OK) pour que les jobs suivants démarrent. Forcer OK est l’action dangereuse : les jobs suivants tournent alors sur des données manquantes ou partielles, et une paie ou un fichier bancaire peut partir faux. Ne le faites que si les consignes ou le responsable de l’application disent que la sortie du job n’est pas nécessaire, et notez qui a décidé.",
+        "La nuit, les chaînes sont surveillées par l’équipe d’exploitation (le pilotage, souvent 24 h/24) et par un ingénieur d’astreinte pour chaque application. Les consignes d’exploitation (runbook) indiquent pour chaque job ce qu’il fait, si une relance est sans risque, à partir de quelle étape, l’heure limite et qui appeler. Le pilote les applique ; quand le cas n’y figure pas, ou que l’heure limite est menacée, il escalade à l’astreinte, qui peut appeler l’équipe applicative ou l’éditeur du logiciel. Réveiller quelqu’un fait partie du métier ; deviner, non.",
+        "Le matin, avant l’arrivée des utilisateurs, l’équipe de jour contrôle la nuit : chaque chaîne est terminée, les sorties sont produites (le fichier bancaire est parti et a été acquitté, les tables de reporting sont chargées), aucun job n’est resté en attente, rien n’a été forcé sans note. Les incidents de la nuit sont consignés dans la passation et dans des tickets, avec la cause et ce qui a été fait. Les banques d’investissement appliquent la même discipline à leur batch de fin de journée (voir le cours Cycle de vie d’un trade) ; la méthode présentée ici vaut pour tous les secteurs."
+      ],
+      "points": [
+        "Chaîne batch = jobs + dépendances (conditions, fichiers) + calendriers + fenêtres de démarrage + ressources.",
+        "Ordonnanceurs des offres françaises : Control-M, VTOM, Dollar Universe, Autosys ; cron seulement pour des jobs simples et indépendants.",
+        "Job en échec : lire son log à partir de la première erreur et son code retour, voir ce qui attend derrière, puis relancer, reprendre à une étape, hold / free.",
+        "Forcer OK seulement avec les consignes ou l’accord du responsable : les jobs suivants utiliseraient des données manquantes.",
+        "La nuit : le pilotage suit les consignes, escalade à l’astreinte ; le matin : contrôler chaque chaîne et ses sorties, faire la passation."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "PAYROLL chain, night of 26/11 (scheduler console)\n21:30 PAY_IMPORT_HR     Ended OK      rc=0   HR file received (4,812 employees)\n22:05 PAY_CHECK_INPUT   Ended OK      rc=0\n23:10 PAY_COMPUTE       Ended Not OK  rc=12  ORA-00060 deadlock detected\n      PAY_BANK_FILE     Wait condition (needs PAY_COMPUTE-OK)\n      PAY_GL_POSTING    Wait condition (needs PAY_COMPUTE-OK)\n\nHandbook, PAY_COMPUTE: rerun allowed once, from step 3 (restart). Never Set to OK.\nDeadline: bank file sent before 05:00. If the rerun fails: call the payroll on-call.\n\n23:25 rerun from step 3 -> 00:40 Ended OK -> PAY_BANK_FILE 00:55 OK -> PAY_GL_POSTING 01:20 OK\n07:30 morning check: chain complete, bank file acknowledged, incident ticket updated",
+        "note": "Lisez le code retour et la première erreur, suivez les consignes, et contrôlez les sorties le lendemain matin."
+      }
+    },
+    {
+      "title": "Supervision en entreprise : Zabbix, Centreon, Nagios et APM",
+      "text": [
+        "Beaucoup d’entreprises surveillent leurs serveurs et leurs applications avec un outil de supervision fondé sur des contrôles : Nagios, Centreon (français, issu de Nagios, très répandu en France) ou Zabbix. Un contrôle d’hôte répond à « la machine est-elle joignable ? » (UP, DOWN, UNREACHABLE quand un routeur placé devant elle est tombé). Un contrôle de service teste une chose sur un hôte : espace disque, charge CPU, un processus lancé, un port qui répond, une page web qui renvoie 200 en moins de 2 secondes, une requête en base qui fonctionne. Dans Nagios et Centreon, chaque contrôle est un petit plugin qui affiche une ligne de texte et renvoie 0 (OK), 1 (WARNING), 2 (CRITICAL) ou 3 (UNKNOWN). Zabbix collecte des items via son agent et les transforme en problèmes grâce à des triggers, avec des sévérités allant d’Information à Disaster.",
+        "Chaque contrôle a deux seuils. WARNING signifie « à regarder bientôt » : le disque a 15 % d’espace libre. CRITICAL signifie « agir maintenant » : 5 % libre, ou le service ne répond plus. Pour éviter une alerte sur une seule réponse lente, un contrôle est relancé avant que l’état ne devienne définitif (état soft puis hard dans Nagios et Centreon), et un contrôle qui alterne sans cesse entre OK et CRITICAL est marqué comme instable (flapping). Les seuils se choisissent par service : 80 % de CPU est normal pour un serveur batch la nuit et inquiétant pour un frontal web à midi.",
+        "Deux actions gardent la console lisible. Acquitter une alerte dit « quelqu’un s’en occupe » : les notifications s’arrêtent pour ce problème et la console montre qui l’a pris, mais l’état reste rouge jusqu’à la correction. Une plage de maintenance (downtime) se planifie à l’avance pour une intervention (patch, mise en production) : pendant cette fenêtre, aucune notification ne part pour cet hôte ou ce service. Les deux doivent se terminer : une alerte acquittée puis oubliée, ou un downtime plus long que l’intervention, cache la prochaine vraie panne. Le routage envoie chaque alerte à la bonne équipe (groupes de contacts, escalade après 30 minutes sans action) ; trop d’alertes inutiles créent la fatigue d’alerte, comme dans la leçon précédente sur les alertes.",
+        "Dans les grandes entreprises, un NOC ou une équipe d’exploitation (pilotage, supervision) surveille ces consoles 24 h/24, souvent à côté de l’ordonnanceur batch. Les outils d’APM (Application Performance Monitoring : Dynatrace, Datadog, AppDynamics) vont à l’intérieur de l’application : un agent instrumente le code et enregistre des traces, si bien que pour une requête lente vous voyez chaque appel qu’elle a fait (la requête SQL qui a pris 2,8 secondes, l’API partenaire qui a expiré) et une carte de qui appelle qui. Un contrôle dit que quelque chose ne va pas ; une trace dit souvent où. Prometheus et Grafana, vus plus haut dans ce cours, jouent le rôle des métriques dans les équipes cloud et Kubernetes ; une même entreprise a souvent Centreon ou Zabbix pour les serveurs, un APM pour les applications clés et des dashboards Grafana, et le support doit savoir lire tout cela.",
+        "Une alerte devient un ticket d’incident quand des utilisateurs sont, ou vont être, touchés. Rédigez-le pour que la personne suivante n’ait besoin de rien d’autre : ce qui est en panne (hôte, service, sortie du contrôle), depuis quand, l’impact métier (qui ne peut pas faire quoi), la priorité (impact et urgence, comme dans le cours sur les incidents ITIL), ce que vous avez déjà vérifié ou fait, et l’équipe à qui il est affecté. Liez l’alerte, acquittez-la avec le numéro du ticket, et mettez le ticket à jour aux heures annoncées."
+      ],
+      "points": [
+        "Contrôle d’hôte : UP / DOWN / UNREACHABLE ; contrôle de service : OK / WARNING / CRITICAL / UNKNOWN (codes retour des plugins 0 / 1 / 2 / 3).",
+        "WARNING = agir bientôt, CRITICAL = agir maintenant ; les relances (soft / hard) et le flapping évitent le bruit.",
+        "Acquitter = quelqu’un s’en occupe (notifications arrêtées, toujours rouge) ; downtime = fenêtre de maintenance planifiée. Terminer les deux.",
+        "APM (Dynatrace, Datadog, AppDynamics) : les traces montrent où une requête lente passe son temps.",
+        "Ticket à partir d’une alerte : quoi, depuis quand, impact, priorité, actions faites, équipe affectée, prochaine mise à jour."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Supervision console, 03:12\nHOST     SERVICE          STATE     DURATION  INFO\napp-02   Disk /var        WARNING   2h 05m    DISK WARNING - free space: /var 14% (thresholds w=20% c=10%)\ndb-01    Oracle listener  CRITICAL  0h 04m    CRITICAL - connection refused on port 1521\napp-01   HTTP /login      CRITICAL  0h 03m    HTTP CRITICAL - 503 Service Unavailable\napp-03   (host)           DOWN      0h 00m    in scheduled downtime (patching 03:00-04:00)\n\nTicket: P2 - Customer portal login unavailable since 03:09\nWhat: /login returns 503 on app-01; db-01 Oracle listener refuses connections since 03:08.\nImpact: customers cannot log in (portal); back office not affected.\nDone: alerts acknowledged 03:13, listener status checked, DBA on-call called 03:15.\nGroup: DBA (level 2), application support informed. Next update 03:45.",
+        "note": "Deux lignes rouges, une seule cause : le listener de db-01 explique les 503 sur app-01. app-03 est en maintenance planifiée et n’envoie rien."
+      }
     }
   ],
   "cheatsheet": [
@@ -285,6 +329,60 @@
           "Où vont les alertes / règles de routage"
         ]
       ]
+    },
+    {
+      "group": "Ordonnancement batch",
+      "items": [
+        [
+          "Control-M, VTOM, Dollar Universe, Autosys",
+          "Ordonnanceurs cités dans les offres d’exploitation"
+        ],
+        [
+          "Code retour 0 / différent de 0",
+          "Job terminé OK / en échec"
+        ],
+        [
+          "Relance / reprise à une étape",
+          "Relancer / relancer sans les étapes terminées"
+        ],
+        [
+          "Hold / free",
+          "Empêcher un job de démarrer / le laisser démarrer"
+        ],
+        [
+          "Forcer OK (Set to OK)",
+          "Marquer l’échec comme OK : les jobs suivants démarrent, seulement avec l’accord du responsable"
+        ],
+        [
+          "Consignes d’exploitation (runbook)",
+          "Par job : relance autorisée ?, heure limite, qui appeler"
+        ]
+      ]
+    },
+    {
+      "group": "Supervision",
+      "items": [
+        [
+          "OK / WARNING / CRITICAL / UNKNOWN",
+          "États de service (codes retour des plugins 0 / 1 / 2 / 3)"
+        ],
+        [
+          "UP / DOWN / UNREACHABLE",
+          "États d’hôte"
+        ],
+        [
+          "Acquitter",
+          "Quelqu’un s’en occupe : notifications arrêtées, toujours rouge"
+        ],
+        [
+          "Downtime",
+          "Fenêtre de maintenance planifiée : pas de notification"
+        ],
+        [
+          "Trace APM",
+          "Chaque appel fait par une requête, avec sa durée"
+        ]
+      ]
     }
   ],
   "pitfalls": [
@@ -294,7 +392,9 @@
     "Des tableaux de bord de latence moyenne qui masquent les requêtes lentes.",
     "Mettre des identifiants utilisateur ou des URL brutes dans les labels et faire exploser le nombre de séries.",
     "Appliquer rate() à une gauge, ou sommer des counters avant d’appliquer rate().",
-    "Faire la moyenne de percentiles entre instances au lieu d’agréger les buckets de l’histogram."
+    "Faire la moyenne de percentiles entre instances au lieu d’agréger les buckets de l’histogram.",
+    "Forcer OK un job batch en échec pour tenir une heure limite sans vérifier ce que liront les jobs suivants.",
+    "Laisser une alerte acquittée ou un downtime actif après l’intervention, si bien que la panne suivante reste silencieuse."
   ],
   "exercises": [
     {
@@ -382,6 +482,243 @@
       "answer": ".data.result[] | select(.value[1] == \"0\") | .metric.instance",
       "hint": "La valeur est une paire [horodatage, \"valeur\"], et la valeur est une chaîne : comparez .value[1] à \"0\".",
       "explain": "jq '.data.result[] | select(.value[1] == \"0\") | .metric.instance' renvoie \"db-1:9100\" et \"api-2:8080\". En PromQL, la même question s’écrit up == 0, et l’alerte est souvent up == 0 pendant 5 minutes."
+    },
+    {
+      "q": "Un job batch de nuit a échoué. Remettez les étapes de son traitement dans l’ordre.",
+      "type": "order",
+      "steps": [
+        "Repérer dans la console de l’ordonnanceur le job en échec et ce qui attend derrière",
+        "Lire le log du job à partir de la première erreur et noter le code retour",
+        "Consulter les consignes d’exploitation du job (relance autorisée ? à partir de quelle étape ? heure limite ?)",
+        "Corriger ou contourner la cause, ou escalader à l’astreinte",
+        "Relancer le job (ou le reprendre à l’étape en échec) et surveiller les jobs suivants",
+        "Contrôler les sorties de la chaîne le matin et rédiger le ticket d’incident et la passation"
+      ],
+      "answer": "D’abord localiser, comprendre grâce au log, vérifier ce que permettent les consignes, agir sur la cause, relancer au bon endroit, puis contrôler les sorties et laisser une trace écrite. Relancer avant de lire le log échoue souvent de nouveau, ou refait une seconde fois ce qui avait à moitié marché."
+    },
+    {
+      "q": "2 h 10, vous êtes pilote de nuit. Dans la chaîne PAIE, PAY_IMPORT_HR (le job qui charge le fichier RH) se termine Not OK. PAY_COMPUTE, PAY_BANK_FILE et les écritures comptables attendent derrière ; le fichier bancaire doit partir avant 5 h. Déroulez vos actions.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Que faites-vous d’abord ?",
+          "choices": [
+            {
+              "label": "Ouvrir le log du job et son code retour, et lire la consigne de PAY_IMPORT_HR",
+              "best": true,
+              "feedback": "Exact : il faut la cause et ce que permettent les consignes avant de toucher à quoi que ce soit."
+            },
+            {
+              "label": "Forcer le job OK pour que la chaîne continue et que l’heure limite soit tenue",
+              "feedback": "Dangereux : PAY_COMPUTE tournerait sans les données RH et pourrait verser des montants faux. Forcer OK n’est jamais un premier geste."
+            },
+            {
+              "label": "Le relancer tout de suite, c’est sûrement une erreur passagère",
+              "feedback": "Peut-être, mais sans lire le log vous ne savez pas si une relance est sans risque ou si elle échouera de la même façon."
+            }
+          ]
+        },
+        {
+          "text": "Le log indique : « input file PAY_HR_20261127.csv: 0 lines ». La consigne dit : relance autorisée si le fichier est complet ; sinon appeler l’astreinte paie. Ensuite ?",
+          "choices": [
+            {
+              "label": "Mettre en attente (hold) les jobs suivants et appeler l’astreinte paie en donnant l’erreur et l’heure limite de 5 h",
+              "best": true,
+              "feedback": "Oui : un fichier vide relève de l’équipe applicative, et bloquer la chaîne empêche tout traitement sur des données fausses."
+            },
+            {
+              "label": "Relancer le job : il lira le même fichier",
+              "feedback": "Le fichier est vide, donc la relance échoue de nouveau ou, pire, charge zéro salarié."
+            },
+            {
+              "label": "Copier le fichier RH de la veille à sa place et relancer",
+              "feedback": "Ne modifiez jamais vous-même des données métier : le fichier de la veille n’a pas les bons salariés, entrées et sorties."
+            }
+          ]
+        },
+        {
+          "text": "3 h 20 : l’équipe RH renvoie le fichier (4 812 lignes). L’astreinte donne son accord pour une relance. Ensuite ?",
+          "choices": [
+            {
+              "label": "Relancer PAY_IMPORT_HR, libérer les jobs en attente, suivre la chaîne jusqu’à l’envoi du fichier bancaire, mettre à jour le ticket",
+              "best": true,
+              "feedback": "Exact : vous suivez la chaîne jusqu’au bout et laissez une trace écrite avec les heures et qui a décidé."
+            },
+            {
+              "label": "Relancer le job et retourner aux autres consoles",
+              "feedback": "Les jobs mis en attente ne repartiront pas seuls, et l’heure limite reste menacée : suivez jusqu’au bout."
+            }
+          ]
+        }
+      ],
+      "answer": "Lire le log et les consignes, ne jamais forcer OK une entrée de paie, bloquer ce qui dépend de données fausses, escalader avec les faits et l’heure limite, puis relancer une fois la cause corrigée et suivre la chaîne jusqu’à ses sorties. L’équipe du matin contrôle le fichier bancaire et lit le ticket."
+    },
+    {
+      "q": "Seuils de supervision : espace disque libre WARNING sous 20 %, CRITICAL sous 10 % ; temps de réponse d’une page WARNING au-dessus de 2 s, CRITICAL au-dessus de 5 s. Classez ces résultats de contrôles.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "OK",
+          "items": [
+            "/tmp : 35 % libre",
+            "Page d’accueil : 0,8 s"
+          ]
+        },
+        {
+          "name": "WARNING",
+          "items": [
+            "/var : 15 % libre",
+            "/home : 19 % libre",
+            "Page de connexion : 3,1 s"
+          ]
+        },
+        {
+          "name": "CRITICAL",
+          "items": [
+            "/data : 7 % libre",
+            "/opt : 4 % libre",
+            "API de recherche : 6,4 s"
+          ]
+        }
+      ],
+      "answer": "Une valeur entre les deux seuils est WARNING, au-delà du second CRITICAL. 19 % libre est déjà WARNING : les seuils sont des limites, et un disque qui se remplit un peu chaque nuit atteint vite CRITICAL. Un contrôle qui ne peut pas mesurer (timeout, erreur du plugin) est UNKNOWN, ce qui mérite aussi un coup d’œil."
+    },
+    {
+      "q": "Associez chaque terme d’ordonnancement à sa signification.",
+      "type": "match",
+      "pairs": [
+        [
+          "Dépendance (condition)",
+          "Le job ne démarre que quand un autre job s’est terminé OK"
+        ],
+        [
+          "Calendrier",
+          "Les jours où le job tourne (jours ouvrés, fin de mois)"
+        ],
+        [
+          "Code retour",
+          "Le nombre par lequel un job se termine : 0 en cas de succès"
+        ],
+        [
+          "Hold",
+          "Empêcher un job de démarrer jusqu’à ce qu’il soit libéré"
+        ],
+        [
+          "Reprise à une étape",
+          "Relancer un job sans refaire les étapes déjà terminées"
+        ],
+        [
+          "Forcer OK",
+          "Marquer un job en échec comme réussi pour que les suivants démarrent"
+        ]
+      ],
+      "answer": "Control-M, VTOM, Dollar Universe et Autosys emploient des mots différents, mais tous les ordonnanceurs ont ces notions. Forcer OK ne change rien aux données : les jobs suivants tournent comme si le job en échec avait fait son travail."
+    },
+    {
+      "q": "Cron : un petit script de purge des logs sur un serveur doit tourner à 5 h 45, du lundi au samedi. Écrivez sa planification crontab (les cinq champs horaires).",
+      "type": "cron",
+      "code": "cron",
+      "answer": "45 5 * * 1-6",
+      "hint": "Ordre : minute heure jour-du-mois mois jour-de-la-semaine. Lundi vaut 1, dimanche 0 (ou 7).",
+      "explain": "45 5 * * 1-6 : minute 45, heure 5, tous les jours du mois, tous les mois, du lundi (1) au samedi (6). cron convient à ce script indépendant ; un job qui attend d’autres jobs ou un fichier relève de l’ordonnanceur."
+    },
+    {
+      "q": "En B5, calculez la disponibilité du portail client en novembre (30 jours = 43 200 minutes) à partir des interruptions de ses trois incidents, sous forme de fraction (mettez-la au format pourcentage).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Incident",
+          "Downtime (minutes)"
+        ],
+        [
+          "INC-4102 listener down",
+          12
+        ],
+        [
+          "INC-4187 disk full",
+          25
+        ],
+        [
+          "INC-4230 failed release",
+          17
+        ],
+        [
+          "Availability",
+          ""
+        ],
+        [
+          "Minutes in the month",
+          43200
+        ]
+      ],
+      "cell": "B5",
+      "answer": "=1-SUM(B2:B4)/B6",
+      "explain": "12 + 25 + 17 = 54 minutes d’interruption ; 1 − 54 / 43 200 = 0,99875, soit 99,875 %. Un objectif de 99,9 % autorise 43,2 minutes par mois : ce mois-ci, il est manqué. Les maintenances planifiées sont en général exclues quand le contrat le prévoit : vérifiez la définition du SLA."
+    },
+    {
+      "q": "En D2, calculez la part des jobs de nuit terminés Not OK (sous forme de fraction).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Job",
+          "Chain",
+          "Status",
+          "Failed share"
+        ],
+        [
+          "PAY_IMPORT_HR",
+          "PAYROLL",
+          "Not OK",
+          ""
+        ],
+        [
+          "PAY_COMPUTE",
+          "PAYROLL",
+          "OK",
+          ""
+        ],
+        [
+          "PAY_BANK_FILE",
+          "PAYROLL",
+          "OK",
+          ""
+        ],
+        [
+          "INV_EXTRACT",
+          "INVOICING",
+          "OK",
+          ""
+        ],
+        [
+          "INV_PRINT",
+          "INVOICING",
+          "Not OK",
+          ""
+        ],
+        [
+          "STK_UPDATE",
+          "STOCK",
+          "OK",
+          ""
+        ],
+        [
+          "DWH_LOAD",
+          "REPORTING",
+          "OK",
+          ""
+        ],
+        [
+          "DWH_AGG",
+          "REPORTING",
+          "OK",
+          ""
+        ]
+      ],
+      "cell": "D2",
+      "answer": "=COUNTIF(C2:C9,\"Not OK\")/COUNTA(C2:C9)",
+      "explain": "2 jobs sur 8 ont échoué : 0,25, soit 25 %. Les équipes suivent ce taux sur plusieurs semaines, avec les relances et les jobs forcés OK, pour repérer les chaînes qui échouent le plus souvent et corriger leur cause."
     }
   ],
   "interview": [
@@ -416,6 +753,14 @@
     {
       "q": "Comment alerteriez-vous sur un SLO plutôt que sur un seuil brut ?",
       "a": "Je calcule le taux d’erreur et je le compare au taux autorisé par le SLO, ce qui donne un burn rate. Une consommation rapide, par exemple 14,4 fois le taux autorisé mesuré à la fois sur 1 heure et sur 5 minutes, déclenche un appel d’astreinte ; une consommation lente sur plusieurs heures ouvre un ticket. On n’alerte ainsi que lorsque les utilisateurs sont réellement touchés et que le budget est menacé."
+    },
+    {
+      "q": "À 3 h du matin, un job batch de nuit échoue et le pilote propose de le forcer OK pour que la chaîne finisse à l’heure. Que faites-vous ?",
+      "a": "Je lis d’abord le log du job, son code retour et sa consigne : ce que produit le job et qui l’utilise. Si les jobs suivants ont besoin de sa sortie, forcer OK les ferait tourner sur des données manquantes ; je refuse donc, je les mets en attente et je corrige la cause ou j’appelle l’astreinte applicative en donnant l’heure limite. Je ne force OK que si les consignes ou le responsable de l’application confirment que la sortie n’est pas nécessaire, je note qui a décidé, puis je contrôle les sorties le matin."
+    },
+    {
+      "q": "Quelle est la différence entre acquitter une alerte et mettre un hôte en downtime ?",
+      "a": "On acquitte après l’apparition du problème : cela dit que quelqu’un s’en occupe, arrête les notifications pour ce problème et le laisse visible dans la console jusqu’à sa correction. Un downtime se planifie avant une maintenance : pendant cette fenêtre, aucune notification n’est envoyée pour l’hôte ou le service. Les deux doivent être levés ou se terminer à temps, sinon la prochaine vraie panne reste silencieuse."
     }
   ]
 }

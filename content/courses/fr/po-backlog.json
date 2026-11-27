@@ -177,6 +177,28 @@
         "code": "MONTHLY BACKLOG HEALTH CHECK (30 min)\n[ ] Product Goal still true? Every top-20 item linked to it\n[ ] Top 2 Sprints: items ready (AC, sized, fit in a Sprint)\n[ ] Items untouched for 6 months: archived with a note\n[ ] Duplicates merged; vague titles rewritten\n[ ] Technical debt and bugs visible, stated in business terms\n[ ] Stakeholders told about items that moved down\n[ ] Decision log updated (request, decision, reason, review date)\n\nBacklog size: 412 -> 138 items after pruning",
         "note": "Un backlog court et ordonné est plus facile à expliquer, à défendre et à faire évoluer."
       }
+    },
+    {
+      "title": "Travailler avec les développeurs : API, environnements et stories techniques",
+      "text": [
+        "Beaucoup d’offres en France demandent un « Product Owner technique » ou un « Technical Product Owner ». Personne n’attend du PO qu’il code, mais on attend de vous que vous suiviez une discussion technique, lisiez une spécification et arbitriez avec les Developers. Commencez par une carte simple de tout produit web ou mobile. Le front end est ce que l’utilisateur voit et touche : les pages web dans le navigateur, l’application mobile. Le back end tourne sur des serveurs : il applique les règles métier (prix, stock, qui a le droit de faire quoi), contrôle la sécurité et échange avec les autres systèmes. La base de données retient : clients, commandes, factures. Le front end ne lit jamais la base directement ; il demande au back end via une API.",
+        "Une API (interface de programmation) est un contrat : « envoie-moi cette requête, je réponds par cette réponse ». Chaque opération est un endpoint, une méthode plus un chemin : GET /orders/{id} lit une commande, POST /orders en crée une, PUT ou PATCH la modifie, DELETE la supprime. Requêtes et réponses sont le plus souvent en JSON, avec des champs nommés, des types et des champs obligatoires. Le code de statut dit comment cela s’est passé : 200 OK, 201 Created (un POST qui a créé quelque chose), 400 Bad Request (les données envoyées sont invalides), 401 Unauthorized (non authentifié : pas de jeton, ou un jeton expiré), 403 Forbidden (authentifié, mais pas autorisé), 404 Not Found, 500 Internal Server Error (le serveur a échoué : un bug, pas la faute de l’utilisateur). En gros, 4xx veut dire que le problème vient de la requête de l’appelant, 5xx qu’il vient du serveur. Le contrat est souvent écrit en OpenAPI (anciennement appelé Swagger) et affiché sur une page Swagger UI, où l’on lit chaque endpoint et où l’on peut souvent essayer un appel sur l’environnement de test. Le site, l’application mobile et des partenaires peuvent tous appeler la même API : changer un champ peut tous les casser. C’est pourquoi les changements d’API sont versionnés (/v1/, /v2/) et annoncés.",
+        "Le code passe par plusieurs environnements avant que les utilisateurs le voient. Le développement est l’endroit où les Developers construisent et testent leur propre travail. Le test, appelé « recette » dans la plupart des entreprises françaises, est l’endroit où testeurs, PO et utilisateurs métier vérifient les stories face à leurs critères d’acceptation (UAT, tests d’acceptation utilisateur). La pré-production (staging) est une copie de la production aussi fidèle que possible, utilisée pour les dernières vérifications, les tests de performance et la répétition du déploiement. La production est le vrai produit, avec de vrais utilisateurs et de vraies données. Les données personnelles copiées de la production vers le test doivent être anonymisées ou remplacées par des données de test (RGPD). Déployer n’est pas livrer aux utilisateurs : avec un feature flag, le code peut être en production mais désactivé, puis activé pour certains utilisateurs ou à une date choisie. En affinage, deux questions évitent les surprises : « Où pourrai-je le vérifier ? » et « Comment et quand est-ce mis en service ? ».",
+        "Tout le travail du backlog n’est pas une user story. Les enablers (un terme de SAFe que beaucoup d’équipes utilisent) préparent des fonctionnalités futures : explorer une option, mettre à jour un framework avant la fin de son support, brancher le bac à sable d’un nouveau prestataire de paiement, respecter une règle de conformité. Écrivez-les comme tout élément, avec la raison et une fin vérifiable : « Pour pouvoir proposer le paiement en plusieurs fois au T3, le service de paiement utilise l’API v3 du prestataire ; terminé quand les paiements par carte passent en v3 en pré-production. » La dette technique (leçon 8) devient gérable quand elle est visible : des éléments de dette dans le même backlog, formulés par leur effet métier, étiquetés pour pouvoir les compter, et une part de la capacité de chaque Sprint convenue avec les Developers (par exemple 15 ou 20 %, revue quand les incidents ou les délais de livraison évoluent). Les Developers choisissent quelle dette rembourser d’abord ; le PO protège cette part et vérifie son effet. Une part régulière marche en général mieux qu’un rare « Sprint de refactoring », qui retarde la valeur et a quand même besoin d’un objectif de Sprint.",
+        "Les exigences non fonctionnelles (ENF, ou NFR en anglais) décrivent à quel point le produit doit bien fonctionner : performance, sécurité, disponibilité, accessibilité. Écrivez-les comme des critères d’acceptation mesurables, pas comme des souhaits : « la recherche répond en moins de 2 secondes pour 95 % des requêtes avec 500 utilisateurs simultanés », « disponible 99,5 % de chaque mois hors maintenance annoncée », « les mots de passe sont stockés hachés, jamais en clair », « chaque page respecte les critères d’accessibilité du RGAA » (le référentiel français, fondé sur les WCAG). Une ENF qui s’applique à tous les éléments va dans la Definition of Done ; une ENF propre à une story va dans ses critères. En affinage, le PO porte le quoi et le pourquoi, les Developers le comment. Les bonnes questions ouvrent la discussion : « Qui d’autre utilise ces données ou cette API ? », « Y a-t-il une option plus petite qui livre une partie de la valeur plus tôt ? », « Que faut-il apprendre avant de l’estimer, un spike ? », « Comment saurons-nous que cela marche en production ? ». Évitez de concevoir à leur place (« il suffit d’ajouter une colonne », « utilisez la technologie X ») ou de leur dire combien de temps cela devrait prendre."
+      ],
+      "points": [
+        "Le front end affiche, le back end décide, la base de données retient ; ils se parlent via des API.",
+        "Contrat d’API = méthode + chemin, requête et réponse JSON, codes de statut ; lisez-le sur la page OpenAPI (Swagger).",
+        "401 = non authentifié, 403 = authentifié mais pas autorisé ; 4xx = la requête, 5xx = le serveur.",
+        "Dev → test (recette) → pré-production → production ; déployer n’est pas mettre en service (feature flags).",
+        "Enablers et dette sont des éléments visibles avec une raison et une part de capacité convenue ; les ENF sont des critères mesurables."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "STORY  As a customer, I want to see the status of my order\n       so that I stop calling support to ask.\n\nAPI CONTRACT (read on the OpenAPI / Swagger page)\nGET /api/v1/orders/{orderId}           auth: customer token\n200 OK\n{\n  \"orderId\": \"A-10482\",\n  \"status\": \"SHIPPED\",\n  \"estimatedDelivery\": \"2026-12-03\"\n}\n401  no token, or the token has expired\n403  the order belongs to another customer\n404  no order with this id\n\nACCEPTANCE CRITERIA\n1. Given my own order, when I open it, I see its status and\n   delivery date (200).\n2. Given another customer's order id, I get 403 and no order data.\n3. Performance: the status shows in under 2 s for 95 % of requests.\n4. Checked by the PO in recette (test) before release;\n   released behind the feature flag \"order-status\".\n\nENABLER (next in the backlog)\nSo that the status stays up to date, the order service receives\nthe carrier's delivery events. Done when a test parcel's events\nupdate the status in pre-production within 5 minutes.",
+        "note": "Le PO écrit le besoin, les réponses attendues du contrat et des critères mesurables ; les Developers décident comment le construire."
+      }
     }
   ],
   "cheatsheet": [
@@ -242,6 +264,18 @@
         ["Kano attractif", "Délice : inattendu, il enchante quand il est là"],
         ["Matrice valeur / effort", "Quick wins, gros paris, bouche-trous, gouffres"]
       ]
+    },
+    {
+      "group": "Travailler avec les développeurs",
+      "items": [
+        ["Contrat d’API", "Endpoint (méthode + chemin), requête / réponse JSON, codes de statut"],
+        ["OpenAPI (Swagger)", "Description standard d’une API, lisible sur une page Swagger UI"],
+        ["401 vs 403", "Non authentifié vs authentifié mais pas autorisé"],
+        ["4xx / 5xx", "Le problème vient de la requête de l’appelant / le serveur a échoué"],
+        ["Recette → pré-production", "Vérifications métier (UAT), puis une copie fidèle de la production"],
+        ["Enabler", "Élément technique qui prépare des fonctionnalités futures, avec une raison et une fin vérifiable"],
+        ["ENF (NFR)", "Exigence non fonctionnelle : performance, sécurité, disponibilité, accessibilité mesurables"]
+      ]
     }
   ],
   "pitfalls": [
@@ -251,7 +285,8 @@
     "Estimer à la place des Developers, ou faire de la vélocité un objectif pour comparer les équipes.",
     "Se cacher derrière un score RICE ou WSJF au lieu de s’en servir pour expliquer un arbitrage.",
     "Tout classer en Must, si bien que MoSCoW n’aide plus à rien décider.",
-    "Laisser le backlog grossir jusqu’à des centaines d’éléments qui ne seront jamais construits."
+    "Laisser le backlog grossir jusqu’à des centaines d’éléments qui ne seront jamais construits.",
+    "Concevoir la solution dans la story (tables, endpoints, technologies) au lieu d’énoncer le besoin et des critères mesurables."
   ],
   "exercises": [
     {
@@ -474,6 +509,137 @@
     {
       "q": "Découpez l’epic « Les clients gèrent leur abonnement en ligne » (aujourd’hui ils doivent appeler le support) en 5 à 7 stories verticales, dans l’ordre, et dites laquelle vous livreriez en premier et pourquoi.",
       "answer": "1) En tant qu’abonné, je veux voir mon offre actuelle, son prix et la prochaine date de prélèvement, afin de ne plus appeler le support pour le demander (lecture seule, la plus petite, supprime beaucoup d’appels). 2) En tant qu’abonné, je veux mettre à jour ma carte, afin que mon abonnement ne s’arrête pas quand elle expire (les échecs de paiement coûtent du chiffre d’affaires). 3) En tant qu’abonné, je veux passer à une offre supérieure, effective tout de suite avec un montant au prorata (chiffre d’affaires, chemin nominal). 4) En tant qu’abonné, je veux passer à une offre inférieure à la prochaine date de prélèvement (variante de règle métier). 5) En tant qu’abonné, je veux suspendre jusqu’à deux mois au lieu de résilier (fidélisation). 6) En tant qu’abonné, je veux résilier en ligne et recevoir un e-mail de confirmation (légal et confiance ; en France, la résiliation en ligne doit être simple). 7) Les mêmes parcours dans l’application mobile (interface). Première livraison : la story 1, car elle est fine, traverse toutes les couches, peut sortir en quelques jours et réduit des appels au support que l’on peut mesurer ; la story 2 suit car les échecs de paiement ont un coût du retard clair. Chaque story reçoit des critères d’acceptation, par exemple le prix affiché correspond à la facture et une offre résiliée reste active jusqu’à la fin de la période payée."
+    },
+    {
+      "q": "Associez chaque code de statut HTTP à ce qu’il signifie pour la personne qui lit la réponse de l’API.",
+      "type": "match",
+      "pairs": [
+        ["200", "OK : la requête a fonctionné et la réponse est dans le corps"],
+        ["201", "Created : un POST a créé une nouvelle ressource"],
+        ["400", "Bad Request : les données envoyées sont invalides"],
+        ["401", "Unauthorized : non authentifié (pas de jeton, ou un jeton expiré)"],
+        ["403", "Forbidden : authentifié, mais pas autorisé à faire cela"],
+        ["404", "Not Found : rien n’existe à cette adresse ou avec cet identifiant"],
+        ["500", "Internal Server Error : le serveur a échoué, en général un bug"]
+      ],
+      "answer": "2xx = cela a marché, 4xx = le problème vient de la requête de l’appelant (données invalides, non connecté, pas autorisé, introuvable), 5xx = le serveur a échoué. 401 contre 403 est la question d’entretien classique : 401 veut dire « qui êtes-vous ? », 403 « je sais qui vous êtes, et c’est non »."
+    },
+    {
+      "q": "Une testeuse vous envoie cette réponse de l’environnement de recette en vérifiant la story « Choisir une date de livraison ». Que vous dit-elle ?",
+      "type": "choice",
+      "snippet": "POST /api/v1/orders\n-> 400 Bad Request\n{\n  \"error\": \"VALIDATION_FAILED\",\n  \"details\": [\n    { \"field\": \"deliveryDate\",\n      \"message\": \"must be today or later\" }\n  ]\n}",
+      "lang": "json",
+      "options": [
+        "Le serveur a planté : ouvrez un bug critique",
+        "La testeuse n’est pas connectée",
+        "L’API a refusé la commande car la date de livraison envoyée est passée : le contrôle fonctionne comme prévu si c’était le test",
+        "La commande a été créée, mais sans date de livraison"
+      ],
+      "correct": 2,
+      "answer": "400 avec une erreur de validation sur deliveryDate : la requête portait des données invalides et l’API l’a refusée. Si la testeuse a envoyé une date passée exprès, le critère d’acceptation « une date passée est refusée » est validé ; sinon, le front end a laissé passer une date passée, et c’est ce bug qu’il faut signaler. Un plantage serait un 5xx, une absence de connexion un 401, une commande créée un 201."
+    },
+    {
+      "q": "Classez ces critères d’acceptation d’une boutique en ligne : fonctionnels ou non fonctionnels ?",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Fonctionnel",
+          "items": [
+            "Le client peut télécharger chaque facture en PDF",
+            "Un code promo expiré est refusé avec un message qui dit pourquoi",
+            "Un agent du support voit les cinq dernières commandes du client sur le ticket"
+          ]
+        },
+        {
+          "name": "Non fonctionnel",
+          "items": [
+            "La recherche répond en moins de 2 secondes pour 95 % des requêtes avec 500 utilisateurs simultanés",
+            "La boutique est disponible 99,5 % de chaque mois hors maintenance annoncée",
+            "Les mots de passe sont stockés hachés, jamais en clair",
+            "Chaque page respecte les critères d’accessibilité du RGAA"
+          ]
+        }
+      ],
+      "answer": "Les critères fonctionnels disent ce que le produit fait pour quelqu’un ; les critères non fonctionnels disent à quel point il doit bien le faire (performance, disponibilité, sécurité, accessibilité). Les deux doivent être mesurables pour être testables ; les ENF qui s’appliquent à tous les éléments vont dans la Definition of Done."
+    },
+    {
+      "q": "Trois semaines avant une démo à un grand client, les Developers disent : « Il nous faut tout le prochain Sprint pour refactorer le tunnel de paiement, le code est trop fragile. » La démo a besoin d’une nouvelle étape code promo dans ce tunnel.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Votre première réaction ?",
+          "choices": [
+            {
+              "label": "Demander ce qui casse aujourd’hui, ce que cela coûte (délais, incidents) et quelles parties du tunnel le code promo touche",
+              "best": true,
+              "feedback": "Vous transformez « le code est fragile » en faits métier que vous pouvez peser face à la démo, et vous apprenez où les deux se recoupent."
+            },
+            {
+              "label": "Refuser : la démo d’abord, le refactoring attendra",
+              "feedback": "Une dette que les Developers signalent comme risquée n’attend pas sagement : construire le code promo sur du code fragile peut échouer pendant la démo."
+            },
+            {
+              "label": "Accepter un Sprint entier de refactoring et retirer le code promo de la démo",
+              "feedback": "Vous renoncez à de la valeur sans comprendre le risque ; un Sprint a quand même besoin d’un objectif qui compte pour les utilisateurs."
+            }
+          ]
+        },
+        {
+          "text": "Ils expliquent : chaque évolution du tunnel prend environ une semaine, deux incidents le mois dernier venaient de ce module, et l’étape code promo est en plein dans la partie fragile. Ensuite ?",
+          "choices": [
+            {
+              "label": "Convenir avec eux d’un objectif de Sprint : assainir la partie du tunnel que touche le code promo, puis construire le code promo dessus",
+              "best": true,
+              "feedback": "Le refactoring sert la démo et réduit le risque là où il compte le plus ; le reste de la dette va dans le backlog, visible et ordonné."
+            },
+            {
+              "label": "Construire d’abord le code promo, refactorer après la démo",
+              "feedback": "Vous ajoutez du code dans la partie la plus risquée juste avant le moment le plus visible, et la dette grossit."
+            },
+            {
+              "label": "Leur demander de faire les deux en cachette en gonflant les estimations",
+              "feedback": "Le travail caché casse la transparence : personne ne peut arbitrer ce qu’il ne voit pas."
+            }
+          ]
+        },
+        {
+          "text": "Après la démo, comment éviter la même crise la prochaine fois ?",
+          "choices": [
+            {
+              "label": "Convenir d’une part régulière de capacité pour la dette (par exemple 20 %), garder les éléments de dette dans le backlog en termes métier et revoir l’effet à la Sprint Review",
+              "best": true,
+              "feedback": "Un remboursement régulier et visible vaut mieux qu’une crise tous les quelques mois ; les Developers choisissent quelle dette, le PO protège la part."
+            },
+            {
+              "label": "Prévoir un Sprint de refactoring chaque trimestre",
+              "feedback": "La dette continue de grossir entre-temps, et la valeur s’arrête un Sprint entier à chaque fois."
+            },
+            {
+              "label": "Laisser les Developers s’en occuper sans le suivre",
+              "feedback": "Sans visibilité, vous ne pouvez ni expliquer l’arbitrage aux parties prenantes ni voir si cela rapporte."
+            }
+          ]
+        }
+      ],
+      "answer": "Transformer l’alerte technique en faits métier, réunir le refactoring et la valeur qu’il protège dans un même objectif de Sprint, et faire de la dette une part visible et régulière de la capacité plutôt qu’une crise récurrente."
+    },
+    {
+      "q": "Excel sur une vraie feuille : en E2, quelle part des points du prochain Sprint va à la dette technique (éléments de type « Tech debt ») ? L’équipe s’est mise d’accord sur 20 %.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["Item", "Type", "Points", "", "Debt share"],
+        ["Saved searches", "Story", 8, "", ""],
+        ["Upgrade payment library", "Tech debt", 5, "", ""],
+        ["Order status page", "Story", 8, "", ""],
+        ["Remove old export module", "Tech debt", 3, "", ""],
+        ["Fix export timeout", "Bug", 3, "", ""],
+        ["Bulk import, CSV only", "Story", 13, "", ""]
+      ],
+      "cell": "E2",
+      "answer": "=SUMIFS(C2:C7,B2:B7,\"Tech debt\")/SUM(C2:C7)",
+      "hint": "SUMIFS (SOMME.SI.ENS) des points dont le type est « Tech debt », puis divisez par la SUM (SOMME) de tous les points.",
+      "explain": "=SUMIFS(C2:C7,B2:B7,\"Tech debt\")/SUM(C2:C7) donne (5 + 3) / 40 = 0,2, soit 20 % : le Sprint respecte la part convenue. Mettez la cellule au format pourcentage ; la formule suit quand on ajoute ou déplace des éléments."
     }
   ],
   "interview": [
@@ -508,6 +674,14 @@
     {
       "q": "Comment gardez-vous un backlog sain ?",
       "a": "Court et honnête : environ deux Sprints d’éléments prêts en haut, des features pour les prochains mois, des epics au-delà. J’archive les éléments non touchés depuis des mois, je fusionne les doublons, je garde des titres lisibles pour les parties prenantes, et je fais une courte revue de santé chaque mois. Je préfère dire non clairement que garder dans le backlog une demande qui ne sera jamais construite."
+    },
+    {
+      "q": "Que doit savoir un Product Owner technique sur les API ?",
+      "a": "Assez pour lire le contrat et écrire des critères testables, pas pour la construire. Je sais lire une page OpenAPI (Swagger) : les endpoints, les méthodes, les champs JSON et les codes de statut, par exemple 401 quand l’utilisateur n’est pas connecté et 403 quand il est connecté mais pas autorisé. Je m’en sers pour écrire des critères comme « l’identifiant de commande d’un autre client renvoie 403 et aucune donnée », pour demander qui d’autre appelle l’API avant de changer un champ, et pour vérifier une story moi-même en recette. Le comment reste aux Developers."
+    },
+    {
+      "q": "Comment gérez-vous la dette technique et les exigences non fonctionnelles en tant que PO ?",
+      "a": "Les deux vont dans le backlog, visibles. Les éléments de dette sont formulés par leur effet métier, par exemple « chaque évolution du tunnel de paiement prend une semaine », et nous convenons d’une part de la capacité de chaque Sprint, autour de 15 à 20 %, que les Developers utilisent sur la dette qu’ils choisissent ; je la protège et nous revoyons son effet sur les incidents et les délais. Les exigences non fonctionnelles sont des critères mesurables : temps de réponse pour une part des requêtes, disponibilité par mois, règles de sécurité, accessibilité RGAA. Celles qui s’appliquent à tout vont dans la Definition of Done."
     }
   ]
 }

@@ -177,6 +177,28 @@
         "code": "MONTHLY BACKLOG HEALTH CHECK (30 min)\n[ ] Product Goal still true? Every top-20 item linked to it\n[ ] Top 2 Sprints: items ready (AC, sized, fit in a Sprint)\n[ ] Items untouched for 6 months: archived with a note\n[ ] Duplicates merged; vague titles rewritten\n[ ] Technical debt and bugs visible, stated in business terms\n[ ] Stakeholders told about items that moved down\n[ ] Decision log updated (request, decision, reason, review date)\n\nBacklog size: 412 -> 138 items after pruning",
         "note": "A short, ordered backlog is easier to explain, to defend and to change."
       }
+    },
+    {
+      "title": "Working with developers: APIs, environments and technical stories",
+      "text": [
+        "Many offers in France ask for a “Product Owner technique” or a “Technical Product Owner”. Nobody expects the PO to code, but they expect you to follow a technical discussion, read a specification and make trade-offs with the Developers. Start with a simple map of any web or mobile product. The front end is what the user sees and touches: the web pages in the browser, the mobile app. The back end runs on servers: it applies the business rules (prices, stock, who may do what), checks security and talks to other systems. The database remembers: customers, orders, invoices. The front end never reads the database directly; it asks the back end through an API.",
+        "An API (application programming interface) is a contract: “send me this request, I answer with this response”. Each operation is an endpoint, a method plus a path: GET /orders/{id} reads an order, POST /orders creates one, PUT or PATCH changes it, DELETE removes it. Requests and responses are usually JSON, with named fields, types and required fields. The status code says how it went: 200 OK, 201 Created (a POST that created something), 400 Bad Request (the data sent is invalid), 401 Unauthorized (not authenticated: no token or an expired one), 403 Forbidden (authenticated, but not allowed), 404 Not Found, 500 Internal Server Error (the server failed: a bug, not the user’s fault). Roughly, 4xx means the caller’s request is the problem and 5xx means the server is. The contract is often written in OpenAPI (formerly called Swagger) and shown on a Swagger UI page, where you can read every endpoint and often try a call on the test environment. The website, the mobile app and partners may all call the same API, so changing a field can break all of them: that is why API changes are versioned (/v1/, /v2/) and announced.",
+        "Code goes through several environments before users see it. Development is where the Developers build and test their own work. Test, called “recette” in most French companies, is where testers, the PO and business users check the stories against their acceptance criteria (user acceptance testing, UAT). Pre-production (staging) is a copy of production that is as faithful as possible, used for final checks, performance tests and rehearsing the deployment. Production is the real product, with real users and real data. Personal data copied from production into test must be anonymised or replaced by test data (GDPR). Deploying is not releasing: with a feature flag, code can be in production but switched off, then turned on for some users or on a chosen date. In refinement, two questions save surprises: “Where will I be able to check it?” and “How and when is it released?”.",
+        "Not all backlog work is a user story. Enablers (a SAFe term many teams use) prepare future features: exploring an option, upgrading a framework before its end of support, connecting a new payment provider’s sandbox, meeting a compliance rule. Write them like any item, with the reason and a verifiable end: “So that we can offer instalments in Q3, the payment service uses the provider’s v3 API; done when card payments pass on v3 in pre-production.” Technical debt (lesson 8) becomes manageable when it is visible: debt items in the same backlog, stated by their business effect, tagged so you can count them, and a share of each Sprint’s capacity agreed with the Developers (for example 15 or 20 %, reviewed when incidents or delivery time change). The Developers choose which debt to pay first; the PO protects the share and checks its effect. A steady share usually works better than a rare “refactoring Sprint”, which delays value and still needs a Sprint Goal.",
+        "Non-functional requirements (NFRs) describe how well the product must work: performance, security, availability, accessibility. Write them as measurable acceptance criteria, not wishes: “the search answers in under 2 seconds for 95 % of requests with 500 users at the same time”, “available 99.5 % of each month outside announced maintenance”, “passwords are stored hashed, never in clear text”, “every page meets the RGAA accessibility criteria” (the French standard, based on WCAG). An NFR that applies to every item belongs in the Definition of Done; one that concerns a single story goes into its criteria. In refinement the PO owns the what and the why, the Developers own the how. Good questions open the discussion: “What else uses this data or this API?”, “Is there a smaller option that delivers part of the value sooner?”, “What do we need to learn before sizing it, a spike?”, “How will we know it works in production?”. Avoid designing for them (“just add a column”, “use technology X”) or telling them how long it should take."
+      ],
+      "points": [
+        "Front end shows, back end decides, database remembers; they talk through APIs.",
+        "API contract = method + path, JSON request and response, status codes; read it on the OpenAPI (Swagger) page.",
+        "401 = not authenticated, 403 = authenticated but not allowed; 4xx = the request, 5xx = the server.",
+        "Dev → test (recette) → pre-production → production; deploying is not releasing (feature flags).",
+        "Enablers and debt are visible items with a reason and an agreed share of capacity; NFRs are measurable criteria."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "STORY  As a customer, I want to see the status of my order\n       so that I stop calling support to ask.\n\nAPI CONTRACT (read on the OpenAPI / Swagger page)\nGET /api/v1/orders/{orderId}           auth: customer token\n200 OK\n{\n  \"orderId\": \"A-10482\",\n  \"status\": \"SHIPPED\",\n  \"estimatedDelivery\": \"2026-12-03\"\n}\n401  no token, or the token has expired\n403  the order belongs to another customer\n404  no order with this id\n\nACCEPTANCE CRITERIA\n1. Given my own order, when I open it, I see its status and\n   delivery date (200).\n2. Given another customer's order id, I get 403 and no order data.\n3. Performance: the status shows in under 2 s for 95 % of requests.\n4. Checked by the PO in recette (test) before release;\n   released behind the feature flag \"order-status\".\n\nENABLER (next in the backlog)\nSo that the status stays up to date, the order service receives\nthe carrier's delivery events. Done when a test parcel's events\nupdate the status in pre-production within 5 minutes.",
+        "note": "The PO writes the need, the contract’s expected answers and measurable criteria; the Developers decide how to build it."
+      }
     }
   ],
   "cheatsheet": [
@@ -242,6 +264,18 @@
         ["Kano attractive", "Delighter: unexpected, pleases when present"],
         ["Value / effort matrix", "Quick wins, big bets, fill-ins, money pits"]
       ]
+    },
+    {
+      "group": "Working with developers",
+      "items": [
+        ["API contract", "Endpoint (method + path), JSON request / response, status codes"],
+        ["OpenAPI (Swagger)", "Standard description of an API, readable on a Swagger UI page"],
+        ["401 vs 403", "Not authenticated vs authenticated but not allowed"],
+        ["4xx / 5xx", "The caller’s request is the problem / the server failed"],
+        ["Recette → pre-production", "Business checks (UAT), then a faithful copy of production"],
+        ["Enabler", "Technical item that prepares future features, with a reason and a verifiable end"],
+        ["NFR", "Non-functional requirement: measurable performance, security, availability, accessibility"]
+      ]
     }
   ],
   "pitfalls": [
@@ -251,7 +285,8 @@
     "Estimating for the Developers, or turning velocity into a target to compare teams.",
     "Hiding behind a RICE or WSJF score instead of using it to explain a trade-off.",
     "Marking everything as a Must, so MoSCoW no longer helps decide anything.",
-    "Letting the backlog grow to hundreds of items that will never be built."
+    "Letting the backlog grow to hundreds of items that will never be built.",
+    "Designing the solution in the story (tables, endpoints, technologies) instead of stating the need and measurable criteria."
   ],
   "exercises": [
     {
@@ -474,6 +509,137 @@
     {
       "q": "Split the epic “Customers can manage their subscription online” (today they must call support) into 5 to 7 vertical stories, in order, and say which one you would release first and why.",
       "answer": "1) As a subscriber, I want to see my current plan, price and next billing date, so that I stop calling support to ask (read-only, smallest, removes many calls). 2) As a subscriber, I want to update my card, so that my subscription does not stop when my card expires (failed payments cost revenue). 3) As a subscriber, I want to switch to a higher plan, effective now with a prorated charge (revenue, happy path). 4) As a subscriber, I want to switch to a lower plan from the next billing date (business rule variation). 5) As a subscriber, I want to pause for up to two months instead of cancelling (retention). 6) As a subscriber, I want to cancel online and get a confirmation e-mail (legal and trust; in many countries online cancellation must be easy). 7) Same flows in the mobile app (interface). First release: story 1, because it is thin, crosses every layer, can ship in days and reduces support calls you can measure; story 2 follows because failed payments have a clear cost of delay. Each story gets acceptance criteria, for example the price shown matches the invoice and a cancelled plan stays active until the end of the paid period."
+    },
+    {
+      "q": "Match each HTTP status code with what it means for the person reading the API response.",
+      "type": "match",
+      "pairs": [
+        ["200", "OK: the request worked and the answer is in the body"],
+        ["201", "Created: a POST created a new resource"],
+        ["400", "Bad Request: the data sent is invalid"],
+        ["401", "Unauthorized: not authenticated (no token or an expired one)"],
+        ["403", "Forbidden: authenticated, but not allowed to do this"],
+        ["404", "Not Found: nothing exists at this address or with this id"],
+        ["500", "Internal Server Error: the server failed, usually a bug"]
+      ],
+      "answer": "2xx = it worked, 4xx = the caller’s request is the problem (invalid data, not signed in, not allowed, not found), 5xx = the server failed. 401 vs 403 is the classic interview question: 401 means “who are you?”, 403 means “I know who you are, and the answer is no”."
+    },
+    {
+      "q": "A tester sends you this response from the test environment (recette) while checking the “Choose a delivery date” story. What does it tell you?",
+      "type": "choice",
+      "snippet": "POST /api/v1/orders\n-> 400 Bad Request\n{\n  \"error\": \"VALIDATION_FAILED\",\n  \"details\": [\n    { \"field\": \"deliveryDate\",\n      \"message\": \"must be today or later\" }\n  ]\n}",
+      "lang": "json",
+      "options": [
+        "The server crashed: open a critical bug",
+        "The tester is not signed in",
+        "The API refused the order because the delivery date sent is in the past: the check works as designed if that was the test",
+        "The order was created, but without a delivery date"
+      ],
+      "correct": 2,
+      "answer": "400 with a validation error on deliveryDate: the request carried invalid data and the API refused it. If the tester sent a past date on purpose, the acceptance criterion “a past date is refused” passes; if not, the front end let a past date through and that is the bug to report. A crash would be a 5xx, a missing sign-in a 401, a created order a 201."
+    },
+    {
+      "q": "Sort these acceptance criteria for an online shop: functional or non-functional?",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Functional",
+          "items": [
+            "The customer can download each invoice as a PDF",
+            "An expired promo code is refused with a message that says why",
+            "A support agent sees the customer’s last five orders on the ticket"
+          ]
+        },
+        {
+          "name": "Non-functional",
+          "items": [
+            "The search answers in under 2 seconds for 95 % of requests with 500 users at the same time",
+            "The shop is available 99.5 % of each month outside announced maintenance",
+            "Passwords are stored hashed, never in clear text",
+            "Every page meets the RGAA accessibility criteria"
+          ]
+        }
+      ],
+      "answer": "Functional criteria say what the product does for someone; non-functional criteria say how well it must do it (performance, availability, security, accessibility). Both must be measurable to be testable; NFRs that apply to every item belong in the Definition of Done."
+    },
+    {
+      "q": "Three weeks before a demo to a major client, the Developers say: “We need the whole next Sprint to refactor the checkout, the code is too fragile.” The demo needs a new promo-code step in that checkout.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Your first reaction?",
+          "choices": [
+            {
+              "label": "Ask what breaks today, what it costs (delays, incidents) and which parts of the checkout the promo code touches",
+              "best": true,
+              "feedback": "You turn “the code is fragile” into business facts you can weigh against the demo, and you learn where the two overlap."
+            },
+            {
+              "label": "Refuse: the demo comes first, refactoring can wait",
+              "feedback": "Debt the Developers flag as risky does not wait quietly: building the promo code on fragile code can fail during the demo."
+            },
+            {
+              "label": "Accept a full refactoring Sprint and drop the promo code from the demo",
+              "feedback": "You give up value without understanding the risk; a Sprint still needs a goal that matters to users."
+            }
+          ]
+        },
+        {
+          "text": "They explain: each checkout change takes about a week, two incidents last month came from this module, and the promo-code step sits right in the fragile part. Next?",
+          "choices": [
+            {
+              "label": "Agree a Sprint Goal with them: clean up the part of the checkout the promo code touches, then build the promo code on it",
+              "best": true,
+              "feedback": "The refactoring serves the demo and lowers the risk where it matters most; the rest of the debt goes into the backlog, visible and ordered."
+            },
+            {
+              "label": "Build the promo code first, refactor after the demo",
+              "feedback": "You add more code to the riskiest part just before the most visible moment, and the debt grows."
+            },
+            {
+              "label": "Ask them to do both in secret by inflating the estimates",
+              "feedback": "Hidden work breaks transparency: nobody can make trade-offs on what they cannot see."
+            }
+          ]
+        },
+        {
+          "text": "After the demo, how do you avoid the same crisis next time?",
+          "choices": [
+            {
+              "label": "Agree a regular share of capacity for debt (for example 20 %), keep debt items in the backlog in business terms, and review the effect at the Sprint Review",
+              "best": true,
+              "feedback": "Steady, visible paying-down beats a crisis every few months; the Developers choose which debt, the PO protects the share."
+            },
+            {
+              "label": "Plan a refactoring Sprint every quarter",
+              "feedback": "Debt keeps growing in between, and value stops for a whole Sprint each time."
+            },
+            {
+              "label": "Leave it to the Developers without tracking it",
+              "feedback": "Without visibility you cannot explain the trade-off to stakeholders or see whether it pays off."
+            }
+          ]
+        }
+      ],
+      "answer": "Turn the technical alarm into business facts, combine the refactoring with the value it protects in one Sprint Goal, and make debt a visible, steady share of capacity rather than a recurring crisis."
+    },
+    {
+      "q": "Excel on a real sheet: in E2, what share of the next Sprint’s points goes to technical debt (items of type “Tech debt”)? The team agreed on 20 %.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["Item", "Type", "Points", "", "Debt share"],
+        ["Saved searches", "Story", 8, "", ""],
+        ["Upgrade payment library", "Tech debt", 5, "", ""],
+        ["Order status page", "Story", 8, "", ""],
+        ["Remove old export module", "Tech debt", 3, "", ""],
+        ["Fix export timeout", "Bug", 3, "", ""],
+        ["Bulk import, CSV only", "Story", 13, "", ""]
+      ],
+      "cell": "E2",
+      "answer": "=SUMIFS(C2:C7,B2:B7,\"Tech debt\")/SUM(C2:C7)",
+      "hint": "SUMIFS the points whose type is “Tech debt”, then divide by the SUM of all the points.",
+      "explain": "=SUMIFS(C2:C7,B2:B7,\"Tech debt\")/SUM(C2:C7) gives (5 + 3) / 40 = 0.2, so 20 %: the Sprint respects the agreed share. Format the cell as a percentage; the formula follows when items are added or moved."
     }
   ],
   "interview": [
@@ -508,6 +674,14 @@
     {
       "q": "How do you keep a backlog healthy?",
       "a": "Short and honest: about two Sprints of ready items at the top, features for the next months, epics beyond. I archive items untouched for months, merge duplicates, keep titles readable for stakeholders, and do a short health check every month. I would rather say no clearly than keep a request in the backlog that will never be built."
+    },
+    {
+      "q": "What does a Technical Product Owner need to know about APIs?",
+      "a": "Enough to read the contract and write testable criteria, not to build it. I can read an OpenAPI (Swagger) page: endpoints, methods, the JSON fields and the status codes, for example 401 when the user is not signed in and 403 when they are signed in but not allowed. I use that to write criteria like “another customer’s order id returns 403 and no data”, to ask who else calls the API before we change a field, and to check a story myself in recette. How to build it stays with the Developers."
+    },
+    {
+      "q": "How do you handle technical debt and non-functional requirements as a PO?",
+      "a": "Both go in the backlog, visible. Debt items are stated by their business effect, for example “each checkout change takes a week”, and we agree a share of each Sprint’s capacity, around 15 to 20 %, that the Developers use on the debt they choose; I protect it and we review its effect on incidents and delivery time. Non-functional requirements are measurable criteria: response time for a share of requests, availability per month, security rules, RGAA accessibility. Those that apply to everything go in the Definition of Done."
     }
   ]
 }

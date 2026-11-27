@@ -1,0 +1,638 @@
+{
+  "why": "Beaucoup de grandes entreprises françaises tournent sur Microsoft : Office 365, comptes Entra ID, Power BI. Leurs plateformes data suivent, si bien que « Azure Data Factory, Databricks, ADLS » et désormais « Microsoft Fabric » reviennent dans une grande partie des offres de Data Engineer en banque, assurance, distribution et industrie. Savoir comment ces services s’assemblent, et les exploiter de façon sûre et économe, c’est ce que testent ces entretiens.",
+  "outcome": "organiser une plateforme data Azure (abonnements, groupes de ressources, ADLS Gen2 et les couches bronze / silver / gold), construire un pipeline Data Factory paramétré avec le bon integration runtime, écrire des requêtes Delta MERGE et time travel sur Databricks, expliquer ce qu’apportent OneLake, le lakehouse, le warehouse et Direct Lake dans Fabric, tout sécuriser avec des identités managées et Key Vault, superviser les exécutions, déployer avec Git et maîtriser la facture.",
+  "lessons": [
+    {
+      "title": "Le paysage data d’Azure et pourquoi il domine les offres des grands comptes français",
+      "text": [
+        "Azure organise tout en hiérarchie. Un tenant Entra ID (l’annuaire des utilisateurs et des groupes de l’entreprise) contient des groupes d’administration, qui contiennent des abonnements ; l’abonnement est la frontière de facturation et de quotas, et il contient des groupes de ressources ; un groupe de ressources contient des ressources (un compte de stockage, une data factory, un workspace Databricks, un Key Vault). Les droits et les stratégies posés à un niveau s’héritent en dessous. Un découpage courant dans les grands comptes : un abonnement par environnement (dev, recette, prod) ou par métier, et un groupe de ressources par projet et par environnement, par exemple rg-sales-data-prod.",
+        "Chaque ressource vit dans une région. Les entreprises françaises choisissent en général France Central (Paris), dont la région associée est France South (Marseille), ou West Europe (Pays-Bas) et North Europe (Irlande) quand un service ou une taille n’existe pas en France. Garder les données personnelles dans l’UE compte pour le RGPD et les politiques internes, et déplacer des données entre régions coûte (egress) et ajoute de la latence : le stockage, le calcul et les pipelines d’une même plateforme sont donc normalement dans la même région.",
+        "Pourquoi autant d’offres : une entreprise qui paie déjà Microsoft 365 et Power BI, et gère ses salariés dans Entra ID, trouve plus simple d’acheter ses services data au même éditeur, sous le même contrat et avec les mêmes identités. Les offres citent un ensemble récurrent : Azure Data Lake Storage Gen2 (ADLS) pour les fichiers, Azure Data Factory (ADF) pour l’orchestration et les copies, Azure Databricks pour Spark et Delta, Azure SQL Database ou Synapse pour le SQL, Microsoft Fabric pour la plateforme tout-en-un plus récente, Key Vault pour les secrets, Azure DevOps ou GitHub pour le code, et Power BI au bout de la chaîne.",
+        "Si vous connaissez AWS grâce au cours cloud-aws, la correspondance est proche : abonnement ≈ compte, groupe de ressources ≈ ensemble de ressources avec ses propres droits, ADLS Gen2 ≈ S3, ADF ≈ jobs Glue plus Step Functions, Entra ID ≈ IAM Identity Center, identité managée ≈ rôle IAM d’un service. Les notions des cours Spark, dbt et Airflow (évaluation paresseuse, modèles, DAG) restent les mêmes ; Azure change l’endroit où elles tournent et la façon de les sécuriser.",
+        "Les noms de produits changent souvent sur Azure : Azure Active Directory est devenu Microsoft Entra ID en 2023, Fabric est en disponibilité générale depuis novembre 2023 et gagne des fonctionnalités chaque mois, et Databricks renomme certains de ses produits. En entretien, citer le nom actuel et connaître l’ancien montre que vous travaillez sur de vrais projets ; pour tout détail précis (limites, prix, preview ou non), dites que vous vérifieriez la documentation à jour."
+      ],
+      "points": [
+        "Tenant → groupes d’administration → abonnements → groupes de ressources → ressources ; les droits s’héritent vers le bas.",
+        "Une région par plateforme (souvent France Central) pour éviter les coûts d’egress et garder les données dans l’UE.",
+        "La pile habituelle des offres : ADLS Gen2, Data Factory, Databricks, Fabric, Key Vault, Azure DevOps, Power BI.",
+        "Une convention de nommage avec le type, le projet et l’environnement (rg-, adf-, kv-, st…) et des tags pour les coûts.",
+        "Les noms changent souvent : connaître l’actuel, l’ancien, et vérifier la documentation pour le détail."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Tenant: contoso.onmicrosoft.com (Entra ID: users, groups, service principals)\n└─ Management group: Data\n   ├─ Subscription: sub-data-dev\n   │  └─ Resource group: rg-sales-data-dev (France Central)\n   └─ Subscription: sub-data-prod\n      └─ Resource group: rg-sales-data-prod (France Central)\n         ├─ stsalesdataprod      Storage account, ADLS Gen2 (hierarchical namespace on)\n         ├─ adf-sales-prod       Data Factory\n         ├─ dbw-sales-prod       Azure Databricks workspace\n         ├─ kv-sales-prod        Key Vault\n         └─ log-sales-prod       Log Analytics workspace (monitoring)\nTags on every resource: project=sales, env=prod, owner=data-team, costcenter=1234",
+        "note": "Dev et prod sont dans des abonnements séparés : une erreur en dev ne peut pas toucher les données de production, et chaque facture se lit à part."
+      }
+    },
+    {
+      "title": "Stockage : ADLS Gen2, conteneurs et couches médaillon",
+      "text": [
+        "Azure Data Lake Storage Gen2 n’est pas un service à part : c’est un compte de stockage (le même que pour les blobs) avec l’espace de noms hiérarchique activé. Cette option, choisie à la création du compte, donne de vrais dossiers : renommer ou supprimer un dossier est une seule opération au lieu de copier chaque fichier, et dossiers et fichiers peuvent porter des ACL de type POSIX. Les moteurs analytiques y accèdent par le pilote abfss://, avec des chemins de la forme abfss://<conteneur>@<compte>.dfs.core.windows.net/<dossier>/<fichier>.",
+        "Dans le compte, les conteneurs sont les dossiers de premier niveau. Un découpage courant met un conteneur par couche de l’architecture médaillon. Bronze (brut) garde les données telles qu’elles sont arrivées de chaque source, jamais modifiées, pour pouvoir rejouer n’importe quel chargement. Silver (nettoyé) contient des données typées, dédoublonnées et harmonisées : une ligne par clé métier, des dates valides, des codes standard. Gold (exposé) contient les tables construites pour l’usage : schémas en étoile, agrégats, features, les tables que lit Power BI. Certaines équipes ajoutent une zone d’atterrissage (landing) avant bronze pour les fichiers déposés par des partenaires.",
+        "Les formats de fichiers décident du coût et de la vitesse. CSV et JSON sont fréquents en bronze parce que les sources les envoient, mais ils n’ont pas de types et doivent être relus à chaque fois. Parquet stocke les colonnes compressées avec leurs types, donc une requête ne lit que les colonnes utiles (voir le cours spark). Delta Lake ajoute un journal de transactions (_delta_log) au-dessus de fichiers Parquet : écritures ACID, MERGE, contrôle du schéma et time travel. Sur Databricks et Fabric, les tables silver et gold sont presque toujours des tables Delta.",
+        "Organisez les dossiers pour faciliter chargements et retraitements : source et entité d’abord, puis la date de chargement, par exemple bronze/erp/sales/ingest_date=2026-11-26/. Évitez les millions de petits fichiers (chacun coûte une opération et ralentit chaque lecture) : compactez-les ou laissez OPTIMIZE de Delta le faire. Les comptes de stockage proposent aussi des niveaux d’accès (Hot, Cool, Cold, Archive) : plus le niveau est froid, moins le stockage coûte et plus les lectures coûtent, et les données en Archive doivent être réhydratées (ce qui peut prendre des heures) avant d’être lues. Les règles de gestion du cycle de vie déplacent automatiquement les vieux fichiers vers des niveaux plus froids.",
+        "La redondance se choisit par compte : LRS garde trois copies dans un datacenter, ZRS les répartit entre les zones de disponibilité de la région, GRS ou GZRS ajoutent une copie dans la région associée. Les lacs de production utilisent souvent ZRS ou GZRS ; LRS suffit pour la dev. La suppression réversible (soft delete) et le versioning protègent contre un pipeline qui supprime le mauvais dossier : activez-les avant d’en avoir besoin."
+      ],
+      "points": [
+        "ADLS Gen2 = compte de stockage + espace de noms hiérarchique (choisi à la création) : vrais dossiers, ACL, chemins abfss://.",
+        "Bronze = brut et rejouable, silver = nettoyé et harmonisé, gold = modélisé pour l’usage.",
+        "Parquet pour les colonnes et les types ; Delta = Parquet + journal de transactions (ACID, MERGE, time travel).",
+        "Dossiers par source / entité / date de chargement ; éviter les nombreux petits fichiers.",
+        "Niveaux d’accès et règles de cycle de vie pour les vieilles données ; Archive demande une réhydratation avant lecture."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Storage account: stsalesdataprod (hierarchical namespace on, ZRS)\n├─ bronze/   erp/sales/ingest_date=2026-11-26/sales_0001.parquet\n│            crm/customers/ingest_date=2026-11-26/customers.json\n├─ silver/   sales/          (Delta table: typed, deduplicated, one row per sale_id)\n│            customers/      (Delta table: one current row per customer_id)\n└─ gold/     fact_sales/     (Delta table, star schema)\n             dim_customer/\n             agg_sales_daily/\n\nPath used by Spark: abfss://silver@stsalesdataprod.dfs.core.windows.net/sales/\nLifecycle rule: bronze files not modified for 90 days → Cool; for 365 days → Archive",
+        "note": "Bronze n’est jamais modifié : si une règle silver était fausse, on la corrige et on reconstruit silver à partir de bronze."
+      }
+    },
+    {
+      "title": "Azure Data Factory : pipelines, services liés et integration runtimes",
+      "text": [
+        "Azure Data Factory est le service managé d’orchestration et de déplacement de données d’Azure. Ses briques : un pipeline est un flux de travail ; il contient des activités (Copy data, Lookup, Get Metadata, ForEach, If Condition, Execute Pipeline, Web, Databricks Notebook, Stored Procedure…) ; un service lié (linked service) est une connexion (serveur, compte, authentification) ; un dataset pointe vers des données à travers un service lié (une table, un dossier, un motif de fichiers) ; un integration runtime (IR) est le calcul qui déplace réellement les données. Les pipelines se construisent dans ADF Studio, un éditeur web, et sont stockés en JSON.",
+        "Il existe trois sortes d’integration runtime. L’Azure IR est géré par Microsoft et atteint les points de terminaison publics et les services Azure. Le self-hosted IR est un logiciel installé sur une machine Windows du réseau de l’entreprise : c’est ainsi qu’ADF lit un SQL Server, une base Oracle ou un partage de fichiers on-premise. Il n’ouvre que des connexions sortantes vers Azure (aucun port entrant dans le pare-feu), et plusieurs machines peuvent être enregistrées comme nœuds du même IR pour la haute disponibilité. L’Azure-SSIS IR exécute des packages SSIS existants, encore nombreux dans les entreprises françaises.",
+        "L’activité Copy est la bête de somme : un dataset source, un dataset cible (sink), un mapping de colonnes facultatif, et des réglages comme les copies parallèles ; sur l’Azure IR, sa puissance se mesure en Data Integration Units (DIU). Une ingestion typique copie une table ou un fichier d’une source vers bronze en Parquet, partitionné par date de chargement. Les mapping data flows, en un paragraphe : ils permettent de concevoir des transformations visuellement (jointures, agrégats, colonnes dérivées) et de les exécuter sur des clusters Spark gérés par ADF. Pratiques pour des équipes sans développeurs Spark, mais beaucoup d’équipes préfèrent transformer dans Databricks ou dbt, où la logique est du code relu et testé.",
+        "Les paramètres permettent à un pipeline de servir de nombreux chargements. Un paramètre de pipeline (runDate, tableName) se lit avec des expressions comme @pipeline().parameters.runDate ou, dans une chaîne, avec l’interpolation @{…} ; datasets et services liés peuvent aussi avoir des paramètres, si bien qu’un dataset générique sert toutes les tables. Un modèle piloté par les métadonnées est courant : une activité Lookup lit une table de contrôle listant les tables à charger, un ForEach parcourt ses lignes, et chaque itération lance une Copy paramétrée. Les activités s’enchaînent par des conditions de dépendance (Succeeded, Failed, Completed, Skipped), ce qui permet de brancher une alerte ou un nettoyage.",
+        "Les déclencheurs (triggers) lancent les pipelines : planifié (tous les jours à 02:00), tumbling window (fenêtres fixes, sans chevauchement, que l’on peut relancer et rattraper une par une, comme les data intervals d’Airflow), événement de stockage (un fichier arrive dans un dossier) et événements personnalisés. Chaque activité a une policy : un timeout, un nombre de tentatives et l’intervalle entre elles. Réglez-les volontairement : le timeout par défaut est long, et une copie bloquée peut alors occuper la fenêtre de nuit pendant des heures."
+      ],
+      "points": [
+        "Pipeline → activités ; service lié = connexion ; dataset = les données derrière ; IR = le calcul qui les déplace.",
+        "Self-hosted IR pour les sources on-premise : connexions sortantes seulement, plusieurs nœuds pour la haute disponibilité.",
+        "Activité Copy vers bronze ; transformer dans Databricks, dbt ou les mapping data flows.",
+        "Paramètres + expressions (@pipeline().parameters.x, @{…}) et Lookup + ForEach pour les chargements pilotés par métadonnées.",
+        "Triggers : planifié, tumbling window (rattrapages), événement de stockage ; timeout et retries sur chaque activité."
+      ],
+      "example": {
+        "lang": "json",
+        "code": "{\n  \"name\": \"pl_copy_sales_daily\",\n  \"properties\": {\n    \"parameters\": { \"runDate\": { \"type\": \"string\" } },\n    \"activities\": [\n      {\n        \"name\": \"Copy sales to bronze\",\n        \"type\": \"Copy\",\n        \"policy\": { \"timeout\": \"0.02:00:00\", \"retry\": 2, \"retryIntervalInSeconds\": 300 },\n        \"inputs\": [ { \"referenceName\": \"ds_sqlserver_sales\", \"type\": \"DatasetReference\" } ],\n        \"outputs\": [ {\n          \"referenceName\": \"ds_adls_bronze_parquet\",\n          \"type\": \"DatasetReference\",\n          \"parameters\": { \"folderPath\": \"erp/sales/ingest_date=@{pipeline().parameters.runDate}\" }\n        } ],\n        \"typeProperties\": {\n          \"source\": {\n            \"type\": \"SqlServerSource\",\n            \"sqlReaderQuery\": \"SELECT * FROM dbo.sales WHERE sale_date = '@{pipeline().parameters.runDate}'\"\n          },\n          \"sink\": { \"type\": \"ParquetSink\" }\n        }\n      }\n    ]\n  }\n}",
+        "note": "Un pipeline paramétré : le trigger passe runDate, la requête ne lit que ce jour, et les fichiers arrivent dans le dossier bronze de ce jour ; une relance pour la même date remplace donc le même dossier."
+      }
+    },
+    {
+      "title": "Azure Databricks : clusters, jobs et tables Delta",
+      "text": [
+        "Azure Databricks est la plateforme Databricks vendue et facturée via Azure. Un workspace est l’environnement web (notebooks, jobs, éditeur SQL) rattaché à un groupe de ressources ; le calcul tourne sur des clusters de machines virtuelles dans votre abonnement, ou sur du calcul serverless géré par Databricks. Les clusters all-purpose servent au travail interactif dans les notebooks ; les job clusters sont créés pour une exécution de job puis supprimés, et coûtent moins cher par unité (DBU) que les clusters all-purpose. Le serverless démarre en quelques secondes et supprime le réglage des clusters, là où votre workspace et votre région le proposent. Le cours spark explique ce qui tourne dedans : driver, executors, partitions et shuffles.",
+        "Les notebooks mêlent cellules Python, SQL et Scala et conviennent à l’exploration ; le code de production est mieux dans des fichiers versionnés (Git folders dans le workspace) et exécuté par des jobs. Un job (désormais présenté sous le nom Lakeflow chez Databricks ; vérifiez la documentation à jour) enchaîne des tâches : notebooks, scripts Python, SQL, projets dbt, avec dépendances, retries, planifications, déclenchement à l’arrivée de fichiers et notifications. ADF peut aussi lancer un notebook avec son activité Databricks Notebook, fréquent quand ADF orchestre déjà toute la plateforme.",
+        "Les tables Delta sont le cœur de la plateforme. MERGE INTO fusionne un lot dans une table en une transaction atomique : mise à jour des lignes dont la clé existe, insertion des nouvelles, suppression éventuelle. La condition ON doit porter sur la clé métier, et la source ne doit contenir qu’une ligne par clé, sinon MERGE échoue avec une erreur indiquant que plusieurs lignes source correspondent à la même ligne cible. Chaque écriture crée une nouvelle version dans le journal de transactions : DESCRIBE HISTORY les liste, SELECT … VERSION AS OF n ou TIMESTAMP AS OF '…' lit une version antérieure, et RESTORE TABLE y revient. VACUUM supprime les fichiers qui ne sont plus référencés après une période de rétention (7 jours par défaut) ; ensuite, le time travel vers les versions plus anciennes n’est plus possible.",
+        "Performance, dans les grandes lignes : OPTIMIZE compacte de nombreux petits fichiers en moins de gros fichiers ; ZORDER BY (col) regroupe les lignes aux valeurs proches d’une colonne pour que les requêtes filtrant dessus sautent plus de fichiers. Databricks recommande désormais le liquid clustering (CLUSTER BY sur la table) pour les nouvelles tables plutôt que partitionnement plus Z-ORDER ; la recommandation exacte dépend de la version du runtime, vérifiez la documentation à jour. Ne partitionnez que les grosses tables, sur une colonne de faible cardinalité comme une date, jamais sur un identifiant client.",
+        "Unity Catalog, dans les grandes lignes, est la couche de gouvernance de Databricks : un metastore rattaché aux workspaces d’une région, un espace de noms à trois niveaux catalog.schema.table (par exemple prod.silver.customers), des GRANT SQL sur catalogues, schémas et tables à des groupes Entra ID, le lignage entre tables et l’audit. L’accès à ADLS passe par des storage credentials (souvent une identité managée) et des external locations, si bien que les utilisateurs ne manipulent jamais de clés de stockage. Les offres le demandent de plus en plus, car beaucoup de workspaces ont quitté l’ancien metastore Hive propre à chaque workspace."
+      ],
+      "points": [
+        "Clusters all-purpose pour les notebooks, job clusters ou serverless pour les exécutions planifiées ; auto-termination toujours active.",
+        "Les jobs enchaînent des tâches avec retries et alertes ; ADF peut aussi lancer des notebooks.",
+        "MERGE sur la clé métier avec une source dédoublonnée ; DESCRIBE HISTORY, VERSION AS OF, RESTORE ; VACUUM met fin au time travel.",
+        "OPTIMIZE compacte les petits fichiers ; ZORDER BY ou liquid clustering pour les filtres fréquents.",
+        "Unity Catalog : catalog.schema.table, GRANT à des groupes, lignage, external locations."
+      ],
+      "example": {
+        "lang": "sql",
+        "code": "-- Upsert today's cleaned customers into the silver table\nMERGE INTO prod.silver.customers AS t\nUSING (\n  SELECT * FROM prod.bronze.customers_today\n  QUALIFY ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY updated_at DESC) = 1\n) AS s\nON t.customer_id = s.customer_id\nWHEN MATCHED AND s.updated_at > t.updated_at THEN UPDATE SET *\nWHEN NOT MATCHED THEN INSERT *;\n\n-- What changed, and how to look back\nDESCRIBE HISTORY prod.silver.customers;\nSELECT COUNT(*) FROM prod.silver.customers VERSION AS OF 41;\nOPTIMIZE prod.silver.customers ZORDER BY (country);",
+        "note": "Le QUALIFY garde une ligne par customer_id (la plus récente), donc MERGE ne voit jamais deux lignes source pour une ligne cible ; la condition supplémentaire sur updated_at ignore les mises à jour tardives et plus anciennes."
+      }
+    },
+    {
+      "title": "Microsoft Fabric : OneLake, lakehouse, warehouse et Direct Lake",
+      "text": [
+        "Microsoft Fabric est une plateforme analytique en mode SaaS, en disponibilité générale depuis novembre 2023, qui réunit data engineering, intégration de données, entrepôt de données, analyse temps réel et Power BI dans un seul produit. On ne crée ni clusters ni comptes de stockage : on crée des espaces de travail (workspaces) et des éléments (lakehouses, warehouses, pipelines, notebooks, modèles sémantiques, rapports) qui tournent sur une capacité payée par l’entreprise. Le produit évolue vite : considérez toute liste de fonctionnalités comme une photo à un instant donné et vérifiez la documentation à jour.",
+        "OneLake est le lac de données unique de tout le tenant, construit sur la technologie d’ADLS Gen2 ; chaque espace de travail et chaque élément y stocke ses données, au format Delta pour les tables. Les raccourcis (shortcuts) font apparaître dans OneLake des données stockées ailleurs (un autre espace de travail, un compte ADLS Gen2, Amazon S3 et d’autres sources) sans les copier. Le mirroring réplique certaines bases opérationnelles dans OneLake sous forme de tables Delta. Une seule copie des données, lue par tous les moteurs : c’est la promesse principale.",
+        "Un lakehouse a une zone Files (tous types de fichiers, comme un dossier bronze) et une zone Tables (tables Delta), travaillées surtout avec des notebooks Spark ; il est livré avec un SQL analytics endpoint qui permet d’interroger ses tables en T-SQL, en lecture seule. Un warehouse est un vrai moteur SQL : lectures et écritures T-SQL (INSERT, UPDATE, DELETE ; vérifiez la documentation à jour pour des instructions plus récentes comme MERGE), procédures stockées et transactions sur plusieurs tables, pour les équipes qui travaillent en SQL. Les deux stockent des tables Delta dans OneLake. Un choix courant : lakehouse pour bronze et silver construits avec Spark, warehouse ou lakehouse pour gold selon les compétences de l’équipe.",
+        "Data Factory dans Fabric propose des pipelines très proches de ceux d’ADF (activités, copie, paramètres, planifications) et Dataflow Gen2 (transformations Power Query, familières aux utilisateurs d’Excel et de Power BI) ; toutes les fonctionnalités et tous les connecteurs d’ADF n’y sont pas, vérifiez avant de migrer. Les notebooks exécutent Spark dans un pool managé qui démarre vite. Les modèles sémantiques Power BI peuvent utiliser le mode Direct Lake : ils lisent directement les tables Delta de OneLake, sans importer de copie et sans envoyer de requêtes SQL à une source, ce qui donne une vitesse proche de l’import sur des données fraîches ; quand une requête ne peut pas s’exécuter en Direct Lake, elle peut basculer en DirectQuery ou échouer, selon le paramétrage.",
+        "Les capacités s’achètent en SKU F (F2, F4 … F64 … jusqu’à de très grandes tailles) ; le nombre correspond aux unités de capacité (CU) de calcul partagées par tous les espaces de travail qui y sont rattachés. Les capacités en paiement à l’usage peuvent être mises en pause quand personne ne s’en sert, et redimensionnées ; une réservation coûte moins cher pour un usage constant. Un traitement lourd peut être lissé dans le temps et une capacité surchargée est bridée (throttling), ce que les utilisateurs ressentent comme des rapports lents. Synapse Analytics, en un paragraphe : c’est l’option Azure plus ancienne qui réunissait dans un workspace les pools SQL dédiés (l’ex-SQL Data Warehouse), le SQL serverless, des pools Spark et les pipelines Synapse (le moteur d’ADF). Beaucoup d’entreprises l’utilisent encore ; Microsoft présente Fabric comme son successeur pour les nouveaux projets, attendez-vous donc à des projets de migration dans les offres."
+      ],
+      "points": [
+        "Fabric = SaaS : espaces de travail et éléments sur une capacité, ni clusters ni comptes de stockage à gérer.",
+        "OneLake : un seul lac par tenant, des tables Delta, des raccourcis au lieu de copies.",
+        "Lakehouse = fichiers + tables Delta + SQL endpoint en lecture seule ; warehouse = T-SQL complet en lecture/écriture.",
+        "Direct Lake : Power BI lit les tables Delta de OneLake sans import ; connaître sa bascule (fallback).",
+        "SKU F mesurés en unités de capacité ; mettre en pause les capacités à l’usage ; Synapse = l’option plus ancienne."
+      ],
+      "example": {
+        "lang": "python",
+        "code": "# Fabric notebook attached to the lakehouse lh_sales\nfrom pyspark.sql import functions as F\n\nraw = (spark.read.option(\"header\", \"true\")\n       .csv(\"Files/landing/crm/customers_2026-11-26.csv\"))\n\nclean = (raw\n         .withColumn(\"customer_id\", F.trim(\"customer_id\"))\n         .withColumn(\"email\", F.lower(F.trim(\"email\")))\n         .withColumn(\"updated_at\", F.to_timestamp(\"updated_at\"))\n         .filter(F.col(\"customer_id\").isNotNull())\n         .dropDuplicates([\"customer_id\"]))\n\n(clean.write.format(\"delta\")\n      .mode(\"overwrite\")\n      .saveAsTable(\"silver_customers\"))",
+        "note": "Files/ est la zone de fichiers du lakehouse ; saveAsTable écrit une table Delta sous Tables/, visible tout de suite dans le SQL analytics endpoint et utilisable par un modèle sémantique Direct Lake."
+      }
+    },
+    {
+      "title": "Sécurité : Entra ID, identités managées, RBAC, ACL et Key Vault",
+      "text": [
+        "Les identités viennent de Microsoft Entra ID (anciennement Azure Active Directory) : utilisateurs, groupes, et principaux de service (service principals) pour les applications. La meilleure identité pour un pipeline est une identité managée : Azure crée et renouvelle ses identifiants, personne ne voit jamais de mot de passe. Une identité attribuée par le système naît et disparaît avec sa ressource (une data factory, un access connector Databricks) ; une identité attribuée par l’utilisateur est une ressource à part que plusieurs services peuvent partager. Donnez les rôles à l’identité de la data factory, jamais au compte d’une personne.",
+        "Azure RBAC attribue des rôles sur une étendue (groupe d’administration, abonnement, groupe de ressources, ressource, ou un conteneur). Les rôles du plan de contrôle (Owner, Contributor, Reader) gèrent la ressource elle-même ; les rôles du plan de données (Storage Blob Data Reader, Storage Blob Data Contributor, Storage Blob Data Owner) lisent et écrivent les données. Une surprise classique : Contributor sur un compte de stockage ne permet pas à lui seul de lire les fichiers via Entra ID ; il faut un rôle Storage Blob Data. Attribuez les rôles à des groupes, sur la plus petite étendue qui fonctionne.",
+        "ADLS Gen2 ajoute des ACL de type POSIX sur dossiers et fichiers : lecture (r), écriture (w) et exécution (x), pour le propriétaire, des utilisateurs ou groupes nommés, et les autres. Pour lire un fichier, une identité a besoin de r sur le fichier et de x sur chaque dossier parent jusqu’à la racine du conteneur (x sur un dossier signifie « peut le traverser »). Les ACL par défaut d’un dossier sont copiées sur les nouveaux enfants ; modifier l’ACL d’un dossier existant ne change pas ses enfants existants, sauf en l’appliquant récursivement. Azure évalue d’abord le RBAC : si un rôle accorde déjà l’accès, les ACL ne sont pas vérifiées ; les ACL donnent l’accès fin, dossier par dossier, que le RBAC ne permet pas.",
+        "Les secrets (mots de passe de bases, clés d’API, identifiants SFTP de partenaires) vont dans Azure Key Vault, jamais dans le code, les notebooks, le JSON des pipelines ou Git. Les services liés ADF peuvent référencer un secret Key Vault ; Databricks lit les secrets via des secret scopes (dbutils.secrets.get), qui peuvent s’appuyer sur Key Vault, et les masque dans les sorties des notebooks. Mieux encore, évitez les secrets : quand la source accepte l’authentification Entra ID (Azure SQL, ADLS, Key Vault lui-même), utilisez l’identité managée et il n’y a plus rien à stocker ni à renouveler.",
+        "Réseau, dans les grandes lignes : par défaut, comptes de stockage et Key Vault ont des points de terminaison publics protégés par authentification. Beaucoup d’entreprises exigent des private endpoints (une adresse IP privée du service dans leur réseau virtuel) et désactivent l’accès public ; ADF utilise alors un réseau virtuel managé avec des managed private endpoints, et Databricks est déployé en VNet injection ou avec une connectivité privée. Ces montages relèvent en général d’une équipe plateforme ou réseau ; un data engineer doit savoir qu’ils existent, car ils expliquent beaucoup d’erreurs « connection timed out »."
+      ],
+      "points": [
+        "Identités managées pour les services (système ou utilisateur) : aucun mot de passe à stocker ni à renouveler.",
+        "Plan de contrôle (Owner, Contributor, Reader) ≠ plan de données (Storage Blob Data Reader / Contributor / Owner).",
+        "ACL : r/w sur le fichier, x sur chaque dossier parent ; les ACL par défaut ne s’appliquent qu’aux nouveaux enfants.",
+        "Le RBAC est vérifié d’abord, les ACL affinent ensuite ; attribuer à des groupes sur la plus petite étendue.",
+        "Secrets dans Key Vault (services liés, secret scopes), jamais dans le code ; les private endpoints expliquent beaucoup de timeouts."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Who needs what (prod)\nIdentity                         Scope                                Access\nadf-sales-prod (system MI)       container bronze                     RBAC Storage Blob Data Contributor\nadf-sales-prod (system MI)       kv-sales-prod                        RBAC Key Vault Secrets User\nDatabricks access connector (MI) containers silver, gold              RBAC Storage Blob Data Contributor\nGroup grp-finance-analysts       gold/finance/                        ACL r-x (+ --x on gold/)\nGroup grp-data-engineers         resource group rg-sales-data-dev     RBAC Contributor\nNobody                           storage account keys                 not used (shared key access disabled)",
+        "note": "Les services ont des identités managées avec des rôles du plan de données ; les personnes ont des accès via des groupes ; les analystes finance atteignent un dossier par ACL, avec l’exécution sur le parent pour pouvoir le traverser."
+      }
+    },
+    {
+      "title": "Exploitation : supervision, CI/CD et maîtrise des coûts",
+      "text": [
+        "La supervision commence dans chaque outil : l’onglet Monitor d’ADF liste les exécutions de pipelines, d’activités et de triggers avec leurs erreurs, durées et lignes copiées ; Databricks montre les exécutions de jobs et leur Spark UI ; Fabric a un Monitoring hub. Pour les alertes et l’historique, envoyez les journaux de diagnostic d’ADF dans un espace de travail Log Analytics et créez des règles d’alerte Azure Monitor (par exemple sur les exécutions de pipeline en échec) qui envoient un e-mail à l’équipe ou ouvrent un ticket. Ajoutez aussi des contrôles de données : nombre de lignes comparé à la source, fraîcheur des tables gold, clés nulles. Un pipeline « réussi » avec zéro ligne est un incident.",
+        "CI/CD de Data Factory : la factory de développement est reliée à un dépôt Git (Azure DevOps Repos ou GitHub) ; chacun travaille dans une branche de fonctionnalité et fusionne dans la branche de collaboration par pull request. La publication produit des templates ARM (dans la branche adf_publish avec le flux classique, ou générés par un pipeline avec le package npm de Microsoft dans le flux automatisé), qu’Azure Pipelines ou GitHub Actions déploient en recette puis en prod en remplaçant les valeurs propres à l’environnement (URL des services liés, noms de Key Vault) par des paramètres. Arrêtez les triggers avant le déploiement et relancez-les après ; ne modifiez jamais la factory de production à la main.",
+        "CI/CD de Databricks : le code vit dans des Git folders, les tests tournent en CI (tests unitaires des fonctions PySpark, tests dbt), et jobs, clusters et droits sont décrits sous forme de code, aujourd’hui avec les Databricks Asset Bundles (un databricks.yml déployé par la CLI Databricks) ou avec Terraform. Les espaces de travail Fabric peuvent être reliés à Git (Azure DevOps ou GitHub) et promus avec des pipelines de déploiement (dev → test → prod). L’outillage évolue vite : décrivez les principes (Git, pull requests, déploiement automatisé, c’est un principal de service qui déploie, pas une personne) et vérifiez la documentation à jour pour les commandes.",
+        "La maîtrise des coûts fait partie du métier. Databricks : auto-termination sur chaque cluster all-purpose (par exemple 30 minutes d’inactivité), job clusters pour les traitements planifiés, cluster policies qui plafonnent les tailles, instances spot pour les jobs tolérants aux pannes. Fabric : dimensionner le bon SKU F, mettre en pause les capacités à l’usage hors des heures ouvrées, suivre l’application Capacity Metrics. Stockage : règles de cycle de vie vers des niveaux plus froids, VACUUM des vieux fichiers Delta, suppression des données temporaires. ADF : éviter des milliers de petites copies (chaque exécution d’activité est facturée) et des Data Integration Units surdimensionnées.",
+        "Rendez la facture lisible : des tags (project, env, owner, costcenter) sur chaque ressource, des budgets avec alertes dans Azure Cost Management, et un coup d’œil mensuel aux ressources les plus chères. En entretien, une réponse concrète l’emporte : « un cluster interactif allumé 24 h/24 nous coûtait X ; avec l’auto-termination et des job clusters la facture mensuelle a baissé de moitié » vaut mieux que « je fais attention aux coûts ». Utilisez vos propres chiffres, ou dites clairement qu’il s’agit d’une estimation."
+      ],
+      "points": [
+        "Monitor d’ADF + journaux de diagnostic dans Log Analytics + alertes Azure Monitor sur les exécutions en échec.",
+        "Contrôles de données aussi : nombre de lignes, fraîcheur, clés nulles ; zéro ligne est un incident.",
+        "ADF : Git en dev, pull requests, templates ARM déployés par Azure Pipelines ou GitHub Actions ; triggers arrêtés pendant les déploiements.",
+        "Databricks : Git folders, tests, Asset Bundles ou Terraform ; Fabric : intégration Git et pipelines de déploiement.",
+        "Coûts : auto-termination, job clusters, pause des capacités, niveaux de stockage, tags et budgets."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "Monthly estimate (made-up prices, for the method only)\n\nInteractive cluster left on 24/7     730 h x 4.00 EUR/h = 2,920 EUR\nSame cluster, auto-terminated:       8 h/day x 22 days = 176 h x 4.00 EUR/h = 704 EUR\n\nFabric capacity, pay-as-you-go\nAlways on:                           730 h x 0.40 EUR/h = 292.00 EUR\nPaused outside 07:00-19:00 weekdays: 12 h x 22 days = 264 h x 0.40 EUR/h = 105.60 EUR\n\nAlert rule: ADF metric \"Failed pipeline runs\" > 0 over 5 min → e-mail data-oncall + ticket",
+        "note": "La méthode compte plus que les prix, qui changent selon la région et dans le temps : heures de fonctionnement × prix horaire, et les heures que l’on peut couper."
+      }
+    },
+    {
+      "title": "Un pipeline de référence de bout en bout, certifications et entretiens",
+      "text": [
+        "Assemblez le tout sur un cas classique : chaque nuit, les ventes d’un SQL Server on-premise et les clients d’une API CRM doivent alimenter un rapport Power BI avant 07:00. ADF, déclenché à 01:00, copie les ventes de la veille via le self-hosted IR et l’export CRM via l’Azure IR vers bronze en Parquet, dans des dossiers datés. Il lance ensuite un job Databricks (ou un notebook Fabric) qui construit les tables Delta silver par MERGE sur les clés métier avec des contrôles de données, puis le schéma en étoile gold. Power BI lit gold (Direct Lake sur Fabric, import ou DirectQuery ailleurs). La supervision prévient l’ingénieur d’astreinte avant que le métier ne s’en aperçoive.",
+        "Les choix de conception à expliquer : pourquoi bronze garde les fichiers bruts (rejouer après un bug), pourquoi les chargements sont idempotents (une relance pour la même date remplace cette date, MERGE au lieu d’ajout), pourquoi la date est un paramètre (rattrapages), pourquoi les identités sont managées et les secrets dans Key Vault, pourquoi dev et prod sont des abonnements ou des espaces de travail séparés déployés depuis Git. Beaucoup d’équipes exécutent les transformations en modèles dbt sur Databricks ou Fabric (cours dbt), ADF ou un job Databricks se contentant d’orchestrer.",
+        "Certifications : la DP-700, « Implementing Data Engineering Solutions Using Microsoft Fabric », mène à Microsoft Certified: Fabric Data Engineer Associate ; elle couvre l’ingestion et la transformation des données dans Fabric, la sécurisation et la gestion d’une solution analytique, ainsi que sa supervision et son optimisation. Elle a remplacé l’ancienne DP-203 (Azure Data Engineer Associate), retirée en 2025, que vous verrez encore sur des CV. La DP-600 (Fabric Analytics Engineer Associate) est plus proche de la BI. Databricks propose les certifications Data Engineer Associate et Professional. Les certifications Microsoft de niveau Associate se renouvellent chaque année par une évaluation en ligne gratuite. Vérifiez les pages d’examen à jour (compétences évaluées, prix) avant de vous inscrire.",
+        "Les entretiens mêlent notions et retours d’expérience. Attendez-vous à : la différence entre les integration runtimes et quand utiliser le self-hosted ; comment rendre un pipeline relançable ; MERGE et son erreur de clé en double ; lakehouse ou warehouse dans Fabric ; comment donner à un pipeline l’accès au stockage sans mot de passe ; comment déployer ADF de la dev à la prod ; comment réduire une facture Databricks. Répondez avec un cas réel ou réaliste : le contexte, ce que vous avez fait, les chiffres, ce que vous feriez autrement.",
+        "Pour pratiquer sans compte d’entreprise : Azure propose un compte gratuit avec un crédit limité, Fabric une capacité d’essai, et Databricks une édition gratuite pour apprendre ; vérifiez les conditions actuelles, créez une alerte de budget dès le premier jour et supprimez les ressources après chaque séance. Reconstruisez le pipeline de référence en petit (un CSV, un dossier bronze, un MERGE dans silver, une table gold, un rapport) et publiez-le sur GitHub avec son README : ce projet répond à la plupart des questions ci-dessus."
+      ],
+      "points": [
+        "Flux de référence : copies ADF (self-hosted IR pour l’on-premise) → bronze → MERGE Databricks ou Fabric dans silver → gold → Power BI.",
+        "Chargements idempotents et paramétrés ; bronze brut pour rejouer ; contrôles et alertes avant que le métier ne s’en aperçoive.",
+        "DP-700 = Fabric Data Engineer Associate ; DP-203 retirée en 2025 ; Databricks Associate / Professional.",
+        "Répondre aux questions d’entretien par un cas : contexte, action, chiffres, enseignement.",
+        "Pratiquer sur les offres gratuites avec une alerte de budget, et publier un petit projet de bout en bout."
+      ],
+      "example": {
+        "lang": "text",
+        "code": "01:00  ADF schedule trigger → pl_nightly_sales(runDate = yesterday)\n        ├─ Copy SQL Server sales   (self-hosted IR)  → bronze/erp/sales/ingest_date=…/\n        ├─ Copy CRM customers      (Azure IR)        → bronze/crm/customers/ingest_date=…/\n        └─ on success: Databricks job jb_sales_silver_gold(runDate)\n               ├─ MERGE silver.sales, silver.customers (keys: sale_id, customer_id)\n               ├─ checks: row counts vs source, no null keys, freshness\n               └─ rebuild gold.fact_sales, gold.dim_customer\n        on failure (any step): Web activity → Teams / e-mail + Azure Monitor alert\n06:00  Power BI semantic model refresh (or Direct Lake on Fabric)\n07:00  Report ready\nSecrets: Key Vault; identities: managed; deploy: Git → Azure DevOps / GitHub Actions",
+        "note": "Chaque étape peut être relancée pour un runDate sans doublons : c’est la propriété que cherchent les recruteurs."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Bases d’Azure et stockage",
+      "items": [
+        [
+          "Abonnement (subscription)",
+          "Frontière de facturation et de quotas ; souvent un par environnement"
+        ],
+        [
+          "Groupe de ressources",
+          "Conteneur des ressources d’un projet et d’un environnement, ex. rg-sales-data-prod"
+        ],
+        [
+          "France Central",
+          "Région Azure de Paris, souvent choisie par les entreprises françaises"
+        ],
+        [
+          "ADLS Gen2",
+          "Compte de stockage avec l’espace de noms hiérarchique activé : vrais dossiers, ACL, chemins abfss://"
+        ],
+        [
+          "abfss://<container>@<account>.dfs.core.windows.net/<path>",
+          "Chemin utilisé par Spark pour lire ADLS Gen2"
+        ],
+        [
+          "Bronze / silver / gold",
+          "Couches médaillon : brut et rejouable / nettoyé et harmonisé / modélisé pour l’usage"
+        ],
+        [
+          "Hot, Cool, Cold, Archive",
+          "Niveaux d’accès du stockage ; plus froid = stockage moins cher, lectures plus chères ; Archive demande une réhydratation"
+        ]
+      ]
+    },
+    {
+      "group": "Azure Data Factory",
+      "items": [
+        [
+          "Pipeline",
+          "Flux de travail composé d’activités"
+        ],
+        [
+          "Service lié (linked service)",
+          "Connexion à un stockage de données ou à un service de calcul"
+        ],
+        [
+          "Dataset",
+          "Les données visées par un service lié : une table, un dossier, un motif de fichiers"
+        ],
+        [
+          "Self-hosted integration runtime",
+          "Logiciel installé sur une machine du réseau de l’entreprise pour atteindre les sources on-premise ; connexions sortantes uniquement"
+        ],
+        [
+          "Activité Copy",
+          "Déplace les données d’un dataset source vers un dataset cible"
+        ],
+        [
+          "@pipeline().parameters.runDate",
+          "Expression qui lit un paramètre de pipeline ; @{…} dans une chaîne"
+        ],
+        [
+          "Lookup + ForEach",
+          "Modèle piloté par métadonnées : lire une table de contrôle, boucler sur ses lignes"
+        ],
+        [
+          "Trigger tumbling window",
+          "Fenêtres fixes sans chevauchement, que l’on peut relancer et rattraper"
+        ]
+      ]
+    },
+    {
+      "group": "Databricks et Delta",
+      "items": [
+        [
+          "Job cluster",
+          "Créé pour une exécution de job puis supprimé ; moins cher qu’un cluster all-purpose"
+        ],
+        [
+          "Auto-termination",
+          "Arrête un cluster inactif après un nombre de minutes défini"
+        ],
+        [
+          "MERGE INTO … USING … ON key",
+          "Upsert atomique : met à jour les correspondances, insère les nouvelles lignes ; une ligne source par clé"
+        ],
+        [
+          "DESCRIBE HISTORY",
+          "Liste les versions d’une table Delta"
+        ],
+        [
+          "VERSION AS OF",
+          "Time travel : lire une version antérieure d’une table Delta"
+        ],
+        [
+          "VACUUM",
+          "Supprime les fichiers non référencés après la rétention (7 jours par défaut) ; met fin au time travel au-delà"
+        ],
+        [
+          "OPTIMIZE … ZORDER BY",
+          "Compacte les petits fichiers et regroupe les valeurs d’une colonne"
+        ],
+        [
+          "Unity Catalog",
+          "Gouvernance : catalog.schema.table, GRANT à des groupes, lignage, external locations"
+        ]
+      ]
+    },
+    {
+      "group": "Microsoft Fabric",
+      "items": [
+        [
+          "OneLake",
+          "Un seul lac de données par tenant ; tables stockées en Delta"
+        ],
+        [
+          "Raccourci (shortcut)",
+          "Fait apparaître dans OneLake des données stockées ailleurs, sans copie"
+        ],
+        [
+          "Lakehouse",
+          "Fichiers + tables Delta, notebooks Spark, SQL analytics endpoint en lecture seule"
+        ],
+        [
+          "Warehouse",
+          "Moteur T-SQL complet avec lectures, écritures et transactions"
+        ],
+        [
+          "Direct Lake",
+          "Power BI lit directement les tables Delta de OneLake, sans import"
+        ],
+        [
+          "SKU F",
+          "Taille de capacité Fabric en unités de capacité (F2 … F64 …) ; à l’usage, peut être mise en pause"
+        ],
+        [
+          "DP-700",
+          "Examen de la certification Microsoft Certified: Fabric Data Engineer Associate"
+        ]
+      ]
+    },
+    {
+      "group": "Sécurité et exploitation",
+      "items": [
+        [
+          "Identité managée",
+          "Identité d’une ressource Azure ; Azure gère ses identifiants"
+        ],
+        [
+          "Storage Blob Data Contributor",
+          "Rôle RBAC du plan de données pour lire et écrire blobs et fichiers"
+        ],
+        [
+          "ACL --x sur les dossiers parents",
+          "L’exécution est nécessaire sur chaque dossier parent pour atteindre un fichier"
+        ],
+        [
+          "Key Vault",
+          "Stocke secrets, clés et certificats ; référencé par les services liés et les secret scopes"
+        ],
+        [
+          "dbutils.secrets.get(scope, key)",
+          "Lit un secret dans Databricks ; masqué dans les sorties des notebooks"
+        ],
+        [
+          "Private endpoint",
+          "Adresse IP privée d’un service dans le réseau de l’entreprise"
+        ],
+        [
+          "Règle d’alerte Azure Monitor",
+          "Prévient sur une condition de métrique ou de journal, ex. exécutions de pipeline en échec"
+        ]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Donner Contributor sur le compte de stockage à un pipeline et s’étonner qu’il ne lise pas les fichiers : l’accès aux données demande un rôle Storage Blob Data (ou des ACL), pas un rôle du plan de contrôle.",
+    "Mettre un mot de passe de base dans un notebook, le JSON d’un pipeline ou un dépôt Git : utilisez une identité managée, ou un secret Key Vault référencé par le service lié ou un secret scope.",
+    "Un MERGE dont la source contient deux lignes pour la même clé : il échoue (ou, avec une mauvaise condition ON, met à jour les mauvaises lignes) ; dédoublonnez la source et faites la correspondance sur la clé métier.",
+    "Ajouter (append) chaque chargement de nuit : une relance après un échec duplique la journée. Rendez les chargements idempotents (remplacer le dossier de la date, MERGE) et passez la date en paramètre.",
+    "Des clusters all-purpose allumés la nuit et des capacités Fabric jamais mises en pause : activez l’auto-termination, utilisez des job clusters, mettez en pause ou redimensionnez les capacités, posez des budgets.",
+    "Lancer VACUUM avec une rétention très courte « pour gagner de la place » : les anciennes versions disparaissent et le time travel, RESTORE et les lecteurs en cours peuvent casser.",
+    "Modifier la data factory de production à la main : le prochain déploiement depuis Git écrase la modification, ou les deux divergent. Tout passe par Git et le pipeline de release."
+  ],
+  "exercises": [
+    {
+      "q": "Associez chaque service Azure à son rôle dans une plateforme data.",
+      "type": "match",
+      "pairs": [
+        [
+          "ADLS Gen2",
+          "Stocke les fichiers et les tables Delta du lac"
+        ],
+        [
+          "Azure Data Factory",
+          "Orchestre les pipelines et copie les données des sources"
+        ],
+        [
+          "Azure Databricks",
+          "Exécute les notebooks et jobs Spark sur les tables Delta"
+        ],
+        [
+          "Azure Key Vault",
+          "Garde les mots de passe, clés et certificats"
+        ],
+        [
+          "Microsoft Entra ID",
+          "Contient les utilisateurs, groupes et identités"
+        ],
+        [
+          "Power BI",
+          "Affiche les tables gold dans des rapports"
+        ]
+      ],
+      "answer": "Stockage (ADLS), orchestration et copie (ADF), calcul et transformation (Databricks), secrets (Key Vault), identités (Entra ID), restitution (Power BI). Fabric réunit plusieurs de ces rôles dans un seul produit SaaS."
+    },
+    {
+      "q": "Vous construisez un pipeline Data Factory qui copie chaque nuit une table d’un SQL Server on-premise vers la couche bronze. Remettez les étapes dans l’ordre.",
+      "type": "order",
+      "steps": [
+        "Installer et enregistrer un self-hosted integration runtime sur un serveur du réseau de l’entreprise",
+        "Créer les services liés (SQL Server via le self-hosted IR, ADLS Gen2 avec l’identité managée de la factory)",
+        "Créer les datasets source et cible (table SQL, dossier Parquet avec un paramètre de date)",
+        "Construire le pipeline avec une activité Copy et un paramètre runDate",
+        "Faire une exécution de debug avec une date de test et vérifier les fichiers dans bronze",
+        "Publier (via Git et le pipeline de release) et ajouter un trigger planifié"
+      ],
+      "answer": "Le runtime doit exister avant qu’un service lié puisse l’utiliser ; les datasets reposent sur les services liés ; le pipeline utilise les datasets ; on teste avec une exécution de debug avant de publier et de planifier."
+    },
+    {
+      "q": "Rangez ces tables et fichiers dans la couche médaillon à laquelle ils appartiennent.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Bronze",
+          "items": [
+            "Export CRM tel que reçu, JSON, ingest_date=2026-11-26",
+            "Copie quotidienne de la table des ventes de l’ERP, intacte, en Parquet"
+          ]
+        },
+        {
+          "name": "Silver",
+          "items": [
+            "Clients typés et dédoublonnés, une ligne par customer_id",
+            "Ventes avec codes pays standard et dates invalides rejetées"
+          ]
+        },
+        {
+          "name": "Gold",
+          "items": [
+            "Schéma en étoile fact_sales et dim_customer pour Power BI",
+            "Chiffre d’affaires quotidien par magasin, agrégé"
+          ]
+        }
+      ],
+      "answer": "Bronze garde les données brutes pour rejouer n’importe quel chargement ; silver les nettoie et les harmonise (types, clés, codes) ; gold les modélise pour l’usage (schémas en étoile, agrégats)."
+    },
+    {
+      "q": "Data Factory doit lire une base Oracle dans le datacenter de l’entreprise, derrière son pare-feu. Quel integration runtime utilisez-vous ?",
+      "type": "choice",
+      "options": [
+        "L’Azure integration runtime",
+        "Un self-hosted integration runtime installé dans le réseau de l’entreprise",
+        "L’Azure-SSIS integration runtime",
+        "Aucun : ouvrir le port Oracle sur Internet"
+      ],
+      "correct": 1,
+      "answer": "Le self-hosted IR tourne dans le réseau, atteint la base on-premise et n’ouvre que des connexions sortantes vers Azure : aucun port entrant n’est ouvert. Enregistrez deux nœuds ou plus pour la haute disponibilité."
+    },
+    {
+      "q": "Trouvez le bug : après ce MERGE de nuit, des clients se retrouvent avec l’e-mail d’autres clients et certains nouveaux clients ne sont jamais insérés. Quelle ligne ?",
+      "type": "bug",
+      "lang": "sql",
+      "snippet": "MERGE INTO silver.customers AS t\nUSING bronze_customers_today AS s\nON t.city = s.city\nWHEN MATCHED THEN UPDATE SET *\nWHEN NOT MATCHED THEN INSERT *;",
+      "line": 3,
+      "fix": "ON t.customer_id = s.customer_id",
+      "hint": "Qu’est-ce qui décide quelle ligne cible une ligne source met à jour ?",
+      "answer": "La condition ON doit porter sur la clé métier. En faisant la correspondance sur la ville, on met à jour tous les clients de la même ville avec les données d’un nouveau client (ou MERGE échoue quand plusieurs lignes source correspondent à une ligne cible), et un nouveau client d’une ville déjà présente n’est jamais inséré. Faites la correspondance sur customer_id et dédoublonnez d’abord la source."
+    },
+    {
+      "q": "Complétez pour lire la table Delta telle qu’elle était à la version 12 (Databricks SQL).",
+      "type": "fill",
+      "snippet": "SELECT COUNT(*) FROM silver.orders ___ 12;",
+      "lang": "sql",
+      "blanks": [
+        [
+          "VERSION AS OF"
+        ]
+      ],
+      "answer": "SELECT COUNT(*) FROM silver.orders VERSION AS OF 12; lit la version 12 dans le journal de transactions. TIMESTAMP AS OF '2026-11-26 06:00:00' lit par date et heure ; DESCRIBE HISTORY liste les versions. Après un VACUUM, les versions dont les fichiers ont été supprimés ne sont plus lisibles."
+    },
+    {
+      "q": "Dans Microsoft Fabric, qu’apporte le mode Direct Lake à un modèle sémantique Power BI ?",
+      "type": "choice",
+      "options": [
+        "Il lit directement les tables Delta de OneLake, sans importer de copie ni interroger une source SQL",
+        "Il copie les tables dans le modèle toutes les heures",
+        "Il envoie chaque visuel sous forme de requête SQL au warehouse",
+        "Il ne fonctionne qu’avec des fichiers CSV de la zone Files du lakehouse"
+      ],
+      "correct": 0,
+      "answer": "Direct Lake charge à la demande les colonnes nécessaires depuis les fichiers Delta de OneLake : le modèle est rapide comme en import et frais comme en DirectQuery. Quand une requête ne peut pas s’exécuter en Direct Lake, elle peut basculer en DirectQuery ou échouer, selon le paramétrage."
+    },
+    {
+      "q": "Un groupe a l’ACL r-x sur gold/finance/, mais ses membres obtiennent toujours « accès refusé » en ouvrant gold/finance/revenue.parquet. Le RBAC ne leur donne rien sur le compte. Que manque-t-il ?",
+      "type": "choice",
+      "options": [
+        "Le droit d’écriture sur le fichier",
+        "L’exécution (x) sur le dossier parent gold/ (la racine du conteneur)",
+        "Le rôle Contributor sur le groupe de ressources",
+        "Un private endpoint"
+      ],
+      "correct": 1,
+      "answer": "Pour atteindre un fichier, une identité a besoin de l’exécution sur chaque dossier parent jusqu’à la racine du conteneur, puis de la lecture sur le fichier lui-même. Donnez --x sur gold/ (et r sur les fichiers, via des ACL par défaut pour les nouveaux). Contributor est un rôle du plan de contrôle et ne donne aucun accès aux données."
+    },
+    {
+      "q": "02:10, le téléphone d’astreinte sonne : le pipeline ADF de nuit a échoué sur sa première activité, la copie depuis le SQL Server on-premise, avec une erreur indiquant que le self-hosted integration runtime est indisponible.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Que vérifiez-vous d’abord ?",
+          "choices": [
+            {
+              "label": "L’état de l’IR dans ADF (Manage → Integration runtimes) : nœuds en ligne ou hors ligne, dernière connexion",
+              "best": true,
+              "feedback": "Vous savez en quelques secondes si le nœud est tombé, si le service est arrêté ou si la machine a perdu sa connexion à Azure."
+            },
+            {
+              "label": "Relancer le pipeline trois fois",
+              "feedback": "Si le runtime est hors ligne, chaque relance échoue de la même façon et ajoute du bruit dans la supervision."
+            },
+            {
+              "label": "Recréer le service lié",
+              "feedback": "La définition de la connexion n’a pas changé ; c’est le runtime qui l’exécute qui pose problème."
+            }
+          ]
+        },
+        {
+          "text": "Le seul nœud est hors ligne : le serveur Windows a redémarré à cause d’une mise à jour du système et le service de l’IR n’a pas démarré. Et maintenant ?",
+          "choices": [
+            {
+              "label": "Demander à l’équipe serveurs (ou utiliser vos accès) de démarrer le service de l’integration runtime, vérifier que le nœud revient en ligne, puis relancer le pipeline pour le même runDate",
+              "best": true,
+              "feedback": "Le chargement est idempotent et paramétré : une relance pour cette date réécrit le même dossier sans doublons."
+            },
+            {
+              "label": "Basculer le service lié sur l’Azure IR",
+              "feedback": "L’Azure IR ne peut pas atteindre un serveur derrière le pare-feu de l’entreprise."
+            },
+            {
+              "label": "Attendre l’exécution de demain, qui rattrapera",
+              "feedback": "Un chargement quotidien pour runDate ne lit que ce jour : les données d’hier n’arriveraient jamais, et le rapport de 07:00 serait faux."
+            }
+          ]
+        },
+        {
+          "text": "L’exécution réussit à 03:05, à temps pour le rapport. Que faites-vous après l’incident ?",
+          "choices": [
+            {
+              "label": "Enregistrer un second nœud pour la haute disponibilité, mettre le service en démarrage automatique, ajouter une alerte sur l’état des nœuds de l’IR, et rédiger une courte note d’incident",
+              "best": true,
+              "feedback": "Vous supprimez le point unique de défaillance et vous serez prévenu avant que le pipeline n’échoue la prochaine fois."
+            },
+            {
+              "label": "Rien : ça remarche",
+              "feedback": "La prochaine nuit de patchs provoquera le même incident."
+            }
+          ]
+        }
+      ],
+      "answer": "Vérifier le runtime avant de relancer, corriger la cause (service arrêté), relancer la même date grâce aux chargements idempotents, puis supprimer le point unique de défaillance : un second nœud, le démarrage automatique, la supervision de l’état des nœuds."
+    },
+    {
+      "q": "Estimation mensuelle du stockage du lac (prix inventés) : en D2, le coût mensuel total des trois niveaux (Go stockés × prix par Go et par mois).",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        [
+          "Tier",
+          "GB stored",
+          "Price per GB-month (EUR)",
+          "Monthly total (EUR)"
+        ],
+        [
+          "Hot",
+          2000,
+          0.02,
+          ""
+        ],
+        [
+          "Cool",
+          8000,
+          0.01,
+          ""
+        ],
+        [
+          "Archive",
+          30000,
+          0.002,
+          ""
+        ]
+      ],
+      "cell": "D2",
+      "answer": "=SUMPRODUCT(B2:B4,C2:C4)",
+      "explain": "SOMMEPROD (SUMPRODUCT) multiplie le volume de chaque niveau par son prix et additionne : 2 000 × 0,02 + 8 000 × 0,01 + 30 000 × 0,002 = 40 + 80 + 60 = 180 EUR par mois. Les vrais prix dépendent de la région, de la redondance et des lectures : vérifiez la page de tarifs d’Azure."
+    },
+    {
+      "q": "Base d’entraînement dwh (SQLite). Un fichier de prix arrive : MON-27 (Monitor 27in, Electronics) coûte désormais 140 et se vend 229, et un nouveau produit WEB-01 (Webcam, Accessories) coûte 18 et se vend 49. Faites l’upsert des deux lignes dans dim_product en une instruction, avec sku comme clé, en gardant le product_key existant de MON-27, puis renvoyez product_key, sku et list_price de ces deux SKU. SQLite n’a pas de MERGE : utilisez INSERT … ON CONFLICT (sku) DO UPDATE, l’équivalent SQLite d’un MERGE Delta.",
+      "hint": "INSERT INTO dim_product (sku, name, category, unit_cost, list_price) VALUES (…), (…) ON CONFLICT (sku) DO UPDATE SET list_price = excluded.list_price, … ; puis un SELECT. INSERT OR REPLACE supprimerait et réinsérerait MON-27 avec une nouvelle clé.",
+      "code": "sql",
+      "answer": "INSERT INTO dim_product (sku, name, category, unit_cost, list_price)\nVALUES ('MON-27', 'Monitor 27in', 'Electronics', 140, 229),\n       ('WEB-01', 'Webcam', 'Accessories', 18, 49)\nON CONFLICT (sku) DO UPDATE SET\n  unit_cost = excluded.unit_cost,\n  list_price = excluded.list_price;\n\nSELECT product_key, sku, list_price\nFROM dim_product\nWHERE sku IN ('MON-27', 'WEB-01')\nORDER BY sku;",
+      "run": {
+        "db": "dwh",
+        "ordered": true
+      },
+      "explain": "L’upsert met à jour MON-27 sur place (le product_key 2 est conservé, donc les lignes de fact_sales pointent toujours dessus) et insère WEB-01 avec la clé suivante, 13. Un MERGE Delta fait la même chose en une transaction : WHEN MATCHED THEN UPDATE, WHEN NOT MATCHED THEN INSERT. INSERT OR REPLACE supprimerait MON-27 et le réinsérerait avec la clé 13, ce qui casserait le lien avec ses ventes."
+    },
+    {
+      "q": "Concevez un petit pipeline Azure : chaque matin, un partenaire dépose un CSV de commandes sur un serveur SFTP ; l’équipe commerciale veut un rapport Power BI des commandes de la veille avant 08:00, et les relances ne doivent jamais créer de doublons. Décrivez les services, les couches, la sécurité et la supervision.",
+      "answer": "Ingestion : un pipeline ADF avec un paramètre runDate, planifié à 06:00 (ou un trigger tumbling window pour les rattrapages), copie le fichier depuis le SFTP (service lié dont le mot de passe est un secret Key Vault) vers bronze/partner/orders/ingest_date=<runDate>/ sans le modifier. Transformation : un job Databricks ou un notebook Fabric lit ce dossier, type les colonnes, écarte les lignes invalides dans une table de quarantaine, dédoublonne sur order_id et fait un MERGE dans silver.orders sur order_id ; puis reconstruit gold.fact_orders (ou fait un MERGE de la partition de la veille). Une relance pour le même runDate réécrit le même dossier bronze et le MERGE met à jour au lieu d’ajouter : pas de doublons. Restitution : Power BI sur gold (Direct Lake sur Fabric, sinon un rafraîchissement planifié à 07:30). Sécurité : la factory et Databricks utilisent des identités managées avec des rôles Storage Blob Data sur leurs seuls conteneurs, le mot de passe SFTP dans Key Vault, rien dans le code, dev et prod séparés et déployés depuis Git. Supervision : alerte Azure Monitor sur les exécutions en échec, contrôle du nombre de lignes (0 ligne ou très loin du volume habituel = alerte), fraîcheur de gold avant 07:45. Coût : job cluster ou serverless, auto-termination, règle de cycle de vie sur bronze."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Quelle est la différence entre les integration runtimes Azure, self-hosted et Azure-SSIS dans Data Factory ?",
+      "a": "L’integration runtime est le calcul qui exécute les copies et distribue les activités. L’Azure IR est géré par Microsoft et atteint les points de terminaison publics et les services Azure, éventuellement dans un réseau virtuel managé avec des private endpoints. Le self-hosted IR s’installe sur des machines du réseau de l’entreprise pour atteindre des sources on-premise ou privées comme SQL Server, Oracle ou des partages de fichiers ; il ne fait que des connexions sortantes vers Azure, et j’enregistre au moins deux nœuds pour la haute disponibilité et je supervise leur état, car un serveur redémarré est une cause classique d’échec des traitements de nuit. L’Azure-SSIS IR exécute des packages SSIS existants pendant les migrations. Je choisis l’IR par service lié, selon l’endroit où vivent les données."
+    },
+    {
+      "q": "Comment rendez-vous un pipeline Data Factory relançable sans risque ?",
+      "a": "Le pipeline reçoit la date métier en paramètre au lieu de lire l’heure courante, ce qui permet de relancer ou de rattraper n’importe quelle date, et les triggers tumbling window aident pour cela. Chaque chargement écrit dans un dossier propre à cette date et l’écrase, donc une relance remplace au lieu de dupliquer. En aval, les tables silver sont chargées par MERGE sur la clé métier, pas en ajout. Les activités ont des timeouts et des retries explicites, et les chemins d’échec envoient une alerte. Ainsi, une relance pour une date donnée donne toujours le même résultat : le pipeline est idempotent."
+    },
+    {
+      "q": "Expliquez un MERGE Delta et les problèmes que vous avez rencontrés avec.",
+      "a": "MERGE INTO cible USING source ON clé met à jour les lignes correspondantes, insère les nouvelles et peut supprimer, en une seule transaction ACID enregistrée dans le journal Delta. Premier problème : les doublons dans la source. Si deux lignes source correspondent à une ligne cible, Databricks lève une erreur ; je dédoublonne donc le lot avec ROW_NUMBER sur la clé, trié par horodatage de mise à jour. Deuxième : une mauvaise condition ON, qui met à jour les mauvaises lignes sans bruit. Troisième : les données tardives ; j’ajoute une condition comme WHEN MATCHED AND s.updated_at > t.updated_at. Pour la performance sur les grosses tables, je m’assure que la cible est clusterisée ou Z-ordonnée sur des colonnes qui permettent au MERGE de sauter des fichiers, et je compacte les petits fichiers avec OPTIMIZE."
+    },
+    {
+      "q": "Lakehouse ou warehouse dans Microsoft Fabric : comment choisissez-vous ?",
+      "a": "Les deux stockent des tables Delta dans OneLake, donc les données ne sont enfermées dans aucun des deux. Un lakehouse contient fichiers et tables et se construit surtout avec des notebooks Spark ; son SQL analytics endpoint est en lecture seule. Un warehouse est un moteur T-SQL complet avec écritures et transactions sur plusieurs tables, adapté à une équipe qui travaille en SQL, en procédures stockées ou avec dbt sur T-SQL. Un montage courant utilise un lakehouse pour bronze et silver avec Spark, et un lakehouse ou un warehouse pour gold selon l’équipe. Power BI peut lire l’un ou l’autre en Direct Lake. Fabric évolue vite : je vérifierais la liste de fonctionnalités à jour avant de trancher sur un détail comme une instruction T-SQL particulière."
+    },
+    {
+      "q": "Comment un job Databricks ou un pipeline Data Factory accède-t-il à ADLS Gen2 sans mot de passe ?",
+      "a": "Avec une identité managée : la data factory a une identité attribuée par le système, et Databricks utilise un access connector doté d’une identité managée, référencé par un storage credential Unity Catalog et des external locations. J’accorde à cette identité un rôle du plan de données, comme Storage Blob Data Contributor, sur les seuls conteneurs nécessaires, ou des ACL sur des dossiers précis, sans oublier l’exécution sur les dossiers parents. Aucune clé de compte ni jeton SAS n’est stocké ; les secrets restants pour les sources hors Azure vont dans Key Vault et sont référencés par les services liés ou des secret scopes."
+    },
+    {
+      "q": "Comment déployez-vous le code Data Factory et Databricks de la dev à la production ?",
+      "a": "Seule la factory de dev est reliée à Git. Les développeurs travaillent sur des branches de fonctionnalité et fusionnent dans la branche de collaboration par des pull requests relues. L’étape de publication produit des templates ARM, et un pipeline de release dans Azure DevOps ou GitHub Actions les déploie en recette puis en prod avec des paramètres propres à chaque environnement, en arrêtant les triggers avant et en les relançant après. Pour Databricks, le code vit dans Git, la CI exécute les tests unitaires et les tests de données, et jobs et clusters sont déployés sous forme de code avec les Databricks Asset Bundles ou Terraform par un principal de service. Personne ne modifie la production à la main."
+    },
+    {
+      "q": "La facture de votre plateforme data Azure a doublé en un mois. Que regardez-vous ?",
+      "a": "J’ouvre Cost Management groupé par ressource et par tag pour trouver le service qui a augmenté. Côté Databricks : clusters all-purpose allumés la nuit ou sans auto-termination, jobs exécutés sur des clusters interactifs au lieu de job clusters, clusters surdimensionnés, un job qui boucle ; les system tables et les cluster policies aident. Côté Fabric : une capacité trop grande ou jamais mise en pause, ou une charge lourde. Côté stockage : des données jamais déplacées vers des niveaux plus froids, des tables Delta jamais vacuumées, des copies en double. Côté Data Factory : des milliers de petites exécutions d’activités ou une copie avec trop de DIU. Ensuite je corrige la cause, j’ajoute des budgets avec alertes et je rends la règle permanente par des stratégies (policies)."
+    },
+    {
+      "q": "Quelle certification passeriez-vous aujourd’hui pour un poste de data engineer sur Azure ?",
+      "a": "La DP-700, Implementing Data Engineering Solutions Using Microsoft Fabric, qui donne la certification Fabric Data Engineer Associate et a remplacé la DP-203 après son retrait en 2025. Si l’entreprise tourne surtout sur Databricks, les certifications Databricks Data Engineer Associate puis Professional sont plus pertinentes. Une certification montre que je connais le vocabulaire et les options ; je l’appuie sur un projet construit de bout en bout, et je vérifie la page d’examen à jour pour les compétences évaluées, car elles changent."
+    }
+  ]
+}

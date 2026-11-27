@@ -1,0 +1,629 @@
+{
+  "why": "Des serveurs configurés à la main finissent par diverger, et plus personne ne sait dire exactement comment la production a été montée. Ansible décrit la configuration de chaque serveur dans des fichiers YAML relus en revue, et l’applique autant de fois que nécessaire en simple SSH. C’est l’un des outils les plus demandés dans les offres DevOps, cloud et exploitation Linux, et les équipes de support applicatif s’en servent pour lancer le même contrôle ou le même correctif sur des dizaines de serveurs d’un coup.",
+  "outcome": "écrire des inventaires et lancer des commandes ad hoc, écrire des playbooks idempotents avec des modules, des handlers, des variables et des templates, les organiser en rôles et en collections, protéger les secrets avec Ansible Vault, exécuter les changements en sécurité avec le check mode, le diff, les limites et les tags, et expliquer la place d’Ansible à côté de Terraform et d’un pipeline CI.",
+  "lessons": [
+    {
+      "title": "La gestion de configuration et pourquoi Ansible",
+      "text": [
+        "Imaginez 40 serveurs Linux installés à la main sur trois ans. L’un a un OpenSSL plus ancien, deux ont un timeout nginx différent, et le correctif appliqué pendant l’incident du mois dernier n’a touché que 38 d’entre eux. C’est la dérive de configuration (configuration drift) : chaque serveur devient un « flocon de neige » unique et plus personne ne peut en reconstruire un en confiance. La gestion de configuration règle le problème en décrivant l’état souhaité de chaque serveur (paquets, fichiers, utilisateurs, services, paramètres noyau) dans du code versionné dans Git, relu dans une pull request et appliqué de la même façon partout.",
+        "Ansible est agentless : rien n’est installé sur les nœuds gérés. Le nœud de contrôle (votre poste, un bastion ou un runner CI) se connecte en SSH, copie sur le serveur de petits programmes Python appelés modules, les exécute puis les supprime. Le nœud géré n’a besoin que de SSH et de Python (le module raw fonctionne même sans Python, c’est ainsi qu’on prépare un serveur nu). Les hôtes Windows se gèrent en WinRM ou en SSH. Sans agent, il n’y a pas d’agent à mettre à jour, superviser ou patcher, et c’est une grande raison du choix d’Ansible.",
+        "Ansible fonctionne en mode push : c’est vous qui décidez quand lancer ansible-playbook, et le nœud de contrôle pousse les changements. Puppet et Chef font l’inverse : un agent sur chaque serveur va régulièrement chercher sa configuration auprès d’un serveur central (pull) et corrige la dérive tout seul. Le push est plus simple pour démarrer et convient aux déploiements et aux opérations ponctuelles ; le pull corrige la dérive sans que personne ne lance rien. Ansible propose aussi ansible-pull pour les rares cas où chaque serveur doit récupérer un dépôt et l’appliquer lui-même.",
+        "L’idée clé est l’idempotence : lancer deux fois le même playbook donne le même résultat, et le second passage ne change rien. On décrit un état (« nginx est installé », « cette ligne est dans sshd_config »), pas une suite de commandes. Chaque module vérifie d’abord l’état actuel, n’agit que s’il diffère, puis renvoie ok (déjà conforme) ou changed. Un second passage sain se termine par changed=0, et c’est aussi ainsi qu’on détecte la dérive : si un passage sur un serveur que personne n’a touché signale des changements, quelque chose a modifié le serveur en dehors d’Ansible.",
+        "Ansible et Terraform se recouvrent en partie mais n’ont pas le même rôle. Terraform provisionne l’infrastructure via les API cloud (VM, réseaux, load balancers, bases managées) et garde un fichier d’état (state) de ce qu’il a créé. Ansible configure ce qui tourne dans les serveurs et orchestre des opérations comme un déploiement progressif ; il ne garde aucun état et inspecte le système réel à chaque passage. La réponse classique en entretien : Terraform construit la maison, Ansible la meuble, et les deux vivent dans Git et tournent depuis un pipeline."
+      ],
+      "points": [
+        "Gestion de configuration = l’état souhaité de chaque serveur, en code, appliqué de la même façon partout.",
+        "Agentless : SSH (ou WinRM) et Python sur le nœud géré, rien à y installer.",
+        "Mode push : le nœud de contrôle lance ansible-playbook ; les agents Puppet et Chef fonctionnent en pull.",
+        "Idempotence : décrire un état, pas des commandes ; un second passage affiche changed=0.",
+        "Terraform provisionne l’infrastructure, Ansible configure les serveurs."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# On the control node (Linux, macOS or WSL), not on the servers\npipx install --include-deps ansible\nansible --version\n\n# Can Ansible reach the server over SSH and run Python there?\nansible all -i \"web01.example.com,\" -u deploy -m ansible.builtin.ping\n# web01.example.com | SUCCESS => {\n#     \"changed\": false,\n#     \"ping\": \"pong\"\n# }",
+        "note": "Le module ping n’est pas un ping ICMP : il se connecte en SSH et vérifie que Python fonctionne. La virgule finale dans -i \"web01.example.com,\" transforme un nom d’hôte en inventaire en ligne. pipx installe le paquet ansible complet (ansible-core plus les collections de la communauté) dans son propre environnement."
+      }
+    },
+    {
+      "title": "Les inventaires et les commandes ad hoc",
+      "text": [
+        "L’inventaire liste les hôtes gérés et les range dans des groupes. Il peut être au format INI ou YAML. En INI, un groupe est un en-tête entre crochets ([web]) suivi d’un hôte par ligne, et un groupe de groupes utilise le suffixe :children ([prod:children]). Les plages évitent de tout taper : web[01:20].example.com représente vingt hôtes. Deux groupes existent toujours : all (tous les hôtes) et ungrouped (les hôtes sans autre groupe). Vérifiez ce qu’Ansible a compris avec ansible-inventory -i inventories/prod --graph, ou --list pour le JSON complet avec les variables.",
+        "Les variables de connexion indiquent comment joindre un hôte : ansible_host (l’adresse réelle quand le nom d’inventaire est un alias), ansible_user, ansible_port, ansible_ssh_private_key_file et ansible_python_interpreter. On peut les mettre sur la ligne de l’hôte, mais l’endroit propre pour toutes les variables, ce sont deux dossiers à côté de l’inventaire : group_vars/ et host_vars/. Un fichier group_vars/web.yml s’applique au groupe web, group_vars/all.yml à tout le monde, et host_vars/web01.example.com.yml à un seul hôte. Un dossier d’inventaire par environnement (inventories/prod, inventories/staging) sépare bien la prod de la préprod.",
+        "Une commande ad hoc exécute un module sur un ensemble d’hôtes sans écrire de playbook : ansible <motif> -m <module> -a \"<arguments>\". Par exemple, ansible web -i inventories/prod -m ansible.builtin.command -a \"uptime\" affiche la charge de chaque serveur web, et ansible web -i inventories/prod -b -m ansible.builtin.service -a \"name=nginx state=restarted\" redémarre nginx partout, avec -b (become) pour les droits root. Par défaut Ansible travaille sur 5 hôtes à la fois ; -f 20 augmente le nombre de forks.",
+        "Les motifs (patterns) choisissent les hôtes : web:db (l’un ou l’autre groupe), web:!web03.example.com (web sauf un hôte), web:&prod (dans les deux groupes), ou --limit sur n’importe quelle commande pour restreindre encore. En support applicatif, les commandes ad hoc sont le moyen rapide de répondre à une question d’incident sur vingt serveurs à la fois : quels serveurs ont un /var plein (ansible.builtin.shell -a \"df -h /var\"), quelle version de l’application est déployée, quel serveur porte encore l’ancien certificat.",
+        "Les commandes ad hoc servent à regarder et aux actions ponctuelles. Dès qu’un changement doit être reproductible, relu ou réappliqué sur un nouveau serveur, il a sa place dans un playbook versionné dans Git. Bonne habitude en production : les commandes ad hoc en lecture seule librement, celles qui modifient seulement avec un ticket et un --limit vérifié d’abord avec --list-hosts."
+      ],
+      "points": [
+        "Inventaire = des hôtes rangés en groupes, en INI ou YAML ; all et ungrouped existent toujours.",
+        "Les variables vont dans group_vars/<groupe>.yml et host_vars/<hôte>.yml, un dossier d’inventaire par environnement.",
+        "ansible-inventory --graph montre les groupes qu’Ansible voit réellement.",
+        "Ad hoc : ansible <motif> -m <module> -a \"<args>\", -b pour passer root, -f pour plus de forks.",
+        "Tout ce qui doit être reproductible va dans un playbook, pas dans une commande ad hoc."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# inventories/prod/hosts.yml\nall:\n  vars:\n    ansible_user: deploy\n  children:\n    web:\n      hosts:\n        web01.example.com:\n        web02.example.com:\n          ansible_host: 10.0.1.12\n    db:\n      hosts:\n        db01.example.com:\n          ansible_port: 2222\n    prod:\n      children:\n        web:\n        db:",
+        "note": "Le même inventaire en INI : une section [web] avec web01.example.com et web02.example.com ansible_host=10.0.1.12, une section [db], et [prod:children] qui liste web et db. L’ansible_user serait mieux placé dans group_vars/all.yml."
+      }
+    },
+    {
+      "title": "Les playbooks : plays, tâches, modules et handlers",
+      "text": [
+        "Un playbook est un fichier YAML contenant une liste de plays. Un play associe un groupe d’hôtes à une liste de tâches ; une tâche appelle un module avec ses arguments. Donnez un name à chaque play et à chaque tâche : c’est ce qu’affiche la sortie, ce que lisent les relecteurs et ce qu’utilise --start-at-task. On le lance avec ansible-playbook -i inventories/prod site.yml. Écrivez les modules avec leur nom complet de collection (FQCN), comme ansible.builtin.copy : les noms courts fonctionnent encore, mais ansible-lint exige le FQCN et cela évite toute ambiguïté quand une collection a un module du même nom court.",
+        "Une poignée de modules couvre l’essentiel de la configuration d’un serveur. ansible.builtin.apt (Debian, Ubuntu) et ansible.builtin.dnf (RHEL, Fedora, Rocky) installent les paquets, ansible.builtin.package choisit le bon pour vous. ansible.builtin.copy envoie un fichier statique, ansible.builtin.template produit un fichier à partir d’un template Jinja2 et de variables. ansible.builtin.service démarre, arrête et active les services. ansible.builtin.user gère les comptes locaux, ansible.builtin.file crée des répertoires, règle propriétaires et droits, crée des liens symboliques ou supprime des chemins (state: absent), et ansible.builtin.lineinfile garantit qu’une ligne est présente dans un fichier sans réécrire le reste.",
+        "Ansible exécute un play tâche par tâche : la première tâche tourne sur tous les hôtes (jusqu’à 5 à la fois), puis la deuxième, et ainsi de suite. Chaque résultat est ok, changed, skipped ou failed ; un hôte en échec s’arrête là pour le reste du play pendant que les autres continuent. Le passage se termine par le PLAY RECAP, une ligne par hôte avec les compteurs ok, changed, unreachable, failed, skipped, rescued et ignored. Unreachable signifie que SSH n’a pas fonctionné ; failed signifie qu’une tâche a renvoyé une erreur.",
+        "Les handlers sont des tâches qui ne s’exécutent que lorsqu’on les notifie. Une tâche avec notify: Reload nginx déclenche le handler qui porte exactement ce nom, mais seulement si la tâche a renvoyé changed ; le handler s’exécute alors une seule fois, après toutes les tâches du play, quel que soit le nombre de tâches qui l’ont notifié. C’est ainsi qu’on recharge nginx uniquement quand sa configuration a vraiment changé. Un notify qui ne correspond à aucun nom de handler arrête le play avec une erreur. Si le play échoue avant la fin, les handlers notifiés ne tournent pas, sauf avec --force-handlers ; ansible.builtin.meta: flush_handlers les exécute plus tôt.",
+        "ansible.builtin.command et ansible.builtin.shell lancent n’importe quelle commande, ce sont donc des solutions de dernier recours : Ansible ne peut pas savoir si la commande a changé quelque chose, il renvoie donc toujours changed, et une commande comme « echo ligne >> fichier » ajoute la ligne à chaque passage. Quand aucun module ne convient, rendez la tâche idempotente vous-même : creates: ou removes: (sauter la commande si un fichier existe ou non), changed_when: selon la sortie, et command plutôt que shell sauf besoin de pipes ou de redirections."
+      ],
+      "points": [
+        "Play = hôtes + tâches ; tâche = un appel de module avec un name ; utilisez le FQCN (ansible.builtin.apt).",
+        "Modules de base : apt / dnf / package, copy, template, service, user, file, lineinfile.",
+        "Les tâches s’exécutent dans l’ordre, chacune sur tous les hôtes ; le PLAY RECAP compte ok, changed, failed, unreachable.",
+        "Les handlers tournent une fois à la fin du play, seulement si une tâche qui les notifie a renvoyé changed.",
+        "command et shell ne sont pas idempotents en soi : creates, removes ou changed_when."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# site.yml\n- name: Configure the web servers\n  hosts: web\n  become: true\n  tasks:\n    - name: Install nginx\n      ansible.builtin.apt:\n        name: nginx\n        state: present\n        update_cache: true\n        cache_valid_time: 3600\n\n    - name: Deploy the site configuration\n      ansible.builtin.copy:\n        src: files/shop.conf\n        dest: /etc/nginx/conf.d/shop.conf\n        owner: root\n        group: root\n        mode: \"0644\"\n      notify: Reload nginx\n\n    - name: Make sure nginx runs and starts at boot\n      ansible.builtin.service:\n        name: nginx\n        state: started\n        enabled: true\n\n  handlers:\n    - name: Reload nginx\n      ansible.builtin.service:\n        name: nginx\n        state: reloaded",
+        "note": "Premier passage sur un serveur neuf : nginx est installé et le fichier copié (changed), le handler recharge nginx. Second passage : tout est ok, changed=0, et le handler ne tourne pas. cache_valid_time évite de rafraîchir la liste des paquets à chaque passage."
+      }
+    },
+    {
+      "title": "Variables, facts, templates, conditions et boucles",
+      "text": [
+        "Les variables rendent les playbooks réutilisables : le même play configure la préprod et la prod avec des valeurs différentes venues de group_vars. On les utilise sous la forme {{ variable }}. En YAML, une valeur qui commence par {{ doit être entre guillemets (\"{{ app_port }}\"), sinon le fichier ne se lit pas. Les noms utilisent lettres, chiffres et underscores ; préfixez les variables d’un rôle par le nom du rôle (nginx_worker_connections) pour que deux rôles ne s’écrasent jamais.",
+        "Les facts sont des variables qu’Ansible collecte au début d’un play (gather_facts, actif par défaut) : système d’exploitation, version, adresses IP, mémoire, disques. On les lit sous la forme ansible_facts['os_family'] (Debian, RedHat), ansible_facts['distribution_version'] ou ansible_facts['default_ipv4']['address']. Pour les voir : ansible web01.example.com -m ansible.builtin.setup. register: enregistre le résultat d’une tâche dans une variable, par exemple la sortie d’une commande à tester dans une tâche suivante. gather_facts: false accélère les plays qui n’en ont pas besoin.",
+        "Une même variable peut être définie à de nombreux endroits, et la documentation officielle liste plus de vingt niveaux de priorité. Retenez l’ordre simple : les role defaults sont les plus faibles (ils sont faits pour être surchargés), puis group_vars/all, puis les group_vars d’un groupe précis, puis host_vars, puis les variables du play, puis les vars de rôle et de tâche, puis set_fact et les résultats enregistrés, et les extra vars passées avec -e en ligne de commande l’emportent toujours. La vraie règle en équipe : chaque variable définie à un seul endroit, et -e réservé aux surcharges ponctuelles.",
+        "Les templates sont des fichiers texte avec du balisage Jinja2, par convention en .j2 dans un dossier templates/. {{ site_name }} affiche une variable, {% for server in app_servers %} … {% endfor %} répète un bloc, {% if … %} ajoute une condition, et les filtres transforment les valeurs : {{ app_port | default(8080) }}, {{ users | join(', ') }}, {{ name | upper }}. Mettez {{ ansible_managed }} en commentaire sur la première ligne pour signaler qu’il ne faut pas modifier le fichier à la main. Le module template peut vérifier le résultat avant de remplacer le fichier, par exemple validate: /usr/sbin/sshd -t -f %s pour un sshd_config.",
+        "when: n’exécute une tâche que si une condition est vraie, écrite comme une expression Jinja2 simple, sans accolades : when: ansible_facts['os_family'] == \"Debian\". loop: répète une tâche pour chaque élément d’une liste, disponible dans {{ item }}, ou item.name pour une liste de dictionnaires. Beaucoup de modules de paquets acceptent directement une liste dans name:, ce qui est plus rapide qu’une boucle car cela ne fait qu’un appel. Combinez-les avec soin : when est évalué pour chaque élément d’une boucle."
+      ],
+      "points": [
+        "Mettez entre guillemets les valeurs YAML qui commencent par {{ ; préfixez les variables d’un rôle par son nom.",
+        "Facts : ansible_facts['os_family'], ['distribution_version']… ; register enregistre le résultat d’une tâche.",
+        "Priorité, simplement : role defaults < group_vars/all < group_vars/<groupe> < host_vars < vars du play < extra vars (-e).",
+        "Templates : fichiers Jinja2 .j2 avec {{ }}, {% for %}, {% if %} et des filtres comme default.",
+        "when: s’écrit sans accolades ; loop: fournit {{ item }}."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# inventories/prod/group_vars/web.yml\nsite_name: shop.example.com\napp_port: 8080\nsupport_users:\n  - { name: amel, groups: adm }\n  - { name: karim, groups: adm }\n\n# Tasks of the web play\n- name: Render the nginx site from a Jinja2 template\n  ansible.builtin.template:\n    src: templates/shop.conf.j2\n    dest: /etc/nginx/conf.d/shop.conf\n    mode: \"0644\"\n  notify: Reload nginx\n\n- name: Create the support accounts\n  ansible.builtin.user:\n    name: \"{{ item.name }}\"\n    groups: \"{{ item.groups }}\"\n    append: true\n    shell: /bin/bash\n  loop: \"{{ support_users }}\"\n\n- name: Install the monitoring agent (Debian family only)\n  ansible.builtin.apt:\n    name: prometheus-node-exporter\n    state: present\n  when: ansible_facts['os_family'] == \"Debian\"",
+        "note": "Le template templates/shop.conf.j2 utilise {{ site_name }} et {{ app_port }} ; le même play fonctionne pour la préprod avec un autre group_vars/web.yml. append: true ajoute les groupes sans retirer les autres groupes de l’utilisateur."
+      }
+    },
+    {
+      "title": "Rôles, collections et organisation d’un projet",
+      "text": [
+        "Un rôle regroupe tout ce qu’il faut pour configurer une chose (nginx, PostgreSQL, le durcissement de base de l’entreprise) dans une arborescence standard : tasks/main.yml, handlers/main.yml, templates/, files/, defaults/main.yml pour les variables que les utilisateurs sont censés modifier, vars/main.yml pour les valeurs internes, et meta/main.yml pour les dépendances et les plateformes supportées. ansible-galaxy role init roles/nginx crée le squelette. Comme l’arborescence est fixe, le module template d’un rôle trouve shop.conf.j2 dans le dossier templates/ du rôle sans chemin.",
+        "Un play utilise des rôles avec roles: [common, nginx], ou au milieu des tâches avec ansible.builtin.import_role et ansible.builtin.include_role. import_* est statique : Ansible le lit au chargement du playbook, donc les tags et le when s’appliquent à toutes les tâches à l’intérieur. include_* est dynamique : il est évalué à l’exécution, il peut donc servir dans une boucle ou dépendre du résultat d’une tâche précédente. La même paire existe pour les fichiers de tâches (import_tasks, include_tasks), et les recruteurs aiment demander la différence.",
+        "Les modules sont distribués dans des collections nommées namespace.collection : ansible.builtin est livrée avec ansible-core, community.general contient des centaines de modules de la communauté, ansible.posix fournit sysctl, mount et authorized_key, amazon.aws gère AWS, community.docker gère les conteneurs. Le paquet ansible installé avec pip ou pipx, c’est ansible-core plus une sélection de collections ; sur une installation minimale d’ansible-core, on ajoute les collections avec ansible-galaxy collection install. Listez-les avec des contraintes de version dans collections/requirements.yml pour que chaque machine et le runner CI utilisent les mêmes versions.",
+        "Ansible Galaxy est le hub public des rôles et des collections. Un rôle trouvé sur internet s’exécute en root sur vos serveurs : lisez-le avant de l’utiliser, préférez ceux qui sont bien maintenus et fixez une version. Une organisation de projet courante : ansible.cfg à la racine, inventories/prod/ et inventories/staging/ avec chacun son fichier d’hôtes et ses group_vars/, site.yml qui importe un playbook par type de serveur, roles/ pour vos propres rôles et collections/requirements.yml.",
+        "ansible.cfg fixe les valeurs par défaut du projet (chemin de l’inventaire, utilisateur distant, forks, chemin des rôles). Ansible utilise le premier qu’il trouve : le fichier indiqué par la variable d’environnement ANSIBLE_CONFIG, puis ansible.cfg dans le répertoire courant, puis ~/.ansible.cfg, puis /etc/ansible/ansible.cfg. Lancez ansible-config dump --only-changed pour voir quels réglages diffèrent des valeurs par défaut : cela explique bien des surprises du type « ça marche sur ma machine »."
+      ],
+      "points": [
+        "Dossiers d’un rôle : tasks, handlers, templates, files, defaults (faits pour être surchargés), vars, meta.",
+        "import_role / import_tasks sont statiques ; include_role / include_tasks sont dynamiques (boucles, conditions à l’exécution).",
+        "Les collections se nomment namespace.collection (ansible.builtin, community.general, ansible.posix, amazon.aws).",
+        "Fixez les versions des collections dans collections/requirements.yml et lisez les rôles Galaxy avant de les exécuter.",
+        "ansible.cfg : ANSIBLE_CONFIG, puis ./ansible.cfg, puis ~/.ansible.cfg, puis /etc/ansible/ansible.cfg."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# collections/requirements.yml\ncollections:\n  - name: community.general\n    version: \">=9.0.0,<10.0.0\"\n  - name: ansible.posix\n\n# site.yml\n- name: Base setup for every server\n  hosts: all\n  become: true\n  roles:\n    - common\n\n- name: Web servers\n  hosts: web\n  become: true\n  roles:\n    - role: nginx\n      vars:\n        nginx_worker_connections: 2048",
+        "note": "Installez les collections avec ansible-galaxy collection install -r collections/requirements.yml. Le rôle nginx lit nginx_worker_connections dans son defaults/main.yml, sauf si le play (ou les group_vars) fournit une autre valeur."
+      }
+    },
+    {
+      "title": "Les secrets avec Ansible Vault, et l’élévation de privilèges",
+      "text": [
+        "Les mots de passe de base de données, les jetons d’API et les clés TLS ne doivent jamais être stockés en clair dans Git. Ansible Vault chiffre des fichiers entiers ou des valeurs isolées en AES256, et Ansible les déchiffre en mémoire pendant l’exécution. Les commandes : ansible-vault create, edit, view, encrypt, decrypt et rekey (changer le mot de passe), plus encrypt_string pour chiffrer une valeur à coller dans un fichier de variables normal. Le fichier chiffré commence par $ANSIBLE_VAULT;1.1;AES256 et peut être commité sans risque.",
+        "Un schéma recommandé garde les secrets faciles à retrouver : dans group_vars/db/vars.yml, on écrit db_password: \"{{ vault_db_password }}\", et dans group_vars/db/vault.yml (chiffré) on définit vault_db_password. Un grep sur db_password trouve toujours où il est utilisé, et le préfixe vault_ indique où se trouve la vraie valeur. Fournissez le mot de passe avec --ask-vault-pass, ou --vault-password-file qui pointe vers un fichier hors du dépôt (ou un script qui le lit dans un gestionnaire de secrets). --vault-id dev@prompt --vault-id prod@~/.vault_pass_prod permet d’utiliser des mots de passe différents par environnement dans un même passage.",
+        "Vault protège les secrets au repos, pas pendant l’exécution : une tâche qui manipule un mot de passe peut l’afficher dans la sortie, surtout avec -v ou --diff. Ajoutez no_log: true à ces tâches, et gardez en tête que quiconque a le mot de passe Vault et l’accès au nœud de contrôle peut tout lire. Les équipes plus grandes gardent souvent les secrets dans un gestionnaire dédié (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault) et les lisent à l’exécution avec un lookup plugin de la collection correspondante.",
+        "L’élévation de privilèges s’appelle become. La bonne pratique est de se connecter avec un utilisateur normal (deploy) et une clé SSH, la connexion root étant désactivée, et de ne passer root que là où c’est nécessaire : become: true sur le play ou sur une tâche, les règles sudo du serveur décidant de ce qui est permis. become_user: postgres exécute une tâche sous un autre utilisateur (par exemple une commande psql), become_method choisit sudo (par défaut), su ou d’autres. Quand sudo demande un mot de passe, lancez avec --ask-become-pass (-K).",
+        "Les erreurs classiques se reconnaissent facilement une fois qu’on les a vues. Une tâche qui installe un paquet ou écrit dans /etc sans become échoue avec une erreur de droits (« Permission denied », ou apt qui n’obtient pas son fichier de verrou). « Missing sudo password » signifie que become est actif mais que sudo attend un mot de passe que vous n’avez pas fourni. Et un play qui se connecte partout en root fonctionne, mais ne laisse aucune trace de qui a fait quoi et casse le jour où l’équipe sécurité désactive les connexions SSH root."
+      ],
+      "points": [
+        "ansible-vault create / edit / view / encrypt / rekey, et encrypt_string pour une seule valeur.",
+        "Schéma : db_password: \"{{ vault_db_password }}\" dans vars.yml, la vraie valeur dans vault.yml chiffré.",
+        "--ask-vault-pass, --vault-password-file (hors du dépôt) ou plusieurs --vault-id.",
+        "no_log: true sur les tâches qui manipulent des secrets : Vault ne les protège qu’au repos.",
+        "become: true pour passer root via sudo, become_user pour un autre compte, -K pour fournir le mot de passe sudo."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# Create an encrypted variables file (opens your editor)\nansible-vault create inventories/prod/group_vars/db/vault.yml\n\n# Edit it later, or read it without writing a decrypted copy to disk\nansible-vault edit inventories/prod/group_vars/db/vault.yml\nansible-vault view inventories/prod/group_vars/db/vault.yml\n\n# Encrypt one value to paste into a vars file\n# (type the secret, then Ctrl+D: it never lands in your shell history)\nansible-vault encrypt_string --stdin-name 'vault_db_password'\n\n# Run with the vault password from a file kept outside the repository\nansible-playbook -i inventories/prod site.yml --vault-password-file ~/.vault_pass_prod\n\n# Connect as deploy, become root with sudo, ask for the sudo password\nansible-playbook -i inventories/prod site.yml --ask-become-pass",
+        "note": "Ne commitez jamais le fichier de mot de passe Vault : ajoutez-le au .gitignore et gardez-le en droits 600. ansible-vault view affiche le contenu sans laisser de copie déchiffrée sur le disque, contrairement à decrypt."
+      }
+    },
+    {
+      "title": "Tester et exécuter sans risque : check, diff, limit, tags, lint et Molecule",
+      "text": [
+        "Avant de modifier la production, commencez par les contrôles qui ne coûtent rien. --syntax-check analyse le playbook sans contacter aucun hôte. --list-hosts montre les hôtes que le play viserait et --list-tasks les tâches qui tourneraient, ce qui attrape un mauvais motif ou un --limit oublié avant que quoi que ce soit ne se passe. Ensuite, le check mode : --check (-C) exécute le play sans rien modifier, et les modules qui le supportent indiquent ce qu’ils changeraient.",
+        "Le check mode a des limites à connaître. Les tâches command et shell sont sautées, car Ansible ne peut pas les simuler. Une tâche peut échouer en check mode parce qu’une tâche précédente n’a pas vraiment eu lieu : le paquet n’a pas été installé, donc le service à démarrer n’existe pas encore. check_mode: false sur une tâche en lecture seule la fait tourner pour de vrai même en check mode (par exemple une commande qui lit une version), et check_mode: true sur une tâche la fait toujours simuler. --diff (-D) affiche l’avant et l’après de chaque modification de fichier et de template ; --check --diff ensemble, c’est l’aperçu standard à joindre à une demande de changement.",
+        "--limit (-l) restreint le passage à un hôte, un groupe ou un motif : le déroulé habituel, c’est d’abord un serveur canari, puis le groupe. Les tags sélectionnent des parties d’un playbook : tags: [nginx] sur des tâches ou des rôles, puis --tags nginx ou --skip-tags packages. Le tag spécial always tourne sauf s’il est exclu, never ne tourne que si on le demande. Pour une mise à jour progressive (rolling update) d’une ferme web, serial: 2 (ou \"25%\") exécute tout le play sur quelques hôtes à la fois, et max_fail_percentage arrête le déploiement quand trop d’hôtes d’un lot échouent, pour qu’un mauvais changement ne fasse pas tomber tous les serveurs d’un coup.",
+        "ansible-lint vérifie un projet par rapport aux bonnes pratiques : FQCN pour les modules, un name sur chaque tâche, command ou shell utilisé là où un module existe, droits de fichiers risqués, format YAML. Lancez-le dans un hook pre-commit et en CI sur chaque pull request. Quand une tâche échoue, ajoutez -v jusqu’à -vvvv pour plus de détails (-vvvv montre la connexion SSH), utilisez --start-at-task \"Deploy the site configuration\" pour reprendre, ou --step pour confirmer chaque tâche.",
+        "Molecule teste un rôle sur des instances jetables, en général des conteneurs (Docker ou Podman) ou des VM. molecule test enchaîne une séquence complète : créer les instances, converge (appliquer le rôle), relancer le rôle une seconde fois et échouer si quelque chose renvoie changed (le contrôle d’idempotence), verify (des assertions écrites en tâches Ansible ou avec un outil de test), puis destroy. L’idempotence passe ainsi de la promesse au test, et c’est ce que les recruteurs attendent quand ils demandent « comment testez-vous vos rôles ? »."
+      ],
+      "points": [
+        "--syntax-check, --list-hosts et --list-tasks d’abord : ils ne touchent à rien.",
+        "--check (-C) simule ; command et shell sont sautés ; check_mode: false force une tâche en lecture seule.",
+        "--diff (-D) montre les modifications de fichiers ; --check --diff est l’aperçu standard.",
+        "--limit pour un canari, les tags pour une partie du playbook, serial et max_fail_percentage pour les rolling updates.",
+        "ansible-lint sur chaque pull request ; molecule test vérifie converge, idempotence et verify."
+      ],
+      "example": {
+        "lang": "bash",
+        "code": "# Cheap checks first\nansible-playbook -i inventories/prod site.yml --syntax-check\nansible-playbook -i inventories/prod site.yml --list-hosts --list-tasks --tags nginx\n\n# Dry run with the file differences, on one canary server\nansible-playbook -i inventories/prod site.yml --check --diff --limit web01.example.com\n\n# Real run on the canary, then on every web server\nansible-playbook -i inventories/prod site.yml --limit web01.example.com\nansible-playbook -i inventories/prod site.yml --limit web --tags nginx\n\n# Lint the project, then test one role in throwaway containers\nansible-lint\ncd roles/nginx && molecule test",
+        "note": "Le passage sur le canari est le filet de sécurité que le check mode ne peut pas offrir : le changement a vraiment lieu, mais sur un seul serveur. Si ça tourne mal, les autres serveurs web servent toujours le trafic."
+      }
+    },
+    {
+      "title": "Ansible dans un pipeline, avec Terraform et le cloud",
+      "text": [
+        "En équipe, les passages en production ne devraient pas partir de postes de travail avec la version d’Ansible que chacun a installée. Un pipeline typique : à chaque pull request, ansible-lint, --syntax-check et un --check --diff sur la préprod, avec le diff publié pour le relecteur ; après le merge, le vrai passage sur la préprod, puis sur la production après une validation. Le runner récupère la clé SSH et le mot de passe Vault dans le coffre de secrets de la CI, et les versions des collections viennent de requirements.yml : chaque passage est reproductible et tracé.",
+        "Terraform et Ansible se rejoignent au niveau de l’inventaire. Terraform crée les serveurs et connaît leurs adresses ; Ansible a besoin d’une liste d’hôtes. Le pont le plus simple est un output Terraform écrit dans un fichier d’inventaire. Le plus robuste est l’inventaire dynamique : un inventory plugin interroge l’API du cloud au début de chaque passage pour obtenir la liste actuelle des serveurs, si bien que l’inventaire n’est jamais périmé. Le plugin amazon.aws.aws_ec2, par exemple, regroupe les instances selon leurs tags : les serveurs que Terraform a tagués role=web se retrouvent dans le groupe role_web, prêts pour --limit role_web.",
+        "Deux autres schémas méritent d’être connus. Avec les images immuables, Packer lance Ansible une fois pour construire une image machine, et Terraform démarre les serveurs à partir d’elle ; un changement signifie construire une nouvelle image, pas modifier les serveurs en marche. Avec cloud-init, le serveur configure lui-même son premier démarrage, souvent juste assez pour installer la clé SSH qu’utilisera Ansible. Dans les environnements Kubernetes, Ansible configure moins l’intérieur des serveurs et davantage ce qui les entoure : nœuds du cluster, équipements réseau, VM historiques et opérations ponctuelles.",
+        "AWX est le projet open source amont de Red Hat Ansible Automation Platform, dont l’automation controller s’appelait auparavant Ansible Tower. Les deux placent une interface web et une API REST devant Ansible : des job templates (un playbook plus un inventaire plus des identifiants), des droits par rôle (l’équipe support peut lancer « redémarrer l’appli de paiement » sans jamais voir la clé SSH), des planifications, des surveys qui demandent quelques paramètres, et un journal de chaque job. Les execution environments, des images de conteneur contenant ansible-core, les collections et leurs dépendances Python, rendent les passages identiques partout ; ansible-builder les construit et ansible-navigator exécute les playbooks à l’intérieur.",
+        "Les entretiens DevOps et support reviennent toujours aux mêmes sujets : ce que signifie l’idempotence et comment rendre une tâche shell idempotente, agentless et push face à Puppet ou Chef, Ansible face à Terraform, les handlers, la priorité des variables, Vault et no_log, import face à include, comment déployer sur 50 serveurs sans risque (check, diff, canari, serial) et comment déboguer un passage qui a échoué sur certains hôtes. Répondez avec un passage concret que vous avez fait : la commande, ce qui a échoué, comment vous l’avez trouvé dans le recap et la sortie verbeuse, et ce que vous avez changé pour que cela ne se reproduise pas."
+      ],
+      "points": [
+        "Pipeline : lint, contrôle de syntaxe et --check --diff sur les pull requests ; vrais passages depuis le runner après relecture.",
+        "Les inventory plugins dynamiques (amazon.aws.aws_ec2) construisent les groupes à partir des tags cloud à chaque passage.",
+        "Packer + Ansible fabrique des images ; cloud-init gère le premier démarrage.",
+        "AWX est l’amont d’Ansible Automation Platform : job templates, identifiants, RBAC, planifications, journaux.",
+        "Execution environments = images de conteneur avec ansible-core, les collections et les dépendances Python."
+      ],
+      "example": {
+        "lang": "yaml",
+        "code": "# inventories/aws/aws_ec2.yml (the file name must end in aws_ec2.yml)\nplugin: amazon.aws.aws_ec2\nregions:\n  - eu-west-3\nfilters:\n  instance-state-name: running\n  tag:env: prod\nkeyed_groups:\n  - key: tags.role\n    prefix: role\nhostnames:\n  - private-ip-address\n\n# Check what it finds: servers tagged role=web land in the group role_web\n#   ansible-inventory -i inventories/aws/aws_ec2.yml --graph\n# Then configure them\n#   ansible-playbook -i inventories/aws/aws_ec2.yml web.yml --limit role_web",
+        "note": "Le plugin a besoin de la collection amazon.aws et des bibliothèques Python boto3 et botocore sur le nœud de contrôle, ainsi que d’identifiants AWS avec un accès en lecture à EC2. Terraform pose les tags role et env ; Ansible n’a jamais besoin d’une liste d’hôtes écrite à la main."
+      }
+    }
+  ],
+  "cheatsheet": [
+    {
+      "group": "Commandes",
+      "items": [
+        [
+          "ansible-playbook -i inventories/prod site.yml",
+          "Lancer un playbook sur un inventaire"
+        ],
+        [
+          "ansible web -m ansible.builtin.command -a \"uptime\"",
+          "Commande ad hoc : un module sur un groupe d’hôtes"
+        ],
+        [
+          "ansible-inventory --graph",
+          "Afficher les groupes et hôtes vus par Ansible"
+        ],
+        [
+          "ansible web01.example.com -m ansible.builtin.setup",
+          "Afficher les facts d’un hôte"
+        ],
+        [
+          "ansible-galaxy collection install -r collections/requirements.yml",
+          "Installer les collections aux versions fixées"
+        ],
+        [
+          "ansible-galaxy role init roles/nginx",
+          "Créer le squelette d’un rôle"
+        ]
+      ]
+    },
+    {
+      "group": "Inventaire et variables",
+      "items": [
+        [
+          "[prod:children]",
+          "INI : un groupe composé d’autres groupes"
+        ],
+        [
+          "ansible_host / ansible_user / ansible_port",
+          "Comment joindre un hôte"
+        ],
+        [
+          "group_vars/web.yml",
+          "Variables du groupe web"
+        ],
+        [
+          "host_vars/web01.example.com.yml",
+          "Variables d’un seul hôte"
+        ],
+        [
+          "-e app_port=9000",
+          "Extra vars : l’emportent toujours sur tous les autres niveaux"
+        ],
+        [
+          "role defaults",
+          "Variables les plus faibles, faites pour être surchargées"
+        ]
+      ]
+    },
+    {
+      "group": "Mots-clés de playbook",
+      "items": [
+        [
+          "hosts: web",
+          "Les hôtes visés par le play"
+        ],
+        [
+          "become: true",
+          "Exécuter avec les droits root (sudo par défaut)"
+        ],
+        [
+          "notify: Reload nginx",
+          "Déclencher le handler qui porte exactement ce nom si la tâche a changé"
+        ],
+        [
+          "handlers",
+          "Tâches exécutées une fois à la fin du play, seulement si notifiées"
+        ],
+        [
+          "when: ansible_facts['os_family'] == \"Debian\"",
+          "N’exécuter une tâche que si la condition est vraie (sans accolades)"
+        ],
+        [
+          "loop",
+          "Répéter une tâche pour chaque élément, lu dans {{ item }}"
+        ],
+        [
+          "register",
+          "Enregistrer le résultat d’une tâche dans une variable"
+        ],
+        [
+          "serial: 2",
+          "Rolling update : exécuter le play sur 2 hôtes à la fois"
+        ]
+      ]
+    },
+    {
+      "group": "Modules",
+      "items": [
+        [
+          "ansible.builtin.apt / ansible.builtin.dnf",
+          "Installer des paquets (famille Debian / RHEL)"
+        ],
+        [
+          "ansible.builtin.copy",
+          "Envoyer un fichier statique"
+        ],
+        [
+          "ansible.builtin.template",
+          "Produire un fichier Jinja2 .j2 avec des variables"
+        ],
+        [
+          "ansible.builtin.service",
+          "Démarrer, arrêter, recharger ou activer un service"
+        ],
+        [
+          "ansible.builtin.user",
+          "Gérer un compte local"
+        ],
+        [
+          "ansible.builtin.file",
+          "Répertoires, propriétaires, droits, liens symboliques, state: absent"
+        ],
+        [
+          "ansible.builtin.lineinfile",
+          "Garantir qu’une ligne est présente dans un fichier"
+        ],
+        [
+          "ansible.builtin.command / shell",
+          "Dernier recours, non idempotent sans creates, removes ou changed_when"
+        ]
+      ]
+    },
+    {
+      "group": "Passages sûrs et secrets",
+      "items": [
+        [
+          "--check (-C)",
+          "Simulation : indiquer ce qui changerait"
+        ],
+        [
+          "--diff (-D)",
+          "Afficher l’avant et l’après des modifications de fichiers"
+        ],
+        [
+          "--limit (-l)",
+          "N’exécuter que sur un hôte, un groupe ou un motif"
+        ],
+        [
+          "--tags / --skip-tags",
+          "Exécuter ou sauter les tâches taguées"
+        ],
+        [
+          "ansible-lint",
+          "Vérifier le projet par rapport aux bonnes pratiques"
+        ],
+        [
+          "molecule test",
+          "Create, converge, idempotence, verify, destroy"
+        ],
+        [
+          "ansible-vault edit",
+          "Modifier un fichier chiffré"
+        ],
+        [
+          "no_log: true",
+          "Masquer les valeurs d’une tâche dans la sortie"
+        ]
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Utiliser shell ou command là où un module existe : la tâche renvoie changed à chaque passage et « echo >> fichier » ajoute la même ligne encore et encore.",
+    "Un notify qui ne correspond pas exactement au nom du handler : le play s’arrête avec « handler not found ». Renommer un handler plus tard casse toutes les tâches qui le notifient.",
+    "Un service avec state: restarted dans les tâches normales : chaque passage redémarre le service et provoque une petite coupure. Utilisez state: started et un handler pour les redémarrages.",
+    "Lancer tout un playbook sur la production sans --check --diff et sans un --limit sur un serveur canari d’abord.",
+    "Commiter le fichier de mot de passe Vault, ou afficher des secrets dans la sortie parce que la tâche n’a pas no_log: true.",
+    "Définir la même variable dans group_vars, dans le play et avec -e, puis se demander quelle valeur l’a emporté : une variable, un seul endroit.",
+    "Installer des rôles ou des collections Galaxy sans fixer de version : une nouvelle publication change le comportement au passage suivant."
+  ],
+  "exercises": [
+    {
+      "q": "Trouvez le bug : après cinq passages de ce playbook, /etc/sysctl.conf contient cinq fois la ligne swappiness. Quelle ligne ?",
+      "type": "bug",
+      "lang": "yaml",
+      "snippet": "- name: Tune the kernel on the database servers\n  hosts: db\n  become: true\n  tasks:\n    - name: Lower swappiness\n      ansible.builtin.shell: echo \"vm.swappiness=10\" >> /etc/sysctl.conf\n\n    - name: Make sure chrony runs\n      ansible.builtin.service:\n        name: chrony\n        state: started\n        enabled: true",
+      "line": 6,
+      "fix": "    - name: Lower swappiness\n      ansible.posix.sysctl:\n        name: vm.swappiness\n        value: \"10\"\n        state: present",
+      "hint": "Quelle tâche ne peut pas savoir si son travail est déjà fait ?",
+      "answer": "La tâche shell ajoute la ligne à chaque passage et renvoie toujours changed : elle n’est pas idempotente. Utilisez le module ansible.posix.sysctl (il fixe la valeur et l’applique), ou ansible.builtin.lineinfile avec une regexp ^vm.swappiness= pour que la ligne existe une seule fois."
+    },
+    {
+      "q": "Trouvez le bug : le play s’arrête avec « The requested handler 'Restart nginx' was not found ». L’équipe veut un rechargement, pas un redémarrage. Quelle ligne est fausse ?",
+      "type": "bug",
+      "lang": "yaml",
+      "snippet": "- name: Configure nginx\n  hosts: web\n  become: true\n  tasks:\n    - name: Deploy the site configuration\n      ansible.builtin.template:\n        src: shop.conf.j2\n        dest: /etc/nginx/conf.d/shop.conf\n      notify: Restart nginx\n\n    - name: Make sure nginx runs\n      ansible.builtin.service:\n        name: nginx\n        state: started\n        enabled: true\n\n  handlers:\n    - name: Reload nginx\n      ansible.builtin.service:\n        name: nginx\n        state: reloaded",
+      "line": 9,
+      "fix": "      notify: Reload nginx",
+      "hint": "Comparez le notify avec la liste des handlers.",
+      "answer": "notify doit reprendre le nom exact du handler. Le handler s’appelle Reload nginx, donc la tâche doit indiquer notify: Reload nginx. Un handler peut aussi déclarer listen: un sujet, et les tâches notifient alors ce sujet."
+    },
+    {
+      "q": "Remettez dans l’ordre ce que fait ansible-playbook pour un play (réglages par défaut).",
+      "type": "order",
+      "steps": [
+        "Lire l’inventaire et sélectionner les hôtes du play",
+        "Collecter les facts sur ces hôtes",
+        "Exécuter la première tâche sur tous les hôtes (5 à la fois), puis la suivante, et ainsi de suite",
+        "Exécuter les handlers notifiés par une tâche en changed",
+        "Afficher le PLAY RECAP avec ok, changed, unreachable et failed pour chaque hôte"
+      ],
+      "answer": "Avec la stratégie linear par défaut, chaque tâche se termine sur tous les hôtes avant que la suivante ne commence. Les handlers viennent après toutes les tâches du play, une fois chacun, et le recap clôt le passage."
+    },
+    {
+      "q": "Associez chaque module à son usage.",
+      "type": "match",
+      "pairs": [
+        [
+          "ansible.builtin.apt",
+          "Installer un paquet sur Ubuntu"
+        ],
+        [
+          "ansible.builtin.template",
+          "Produire un fichier de configuration à partir d’un fichier Jinja2 et de variables"
+        ],
+        [
+          "ansible.builtin.lineinfile",
+          "Garantir qu’une ligne est présente dans sshd_config"
+        ],
+        [
+          "ansible.builtin.service",
+          "Démarrer nginx et l’activer au boot"
+        ],
+        [
+          "ansible.builtin.user",
+          "Créer le compte d’un nouvel ingénieur support"
+        ],
+        [
+          "ansible.builtin.file",
+          "Créer /opt/app avec le propriétaire app et les droits 0750"
+        ]
+      ],
+      "answer": "Chaque module décrit un état et le vérifie avant d’agir, c’est ce qui rend le playbook idempotent. copy serait le choix pour un fichier statique sans variables."
+    },
+    {
+      "q": "Classez ces tâches : idempotentes telles qu’écrites, ou non idempotentes (le second passage modifie encore quelque chose, renvoie toujours changed, ou échoue).",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Idempotentes",
+          "items": [
+            "apt avec name: nginx et state: present",
+            "lineinfile avec une regexp et une line",
+            "service avec state: started",
+            "command avec creates: /opt/app/.installed",
+            "file avec state: directory"
+          ]
+        },
+        {
+          "name": "Non idempotentes",
+          "items": [
+            "shell: echo \"10.0.0.5 db\" >> /etc/hosts",
+            "service avec state: restarted",
+            "command: useradd deploy",
+            "command: systemctl restart app"
+          ]
+        }
+      ],
+      "answer": "Les modules avec un state vérifient d’abord et n’agissent que si besoin. creates: fait sauter la commande une fois le fichier présent. echo >> ajoute à chaque fois, restarted et une commande de redémarrage redémarrent à chaque passage, et useradd échoue au second passage car l’utilisateur existe déjà (utilisez ansible.builtin.user)."
+    },
+    {
+      "q": "Prédisez : qu’affiche le PLAY RECAP au second passage ?",
+      "type": "choice",
+      "lang": "yaml",
+      "snippet": "# site.yml: gather facts, then 3 tasks\n#   apt: nginx state=present\n#   copy: files/shop.conf -> /etc/nginx/conf.d/shop.conf\n#   service: nginx state=started enabled=true\n\n# First run on a new server:\nPLAY RECAP\nweb01.example.com : ok=4 changed=2 unreachable=0 failed=0 skipped=0\n\n# Nobody touched the server since. You run the same playbook again.",
+      "options": [
+        "ok=4 changed=0",
+        "ok=4 changed=2",
+        "ok=2 changed=0 skipped=2",
+        "ok=0 changed=0, rien ne s’exécute"
+      ],
+      "correct": 0,
+      "answer": "Chaque tâche s’exécute toujours et vérifie l’état, donc les quatre sont ok ; rien ne diffère de l’état souhaité, donc changed=0. Le compteur ok inclut les tâches changed, c’est pourquoi le premier passage affichait déjà ok=4. Un changed sur un serveur que personne n’a touché signalerait une tâche non idempotente ou une dérive."
+    },
+    {
+      "q": "Quelle valeur d’app_port reçoit web01.example.com ?",
+      "type": "choice",
+      "lang": "yaml",
+      "snippet": "# inventories/prod/group_vars/all.yml\napp_port: 8080\n# inventories/prod/group_vars/web.yml\napp_port: 8081\n# inventories/prod/host_vars/web01.example.com.yml\napp_port: 8082\n\n# Command\nansible-playbook -i inventories/prod site.yml -e app_port=9000",
+      "options": [
+        "8080",
+        "8081",
+        "8082",
+        "9000"
+      ],
+      "correct": 3,
+      "answer": "Les extra vars passées avec -e ont la priorité la plus haute et l’emportent sur tout. Sans -e, host_vars (8082) l’emporterait sur group_vars/web.yml (8081), qui l’emporte sur group_vars/all.yml (8080)."
+    },
+    {
+      "q": "Complétez les trois mots-clés : droits root pour le play, déclencher le handler, répéter la tâche pour chaque utilisateur.",
+      "type": "fill",
+      "lang": "yaml",
+      "snippet": "- name: Configure chrony\n  hosts: all\n  ___: true\n  tasks:\n    - name: Deploy chrony.conf\n      ansible.builtin.template:\n        src: chrony.conf.j2\n        dest: /etc/chrony/chrony.conf\n      ___: Restart chrony\n\n    - name: Create the support users\n      ansible.builtin.user:\n        name: \"{{ item }}\"\n      ___:\n        - amel\n        - karim\n\n  handlers:\n    - name: Restart chrony\n      ansible.builtin.service:\n        name: chrony\n        state: restarted",
+      "blanks": [
+        [
+          "become"
+        ],
+        [
+          "notify"
+        ],
+        [
+          "loop",
+          "with_items"
+        ]
+      ],
+      "hint": "Élévation de privilèges, déclenchement du handler, répétition.",
+      "answer": "become: true donne les droits root via sudo, notify: nomme le handler à lancer si le template a changé, et loop: répète la tâche avec {{ item }} valant chaque utilisateur (with_items est l’ancienne forme)."
+    },
+    {
+      "q": "Complétez les options : une simulation, avec les différences de fichiers, sur un seul serveur.",
+      "type": "fill",
+      "lang": "bash",
+      "snippet": "# Preview the changes, with file differences, on one server only\nansible-playbook -i inventories/prod site.yml ___ ___ ___ web01.example.com",
+      "blanks": [
+        [
+          "--check",
+          "-C"
+        ],
+        [
+          "--diff",
+          "-D"
+        ],
+        [
+          "--limit",
+          "-l"
+        ]
+      ],
+      "hint": "Simuler, montrer les différences, restreindre les hôtes.",
+      "answer": "--check simule le passage, --diff affiche l’avant et l’après de chaque fichier, et --limit restreint le passage à web01.example.com. C’est l’aperçu standard avant un changement en production."
+    },
+    {
+      "q": "Scénario : vous déployez une nouvelle version de nginx avec un playbook sur 20 serveurs web. Prenez chaque décision.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Le PLAY RECAP montre 17 serveurs avec failed=0 et 3 serveurs (web07, web12, web18) avec failed=1 sur la tâche « Install nginx ». Le site fonctionne toujours.",
+          "choices": [
+            {
+              "label": "Lire le message d’erreur de la tâche en échec sur les 3 serveurs",
+              "best": true,
+              "feedback": "Exact : le recap dit où, la sortie de la tâche dit pourquoi. Relancez avec -v si le message est trop court."
+            },
+            {
+              "label": "Ajouter ignore_errors: true à la tâche et relancer",
+              "feedback": "Cela masque l’échec : les 3 serveurs restent sur l’ancienne version et les tâches suivantes tournent sur un hôte à moitié configuré."
+            },
+            {
+              "label": "Reconstruire les 3 serveurs de zéro",
+              "feedback": "Bien trop lourd avant même de connaître la cause, et vous perdez les éléments d’analyse."
+            }
+          ]
+        },
+        {
+          "text": "L’erreur est « Could not get lock /var/lib/dpkg/lock-frontend » : unattended-upgrades tournait sur ces 3 serveurs. Il a terminé maintenant.",
+          "choices": [
+            {
+              "label": "Relancer le même playbook avec --limit web07.example.com,web12.example.com,web18.example.com",
+              "best": true,
+              "feedback": "Le playbook est idempotent, le relancer est donc sans risque, et --limit cantonne le changement aux 3 serveurs concernés. Le recap doit maintenant afficher changed sur eux et failed=0."
+            },
+            {
+              "label": "Se connecter en SSH aux 3 serveurs et lancer apt install à la main",
+              "feedback": "Ça règle le problème du jour, mais les serveurs ne sont plus configurés par le playbook : les handlers et les tâches suivantes n’ont pas tourné, et rien n’en garde la trace."
+            },
+            {
+              "label": "Relancer le playbook sur les 20 serveurs sans --limit",
+              "feedback": "Ça fonctionne puisque le playbook est idempotent, mais cela touche 17 serveurs qui allaient bien et élargit le risque sans rien gagner."
+            }
+          ]
+        },
+        {
+          "text": "Votre lead demande comment sécuriser le prochain déploiement.",
+          "choices": [
+            {
+              "label": "Rolling update avec serial et max_fail_percentage, un passage canari avec --limit d’abord, et un retry sur la tâche apt (register, until, retries, delay)",
+              "best": true,
+              "feedback": "Un échec arrête désormais un petit lot au lieu de toute la ferme, et un verrou apt passager est retenté au lieu d’échouer."
+            },
+            {
+              "label": "Lancer à chaque fois en -vvvv pour avoir des journaux complets",
+              "feedback": "Plus de détails aide au débogage, mais n’empêche rien et peut afficher des valeurs sensibles."
+            },
+            {
+              "label": "Ne plus utiliser de playbook pour les mises à jour de nginx",
+              "feedback": "Le faire à la main ramène la dérive et les erreurs sur 20 serveurs."
+            }
+          ]
+        }
+      ],
+      "answer": "Repérez les hôtes en échec dans le recap, lisez l’erreur de la tâche, corrigez la cause, puis relancez le playbook idempotent sur les seuls hôtes en échec. Évitez la récidive avec des lots serial, max_fail_percentage, un canari et des retries sur les tâches fragiles."
+    },
+    {
+      "q": "Écrivez un play pour les serveurs Ubuntu de l’inventaire : installer chrony, déployer /etc/chrony/chrony.conf à partir de templates/chrony.conf.j2 (propriétaire root, droits 0644), redémarrer chrony seulement si le fichier a changé, et garantir que le service tourne et démarre au boot.",
+      "code": "yaml",
+      "hint": "apt, template avec notify, service started et enabled, un handler.",
+      "answer": "- name: Time synchronisation on the Ubuntu servers\n  hosts: all\n  become: true\n  tasks:\n    - name: Install chrony\n      ansible.builtin.apt:\n        name: chrony\n        state: present\n        update_cache: true\n        cache_valid_time: 3600\n\n    - name: Deploy chrony.conf from the template\n      ansible.builtin.template:\n        src: templates/chrony.conf.j2\n        dest: /etc/chrony/chrony.conf\n        owner: root\n        group: root\n        mode: \"0644\"\n      notify: Restart chrony\n\n    - name: Make sure chrony runs and starts at boot\n      ansible.builtin.service:\n        name: chrony\n        state: started\n        enabled: true\n\n  handlers:\n    - name: Restart chrony\n      ansible.builtin.service:\n        name: chrony\n        state: restarted"
+    },
+    {
+      "q": "Votre équipe utilise déjà Terraform pour AWS. Un manager demande pourquoi vous voulez aussi Ansible. Répondez en quelques lignes, comme en entretien.",
+      "hint": "Provisionnement ou configuration, état, comment ils se relient.",
+      "answer": "Terraform provisionne : il crée le VPC, les security groups, les instances EC2 et les bases de données via l’API AWS et garde un fichier d’état. Ansible configure ce qui tourne dans les serveurs : paquets, fichiers de configuration, utilisateurs, services, et orchestre des opérations comme un déploiement progressif avec serial. Il est agentless en SSH et idempotent : le même playbook reconstruit un serveur ou corrige une dérive. Les deux se relient par un inventaire dynamique (amazon.aws.aws_ec2 regroupe les instances selon les tags posés par Terraform), et tournent depuis le même pipeline après relecture. Terraform construit la maison, Ansible la meuble."
+    }
+  ],
+  "interview": [
+    {
+      "q": "Que signifie l’idempotence dans Ansible, et comment rendre une tâche shell idempotente ?",
+      "a": "Lancer deux fois le même playbook donne le même résultat et le second passage ne change rien (changed=0). Les modules y arrivent en vérifiant l’état actuel avant d’agir. Pour command ou shell, je cherche d’abord un module qui fait le travail ; s’il n’y en a pas, j’ajoute creates: ou removes: pour que la commande soit sautée quand son résultat existe déjà, ou changed_when: selon la sortie, et je préfère command à shell sauf besoin de pipes. Je le vérifie en lançant deux fois, ou avec l’étape idempotence de Molecule."
+    },
+    {
+      "q": "Ansible est agentless et fonctionne en push. Qu’est-ce que cela veut dire, et comment se compare-t-il à Puppet ou Chef ?",
+      "a": "Rien n’est installé sur les nœuds gérés : le nœud de contrôle se connecte en SSH (ou WinRM pour Windows), copie des modules Python, les exécute et les supprime, le serveur n’a donc besoin que de SSH et de Python. Push signifie que le passage démarre quand on lance ansible-playbook, depuis un poste, un runner CI ou AWX. Puppet et Chef installent un agent qui récupère sa configuration auprès d’un serveur à intervalle régulier et corrige la dérive en continu. Ansible est plus simple à adopter et excellent pour les déploiements et l’orchestration ; les agents en pull sont plus forts pour l’application continue, besoin que couvrent ansible-pull ou des jobs planifiés dans AWX."
+    },
+    {
+      "q": "Qu’est-ce qu’un handler, et quand s’exécute-t-il ?",
+      "a": "Un handler est une tâche qui ne s’exécute que lorsqu’une autre tâche la notifie avec son nom exact (ou un sujet listen) et que cette tâche a renvoyé changed. Il s’exécute une seule fois, après toutes les tâches du play, même si plusieurs tâches l’ont notifié. Usage typique : recharger nginx seulement quand sa configuration a changé. Si le play échoue avant la fin, les handlers notifiés ne tournent pas sauf avec --force-handlers, et meta: flush_handlers les lance plus tôt quand une tâche suivante a besoin de la nouvelle configuration."
+    },
+    {
+      "q": "Une variable n’a pas la valeur attendue. Comment la déboguez-vous ?",
+      "a": "Je garde en tête l’ordre de priorité principal : role defaults, puis group_vars/all, les group_vars du groupe, host_vars, les vars du play, les vars de rôle et de tâche, set_fact et les résultats enregistrés, et les extra vars passées avec -e l’emportent sur tout. Je cherche où la variable est définie avec un grep sur le projet, je l’affiche avec une tâche ansible.builtin.debug ou ansible-inventory --host web01.example.com, et je vérifie si quelqu’un passe un -e dans le pipeline. Puis je corrige en la définissant à un seul endroit."
+    },
+    {
+      "q": "Comment gérez-vous les secrets dans Ansible ?",
+      "a": "Avec Ansible Vault : un vault.yml chiffré par groupe contenant des variables vault_, référencées depuis un vars.yml en clair pour qu’elles restent trouvables. Le mot de passe Vault ne va jamais dans Git : le runner CI le récupère dans son coffre de secrets via --vault-password-file ou --vault-id, un par environnement. Les tâches qui manipulent des secrets ont no_log: true, car Vault ne protège les données qu’au repos. Sur des environnements plus grands, je lirais les secrets à l’exécution dans un gestionnaire comme HashiCorp Vault ou AWS Secrets Manager avec un lookup plugin."
+    },
+    {
+      "q": "Comment déploieriez-vous un changement de configuration sur 50 serveurs de production sans risque ?",
+      "a": "ansible-lint et --syntax-check dans la pull request, puis --check --diff sur la préprod et la production pour relire exactement ce qui change. Un vrai passage avec --limit sur un serveur canari, en vérifiant le service et la supervision. Puis le déploiement avec serial par lots, par exemple 5 serveurs ou 10 % à la fois, avec max_fail_percentage pour qu’un lot en échec arrête tout, et les health checks du load balancer qui sortent les serveurs pendant qu’ils changent. Le playbook est idempotent : si quelque chose échoue, je corrige la cause et je relance sur les hôtes en échec."
+    },
+    {
+      "q": "Votre playbook a échoué sur 3 serveurs sur 20. Racontez-moi ce que vous faites.",
+      "a": "Le PLAY RECAP montre quels hôtes ont échoué et s’ils étaient unreachable (SSH, réseau, clés) ou failed (une erreur de tâche). Je lis le message de la tâche en échec, je relance en -v ou -vvv sur l’un d’eux si besoin, et je regarde le serveur : disque plein, verrou de paquets, droits sudo manquants, version d’OS différente pour laquelle il manque un when. Une fois la cause corrigée, je relance le même playbook avec --limit sur ces 3 hôtes, ce qui est sans risque puisqu’il est idempotent, et j’ajoute un correctif au playbook (un retry, un contrôle, une condition) pour qu’il n’échoue plus de la même façon."
+    },
+    {
+      "q": "Quelle est la différence entre import_tasks et include_tasks (ou import_role et include_role) ?",
+      "a": "import est statique : les tâches sont lues au chargement du playbook, donc les tags et le when posés sur l’import s’appliquent à chaque tâche à l’intérieur, et --list-tasks les affiche. include est dynamique : il est évalué quand le passage l’atteint, il peut donc boucler, utiliser des variables connues seulement à l’exécution ou dépendre d’un résultat précédent, mais les tags posés sur l’include ne s’appliquent qu’à l’include lui-même, sauf à les transmettre avec apply. J’utilise import par défaut pour la prévisibilité, et include quand j’ai besoin d’une boucle ou d’un choix à l’exécution."
+    }
+  ]
+}

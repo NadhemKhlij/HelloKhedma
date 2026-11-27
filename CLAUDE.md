@@ -13,6 +13,7 @@ AI Engineers and Digital Marketing (path id "mk", 2026-11-09: seed, skills, inte
   business developer, account executive, key account manager, 2026-11-19: seed, "Sales" skills, interview, projects and four courses:
   sales-prospecting, sales-discovery, sales-negotiation, sales-pipeline; roadmap also uses marketing-foundations, email-crm
   and excel; La bonne alternance ROME codes D1402, D1407, D1406).
+Course review 2026-11-27: new courses ansible (do, as), azure-data (de), market-research (mk); take-home cases on every path.
 Application support in investment banks (2026-11-24): courses cib-products and cib-trade-lifecycle ("Capital markets" skills in
   js/ats.js), track as-cib on the Application Support roadmap (also listed for ba and fa).
 The selected path adapts the job search, trainings, tools, tips and ATS keywords. Includes an interactive Kanban tracker.

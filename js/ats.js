@@ -4,11 +4,14 @@
 // accent-insensitively on word boundaries, in English and French. The career-path keywords from the
 // database are added at runtime (addKeywords), so every path keyword is detectable too.
 // Course index entries (content/courses/index.json) must use these canonical names so missing skills link to a course.
+// The French labels of js/fr/skills.js (what a French page shows, i18n.js skillLabel) are matched as aliases too.
 //
 // CV files: readCvFile() reads PDF (pdf.js 4.4.168 from cdnjs, loaded only when needed; pdfPageText() rebuilds words
 // that the PDF splits into pieces) or plain text.
 // CV texts are stored by js/cvs.js in localStorage ("hk.cvs") only; never send them anywhere except the
 // confirmed "Rewrite with AI" in tailor.js.
+
+import SKILLS_FR from "./fr/skills.js";
 
 export const SKILLS = [
   // Languages
@@ -268,8 +271,9 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const aliasRe = (aliases) =>
   new RegExp(`(?<![a-z0-9+#])(?:${aliases.map((a) => esc(norm(a))).sort((x, y) => y.length - x.length).join("|")})(?![a-z0-9+#]|\\.[a-z0-9])`, "g");
 
-let compiled = SKILLS.map(([name, cat, aliases]) => ({ name, cat, re: aliasRe(aliases) }));
-const known = new Set(SKILLS.flatMap(([name, , aliases]) => [norm(name), ...aliases.map(norm)]));
+const withLabel = (name, aliases) => (SKILLS_FR[name] ? [...aliases, SKILLS_FR[name]] : aliases);
+let compiled = SKILLS.map(([name, cat, aliases]) => ({ name, cat, re: aliasRe(withLabel(name, aliases)) }));
+const known = new Set(SKILLS.flatMap(([name, , aliases]) => [norm(name), ...withLabel(name, aliases).map(norm)]));
 
 // Adds path keywords from the database that the dictionary does not already cover.
 export function addKeywords(names) {

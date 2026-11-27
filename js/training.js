@@ -135,8 +135,9 @@ function renderTracks() {
   const perWeek = Math.max(1, Number($("#hoursPerWeek").value) || 5), plan = planItems();
   const hoursLeft = plan.reduce((a, x) => a + x.hours, 0), weeks = packWeeks(plan, perWeek).length;
   $("#progress").textContent = all.length
-    ? t("{done}/{all} steps done · about {left} h left · roughly {weeks} weeks at {perWeek} h/week", {
-        done: all.length - left.length, all: all.length, left: Math.round(hoursLeft), weeks, perWeek })
+    ? tn(weeks, "{done}/{all} steps done · about {left} h left · roughly {n} week at {perWeek} h/week",
+        "{done}/{all} steps done · about {left} h left · roughly {n} weeks at {perWeek} h/week", {
+        done: all.length - left.length, all: all.length, left: Math.round(hoursLeft), perWeek })
     : t("No tracks for this path yet.");
   const next = left[0], nextCourse = next && stepCourse(next), url = next && !nextCourse && safeUrl(next.url);
   $("#nextUp").replaceChildren(...(next

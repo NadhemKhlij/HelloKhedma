@@ -11,7 +11,7 @@
 //   (the dialog shows a notice when details are not synced).
 // - Texts go through t() (i18n.js). The .ics file and CSV columns stay in English (machine-readable / shared files).
 import { $, h, safeUrl, safeColor, download } from "./lib.js";
-import { t, LOCALE } from "./i18n.js";
+import { t, tn, LOCALE } from "./i18n.js";
 import { STAGES } from "./store.js";
 import { openCardLetter } from "./letters.js";
 import { openOfferCoach } from "./offercoach.js";
@@ -133,7 +133,7 @@ export function renderStats(root, cards, goal, onGoal) {
     .sort((a, b) => b.rate - a.rate || b.sent - a.sent);
   root.replaceChildren(
     h("div", { class: "grid gap-2 grid-cols-2 md:grid-cols-5" },
-      tile(t("Applications"), String(cards.length), t("{n} saved, not sent", { n: cards.filter((c) => c.stage === "saved").length })),
+      tile(t("Applications"), String(cards.length), tn(cards.filter((c) => c.stage === "saved").length, "one|{n} saved, not sent", "{n} saved, not sent")),
       tile(t("Sent"), String(applied.length), t("{n} in the last 7 days", { n: thisWeek })),
       tile(t("Response rate"), applied.length ? `${rate}%` : "–", t("interview or offer / sent")),
       tile(t("Interviews"), String(cards.filter((c) => reached(c, "interview")).length)),

@@ -266,10 +266,11 @@ function regex(e, done, miss) {
     if (e.mode === "lines") {
       const W = new Set(expected), M = new Set(mine);
       const extra = mine.filter((l) => !W.has(l)).length, missing = expected.filter((l) => !M.has(l)).length;
-      fb.replaceChildren(say(t("Not yet: {extra} line(s) matched that should not be (✗), {missing} line(s) missed (…).", { extra, missing }), WARN));
+      fb.replaceChildren(say(t("Not yet: ") + [extra ? tn(extra, "{n} line matched that should not be (✗)", "{n} lines matched that should not be (✗)") : "",
+        missing ? tn(missing, "{n} line missed (…)", "{n} lines missed (…)") : ""].filter(Boolean).join(", ") + ".", WARN));
       miss(attempt, `${extra} line(s) matched that should not, ${missing} line(s) missed. Wrongly matched: ${mine.filter((l) => !W.has(l)).slice(0, 3).join(" | ")}. Missed: ${expected.filter((l) => !M.has(l)).slice(0, 3).join(" | ")}`);
     } else {
-      fb.replaceChildren(say(t("Not yet: your pattern finds {got} value(s), the expected answer finds {want}.", { got: mine.length, want: expected.length }), WARN),
+      fb.replaceChildren(say(tn(mine.length, "Not yet: your pattern finds {n} value, the expected answer finds {want}.", "Not yet: your pattern finds {n} values, the expected answer finds {want}.", { want: expected.length }), WARN),
         mine.length ? h("p", { class: "text-xs font-mono break-words" }, t("Yours: {list}", { list: mine.slice(0, 12).join(" · ") + (mine.length > 12 ? " …" : "") })) : null);
       miss(attempt, `The pattern extracts ${mine.length} value(s), the expected answer ${expected.length}. Learner's values: ${mine.slice(0, 12).join(" · ")}`);
     }
@@ -331,7 +332,7 @@ function json(e, done, miss) {
     }
     const ok = sameList(mine, want);
     if (ok) done(); else miss(inp.value, `Returns ${mine.length} value(s), the expected answer ${want.length}. Learner's output: ${JSON.stringify(mine).slice(0, 600)}`);
-    fb.replaceChildren(say(ok ? t("✓ Correct! Same output as the expected answer.") : t("Not yet: your filter returns {got} value(s), the expected answer returns {want}.", { got: mine.length, want: want.length }), ok ? OK : WARN),
+    fb.replaceChildren(say(ok ? t("✓ Correct! Same output as the expected answer.") : tn(mine.length, "Not yet: your filter returns {n} value, the expected answer returns {want}.", "Not yet: your filter returns {n} values, the expected answer returns {want}.", { want: want.length }), ok ? OK : WARN),
       h("p", { class: "mute text-xs" }, t("Your output:")), show(mine));
   }
   return [v.el, h("p", { class: "mute text-xs" }, t("Supported: .key .[n] .[] [ … ] | length keys select(… == value)")),

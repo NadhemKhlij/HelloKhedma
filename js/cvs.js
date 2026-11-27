@@ -3,6 +3,8 @@
 // - "hk.cvs": [{ id, name, text, path_id (career path that uses this version automatically, or null), updated_at }]
 // - "hk.cv.active": id of the version that scores offers, the CV match and the study plan.
 // - The single CV of earlier versions ("hk.cv.text") is moved into a first version named "My CV" on first load.
+// - copyName(): a copy of "My CV" is "My CV (2)", then "(3)"… (audit 2026-11-23: no more "New (copy) (copy)"); a copy
+//   of "My CV (2)" is numbered from "My CV" too, and old "(copy)" / "(copie)" endings are dropped.
 // At most one version is linked to a given path; cvpage.js (useCvForPath) activates it when that path is selected.
 import { ls } from "./lib.js";
 import { t } from "./i18n.js";
@@ -38,6 +40,14 @@ export function addCv(fields) {
   saveCvs([...list, cv]);
   setActiveCv(cv.id);
   return cv;
+}
+
+export function copyName(name, list = loadCvs()) {
+  const base = String(name || t("My CV")).replace(/(\s*\((copy|copie|\d+)\))+\s*$/i, "").trim() || t("My CV");
+  const taken = new Set(list.map((c) => c.name));
+  let n = 2;
+  while (taken.has(`${base} (${n})`)) n++;
+  return `${base} (${n})`;
 }
 
 export function updateCv(id, patch) {

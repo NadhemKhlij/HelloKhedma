@@ -135,11 +135,23 @@ Constats :
 
 ## P2 — Contenus et textes (`js/i18n-fr.js`, `js/fr/*.js`)
 
-- [ ] Traduire les compétences affichées dans l'interface en français (« Incident management » → « Gestion des incidents », « Requirements gathering » → « Recueil des besoins », « Account management » → « Gestion de comptes »…). L'identifiant interne reste en anglais pour le matching ; seul le libellé change.
-- [ ] Remplacer les pluriels génériques « (s) » par un vrai accord selon le nombre : « semaine(s) », « sauvegardée(s), non envoyée(s) », « affichée(s) ». Créer un petit helper de pluriel s'il n'existe pas.
-- [ ] Reformuler « 20 affichée(s) sur 59 · 20 avec salaire ». Ce libellé est ambigu, car seules 6 des 20 offres affichées montrent un salaire. Proposition : « 20 offres affichées sur 59 · 20 des 59 indiquent un salaire ».
-- [ ] Noms des copies de CV : éviter « New (copy) (copy) ». Proposer « Nom du CV (2) », « (3) »…, ou demander un nom à la création de la copie.
-- [ ] **Page Entretiens, négociation salariale** : la phrase sur la directive européenne 2023/970 doit être mise à jour, datée et sourcée. La date limite de transposition était le 7 juin 2026 et la France ne l'a pas tenue. La date de 2027 n'est pas confirmée par les sources consultées. Proposition : « Une directive européenne (2023/970) prévoit l'affichage de la fourchette de salaire et interdit de demander votre salaire passé. Sa transposition en France est en cours (situation au [date]). »
+- [x] Traduire les compétences affichées dans l'interface en français (« Incident management » → « Gestion des incidents », « Requirements gathering » → « Recueil des besoins », « Account management » → « Gestion de comptes »…). L'identifiant interne reste en anglais pour le matching ; seul le libellé change.
+- [x] Remplacer les pluriels génériques « (s) » par un vrai accord selon le nombre : « semaine(s) », « sauvegardée(s), non envoyée(s) », « affichée(s) ». Créer un petit helper de pluriel s'il n'existe pas.
+- [x] Reformuler « 20 affichée(s) sur 59 · 20 avec salaire ». Ce libellé est ambigu, car seules 6 des 20 offres affichées montrent un salaire. Proposition : « 20 offres affichées sur 59 · 20 des 59 indiquent un salaire ».
+- [x] Noms des copies de CV : éviter « New (copy) (copy) ». Proposer « Nom du CV (2) », « (3) »…, ou demander un nom à la création de la copie.
+- [x] **Page Entretiens, négociation salariale** : la phrase sur la directive européenne 2023/970 doit être mise à jour, datée et sourcée. La date limite de transposition était le 7 juin 2026 et la France ne l'a pas tenue. La date de 2027 n'est pas confirmée par les sources consultées. Proposition : « Une directive européenne (2023/970) prévoit l'affichage de la fourchette de salaire et interdit de demander votre salaire passé. Sa transposition en France est en cours (situation au [date]). »
+> **Fait le 27/11/2026 (Claude) :**
+> - Compétences : `js/fr/skills.js` (≈ 110 libellés : « Gestion des incidents », « Recueil des besoins », « Gestion de comptes »…),
+>   affichés par `skillLabel()` (js/i18n.js) sur toutes les puces, listes et invites en français ; l'identifiant reste anglais.
+>   Les libellés français servent aussi d'alias : un CV en français qui écrit « Gestion des incidents » est reconnu.
+>   Noms de produits et termes que les offres françaises gardent en anglais (SQL, Power BI, Data lake, Scrum…) inchangés.
+> - Pluriels : plus aucun « (s) » dans les textes français ; accord par `tn()` (semaines, sauvegardées, affichées, masquées,
+>   envoyées, lignes, valeurs, réplicas, bonnes réponses).
+> - Offres : « 20 offres affichées sur 59 · 20 des 59 indiquent un salaire » (compté sur toutes les offres trouvées).
+> - Copies de CV : « Nom (2) », « (3) »… ; les anciens « (copy) (copy) » sont nettoyés à la copie suivante.
+> - Directive 2023/970 (Entretiens + bulle d'aide des Offres, FR + EN) : « prévoit… Sa transposition en France est en cours :
+>   date limite 7 juin 2026, projet de loi déposé au Sénat le 10 septembre 2026 (situation au 26 novembre 2026 ; source :
+>   ministère du Travail) ». À revoir quand la loi sera adoptée.
 
 ## P3 — Technique et performance (`index.html`, `js/app.js`)
 

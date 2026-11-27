@@ -27,7 +27,7 @@
 // message goes to the browser console (and to the job-search function's logs).
 // Source credits required by the providers' terms: CREDITS.
 import { $, h, safeUrl, ls, toast, debugLog } from "./lib.js";
-import { t, tn, LOCALE } from "./i18n.js";
+import { t, tn, LOCALE, skillLabel } from "./i18n.js";
 import { CONFIG } from "./supabase.js";
 import { offerAge, ageLabel, seniority, trustFlags, STALE_DAYS } from "./offercheck.js";
 import { recordOffers } from "./pulse.js";
@@ -208,7 +208,7 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags, wher
     ? h("span", { class: "chip text-xs font-bold shrink-0 ml-auto whitespace-nowrap", style: `border-color:${fitColor(fit.score)};color:${fitColor(fit.score)}`,
         "data-fit": "scored",
         title: [t("{matched} of {total} skills from this offer are in your CV", { matched: fit.matched.length, total: fit.total }),
-          fit.missingCore.length ? t("Core skills of the job title missing from your CV: {skills}", { skills: fit.missingCore.join(", ") }) : ""].filter(Boolean).join(". ") },
+          fit.missingCore.length ? t("Core skills of the job title missing from your CV: {skills}", { skills: fit.missingCore.map(skillLabel).join(", ") }) : ""].filter(Boolean).join(". ") },
         t("{score}% fit · {matched}/{total}", { score: fit.score, matched: fit.matched.length, total: fit.total }))
     : fit ? h("span", { class: "mute text-xs shrink-0 ml-auto whitespace-nowrap", "data-fit": "few",
         title: t("The offer names fewer than {n} skills: too little to score it.", { n: MIN_SKILLS_FOR_FIT }) }, t("Not enough information"))
@@ -288,7 +288,7 @@ export function renderOffers() {
     const on = state.skillFilter === name, inCv = state.cv.names.has(name);
     return h("button", { type: "button", class: `chip text-xs ${inCv ? "chip-ok" : ""}`, "aria-pressed": String(on),
       style: on ? "background:var(--accent-fill);color:#fff" : "",
-      onClick: () => { state.skillFilter = on ? null : name; renderOffers(); } }, `${inCv ? "✓ " : ""}${name} · ${n}`);
+      onClick: () => { state.skillFilter = on ? null : name; renderOffers(); } }, `${inCv ? "✓ " : ""}${skillLabel(name)} · ${n}`);
   }));
 
   const scored = list.filter((x) => x.fit?.score != null);
@@ -302,7 +302,7 @@ export function renderOffers() {
 
   $("#fFit").disabled = !hasCv;
   const contract = $("#fContract").value, remote = $("#fRemote").value, minFit = hasCv ? Number($("#fFit").value) : 0;
-  const salaryFilter = $("#fSalary").value, withSalary = list.filter((x) => x.salary).length;
+  const salaryFilter = $("#fSalary").value, withSalary = list.filter((x) => x.salary).length, pool = list.length;
   // "≥ N k€" compares yearly amounts in euros: offers in another currency are not converted, so they are left out.
   const salaryOk = (x) => !salaryFilter || (salaryFilter === "shown" ? Boolean(x.salary)
     : x.salary?.currency === "EUR" && x.salary.yearMax >= Number(salaryFilter));
@@ -326,10 +326,11 @@ export function renderOffers() {
   if (hasCv && sort === "fit") list = [...list].sort((a, b) => fitRank(b.fit) - fitRank(a.fit));
   if (sort === "salary") list = [...list].sort((a, b) => (b.salary?.yearMax ?? -1) - (a.salary?.yearMax ?? -1));
   if (sort === "recent") list = [...list].sort((a, b) => (a.days ?? 1e9) - (b.days ?? 1e9));
-  $("#fitNote").append(h("span", { class: "mute" }, t(" · Showing {shown} of {total}", { shown: list.length, total })
-    + (hiddenCount ? t(" ({n} hidden)", { n: hiddenCount }) : "")),
-    h("span", { class: "mute", title: t("An EU directive will require a pay range in every job ad; France plans to apply it in 2027.") },
-      t(" · {n} with a salary", { n: withSalary })),
+  $("#fitNote").append(h("span", { class: "mute" }, tn(list.length, " · {n} offer shown of {total}", " · {n} offers shown of {total}", { total })
+    + (hiddenCount ? tn(hiddenCount, " ({n} offer hidden)", " ({n} offers hidden)") : "")),
+    h("span", { class: "mute", title: t("An EU directive (2023/970) provides for a pay range in every job ad; its transposition in France is under way (bill tabled on 10 September 2026, status on 26 November 2026).") },
+      // Counted on every offer found (not only those shown): "20 of the 59 give a salary" (audit 2026-11-23, P2 content).
+      tn(withSalary, " · {n} of the {total} gives a salary", " · {n} of the {total} give a salary", { total: pool })),
     flaggedCount ? h("span", { style: "color:var(--bad)" }, t(" · ⚠ {n} to check", { n: flaggedCount })) : "");
   $("#offerTools").hidden = false;
   $("#results").replaceChildren(...(list.length ? list.map(renderJob)
@@ -495,7 +496,7 @@ async function onRemoteSearch(e) {
     state.remoteJobs = relevant;
     state.remoteMsg = (relevant.length
       ? tn(relevant.length, "{n} remote {path} offer", "{n} remote {path} offers", { path: name })
-        + (left ? t(" ({n} unrelated titles left out)", { n: left }) : "") + (cached ? t(" · from the last 6 hours") : "") + "."
+        + (left ? tn(left, " ({n} unrelated title left out)", " ({n} unrelated titles left out)") : "") + (cached ? t(" · from the last 6 hours") : "") + "."
       : $("#remoteRegion").value ? t("No remote {path} offers right now for this region: try 'Anywhere'.", { path: name })
       : t("No remote {path} offers right now: these boards list few roles for this path, check back in a few days.", { path: name }))
       + sourceNote(warnings);

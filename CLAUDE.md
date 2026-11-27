@@ -241,7 +241,7 @@ Read the header comment of any file before modifying it; update the header if be
 - js/icons.js — path card illustrations and the progress ring (Home)
 - js/guide.js — guided first visit for a newcomer (nothing saved yet; "hk.guide" on | done | skip): 3 steps on Home (role,
   CV, first search) that tick themselves off, a reminder line on #/cv and #/offers (#guideBar), skipped by existing users
-- js/i18n.js — interface language (t, tn, FR/EN switch, static page translation); js/i18n-fr.js — merges the French texts of js/fr/*.js (one file per area)
+- js/i18n.js — interface language (t, tn, FR/EN switch, static page translation); js/i18n-fr.js — merges the French texts of js/fr/*.js (one file per area); js/fr/skills.js — French labels of the ats.js skills (skillLabel(); not a t() dictionary, ids stay English)
 - js/supabase.js — Supabase client and runtime CONFIG
 - js/config.example.js — template for js/config.js (generated in production, gitignored)
 - js/auth.js — sign-in dialog, "Forgot password?" (reset e-mail) and the new-password dialog (reset link or Account →

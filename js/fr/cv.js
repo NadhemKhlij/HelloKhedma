@@ -12,7 +12,6 @@ export default {
   "My CV": "Mon CV",
   "CV {n}": "CV {n}",
   "Untitled CV": "CV sans titre",
-  "{name} (copy)": "{name} (copie)",
   "New version created from a copy. Rename it and edit the text.": "Nouvelle version créée à partir d’une copie. Renommez-la et modifiez le texte.",
   "Use this version automatically for the {path} path": "Utiliser automatiquement cette version pour le parcours {path}",
   "Delete the CV \"{name}\" from this device?": "Supprimer le CV « {name} » de cet appareil ?",

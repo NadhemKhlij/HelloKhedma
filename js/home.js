@@ -64,7 +64,8 @@ export function renderHome() {
         streak() ? `🔥 ${tn(streak(), "{n} day", "{n} days")}` : ""].filter(Boolean).join(" · "), "#/training", "Continue learning",
       all.length ? progressRing(done / all.length) : null),
     tracked ? card(t("Applications"), String(state.cards.length),
-      t("{applied} applied · {interview} interview · {offer} offer", { applied: count("applied"), interview: count("interview"), offer: count("offer") }),
+      [tn(count("applied"), "one|{n} applied", "{n} applied"), tn(count("interview"), "{n} interview", "{n} interviews"),
+        tn(count("offer"), "{n} offer", "{n} offers")].join(" · "),
       "#/applications", "Open tracker") : null,
   ].filter(Boolean));
   // Follow-ups due and interviews this week; nothing at all when nothing is due (a shorter Home on phones).

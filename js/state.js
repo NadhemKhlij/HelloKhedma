@@ -5,7 +5,7 @@
 // - Page modules (home, training, offers, cvpage, applications, account, router) import each other's functions where
 //   needed; those imports are only called after start-up, so the import cycles between them are harmless.
 import { h, toast } from "./lib.js";
-import { t } from "./i18n.js";
+import { t, skillLabel } from "./i18n.js";
 import { LocalStore } from "./store.js";
 import { courseForSkill } from "./courses.js";
 
@@ -22,9 +22,10 @@ export const fail = (e) => toast(e?.message || t("Something went wrong."));
 
 export const fitColor = (score) => (score >= 70 ? "var(--ok)" : score >= 40 ? "var(--warn)" : "var(--bad)");
 // A skill you have shows ✓; a missing skill with a HelloKhedma course links to it (📘).
+// name is the skill id (English); the chip shows its label (French on a French page, i18n.js skillLabel).
 export const skillChip = (name, inCv) => {
-  const course = inCv ? null : courseForSkill(name);
+  const course = inCv ? null : courseForSkill(name), label = skillLabel(name);
   return course
-    ? h("a", { href: `#/course/${course}`, class: "chip text-xs mute hover:opacity-80", title: t("Learn {name}: HelloKhedma course", { name }) }, `📘 ${name}`)
-    : h("span", { class: `chip text-xs ${inCv ? "chip-ok" : "mute"}` }, inCv ? `✓ ${name}` : name);
+    ? h("a", { href: `#/course/${course}`, class: "chip text-xs mute hover:opacity-80", title: t("Learn {name}: HelloKhedma course", { name: label }) }, `📘 ${label}`)
+    : h("span", { class: `chip text-xs ${inCv ? "chip-ok" : "mute"}` }, inCv ? `✓ ${label}` : label);
 };

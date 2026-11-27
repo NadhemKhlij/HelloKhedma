@@ -9,7 +9,7 @@
 //   the offer's language for a cover letter, the interface language otherwise. Templates are content, written in
 //   both languages like PROMPTS in tailor.js; [brackets] are for the user to fill in.
 import { $, h, toast, copyText } from "./lib.js";
-import { t, lang } from "./i18n.js";
+import { t, lang, skillLabel } from "./i18n.js";
 import { state, path, skillChip } from "./state.js";
 import { extractSkills, matchSkills } from "./ats.js";
 import { countFeature } from "./usage.js";
@@ -194,7 +194,7 @@ export function openCoverLetter(offer, l = textLang(`${offer.title} ${offer.text
   }
   const r = matchSkills(extractSkills(`${offer.title} ${offer.text}`).map((s) => s.name), state.cv.names);
   const prompt = COVER[l]({
-    role: path()?.name || offer.title, matched: r.matched.join(", "), missing: r.missing.join(", "),
+    role: path()?.name || offer.title, matched: r.matched.map(skillLabel).join(", "), missing: r.missing.map(skillLabel).join(", "),
     title: offer.title, company: offer.company, offer: String(offer.text || "").slice(0, 6000), cv: state.cv.text.slice(0, 12000), me: myName(l),
   });
   const area = h("textarea", { class: "input w-full text-xs font-mono", rows: "8", readonly: true, "aria-label": t("Prompt for your AI assistant") }, prompt);

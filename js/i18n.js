@@ -12,8 +12,11 @@
 // - Switching language reloads the page (setLang), so every module renders again in the new language.
 // - Content: localize() for database rows (<field>_fr columns), fetchContent() for content/ JSON (fr/ copies).
 //   Skill keywords and job titles stay English: CV matching and the offer search rely on them.
+// - skillLabel(name): how a skill of js/ats.js is shown (French label from js/fr/skills.js, audit 2026-11-23 P2); the
+//   English name stays the id. Use it wherever a skill name is displayed or written into a French text.
 import { ls } from "./lib.js";
 import FR from "./i18n-fr.js";
+import SKILLS_FR from "./fr/skills.js";
 
 const LANG_KEY = "hk.lang";
 const detect = () => {
@@ -32,6 +35,7 @@ export function t(key, vars) {
   if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
   return s;
 }
+export const skillLabel = (name) => (lang === "fr" && SKILLS_FR[name]) || name;
 export const tn = (n, one, many, vars) => t((lang === "fr" ? n <= 1 : n === 1) ? one : many, { n, ...vars });
 
 // Database rows with French columns (<field>_fr, see migration 20261029000200 and the end of seed.sql): in French,

@@ -17,10 +17,10 @@
 // The offer's own ATS report is under "Full ATS report for this offer". Two tabs: this CV check
 // (#/cv) and the CV maker (#/cv/maker, cvmaker.js), whose "Use as a CV version" refreshes this page.
 import { $, h, ls, toast, safeUrl } from "./lib.js";
-import { t, tn } from "./i18n.js";
+import { t, tn, skillLabel } from "./i18n.js";
 import { state, path, pathName, byKind, fitColor, skillChip } from "./state.js";
 import { extractSkills, matchSkills, readCvFile } from "./ats.js";
-import { loadCvs, activeCv, setActiveCv, addCv, updateCv, removeCv, linkCvToPath, cvForPath } from "./cvs.js";
+import { loadCvs, activeCv, setActiveCv, addCv, copyName, updateCv, removeCv, linkCvToPath, cvForPath } from "./cvs.js";
 import { renderOffers } from "./offers.js";
 import { renderStudyPlan } from "./training.js";
 import { openTailor, improveBox } from "./tailor.js";
@@ -163,7 +163,7 @@ export function renderCvSkills() {
     ...cats.map((c) => h("div", { class: "mt-2" },
       h("p", { class: "mute text-xs mb-1" }, t(c)), // skill categories from ats.js
       h("div", { class: "flex flex-wrap gap-1.5" }, skills.filter((s) => s.cat === c)
-        .map((s) => h("span", { class: "chip chip-ok text-xs" }, s.count > 1 ? `${s.name} ×${s.count}` : s.name))))),
+        .map((s) => h("span", { class: "chip chip-ok text-xs" }, s.count > 1 ? `${skillLabel(s.name)} ×${s.count}` : skillLabel(s.name)))))),
   ].filter(Boolean)));
 }
 
@@ -198,7 +198,7 @@ function onCvClear() {
 
 // A new version starts as a copy of the current one, ready to be tailored.
 function onCvNew() {
-  addCv(state.cv.id ? { name: t("{name} (copy)", { name: state.cv.name }), text: state.cv.text } : {});
+  addCv(state.cv.id ? { name: copyName(state.cv.name), text: state.cv.text } : {});
   refreshCv({ fillEditor: true });
   $("#cvName").focus(); $("#cvName").select();
   toast(t("New version created from a copy. Rename it and edit the text."));

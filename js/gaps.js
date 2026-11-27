@@ -8,7 +8,7 @@
 // Skills with nothing to learn here are listed too. Courses whose skill check was passed (srs.js) are not proposed:
 // those skills are known, so the box says to put them on the CV instead. Everything runs in the browser.
 import { h, safeUrl } from "./lib.js";
-import { t } from "./i18n.js";
+import { t, skillLabel } from "./i18n.js";
 import { state, path } from "./state.js";
 import { extractSkills } from "./ats.js";
 import { courseForSkill, courseMeta } from "./courses.js";
@@ -52,7 +52,7 @@ export function gapTrainings(missing, { onOpen = () => {} } = {}) {
     + shownSteps.reduce((m, { s }) => m + (Number(s.est_hours) || 1) * 60, 0);
   const coveredCount = gaps.length - uncovered.length;
 
-  const chips = (skills) => h("span", { class: "flex flex-wrap gap-1" }, skills.map((n) => h("span", { class: "chip !py-0 text-xs" }, n)));
+  const chips = (skills) => h("span", { class: "flex flex-wrap gap-1" }, skills.map((n) => h("span", { class: "chip !py-0 text-xs" }, skillLabel(n))));
   const row = (href, external, ...kids) => h("a", { href, class: "flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg p-2 text-sm hover:opacity-90",
     style: "background:var(--bg);border:1px solid var(--line)", onClick: onOpen,
     ...(external ? { target: "_blank", rel: "noopener noreferrer" } : {}) }, ...kids);
@@ -82,8 +82,8 @@ export function gapTrainings(missing, { onOpen = () => {} } = {}) {
           h("span", { class: "ml-auto text-xs font-medium", style: "color:var(--accent-ink)" }, url ? "↗" : "→"));
       })) : null,
     projectsBox,
-    knownSkills.length ? h("p", { class: "text-xs", style: "color:var(--ok)" }, t("✓ Skill check passed for {list}: you know them, so write them on your CV.", { list: knownSkills.join(", ") })) : null,
-    uncovered.length ? h("p", { class: "mute text-xs" }, t("No HelloKhedma training yet for: {list}. Learn them from the job's documentation or a course you trust.", { list: uncovered.join(", ") })) : null,
+    knownSkills.length ? h("p", { class: "text-xs", style: "color:var(--ok)" }, t("✓ Skill check passed for {list}: you know them, so write them on your CV.", { list: knownSkills.map(skillLabel).join(", ") })) : null,
+    uncovered.length ? h("p", { class: "mute text-xs" }, t("No HelloKhedma training yet for: {list}. Learn them from the job's documentation or a course you trust.", { list: uncovered.map(skillLabel).join(", ") })) : null,
     h("a", { href: "#/training", class: "text-sm underline justify-self-start", style: "color:var(--accent-ink)", onClick: onOpen }, t("See your study plan on Training →")));
 
   // 3. Portfolio projects of the path that use a missing skill (loaded on demand).

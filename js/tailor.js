@@ -11,7 +11,7 @@
 //   notice, same limit) gets the whole CV back as structured data and opens it in the CV maker (cvmaker.js).
 // - improveBox(): "✨ Improve my CV with AI" under the CV score on #/cv, with no offer (mode "improve", same notice and limit).
 import { $, h, copyText, toast } from "./lib.js";
-import { t, lang } from "./i18n.js";
+import { t, lang, skillLabel } from "./i18n.js";
 import { sb } from "./supabase.js";
 import { state, path, fitColor, skillChip } from "./state.js";
 import { extractSkills, matchSkills } from "./ats.js";
@@ -231,7 +231,7 @@ export function openTailor(offer) {
   const r = matchSkills(required, state.cv.names);
   const forward = linesToPutForward(state.cv.text, r.matched);
   const prompt = PROMPTS[lang === "fr" ? "fr" : "en"]({
-    role: path()?.name || offer.title, matched: r.matched.join(", "), missing: r.missing.join(", "),
+    role: path()?.name || offer.title, matched: r.matched.map(skillLabel).join(", "), missing: r.missing.map(skillLabel).join(", "),
     title: offer.title, company: offer.company, offer: String(offer.text || "").slice(0, 6000), cv: state.cv.text.slice(0, 12000),
   });
   const area = h("textarea", { class: "input w-full text-xs font-mono", rows: "7", readonly: true, "aria-label": t("Prompt for your AI assistant") }, prompt);

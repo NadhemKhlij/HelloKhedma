@@ -18,7 +18,7 @@
 //   tailor.js, via the cv-tailor function): what was changed and the AI's notes (gaps, [number?] to fill in) are shown
 //   above the form until hidden, and "Use as a CV version" then saves it as a new version named after the offer.
 import { $, h, ls, toast, download } from "./lib.js";
-import { t } from "./i18n.js";
+import { t, skillLabel } from "./i18n.js";
 import { state, path, byKind } from "./state.js";
 import { parseCv } from "./cvparse.js";
 import { extractSkills } from "./ats.js";
@@ -219,7 +219,7 @@ function skillSuggestions() {
   if (!ideas.length) return null;
   return h("div", { class: "sm:col-span-2 grid gap-1" },
     h("span", { class: "mute text-xs" }, t("Keywords for {path}: click the ones you genuinely have", { path: path()?.name || "" })),
-    h("div", { class: "flex flex-wrap gap-1.5" }, ideas.map((n) => h("button", { type: "button", class: "chip text-xs hover:opacity-80",
+    h("div", { class: "flex flex-wrap gap-1.5" }, ideas.map(skillLabel).map((n) => h("button", { type: "button", class: "chip text-xs hover:opacity-80",
       onClick: () => { cv.skills = cv.skills.trim() ? `${cv.skills.trim()}, ${n}` : n; save(); drawForm(); redraw(); } }, `+ ${n}`))));
 }
 

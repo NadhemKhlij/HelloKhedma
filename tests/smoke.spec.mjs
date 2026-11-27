@@ -1110,7 +1110,7 @@ test("practice formats for support and DevOps: regex, cron, log analysis, jq", a
   const jq = page.locator('[data-drill="json"]').first();
   await jq.getByLabel("Your jq filter").fill(".items[] | .metadata.name");
   await jq.getByRole("button", { name: /Check my answer/ }).click();
-  await expect(jq).toContainText("returns 8 value(s), the expected answer returns 2");
+  await expect(jq).toContainText("returns 8 values, the expected answer returns 2");
   await jq.getByLabel("Your jq filter").fill('[.items[] | select(.status.phase == "Running" | not)]');
   await jq.getByRole("button", { name: /Check my answer/ }).click();
   await expect(jq).toContainText("could not read this filter");
@@ -1584,4 +1584,36 @@ test("unknown address shows home with a message; Offers searches by itself on th
   await page.goto("/index.html#/offers");
   await page.waitForTimeout(500);
   expect(searches).toBe(1); // once per visit, not on every return to the page
+});
+
+test("French texts: skill labels, real plurals, CV copy names (audit P2 content)", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("hk.lang", "fr"));
+  await open(page, "#/cv");
+  const r = await page.evaluate(async () => {
+    const { skillLabel, tn } = await import("/js/i18n.js");
+    const { extractSkills } = await import("/js/ats.js");
+    const { copyName } = await import("/js/cvs.js");
+    const list = [{ name: "New" }, { name: "New (2)" }];
+    return {
+      labels: ["Incident management", "Requirements gathering", "Account management", "SQL"].map(skillLabel),
+      // A French CV using the French label is matched to the English skill id.
+      found: extractSkills("Gestion des incidents et recueil des besoins").map((s) => s.name),
+      weeks: [1, 12].map((n) => tn(n, "{done}/{all} steps done · about {left} h left · roughly {n} week at {perWeek} h/week",
+        "{done}/{all} steps done · about {left} h left · roughly {n} weeks at {perWeek} h/week", { done: 1, all: 3, left: 10, perWeek: 5 })),
+      saved: [1, 3].map((n) => tn(n, "one|{n} saved, not sent", "{n} saved, not sent")),
+      copies: [copyName("New", list), copyName("New (copy) (copy)", list), copyName("CV", [])],
+    };
+  });
+  expect(r.labels).toEqual(["Gestion des incidents", "Recueil des besoins", "Gestion de comptes", "SQL"]);
+  expect(r.found).toEqual(expect.arrayContaining(["Incident management", "Requirements gathering"]));
+  expect(r.weeks).toEqual(["1/3 étapes faites · environ 10 h restantes · environ 1 semaine à 5 h/semaine",
+    "1/3 étapes faites · environ 10 h restantes · environ 12 semaines à 5 h/semaine"]);
+  expect(r.saved).toEqual(["1 sauvegardée, non envoyée", "3 sauvegardées, non envoyées"]);
+  expect(r.copies).toEqual(["New (3)", "New (3)", "CV (2)"]);
+  // No generic "(s)" plural on the French pages.
+  for (const route of ["#/", "#/training", "#/applications", "#/offers"]) {
+    await page.goto(`/${route}`);
+    await page.waitForTimeout(400);
+    expect(await page.locator("main").innerText(), route).not.toMatch(/\p{L}\(s\)/u);
+  }
 });

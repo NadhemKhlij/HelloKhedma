@@ -1,12 +1,13 @@
 # Lists t() / tn() texts in js/*.js that have no French, and French keys found in two files. Usage (Git Bash, repo root):
 #   perl scripts/check-i18n.pl js
 # The French texts are split by area in js/fr/*.js (merged by js/i18n-fr.js): a key must be in one file only, or the
-# later file would silently override the earlier one. Exits 1 when a key is missing French or is duplicated.
+# later file would silently override the earlier one. js/fr/skills.js is not a t() dictionary (skill labels, i18n.js
+# skillLabel; checked by check-content.mjs) and is skipped. Exits 1 when a key is missing French or is duplicated.
 local $/;
 my $dir = shift;
 my $str = qr/"((?:[^"\x5c]|\x5c.)*)"/;
 my (%d, $bad);
-for my $f (glob "$dir/fr/*.js") { open F, $f or die; my $s = <F>;
+for my $f (grep { !/skills\.js$/ } glob "$dir/fr/*.js") { open F, $f or die; my $s = <F>;
   while ($s =~ /^\s*$str:/mg) { if ($d{$1}) { print "duplicate French key in $f and $d{$1}: $1\n"; $bad = 1 } $d{$1} = $f }
 }
 print scalar(keys %d), " keys\n";

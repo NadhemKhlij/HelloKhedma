@@ -114,7 +114,7 @@ const K8S = {
     }).map((p) => t("{obj}: targetPort {port} is not a port of the selected containers.", { obj: nameOf(svc), port: String(p.targetPort ?? p.port) }));
   })],
   "k8s-replicas": [t("Deployments run at least {min} replicas"), (docs, r) => docs.filter((d) => d.kind === "Deployment" && (obj(d.spec).replicas ?? 1) < (r.min ?? 2))
-    .map((d) => t("{obj}: {n} replica(s); one pod down means the app is down.", { obj: nameOf(d), n: obj(d.spec).replicas ?? 1 }))],
+    .map((d) => ((n) => t(n === 1 ? "{obj}: {n} replica; one pod down means the app is down." : "{obj}: {n} replicas; one pod down means the app is down.", { obj: nameOf(d), n }))(obj(d.spec).replicas ?? 1))],
 };
 
 /* ---------- GitHub Actions ---------- */

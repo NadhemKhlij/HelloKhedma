@@ -123,7 +123,7 @@ export function quickCheck(c, its, { onDone } = {}) {
         next.querySelector(".opt")?.focus({ preventScroll: true });
         next.scrollIntoView({ behavior: "smooth", block: "nearest" });
       } else {
-        summary.textContent = t("{s}/{n} right · these cards come back in your reviews.", { s: score, n: qs.length });
+        summary.textContent = tn(score, "one|{s}/{n} right · these cards come back in your reviews.", "{s}/{n} right · these cards come back in your reviews.", { s: score, n: qs.length });
         summary.hidden = false;
         onDone?.(score, qs.length);
       }

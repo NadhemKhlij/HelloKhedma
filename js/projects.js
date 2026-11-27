@@ -12,7 +12,7 @@
 // Derja when chosen on #/ai. Their content reads right to left in Arabic letters (aiDir); the interface labels stay in
 // the interface language. Progress is shared by every language.
 import { $, h, ls, safeUrl, copyText } from "./lib.js";
-import { t, fetchContent } from "./i18n.js";
+import { t, fetchContent, skillLabel } from "./i18n.js";
 import { state, skillChip } from "./state.js";
 import { logActivity } from "./activity.js";
 import { aiScript, aiDir, scriptSwitch } from "./aitrack.js";
@@ -50,7 +50,7 @@ export async function renderProjectList(root, pathId) {
         h("span", { class: "chip !py-0 text-xs" }, p.level), h("span", { class: "mute text-xs ml-auto" }, t("≈ {n} h hands-on", { n: p.hours }))),
       h("b", dirOf(p), p.title),
       h("p", { class: "mute text-sm flex-1", ...dirOf(p) }, p.summary),
-      h("div", { class: "flex flex-wrap gap-1" }, p.skills.slice(0, 5).map((x) => h("span", { class: `chip !py-0 text-xs ${state.cv.names.has(x) ? "chip-ok" : "mute"}` }, x))),
+      h("div", { class: "flex flex-wrap gap-1" }, p.skills.slice(0, 5).map((x) => h("span", { class: `chip !py-0 text-xs ${state.cv.names.has(x) ? "chip-ok" : "mute"}` }, skillLabel(x)))),
       bar(d, n),
       h("span", { class: "text-xs font-medium", style: d === n ? "color:var(--ok)" : d ? "color:var(--accent-ink)" : "" },
         d === n ? t("✓ All steps done") : d ? t("{d}/{n} steps", { d, n }) : t("Start →")));

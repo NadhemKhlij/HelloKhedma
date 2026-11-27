@@ -3,7 +3,7 @@
 // Checks every JSON file in content/:
 //   - courses (content/courses): index entries complete, one file per entry, lessonCount = lessons, required fields
 //     (lessons with title and text, cheat sheet groups of [syntax, meaning] pairs, exercises with q and answer,
-//     interview questions with q and a), skill names known to js/ats.js, path ids known;
+//     interview questions with q and a), skill names known to js/ats.js (French skill labels too), path ids known;
 //   - French copies (content/courses/fr, content/interview/fr, content/projects/fr): same ids, same array lengths and
 //     order, identical code (lesson examples, code answers), and actually translated (why differs);
 //   - interview (content/interview): ids unique, model answers present;
@@ -48,6 +48,17 @@ const SITE_PATHS = [...PATHS].filter((p) => p !== "ai"); // paths with content/p
 const SKILL_NAMES = new Set(SKILLS.map(([name]) => name));
 const problems = [];
 const bad = (where, msg) => problems.push(`${where}: ${msg}`);
+// French skill labels (js/fr/skills.js): keys must be skill names, labels non-empty and used by one skill only.
+{
+  const { default: SKILLS_FR } = await import("../js/fr/skills.js");
+  const seen = new Map();
+  for (const [name, label] of Object.entries(SKILLS_FR)) {
+    if (!SKILL_NAMES.has(name)) bad("js/fr/skills.js", `"${name}" is not a skill of js/ats.js`);
+    if (!String(label || "").trim()) bad("js/fr/skills.js", `"${name}" has no label`);
+    if (seen.has(label)) bad("js/fr/skills.js", `"${label}" is the label of "${seen.get(label)}" and "${name}"`);
+    seen.set(label, name);
+  }
+}
 const load = (file) => {
   try { return JSON.parse(readFileSync(file, "utf8")); } catch (e) { bad(file.replace(ROOT + "/", ""), `cannot read JSON (${e.message})`); return null; }
 };

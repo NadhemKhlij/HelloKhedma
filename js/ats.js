@@ -34,6 +34,7 @@ export const SKILLS = [
   ["dbt", "Data & BI", ["dbt"]],
   ["Kafka", "Data & BI", ["kafka"]],
   ["Databricks", "Data & BI", ["databricks"]],
+  ["Microsoft Fabric", "Data & BI", ["microsoft fabric", "fabric lakehouse", "onelake", "dp-700"]],
   ["Snowflake", "Data & BI", ["snowflake"]],
   ["BigQuery", "Data & BI", ["bigquery", "big query"]],
   ["Redshift", "Data & BI", ["redshift", "amazon redshift"]],
@@ -232,6 +233,7 @@ export const SKILLS = [
   ["Marketing analytics", "Marketing", ["marketing analytics", "web analytics", "digital analytics", "attribution", "marketing mix modeling", "mmm"]],
   ["Growth marketing", "Marketing", ["growth marketing", "growth hacking", "growth marketer", "acquisition marketing"]],
   ["Conversion rate optimization", "Marketing", ["conversion rate optimization", "conversion rate optimisation", "optimisation du taux de conversion", "landing page optimization"]],
+  ["Market research", "Marketing", ["market research", "etude de marche", "etudes de marche", "etudes marketing", "charge d'etudes", "questionnaire design", "survey design", "panel"]],
   // Finance (Financial Analyst path "fa", 2026-11-17)
   ["Financial modeling", "Finance", ["financial modeling", "financial modelling", "financial model", "financial models", "modelisation financiere", "three-statement model", "3-statement model", "lbo model"]],
   ["Financial analysis", "Finance", ["financial analysis", "analyse financiere", "ratio analysis", "financial statement analysis", "credit analysis"]],

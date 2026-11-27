@@ -89,6 +89,7 @@ export default {
   "Copywriting": "Rédaction (copywriting)",
   "Email marketing": "Emailing",
   "Marketing analytics": "Analyse marketing",
+  "Market research": "Études de marché",
   "Conversion rate optimization": "Optimisation du taux de conversion",
   // Finance
   "Financial modeling": "Modélisation financière",

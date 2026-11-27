@@ -6,7 +6,7 @@
 import { $, h } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { state, path } from "./state.js";
-import { loadCourseIndex, loadCourse } from "./courses.js";
+import { loadCourseIndex, loadCourse } from "./catalog.js";
 import { makeQuestions } from "./practice.js";
 import { saveCheck, checkResult, passed } from "./srs.js";
 import { logActivity } from "./activity.js";

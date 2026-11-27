@@ -1,5 +1,5 @@
 // Interface language (French / English). English is the source language: the code and index.html are written
-// in English and js/i18n-fr.js maps each English text to its French translation.
+// in English and js/i18n-fr.js maps each English text to its French translation (loaded only in French).
 // - lang: saved choice ("hk.lang"), otherwise the browser language (fr → French, anything else → English).
 //   A "?lang=fr" / "?lang=en" link (the static course and career pages, scripts/gen-pages.mjs) sets and saves it;
 //   app.js removes the query from the address bar once it has read "path" too.
@@ -15,7 +15,6 @@
 // - skillLabel(name): how a skill of js/ats.js is shown (French label from js/fr/skills.js, audit 2026-11-23 P2); the
 //   English name stays the id. Use it wherever a skill name is displayed or written into a French text.
 import { ls } from "./lib.js";
-import FR from "./i18n-fr.js";
 import SKILLS_FR from "./fr/skills.js";
 
 const LANG_KEY = "hk.lang";
@@ -28,6 +27,10 @@ const detect = () => {
 };
 
 export const lang = detect();
+// The French texts (≈ 140 KB, js/fr/*.js) are loaded only for a French interface (functional audit of 2026-11-23, P3:
+// every English visit downloaded them). Top-level await: every module that imports i18n.js waits for them, so t() stays
+// synchronous and the page never draws in the wrong language.
+const FR = lang === "fr" ? (await import("./i18n-fr.js")).default : {};
 export const LOCALE = lang === "fr" ? "fr-FR" : "en-GB";
 
 export function t(key, vars) {

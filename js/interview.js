@@ -7,7 +7,7 @@
 // French: same files under content/interview/fr/ (keep ids, themes and list lengths: ratings and ticks use them).
 import { $, h, ls, toast } from "./lib.js";
 import { t, LOCALE, fetchContent } from "./i18n.js";
-import { courseInterviewQuestions } from "./courses.js";
+import { courseInterviewQuestions } from "./catalog.js";
 import { countFeature } from "./usage.js";
 
 const RATINGS_KEY = "hk.iv.ratings", STORIES_KEY = "hk.iv.stories", CHECK_KEY = "hk.iv.checklist", TAB_KEY = "hk.iv.tab";

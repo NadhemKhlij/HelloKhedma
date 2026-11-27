@@ -24,9 +24,11 @@ import { loadCvs, activeCv, setActiveCv, addCv, copyName, updateCv, removeCv, li
 import { renderOffers } from "./offers.js";
 import { renderStudyPlan } from "./training.js";
 import { openTailor, improveBox } from "./tailor.js";
-import { openCoverLetter } from "./letters.js";
 import { atsReport, atsView } from "./atsscore.js";
-import { initCvMaker, renderCvMaker } from "./cvmaker.js";
+// The CV maker (+ its PDF and CV parser) is loaded on the first visit to its tab (audit 2026-11-23 P3); letters on click.
+let makerMod = null;
+const maker = () => (makerMod ||= import("./cvmaker.js").then((m) => { m.initCvMaker({ onSaved: () => refreshCv({ fillEditor: true }) }); return m; }));
+const letters = () => import("./letters.js");
 import { gapTrainings } from "./gaps.js";
 import { logInsight, insightsAsk } from "./insights.js";
 import { recentOffers, trackedOffer, offerAsText, rememberTracked } from "./offerpick.js";
@@ -268,7 +270,7 @@ function onAts({ quiet = false } = {}) {
             onClick: () => switchCv(c.id) }, t("{name} {score}%", { name: c.name, score }))])) : null,
     h("div", { class: "flex flex-wrap gap-2 mt-3" },
       h("button", { type: "button", class: "btn", onClick: () => openTailor(offer) }, t("✍ Tailor my CV for this offer")),
-      h("button", { type: "button", class: "btn-ghost", onClick: () => openCoverLetter(offer) }, t("✉ Cover letter"))),
+      h("button", { type: "button", class: "btn-ghost", onClick: () => letters().then((m) => m.openCoverLetter(offer)) }, t("✉ Cover letter"))),
     h("p", { class: "mute text-sm mt-4 mb-1" }, t("In your CV")),
     h("div", { class: "flex flex-wrap gap-2" }, r.matched.length ? chips(r.matched, true) : h("span", { class: "mute text-sm" }, t("None yet."))),
     h("p", { class: "mute text-sm mt-3 mb-1" }, t("Missing: add the ones you genuinely have · 📘 = open the HelloKhedma course")),
@@ -355,18 +357,17 @@ function showMarket() {
 
 // Tabs: "maker" shows the CV maker, anything else the CV check (router.js passes the #/cv/<param>).
 export function showCvTab(param) {
-  const maker = param === "maker";
-  $("#cvCheckTab").hidden = maker; $("#cvMakerTab").hidden = !maker;
-  for (const [id, on] of [["#cvTabCheck", !maker], ["#cvTabMaker", maker]]) {
+  const isMaker = param === "maker";
+  $("#cvCheckTab").hidden = isMaker; $("#cvMakerTab").hidden = !isMaker;
+  for (const [id, on] of [["#cvTabCheck", !isMaker], ["#cvTabMaker", isMaker]]) {
     $(id).className = on ? "btn" : "btn-ghost"; $(id).setAttribute("aria-selected", String(on));
   }
-  if (maker) renderCvMaker(); else renderOfferPick();
+  if (isMaker) maker().then((m) => m.renderCvMaker()); else renderOfferPick();
 }
 
 export function initCvPage() {
   $("#cvTabCheck").addEventListener("click", () => { location.hash = "#/cv"; });
   $("#cvTabMaker").addEventListener("click", () => { location.hash = "#/cv/maker"; });
-  initCvMaker({ onSaved: () => refreshCv({ fillEditor: true }) });
   showCvTab((location.hash.match(/^#\/cv\/([a-z0-9-]+)/) || [])[1]); // the router ran before the path content loaded
   $("#atsBtn").addEventListener("click", () => (picked?.market ? showMarket() : onAts()));
   // The match updates by itself shortly after an offer is pasted or typed.

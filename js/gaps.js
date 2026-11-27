@@ -11,7 +11,7 @@ import { h, safeUrl } from "./lib.js";
 import { t, skillLabel } from "./i18n.js";
 import { state, path } from "./state.js";
 import { extractSkills } from "./ats.js";
-import { courseForSkill, courseMeta } from "./courses.js";
+import { courseForSkill, courseMeta } from "./catalog.js";
 import { formatMinutes } from "./coursetime.js";
 import { loadProjects } from "./projects.js";
 import { stepsOf } from "./training.js";

@@ -13,8 +13,9 @@
 import { $, h, safeUrl, safeColor, download } from "./lib.js";
 import { t, tn, LOCALE } from "./i18n.js";
 import { STAGES } from "./store.js";
-import { openCardLetter } from "./letters.js";
-import { openOfferCoach } from "./offercoach.js";
+// Dialogs opened by a button are loaded on the click (audit 2026-11-23 P3).
+const letters = () => import("./letters.js");
+const coach = () => import("./offercoach.js");
 
 const DAY = 86_400_000;
 const stageLabel = (id) => STAGES.find((s) => s.id === id)?.label || id;
@@ -99,9 +100,9 @@ function card(c, stageIndex, { onMove, onOpen, colorOf }) {
       btn("→", t("Move forward"), stageIndex === STAGES.length - 1, () => move(1)),
       btn(t("Details"), t("Edit details, notes, follow-up and interview"), false, () => onOpen(c)),
       c.stage === "interview" ? h("a", { href: "#/interview", class: "btn-ghost !px-2 !py-0", title: t("Practise for this interview") }, t("Prepare")) : null,
-      c.stage === "offer" ? btn(t("💼 Negotiate"), t("Compare the salary with the market and prepare the negotiation"), false, () => openOfferCoach(c)) : null,
+      c.stage === "offer" ? btn(t("💼 Negotiate"), t("Compare the salary with the market and prepare the negotiation"), false, () => coach().then((m) => m.openOfferCoach(c))) : null,
       c.stage === "applied" || c.stage === "interview"
-        ? btn(t("✉ Email"), c.stage === "interview" ? t("Write a thank-you or follow-up email") : t("Write a follow-up email"), false, () => openCardLetter(c)) : null,
+        ? btn(t("✉ Email"), c.stage === "interview" ? t("Write a thank-you or follow-up email") : t("Write a follow-up email"), false, () => letters().then((m) => m.openCardLetter(c))) : null,
     ),
   );
   el.addEventListener("dragstart", (e) => e.dataTransfer.setData("text/plain", c.id));
@@ -183,7 +184,7 @@ export function openDetails(c, { detailsOk, cvOk, cvNames = [], onSave, onRemove
     icsFor({ ...c, title: fe.title.value, company: fe.company.value, url: fe.url.value, contact: fe.contact.value,
       interview_at: new Date(fe.interview_at.value).toISOString() }), "text/calendar");
   $("#appCoach").hidden = c.stage !== "offer";
-  $("#appCoach").onclick = () => { dlg.close(); openOfferCoach(c); };
+  $("#appCoach").onclick = () => { dlg.close(); coach().then((m) => m.openOfferCoach(c)); };
   $("#appDelete").onclick = () => { if (confirm(t("Delete \"{title}\"?", { title: c.title }))) { dlg.close(); onRemove(); } };
   $("#appCancel").onclick = () => dlg.close();
   form.onsubmit = (e) => {

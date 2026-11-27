@@ -6,7 +6,7 @@
 import { $, h } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { dueCards, grade, nextDueIn, INTERVALS } from "./srs.js";
-import { loadCourse, courseMeta, loadCourseIndex } from "./courses.js";
+import { loadCourse, courseMeta, loadCourseIndex } from "./catalog.js";
 import { isAiCourse, aiMeta, aiDir } from "./aitrack.js";
 import { items, flipCard } from "./practice.js";
 import { logActivity } from "./activity.js";

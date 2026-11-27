@@ -8,8 +8,9 @@ import { $, h } from "./lib.js";
 import { t, tn } from "./i18n.js";
 import { state, path } from "./state.js";
 import { nextActions } from "./tracker.js";
-import { openCardLetter } from "./letters.js";
-import { openOfferCoach } from "./offercoach.js";
+// Dialogs opened by a button are loaded on the click (audit 2026-11-23 P3).
+const letters = () => import("./letters.js");
+const coach = () => import("./offercoach.js");
 import { renderPulse } from "./pulse.js";
 import { stepsOf, stepDone } from "./training.js";
 import { progressRing } from "./icons.js";
@@ -81,8 +82,8 @@ export function renderHome() {
     h("ul", { class: "grid gap-1 text-sm" }, reviewItem, ...actions.map(({ c, kind, text }) => h("li", { class: "flex flex-wrap items-baseline gap-2 rounded-xl px-3 py-2 -mx-3 hover:bg-[var(--soft)]" },
         h("span", { style: `color:${ICON[kind][1]}` }, `${ICON[kind][0]} ${kind === "overdue" ? t("Overdue · ") : kind === "today" ? t("Today · ") : ""}${text}`),
         h("a", { href: "#/applications", class: "mute underline" }, [c.title, c.company].filter(Boolean).join(" · ")),
-        kind === "offer" ? h("button", { type: "button", class: "underline text-xs", style: "color:var(--accent-ink)", onClick: () => openOfferCoach(c) }, t("Negotiate →"))
+        kind === "offer" ? h("button", { type: "button", class: "underline text-xs", style: "color:var(--accent-ink)", onClick: () => coach().then((m) => m.openOfferCoach(c)) }, t("Negotiate →"))
           : kind === "interview" ? h("a", { href: "#/interview", class: "underline text-xs", style: "color:var(--accent-ink)" }, t("Prepare →"))
-          : c.stage !== "saved" ? h("button", { type: "button", class: "underline text-xs", style: "color:var(--accent-ink)", onClick: () => openCardLetter(c, "followup") }, t("Write the email →")) : null)))));
+          : c.stage !== "saved" ? h("button", { type: "button", class: "underline text-xs", style: "color:var(--accent-ink)", onClick: () => letters().then((m) => m.openCardLetter(c, "followup")) }, t("Write the email →")) : null)))));
   renderPulse();
 }

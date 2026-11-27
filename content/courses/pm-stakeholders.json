@@ -451,6 +451,146 @@
     {
       "q": "Write a one-page status report for this situation: CRM replacement, week 20. Budget approved 480k, spent 350k, forecast at completion 505k. UAT: 90 % of tests passed. Go-live planned on 15 June, now forecast on 29 June because a supplier’s billing interface is two weeks late. Top risk: trainers not available in June. Agreed thresholds: amber above 5 % or up to 2 weeks late, red above 10 % or more than 2 weeks.",
       "answer": "PROJECT ATLAS, week 20. Overall: AMBER (go-live forecast 2 weeks late, budget forecast +5.2 %, both within the red thresholds). Why: the supplier’s billing interface is delivered 2 weeks late. Done: UAT cycle 2, 90 % of tests passed; the remaining failures are logged with owners. Next: integrate and test the billing interface (weeks 21-23), final UAT, go-live rehearsal. Milestones: UAT end planned 1 June, forecast 15 June (A); go-live planned 15 June, forecast 29 June (A). Budget: approved 480k, spent 350k, forecast 505k (+25k, +5.2 %) (A); the extra cost is the longer contractor period. Top risks: trainers not available in June (owner: business lead; mitigation: book trainers for July or train key users as trainers); supplier slips again (owner: PM; weekly supplier checkpoint, penalty clause reviewed). Decisions needed by the next committee: approve the new go-live date of 29 June and the 25k overrun, or keep 15 June without the billing interface and a manual workaround. Recommendation: move to 29 June."
+    },
+    {
+      "q": "Take-home case, Project Manager (1/6). The brief for all six parts: Velora, a fictional 300-person services company, replaces its 12-year-old on-premise CRM with a SaaS CRM (project Nova): 120 sales and customer-service users, 40,000 customer accounts to migrate, an interface with the ERP for billing. Fixed budget (BAC): €420,000. Day 1 is 2 March; the old CRM’s licence ends on 31 October and cannot be extended, so the sponsor wants go-live by working day 160 at the latest (mid-October, two weeks of margin). Write a WBS for Nova: 5 to 7 deliverables, each split into 2 to 4 work packages, and say how you check that it is complete.",
+      "hint": "Deliverables are things you hand over (nouns), not activities. Do not forget project management, data, interfaces, training and the cutover. Then apply the 100 % rule and write down what is out of scope.",
+      "answer": "1 Project management: charter and plan; steering committees and status reports; RAID log; supplier contracts.\n2 Requirements and design: current processes and pain points; to-be sales and service processes; prioritised requirements backlog; signed-off solution design.\n3 Configured CRM: data model; sales pipeline and service cases; roles, rights and single sign-on; reports and dashboards.\n4 Data migration: data cleaning (duplicates, inactive accounts); mapping and migration scripts; two rehearsals with reconciliation reports; final migration at cutover.\n5 Interfaces: ERP billing interface; e-mail and calendar integration; interface tests.\n6 Testing and acceptance: test plan and cases; integration tests; user acceptance tests with key users; go / no-go criteria.\n7 Change and go-live: training material and 120 users trained; support model with operations (4 weeks of hypercare); cutover plan and rehearsal; old CRM archived and switched off.\nChecks: the 100 % rule (every task and every euro of the €420,000 belongs to exactly one work package, and nothing outside the scope is in it); each work package has one owner, a deliverable you can check and an estimate; split further only where a package is too big to estimate (the 8/80 rule of thumb: between 8 and 80 hours of effort). Out of scope, written down: quote generation (CPQ) and marketing automation. The out-of-scope list is what you will point to when someone asks for more (part 5)."
+    },
+    {
+      "q": "Take-home case, Project Manager (2/6). The Nova schedule in working days (an activity starts when all the activities in “After” are finished; day 0 = start). In C10, compute the day the project ends: the length of the critical path. Then check it against the day-160 deadline.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["ID", "Activity", "Duration (days)", "After"],
+        ["A", "Requirements and design", 30, "-"],
+        ["B", "CRM configuration", 60, "A"],
+        ["C", "Data migration (scripts + 2 rehearsals)", 70, "A"],
+        ["D", "ERP billing interface", 80, "A"],
+        ["E", "Integration tests and UAT", 25, "B, C, D"],
+        ["F", "Training of 120 users", 15, "B"],
+        ["G", "Cutover and go-live", 5, "E, F"],
+        ["", "", "", ""],
+        ["", "Project end (day)", "", ""]
+      ],
+      "cell": "C10",
+      "answer": "=C2+MAX(MAX(C3,C4,C5)+C6,C3+C7)+C8",
+      "hint": "Earliest finish = MAX(earliest finish of the predecessors) + duration. E waits for the latest of B, C and D; G waits for the later of E and F (F only waits for B).",
+      "explain": "Earliest finish, day by day: A ends on day 30; B on day 90, C on day 100, D on day 110; E starts after the latest of B, C, D (day 110) and ends on day 135; F starts after B and ends on day 105; G starts after the later of E and F (day 135) and ends on day 140. The critical path is A–D–E–G, 140 days: 20 days of float before the day-160 deadline. Off the critical path, C has 10 days of float, B 20 and F 30. So the ERP interface (D) is the activity to watch: every day it slips moves go-live. The formula C2+MAX(MAX(C3,C4,C5)+C6,C3+C7)+C8 follows the network, so it stays right when a duration changes."
+    },
+    {
+      "q": "Take-home case, Project Manager (3/6). End of month 4 (end of June, around day 85). Finance and the team give you the earned value figures. In B6, compute the estimate at completion (EAC), assuming the cost efficiency so far continues.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["Measure", "Value (EUR)"],
+        ["BAC (budget at completion)", 420000],
+        ["PV, planned value at month 4", 210000],
+        ["EV, earned value at month 4", 180000],
+        ["AC, actual cost at month 4", 200000],
+        ["EAC (estimate at completion)", ""]
+      ],
+      "cell": "B6",
+      "answer": "=B2/(B4/B5)",
+      "hint": "CPI = EV / AC; EAC = BAC / CPI. Point at the cells rather than typing the amounts.",
+      "explain": "CPI = 180,000 / 200,000 = 0.90: each euro spent produced 0.90 € of planned work. SPI = 180,000 / 210,000 = 0.86: only 86 % of the work planned by now is done. EAC = BAC / CPI = 420,000 / 0.90 = 466,667 €, so a variance at completion (VAC) of −46,667 € (−11 %). Both indices are below 1: Nova is over cost and late. If the overrun came from a one-off event that will not repeat, use EAC = AC + (BAC − EV) = 440,000 € instead, and say which formula you used and why."
+    },
+    {
+      "q": "Take-home case, Project Manager (4/6). Sort these lines from the Nova RAID log at month 4.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Risk",
+          "items": [
+            "Key users may be unavailable for UAT during the September sales kick-off",
+            "Migration rehearsal 2 may fail the reconciliation and delay the cutover"
+          ]
+        },
+        {
+          "name": "Issue",
+          "items": [
+            "The ERP billing interface is 15 days late: the supplier’s developer left in May",
+            "Rehearsal 1 rejected 6 % of the accounts as duplicates"
+          ]
+        },
+        {
+          "name": "Assumption",
+          "items": [
+            "The SaaS CRM’s standard sales pipeline covers our process without custom code",
+            "Each sales manager will spend half a day cleaning their accounts in July"
+          ]
+        },
+        {
+          "name": "Dependency",
+          "items": [
+            "The interface can only be tested once the ERP team delivers its new billing API",
+            "Single sign-on needs the IT security team to add the CRM to the identity provider"
+          ]
+        }
+      ],
+      "answer": "A risk may happen (you mitigate it and watch it); an issue has already happened (you act on it now, with an owner and a date); an assumption is something you plan on as true without proof (check it, and it becomes a risk or an issue when it proves false); a dependency is work or a decision outside your project that yours waits for (agree a date with the other owner). The late interface is an issue on the critical path: it is what moves go-live, so it goes at the top of the status report."
+    },
+    {
+      "q": "Take-home case, Project Manager (5/6). Same week. The sales director (high power, high interest) asks to add quote generation (CPQ) before go-live: “My team cannot work without it.” It was written out of scope in the WBS.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "What do you do first?",
+          "choices": [
+            {
+              "label": "Thank her, log the change request and analyse its impact on scope, schedule, cost and risks before promising anything",
+              "best": true,
+              "feedback": "You take the need seriously without committing the project to something nobody has measured."
+            },
+            {
+              "label": "Accept: she is a key stakeholder and you need her support",
+              "feedback": "A yes with no impact analysis is scope creep: the budget and the deadline become promises you can no longer keep."
+            },
+            {
+              "label": "Refuse at once: the scope is frozen",
+              "feedback": "The need may be real. A flat no turns a powerful stakeholder against the project; let the change process answer."
+            }
+          ]
+        },
+        {
+          "text": "The integrator estimates €38,000 and 10 more days of integration tests, which are on the critical path. With the interface already 15 days late, go-live would move to day 165, after the day-160 limit. Next?",
+          "choices": [
+            {
+              "label": "Take the change request to the steering committee with options: CPQ in a release 2 one month after go-live, or CPQ now and a go-live after the limit, with the costs of each",
+              "best": true,
+              "feedback": "Scope, time and budget are the sponsor’s trade-off, not yours: you give the facts, the options and a recommendation."
+            },
+            {
+              "label": "Ask the team to absorb the 10 days with overtime, without telling the committee",
+              "feedback": "The team is already late and over cost: hidden overtime adds risk and the committee loses sight of the real plan."
+            },
+            {
+              "label": "Let the sales director and the integrator agree directly",
+              "feedback": "A change agreed outside the change process breaks the baseline and the contract, and you become responsible for a plan you did not see."
+            }
+          ]
+        },
+        {
+          "text": "The committee chooses release 2 for CPQ. Next?",
+          "choices": [
+            {
+              "label": "Record the decision in the change log and the minutes, add CPQ to the release 2 backlog, and agree a stopgap with the sales director for the first month",
+              "best": true,
+              "feedback": "The decision is traceable, the need is planned, and the sales team has a way to work in the meantime (for example a quote template)."
+            },
+            {
+              "label": "Close the request: the committee said no",
+              "feedback": "It was deferred, not refused. Without a date and a stopgap, the request will come back, louder, during go-live."
+            }
+          ]
+        }
+      ],
+      "answer": "Every change goes through the same path: log it, analyse its impact on scope, schedule, cost and risks, let the steering committee decide with options, then record the decision and update the plan. On a fixed date, deferring to a release 2 is often the best answer: the need is kept, the deadline too."
+    },
+    {
+      "q": "Take-home case, Project Manager (6/6). Write the 5-line status of Nova for the steering committee at month 4, from parts 2 to 5: overall RAG with the reason, schedule, cost, top risk, decisions needed. Agreed thresholds: amber above 5 % over budget or under 10 days of float left; red above 10 % over budget or a go-live forecast after day 160.",
+      "hint": "Use the numbers you computed: the critical path with the 15-day delay on the interface, the EAC against the BAC. One line each, the decisions last, with a recommendation.",
+      "answer": "1. Overall: RED. Cost forecast 11 % over budget (EAC €466,667 for €420,000, CPI 0.90); schedule amber.\n2. Schedule: SPI 0.86. The ERP billing interface, on the critical path, is 15 days late (the supplier’s developer left); go-live forecast on day 155 for a day-160 limit: 5 days of float left.\n3. Cost: €200,000 spent for €180,000 of work done. Causes: interface rework and extra data cleaning after rehearsal 1 (6 % duplicates). Recovery: fixed-price amendment with the integrator for the remaining work, account cleaning by the sales managers in July.\n4. Top risk: key users unavailable for UAT during the September kick-off (owner: sales director; mitigation: UAT dates booked now, two back-up testers per team).\n5. Decisions today: (a) fund the €46,667 overrun from the management reserve, or cut scope (for example dashboards to release 2); (b) move quote generation (CPQ: €38,000, +10 days on the critical path) to release 2, one month after go-live. Recommendation: (a) reserve, (b) release 2.\nWhy it works: the colour follows the agreed thresholds (11 % is above 10 %), every number comes from the plan or the earned value, the cause and the recovery are stated, and the committee knows exactly what it must decide today."
     }
   ],
   "interview": [

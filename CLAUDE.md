@@ -128,12 +128,13 @@ The selected path adapts the job search, trainings, tools, tips and ATS keywords
   `"code": "sql"` (same in the French copy); the answer must run on content/sql/<db>.sql in SQLite (CI checks it).
   Datasets are fictional, small, and designed so each answer has one unambiguous result (no ties at a LIMIT):
   shop (SQL basics), dwh (star schema + SCD2 customers + staging orders with planted quality problems), payments
-  (incident case, consistent with content/logs/payments-api.log). "Fix this query": `"start"` = the broken query the
+  (incident case, consistent with content/logs/payments-api.log)), marketing (campaign costs, new customers and orders by channel, Sept-Oct 2026: the Digital Marketing take-home case, CAC / ROAS without fan-out joins). "Fix this query": `"start"` = the broken query the
   editor opens on (identical in French; CI checks it is not accepted). Query plans: `"run": { "db", "plan": "<index>" }`
   passes when EXPLAIN QUERY PLAN uses that index and scans no table. Take-home cases are consecutive exercises
   "Take-home case, <path> (n/N)" (French "Cas pratique, …") ending with a written answer (plain exercise, model answer):
   Data Analyst (sql), Data Engineer (airflow), Application Support (itil-incidents), Business Analyst (requirements),
-  DevOps (ci-cd; log content/logs/checkout-deploy.log).
+  DevOps (ci-cd; log content/logs/checkout-deploy.log); since 2026-11-27 also Product Owner (po-roadmap), Project Manager
+  (pm-stakeholders), GRC (grc-risk), Financial Analyst (fpa), Digital Marketing (marketing-analytics, db marketing), Sales (sales-pipeline).
 - Runnable Python exercises (step 5): `"code": "python"` + `"run": { "python": "<hidden tests: asserts with an English
   message>" }` (same in the French copy; optional `"start"` code that must fail). The learner's code runs in Pyodide
   (Python 3.14, standard library + pandas / numpy) in a Web Worker, then the tests in the same namespace and a fresh

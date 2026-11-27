@@ -348,6 +348,82 @@
     {
       "q": "Monthly revenue dropped 12 %. Using a KPI tree, list the questions you would check, in order.",
       "answer": "1) Is it real: tracking change, a missing data source, calendar effect (fewer days, a holiday last year)? 2) New customers or returning customers? 3) For new customers: visits by channel (which channel fell?) or conversion rate (which device, which landing page?). 4) Average order value: fewer items or lower prices, end of a promotion? 5) For returning customers: repeat rate by cohort. Then report the branch that explains most of the drop, its cause and the action."
+    },
+    {
+      "q": "Take-home case, Digital Marketing (1/6). The head of growth of an online shop (practice database marketing: marketing_costs, new_customers and orders for September and October 2026) writes: “We spent about €8,200 on paid media in two months. Where does it work, and where should next month’s budget go?” Start with the media view: per channel, spend, clicks, impressions, CTR in % (2 decimals) and CPC (2 decimals), highest spend first.",
+      "hint": "CTR = clicks / impressions × 100 and CPC = spend / clicks, both computed from the sums (not an average of daily ratios). Multiply by 100.0 to avoid integer division.",
+      "code": "sql",
+      "answer": "SELECT channel,\n       ROUND(SUM(spend), 2) AS spend,\n       SUM(clicks) AS clicks,\n       SUM(impressions) AS impressions,\n       ROUND(100.0 * SUM(clicks) / SUM(impressions), 2) AS ctr_pct,\n       ROUND(SUM(spend) / SUM(clicks), 2) AS cpc\nFROM marketing_costs\nGROUP BY channel\nORDER BY spend DESC;",
+      "run": {
+        "db": "marketing",
+        "ordered": true
+      },
+      "explain": "Paid Social takes the biggest share (€3,108; CTR 0.79 %, CPC €1.75), then Paid Search (€2,446; CTR 4.98 %, CPC €0.96), Display (€1,512 for 431 clicks: CTR 0.12 %, CPC €3.51), Affiliates (€979, CPC €0.44) and Email, which only costs its tool (€7 a send). This view sizes the budget, but it says nothing about customers or revenue yet: never rank channels on CTR or CPC alone."
+    },
+    {
+      "q": "Take-home case, Digital Marketing (2/6). Customer acquisition cost per channel over the two months: spend, new customers and CAC (2 decimals), one row per channel that has spend, lowest CAC first. Aggregate each table first, then join.",
+      "hint": "Two CTEs, one per table, each grouped by channel, then the spend side LEFT JOIN the customers side on the channel. Organic has new customers but no spend: it is not a row here.",
+      "code": "sql",
+      "answer": "WITH spend AS (\n  SELECT channel, SUM(spend) AS spend\n  FROM marketing_costs\n  GROUP BY channel\n), acquired AS (\n  SELECT channel, COUNT(*) AS new_customers\n  FROM new_customers\n  GROUP BY channel\n)\nSELECT s.channel,\n       ROUND(s.spend, 2) AS spend,\n       COALESCE(a.new_customers, 0) AS new_customers,\n       ROUND(s.spend / NULLIF(a.new_customers, 0), 2) AS cac\nFROM spend s\nLEFT JOIN acquired a ON a.channel = s.channel\nORDER BY cac;",
+      "run": {
+        "db": "marketing",
+        "ordered": true
+      },
+      "explain": "Email €25.20 (5 new customers: it mostly sells to existing ones), Paid Search €37.06 (66), Affiliates €44.48 (22), Paid Social €62.16 (50), Display €252.05 (6). Winning a customer through Display costs almost 7 times more than through Paid Search. Joining the daily cost rows to the customers before grouping would repeat each day’s spend once per customer of the channel: part 4 shows what that does to a dashboard."
+    },
+    {
+      "q": "Take-home case, Digital Marketing (3/6). Return on ad spend per channel: spend, revenue of the orders credited to the channel (orders.channel, last click) and ROAS = revenue / spend (2 decimals), one row per channel that has spend, best ROAS first.",
+      "hint": "Same pattern as the CAC: one CTE sums the spend per channel, another sums orders.amount per channel, then join on the channel.",
+      "code": "sql",
+      "answer": "WITH spend AS (\n  SELECT channel, SUM(spend) AS spend\n  FROM marketing_costs\n  GROUP BY channel\n), revenue AS (\n  SELECT channel, SUM(amount) AS revenue\n  FROM orders\n  GROUP BY channel\n)\nSELECT s.channel,\n       ROUND(s.spend, 2) AS spend,\n       ROUND(COALESCE(r.revenue, 0), 2) AS revenue,\n       ROUND(COALESCE(r.revenue, 0) / s.spend, 2) AS roas\nFROM spend s\nLEFT JOIN revenue r ON r.channel = s.channel\nORDER BY roas DESC;",
+      "run": {
+        "db": "marketing",
+        "ordered": true
+      },
+      "explain": "Email 40.81, Paid Search 3.79, Affiliates 3.25, Paid Social 1.75, Display 0.34: Display brings back 34 cents per euro spent (€512 of orders for €1,512). Two limits to say out loud: ROAS is revenue, not margin (with a 40 % gross margin, a channel needs a ROAS above 2.5 just to pay for itself on the first order), and it is last-click revenue: Email and Organic collect repeat orders from customers that other channels brought. Only an incrementality test tells what a channel really adds."
+    },
+    {
+      "q": "Take-home case, Digital Marketing (4/6). Fix this query. A colleague built the monthly ROAS per channel for the dashboard: it shows Display at 3.3 in September and Paid Search spending €43,656 that month, more than the whole two-month budget. Same columns (channel, month, spend, revenue, roas), one row per channel and month with spend, sorted by channel then month.",
+      "hint": "Run it, then compare its spend with SUM(spend) of marketing_costs. Each daily cost row meets every order of the same channel and month, and each order meets every cost day: both sums are multiplied. Sum each side per channel and month first, then join.",
+      "code": "sql",
+      "answer": "WITH spend AS (\n  SELECT channel, substr(day, 1, 7) AS month, SUM(spend) AS spend\n  FROM marketing_costs\n  GROUP BY channel, month\n), revenue AS (\n  SELECT channel, substr(order_date, 1, 7) AS month, SUM(amount) AS revenue\n  FROM orders\n  GROUP BY channel, month\n)\nSELECT s.channel, s.month,\n       ROUND(s.spend, 2) AS spend,\n       ROUND(COALESCE(r.revenue, 0), 2) AS revenue,\n       ROUND(COALESCE(r.revenue, 0) / s.spend, 2) AS roas\nFROM spend s\nLEFT JOIN revenue r ON r.channel = s.channel AND r.month = s.month\nORDER BY s.channel, s.month;",
+      "run": {
+        "db": "marketing",
+        "ordered": true
+      },
+      "start": "SELECT c.channel, substr(c.day, 1, 7) AS month,\n       ROUND(SUM(c.spend), 2) AS spend,\n       ROUND(SUM(o.amount), 2) AS revenue,\n       ROUND(SUM(o.amount) / SUM(c.spend), 2) AS roas\nFROM marketing_costs c\nJOIN orders o ON o.channel = c.channel\n             AND substr(o.order_date, 1, 7) = substr(c.day, 1, 7)\nGROUP BY c.channel, month\nORDER BY c.channel, month;",
+      "explain": "The join multiplied the spend by the number of orders of the month and the revenue by the number of cost days, so the ratio means nothing: Display looked profitable (3.3) when it returns 0.33. Fixed, the dashboard tells the real story: Paid Social falls from 2.41 in September to 1.19 in October while its spend went up (€1,413 → €1,695, the new “promo” campaign), Paid Search holds at 3.8. The check that catches this bug: the total spend of any result must equal SUM(spend) of the cost table (€8,171.24)."
+    },
+    {
+      "q": "Take-home case, Digital Marketing (5/6). The head of growth’s budget rule: “More budget” when ROAS is 3 or more and CAC is €40 or less; “Cut” when ROAS is below 1; “Keep and optimise” for everything else. Sort the four paid media channels with the numbers you found (Email is left out: its cost is a flat tool fee that does not grow with budget).",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "More budget",
+          "items": [
+            "Paid Search"
+          ]
+        },
+        {
+          "name": "Keep and optimise",
+          "items": [
+            "Affiliates",
+            "Paid Social"
+          ]
+        },
+        {
+          "name": "Cut",
+          "items": [
+            "Display"
+          ]
+        }
+      ],
+      "answer": "Paid Search (ROAS 3.79, CAC €37) is the only channel that meets both bars. Affiliates has a good ROAS (3.25) but a CAC of €44; Paid Social (1.75 over two months) hides a September at 2.4 and an October at 1.2, so fix the October campaign before adding money. Display returns €0.34 per euro: cut it, or keep a small budget only to run a holdout test before stopping completely."
+    },
+    {
+      "q": "Take-home case, Digital Marketing (6/6). Write your answer to the head of growth in 5 to 7 lines: what works and what does not (with the numbers), the budget move for next month, the limits of the analysis and what to check next.",
+      "hint": "Conclusion first, then the evidence, then the move in euros, then the limits (last click, revenue not margin, two months only). No SQL.",
+      "answer": "In September and October we spent €8,171 on paid media. Paid Search is the best paid channel: CAC €37, ROAS 3.8, stable both months. Display (retargeting) does not pay back: €1,512 for 6 new customers (CAC €252) and €512 of orders (ROAS 0.34). Paid Social got 20 % more budget in October while its ROAS fell from 2.4 to 1.2 with the new promo campaign. For November I recommend moving about €600 of Display’s €750 a month to Paid Search (watching that its CPC stays near €0.96 as volume grows), bringing Paid Social back to its September budget with new creatives, and keeping Affiliates as it is. Limits: last-click revenue, not margin, over two months only; Email and Organic collect repeat orders. Next: a holdout test on Display before stopping it completely, and a cohort view of the customers each channel brings (repeat rate, LTV)."
     }
   ],
   "interview": [

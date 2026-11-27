@@ -348,6 +348,82 @@
     {
       "q": "Le chiffre d’affaires mensuel a baissé de 12 %. Avec un arbre d’indicateurs, listez dans l’ordre les questions que vous vérifieriez.",
       "answer": "1) La baisse est-elle réelle : changement de suivi, source de données manquante, effet calendrier (moins de jours, un jour férié l’an dernier) ? 2) Nouveaux clients ou clients fidèles ? 3) Pour les nouveaux : visites par canal (quel canal a baissé ?) ou taux de conversion (quel appareil, quelle page d’atterrissage ?). 4) Panier moyen : moins d’articles ou des prix plus bas, fin d’une promotion ? 5) Pour les fidèles : taux de réachat par cohorte. Ensuite, présentez la branche qui explique l’essentiel de la baisse, sa cause et l’action."
+    },
+    {
+      "q": "Cas pratique, Marketing digital (1/6). La responsable growth d’une boutique en ligne (base d’entraînement marketing : marketing_costs, new_customers et orders pour septembre et octobre 2026) écrit : « Nous avons dépensé environ 8 200 € en médias payants en deux mois. Où est-ce que ça marche, et où mettre le budget du mois prochain ? » Commencez par la vue média : par canal, dépense, clics, impressions, CTR en % (2 décimales) et CPC (2 décimales), la plus forte dépense en premier.",
+      "hint": "CTR = clics / impressions × 100 et CPC = dépense / clics, calculés tous deux à partir des sommes (pas une moyenne des ratios journaliers). Multipliez par 100.0 pour éviter la division entière.",
+      "code": "sql",
+      "answer": "SELECT channel,\n       ROUND(SUM(spend), 2) AS spend,\n       SUM(clicks) AS clicks,\n       SUM(impressions) AS impressions,\n       ROUND(100.0 * SUM(clicks) / SUM(impressions), 2) AS ctr_pct,\n       ROUND(SUM(spend) / SUM(clicks), 2) AS cpc\nFROM marketing_costs\nGROUP BY channel\nORDER BY spend DESC;",
+      "run": {
+        "db": "marketing",
+        "ordered": true
+      },
+      "explain": "Paid Social prend la plus grosse part (3 108 € ; CTR 0,79 %, CPC 1,75 €), puis Paid Search (2 446 € ; CTR 4,98 %, CPC 0,96 €), Display (1 512 € pour 431 clics : CTR 0,12 %, CPC 3,51 €), Affiliates (979 €, CPC 0,44 €) et Email, qui ne coûte que son outil (7 € par envoi). Cette vue dimensionne le budget, mais ne dit encore rien des clients ni du chiffre d’affaires : ne classez jamais les canaux sur le CTR ou le CPC seuls."
+    },
+    {
+      "q": "Cas pratique, Marketing digital (2/6). Coût d’acquisition client par canal sur les deux mois : dépense, nouveaux clients et CAC (2 décimales), une ligne par canal qui a de la dépense, le CAC le plus bas en premier. Agrégez d’abord chaque table, puis joignez.",
+      "hint": "Deux CTE, une par table, chacune groupée par canal, puis le côté dépense LEFT JOIN le côté clients sur le canal. Organic a des nouveaux clients mais aucune dépense : ce n’est pas une ligne ici.",
+      "code": "sql",
+      "answer": "WITH spend AS (\n  SELECT channel, SUM(spend) AS spend\n  FROM marketing_costs\n  GROUP BY channel\n), acquired AS (\n  SELECT channel, COUNT(*) AS new_customers\n  FROM new_customers\n  GROUP BY channel\n)\nSELECT s.channel,\n       ROUND(s.spend, 2) AS spend,\n       COALESCE(a.new_customers, 0) AS new_customers,\n       ROUND(s.spend / NULLIF(a.new_customers, 0), 2) AS cac\nFROM spend s\nLEFT JOIN acquired a ON a.channel = s.channel\nORDER BY cac;",
+      "run": {
+        "db": "marketing",
+        "ordered": true
+      },
+      "explain": "Email 25,20 € (5 nouveaux clients : il vend surtout aux clients existants), Paid Search 37,06 € (66), Affiliates 44,48 € (22), Paid Social 62,16 € (50), Display 252,05 € (6). Gagner un client par le Display coûte presque 7 fois plus que par le Paid Search. Joindre les lignes de coûts journalières aux clients avant de grouper répéterait la dépense de chaque jour une fois par client du canal : la partie 4 montre ce que cela fait à un tableau de bord."
+    },
+    {
+      "q": "Cas pratique, Marketing digital (3/6). Retour sur dépense publicitaire par canal : dépense, chiffre d’affaires des commandes attribuées au canal (orders.channel, dernier clic) et ROAS = chiffre d’affaires / dépense (2 décimales), une ligne par canal qui a de la dépense, le meilleur ROAS en premier.",
+      "hint": "Même modèle que pour le CAC : une CTE somme la dépense par canal, une autre somme orders.amount par canal, puis jointure sur le canal.",
+      "code": "sql",
+      "answer": "WITH spend AS (\n  SELECT channel, SUM(spend) AS spend\n  FROM marketing_costs\n  GROUP BY channel\n), revenue AS (\n  SELECT channel, SUM(amount) AS revenue\n  FROM orders\n  GROUP BY channel\n)\nSELECT s.channel,\n       ROUND(s.spend, 2) AS spend,\n       ROUND(COALESCE(r.revenue, 0), 2) AS revenue,\n       ROUND(COALESCE(r.revenue, 0) / s.spend, 2) AS roas\nFROM spend s\nLEFT JOIN revenue r ON r.channel = s.channel\nORDER BY roas DESC;",
+      "run": {
+        "db": "marketing",
+        "ordered": true
+      },
+      "explain": "Email 40,81, Paid Search 3,79, Affiliates 3,25, Paid Social 1,75, Display 0,34 : le Display rapporte 34 centimes par euro dépensé (512 € de commandes pour 1 512 €). Deux limites à dire clairement : le ROAS porte sur le chiffre d’affaires, pas la marge (avec une marge brute de 40 %, un canal doit dépasser un ROAS de 2,5 rien que pour se payer sur la première commande), et c’est un chiffre d’affaires au dernier clic : Email et Organic récupèrent les commandes répétées de clients amenés par d’autres canaux. Seul un test d’incrémentalité dit ce qu’un canal apporte vraiment."
+    },
+    {
+      "q": "Cas pratique, Marketing digital (4/6). Corrigez cette requête. Un collègue a construit le ROAS mensuel par canal pour le tableau de bord : il affiche le Display à 3,3 en septembre et une dépense Paid Search de 43 656 € ce mois-là, plus que tout le budget des deux mois. Mêmes colonnes (channel, month, spend, revenue, roas), une ligne par canal et par mois avec de la dépense, triée par canal puis par mois.",
+      "hint": "Exécutez-la, puis comparez sa dépense avec SUM(spend) de marketing_costs. Chaque ligne de coût journalière rencontre toutes les commandes du même canal et du même mois, et chaque commande rencontre tous les jours de coût : les deux sommes sont multipliées. Sommez chaque côté par canal et par mois d’abord, puis joignez.",
+      "code": "sql",
+      "answer": "WITH spend AS (\n  SELECT channel, substr(day, 1, 7) AS month, SUM(spend) AS spend\n  FROM marketing_costs\n  GROUP BY channel, month\n), revenue AS (\n  SELECT channel, substr(order_date, 1, 7) AS month, SUM(amount) AS revenue\n  FROM orders\n  GROUP BY channel, month\n)\nSELECT s.channel, s.month,\n       ROUND(s.spend, 2) AS spend,\n       ROUND(COALESCE(r.revenue, 0), 2) AS revenue,\n       ROUND(COALESCE(r.revenue, 0) / s.spend, 2) AS roas\nFROM spend s\nLEFT JOIN revenue r ON r.channel = s.channel AND r.month = s.month\nORDER BY s.channel, s.month;",
+      "run": {
+        "db": "marketing",
+        "ordered": true
+      },
+      "start": "SELECT c.channel, substr(c.day, 1, 7) AS month,\n       ROUND(SUM(c.spend), 2) AS spend,\n       ROUND(SUM(o.amount), 2) AS revenue,\n       ROUND(SUM(o.amount) / SUM(c.spend), 2) AS roas\nFROM marketing_costs c\nJOIN orders o ON o.channel = c.channel\n             AND substr(o.order_date, 1, 7) = substr(c.day, 1, 7)\nGROUP BY c.channel, month\nORDER BY c.channel, month;",
+      "explain": "La jointure a multiplié la dépense par le nombre de commandes du mois et le chiffre d’affaires par le nombre de jours de coût : le ratio ne veut plus rien dire, le Display paraissait rentable (3,3) alors qu’il rapporte 0,33. Corrigé, le tableau de bord raconte la vraie histoire : Paid Social passe de 2,41 en septembre à 1,19 en octobre alors que sa dépense a augmenté (1 413 € → 1 695 €, la nouvelle campagne « promo »), Paid Search tient à 3,8. Le contrôle qui attrape ce bug : la dépense totale de tout résultat doit égaler SUM(spend) de la table des coûts (8 171,24 €)."
+    },
+    {
+      "q": "Cas pratique, Marketing digital (5/6). La règle budgétaire de la responsable growth : « Plus de budget » quand le ROAS est d’au moins 3 et le CAC d’au plus 40 € ; « Couper » quand le ROAS est inférieur à 1 ; « Garder et optimiser » pour tout le reste. Classez les quatre canaux médias payants avec les chiffres trouvés (Email est mis à part : son coût est un forfait d’outil qui ne grandit pas avec le budget).",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Plus de budget",
+          "items": [
+            "Paid Search"
+          ]
+        },
+        {
+          "name": "Garder et optimiser",
+          "items": [
+            "Affiliates",
+            "Paid Social"
+          ]
+        },
+        {
+          "name": "Couper",
+          "items": [
+            "Display"
+          ]
+        }
+      ],
+      "answer": "Paid Search (ROAS 3,79, CAC 37 €) est le seul canal qui passe les deux seuils. Affiliates a un bon ROAS (3,25) mais un CAC de 44 € ; Paid Social (1,75 sur deux mois) cache un septembre à 2,4 et un octobre à 1,2 : corrigez la campagne d’octobre avant d’ajouter de l’argent. Le Display rapporte 0,34 € par euro : coupez-le, ou gardez un petit budget seulement pour mener un test avec groupe témoin avant de l’arrêter complètement."
+    },
+    {
+      "q": "Cas pratique, Marketing digital (6/6). Rédigez votre réponse à la responsable growth en 5 à 7 lignes : ce qui marche et ce qui ne marche pas (chiffres à l’appui), le mouvement de budget pour le mois prochain, les limites de l’analyse et ce qu’il faut vérifier ensuite.",
+      "hint": "La conclusion d’abord, puis les preuves, puis le mouvement en euros, puis les limites (dernier clic, chiffre d’affaires et non marge, deux mois seulement). Pas de SQL.",
+      "answer": "En septembre et octobre, nous avons dépensé 8 171 € en médias payants. Paid Search est le meilleur canal payant : CAC 37 €, ROAS 3,8, stable les deux mois. Le Display (retargeting) ne se rembourse pas : 1 512 € pour 6 nouveaux clients (CAC 252 €) et 512 € de commandes (ROAS 0,34). Paid Social a reçu 20 % de budget en plus en octobre alors que son ROAS tombait de 2,4 à 1,2 avec la nouvelle campagne promo. Pour novembre, je recommande de déplacer environ 600 € des 750 € mensuels du Display vers Paid Search (en surveillant que son CPC reste proche de 0,96 € quand le volume augmente), de ramener Paid Social à son budget de septembre avec de nouvelles créations, et de garder Affiliates tel quel. Limites : chiffre d’affaires au dernier clic, pas la marge, sur deux mois seulement ; Email et Organic récupèrent les commandes répétées. Ensuite : un test avec groupe témoin sur le Display avant de l’arrêter complètement, et une vue par cohorte des clients amenés par chaque canal (taux de réachat, LTV)."
     }
   ],
   "interview": [

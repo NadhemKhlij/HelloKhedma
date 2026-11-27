@@ -451,6 +451,146 @@
     {
       "q": "Rédigez un reporting d’une page pour cette situation : remplacement du CRM, semaine 20. Budget approuvé 480 k€, consommé 350 k€, prévision à terminaison 505 k€. Recette : 90 % des tests réussis. Mise en production prévue le 15 juin, désormais prévue le 29 juin car l’interface de facturation d’un fournisseur a deux semaines de retard. Risque principal : formateurs indisponibles en juin. Seuils convenus : orange au-delà de 5 % ou jusqu’à 2 semaines de retard, rouge au-delà de 10 % ou plus de 2 semaines.",
       "answer": "PROJET ATLAS, semaine 20. Météo globale : ORANGE (mise en production prévue avec 2 semaines de retard, prévision budgétaire +5,2 %, les deux sous les seuils du rouge). Pourquoi : l’interface de facturation du fournisseur est livrée avec 2 semaines de retard. Réalisé : cycle de recette 2, 90 % des tests réussis ; les échecs restants sont tracés avec un responsable. À venir : intégrer et tester l’interface de facturation (semaines 21 à 23), recette finale, répétition de la mise en production. Jalons : fin de recette prévue le 1er juin, prévision 15 juin (orange) ; mise en production prévue le 15 juin, prévision 29 juin (orange). Budget : approuvé 480 k€, consommé 350 k€, prévision 505 k€ (+25 k€, +5,2 %) (orange) ; le surcoût vient de la prolongation du prestataire. Principaux risques : formateurs indisponibles en juin (responsable : responsable métier ; parade : réserver les formateurs en juillet ou former des utilisateurs clés comme relais) ; nouveau glissement du fournisseur (responsable : chef de projet ; point hebdomadaire avec le fournisseur, clause de pénalités revue). Décisions attendues au prochain COPIL : valider la nouvelle date du 29 juin et le dépassement de 25 k€, ou maintenir le 15 juin sans l’interface de facturation avec un contournement manuel. Recommandation : décaler au 29 juin."
+    },
+    {
+      "q": "Cas pratique, Project Manager (1/6). L’énoncé des six parties : Velora, une entreprise de services fictive de 300 personnes, remplace son CRM installé sur site depuis 12 ans par un CRM SaaS (projet Nova) : 120 utilisateurs commerciaux et service client, 40 000 comptes clients à migrer, une interface avec l’ERP pour la facturation. Budget fixe (BAC) : 420 000 €. Le jour 1 est le 2 mars ; la licence de l’ancien CRM se termine le 31 octobre sans prolongation possible, donc le sponsor veut une mise en production au plus tard le jour ouvré 160 (mi-octobre, deux semaines de marge). Rédigez le WBS de Nova : 5 à 7 livrables, chacun découpé en 2 à 4 lots de travaux, et dites comment vous vérifiez qu’il est complet.",
+      "hint": "Les livrables sont des choses que l’on remet (des noms), pas des activités. N’oubliez pas le pilotage, les données, les interfaces, la formation et la bascule. Appliquez ensuite la règle des 100 % et écrivez ce qui est hors périmètre.",
+      "answer": "1 Pilotage du projet : note de cadrage et planning ; COPIL et reportings ; journal RAID ; contrats fournisseurs.\n2 Exigences et conception : processus actuels et irritants ; processus cibles vente et service ; backlog d’exigences priorisé ; conception de la solution validée.\n3 CRM paramétré : modèle de données ; pipeline commercial et dossiers du service client ; rôles, droits et authentification unique (SSO) ; rapports et tableaux de bord.\n4 Reprise des données : nettoyage (doublons, comptes inactifs) ; correspondances et scripts de migration ; deux répétitions avec rapports de rapprochement ; migration finale à la bascule.\n5 Interfaces : interface de facturation avec l’ERP ; intégration messagerie et agenda ; tests d’interface.\n6 Tests et recette : plan et cas de test ; tests d’intégration ; recette utilisateurs avec les utilisateurs clés ; critères de go / no-go.\n7 Conduite du changement et mise en production : supports de formation et 120 utilisateurs formés ; modèle de support avec l’exploitation (4 semaines d’hypercare) ; plan de bascule et répétition ; ancien CRM archivé et arrêté.\nVérifications : la règle des 100 % (chaque tâche et chaque euro des 420 000 € appartient à un seul lot, et rien hors périmètre n’y figure) ; chaque lot a un responsable, un livrable vérifiable et une estimation ; on ne découpe davantage que si un lot est trop gros pour être estimé (repère courant 8/80 : entre 8 et 80 heures de charge). Hors périmètre, écrit noir sur blanc : la génération de devis (CPQ) et l’automatisation marketing. C’est cette liste que vous montrerez quand quelqu’un demandera plus (partie 5)."
+    },
+    {
+      "q": "Cas pratique, Project Manager (2/6). Le planning de Nova en jours ouvrés (une activité démarre quand toutes celles de la colonne « After » sont terminées ; jour 0 = démarrage). En C10, calculez le jour de fin du projet : la longueur du chemin critique. Comparez-le ensuite à l’échéance du jour 160.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["ID", "Activity", "Duration (days)", "After"],
+        ["A", "Requirements and design", 30, "-"],
+        ["B", "CRM configuration", 60, "A"],
+        ["C", "Data migration (scripts + 2 rehearsals)", 70, "A"],
+        ["D", "ERP billing interface", 80, "A"],
+        ["E", "Integration tests and UAT", 25, "B, C, D"],
+        ["F", "Training of 120 users", 15, "B"],
+        ["G", "Cutover and go-live", 5, "E, F"],
+        ["", "", "", ""],
+        ["", "Project end (day)", "", ""]
+      ],
+      "cell": "C10",
+      "answer": "=C2+MAX(MAX(C3,C4,C5)+C6,C3+C7)+C8",
+      "hint": "Fin au plus tôt = MAX(fin au plus tôt des prédécesseurs) + durée. E attend la plus tardive de B, C et D ; G attend la plus tardive de E et F (F n’attend que B).",
+      "explain": "Fin au plus tôt, jour par jour : A finit le jour 30 ; B le jour 90, C le jour 100, D le jour 110 ; E démarre après la plus tardive de B, C, D (jour 110) et finit le jour 135 ; F démarre après B et finit le jour 105 ; G démarre après la plus tardive de E et F (jour 135) et finit le jour 140. Le chemin critique est A–D–E–G, 140 jours : 20 jours de marge avant l’échéance du jour 160. Hors chemin critique, C a 10 jours de marge, B 20 et F 30. L’activité à surveiller est donc l’interface ERP (D) : chaque jour de retard décale la mise en production. La formule C2+MAX(MAX(C3,C4,C5)+C6,C3+C7)+C8 suit le réseau, elle reste juste quand une durée change."
+    },
+    {
+      "q": "Cas pratique, Project Manager (3/6). Fin du mois 4 (fin juin, vers le jour 85). La finance et l’équipe vous donnent les chiffres de valeur acquise. En B6, calculez l’estimation à l’achèvement (EAC) en supposant que l’efficacité des coûts constatée continue.",
+      "type": "sheet",
+      "code": "excel",
+      "rows": [
+        ["Measure", "Value (EUR)"],
+        ["BAC (budget at completion)", 420000],
+        ["PV, planned value at month 4", 210000],
+        ["EV, earned value at month 4", 180000],
+        ["AC, actual cost at month 4", 200000],
+        ["EAC (estimate at completion)", ""]
+      ],
+      "cell": "B6",
+      "answer": "=B2/(B4/B5)",
+      "hint": "CPI = EV / AC ; EAC = BAC / CPI. Pointez les cellules plutôt que de taper les montants.",
+      "explain": "CPI (IPC) = 180 000 / 200 000 = 0,90 : chaque euro dépensé a produit 0,90 € de travail prévu. SPI (IPD) = 180 000 / 210 000 = 0,86 : seuls 86 % du travail prévu à cette date sont faits. EAC = BAC / CPI = 420 000 / 0,90 = 466 667 €, soit un écart à l’achèvement (VAC) de −46 667 € (−11 %). Les deux indices sont sous 1 : Nova dépasse son budget et prend du retard. Si le dépassement venait d’un événement ponctuel qui ne se répétera pas, on utiliserait EAC = AC + (BAC − EV) = 440 000 € ; dites quelle formule vous avez prise et pourquoi."
+    },
+    {
+      "q": "Cas pratique, Project Manager (4/6). Classez ces lignes du journal RAID de Nova au mois 4.",
+      "type": "groups",
+      "groups": [
+        {
+          "name": "Risque",
+          "items": [
+            "Les utilisateurs clés risquent d’être indisponibles pour la recette pendant le séminaire commercial de septembre",
+            "La répétition de migration 2 risque d’échouer au rapprochement et de retarder la bascule"
+          ]
+        },
+        {
+          "name": "Problème (issue)",
+          "items": [
+            "L’interface de facturation ERP a 15 jours de retard : le développeur du fournisseur est parti en mai",
+            "La répétition 1 a rejeté 6 % des comptes comme doublons"
+          ]
+        },
+        {
+          "name": "Hypothèse",
+          "items": [
+            "Le pipeline commercial standard du CRM SaaS couvre notre processus sans développement spécifique",
+            "Chaque manager commercial consacrera une demi-journée au nettoyage de ses comptes en juillet"
+          ]
+        },
+        {
+          "name": "Dépendance",
+          "items": [
+            "L’interface ne peut être testée qu’une fois la nouvelle API de facturation livrée par l’équipe ERP",
+            "L’authentification unique exige que l’équipe sécurité ajoute le CRM au fournisseur d’identité"
+          ]
+        }
+      ],
+      "answer": "Un risque peut se produire (on le réduit et on le surveille) ; un problème s’est déjà produit (on agit maintenant, avec un responsable et une date) ; une hypothèse est tenue pour vraie sans preuve dans le plan (on la vérifie, et elle devient un risque ou un problème si elle se révèle fausse) ; une dépendance est un travail ou une décision hors de votre projet que le vôtre attend (on convient d’une date avec l’autre responsable). L’interface en retard est un problème sur le chemin critique : c’est elle qui décale la mise en production, elle va donc en tête du reporting."
+    },
+    {
+      "q": "Cas pratique, Project Manager (5/6). La même semaine, la directrice commerciale (pouvoir fort, intérêt fort) demande d’ajouter la génération de devis (CPQ) avant la mise en production : « Mon équipe ne peut pas travailler sans. » Elle figure comme hors périmètre dans le WBS.",
+      "type": "scenario",
+      "steps": [
+        {
+          "text": "Que faites-vous d’abord ?",
+          "choices": [
+            {
+              "label": "La remercier, enregistrer la demande de modification et analyser son impact sur le périmètre, le planning, le coût et les risques avant de promettre quoi que ce soit",
+              "best": true,
+              "feedback": "Vous prenez le besoin au sérieux sans engager le projet sur quelque chose que personne n’a mesuré."
+            },
+            {
+              "label": "Accepter : c’est une partie prenante clé et vous avez besoin de son soutien",
+              "feedback": "Un oui sans analyse d’impact, c’est la dérive du périmètre : le budget et l’échéance deviennent des promesses intenables."
+            },
+            {
+              "label": "Refuser tout de suite : le périmètre est figé",
+              "feedback": "Le besoin est peut-être réel. Un non sec retourne une partie prenante puissante contre le projet ; laissez le processus de modification répondre."
+            }
+          ]
+        },
+        {
+          "text": "L’intégrateur estime 38 000 € et 10 jours de tests d’intégration en plus, sur le chemin critique. Avec l’interface déjà en retard de 15 jours, la mise en production passerait au jour 165, après la limite du jour 160. Ensuite ?",
+          "choices": [
+            {
+              "label": "Présenter la demande au COPIL avec des options : CPQ dans une version 2 un mois après la mise en production, ou CPQ tout de suite et une mise en production après la limite, avec le coût de chacune",
+              "best": true,
+              "feedback": "Le choix entre périmètre, délai et budget revient au sponsor, pas à vous : vous apportez les faits, les options et une recommandation."
+            },
+            {
+              "label": "Demander à l’équipe d’absorber les 10 jours en heures supplémentaires, sans en parler au COPIL",
+              "feedback": "L’équipe est déjà en retard et au-dessus du budget : des heures cachées ajoutent du risque et le COPIL ne voit plus le vrai planning."
+            },
+            {
+              "label": "Laisser la directrice commerciale et l’intégrateur s’entendre directement",
+              "feedback": "Une modification convenue hors du processus casse la référence et le contrat, et vous devenez responsable d’un plan que vous n’avez pas vu."
+            }
+          ]
+        },
+        {
+          "text": "Le COPIL choisit la version 2 pour le CPQ. Ensuite ?",
+          "choices": [
+            {
+              "label": "Consigner la décision dans le registre des modifications et le compte rendu, ajouter le CPQ au backlog de la version 2 et convenir d’une solution d’attente avec la directrice commerciale pour le premier mois",
+              "best": true,
+              "feedback": "La décision est traçable, le besoin est planifié et l’équipe commerciale peut travailler en attendant (par exemple avec un modèle de devis)."
+            },
+            {
+              "label": "Clore la demande : le COPIL a dit non",
+              "feedback": "Elle a été reportée, pas refusée. Sans date ni solution d’attente, la demande reviendra, plus fort, pendant la mise en production."
+            }
+          ]
+        }
+      ],
+      "answer": "Toute modification suit le même chemin : l’enregistrer, analyser son impact sur le périmètre, le planning, le coût et les risques, laisser le COPIL décider sur des options, puis consigner la décision et mettre le plan à jour. À date fixe, reporter à une version 2 est souvent la meilleure réponse : on garde le besoin et l’échéance."
+    },
+    {
+      "q": "Cas pratique, Project Manager (6/6). Rédigez la météo de Nova en 5 lignes pour le COPIL du mois 4, à partir des parties 2 à 5 : couleur globale avec sa raison, planning, coût, risque principal, décisions attendues. Seuils convenus : orange au-delà de 5 % de dépassement ou sous 10 jours de marge restante ; rouge au-delà de 10 % de dépassement ou une mise en production prévue après le jour 160.",
+      "hint": "Reprenez vos calculs : le chemin critique avec les 15 jours de retard de l’interface, l’EAC face au BAC. Une ligne chacun, les décisions en dernier, avec une recommandation.",
+      "answer": "1. Globale : ROUGE. Prévision de coût à 11 % au-dessus du budget (EAC 466 667 € pour 420 000 €, CPI 0,90) ; planning orange.\n2. Planning : SPI 0,86. L’interface de facturation ERP, sur le chemin critique, a 15 jours de retard (départ du développeur du fournisseur) ; mise en production prévue au jour 155 pour une limite au jour 160 : 5 jours de marge restants.\n3. Coût : 200 000 € dépensés pour 180 000 € de travail réalisé. Causes : reprise de l’interface et nettoyage de données supplémentaire après la répétition 1 (6 % de doublons). Redressement : avenant au forfait avec l’intégrateur pour le reste du travail, nettoyage des comptes par les managers commerciaux en juillet.\n4. Risque principal : utilisateurs clés indisponibles pour la recette pendant le séminaire de septembre (responsable : directrice commerciale ; parade : dates de recette réservées dès maintenant, deux testeurs suppléants par équipe).\n5. Décisions attendues aujourd’hui : (a) financer le dépassement de 46 667 € par la réserve de management, ou réduire le périmètre (par exemple les tableaux de bord en version 2) ; (b) passer la génération de devis (CPQ : 38 000 €, +10 jours sur le chemin critique) en version 2, un mois après la mise en production. Recommandation : (a) réserve, (b) version 2.\nPourquoi ça marche : la couleur suit les seuils convenus (11 % dépasse 10 %), chaque nombre vient du planning ou de la valeur acquise, la cause et le redressement sont dits, et le COPIL sait exactement ce qu’il doit décider aujourd’hui."
     }
   ],
   "interview": [

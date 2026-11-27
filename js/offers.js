@@ -46,7 +46,8 @@ import {
 } from "./companies.js";
 import { cvSwitcher, cvUsed } from "./cvpage.js";
 import { openTailor } from "./tailor.js";
-import { openCoverLetter } from "./letters.js";
+// Dialogs opened by a button are loaded on the click (audit 2026-11-23 P3).
+const letters = () => import("./letters.js");
 import { refreshTracker } from "./applications.js";
 import { loadAlerts, alertOf, toggleAlert } from "./alerts.js";
 import { countFeature } from "./usage.js";
@@ -248,7 +249,7 @@ function renderJob({ j, skills, fit, tags, key, salary, days, level, flags, wher
       h("button", { type: "button", class: "btn-ghost !px-2", title: t("Gaps and a ready-made prompt to adapt your CV to this offer"),
         onClick: () => openTailor({ title: j.title, company: j.company, text: jobText(j) }) }, t("✍ Tailor my CV")),
       h("button", { type: "button", class: "btn-ghost !px-2", title: t("A ready-made prompt to write a cover letter for this offer"),
-        onClick: () => openCoverLetter({ title: j.title, company: j.company, text: jobText(j) }) }, t("✉ Cover letter")),
+        onClick: () => letters().then((m) => m.openCoverLetter({ title: j.title, company: j.company, text: jobText(j) })) }, t("✉ Cover letter")),
       h("span", { class: "mute text-xs ml-auto" },
         SOURCE_NAMES[j.source] || (PROVIDER_NAMES[j.source] ? t("Careers page") : j.source))));
 }

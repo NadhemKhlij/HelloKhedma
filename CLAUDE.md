@@ -235,7 +235,11 @@ Read the header comment of any file before modifying it; update the header if be
 - index.html — page shell, nav, one `<section data-page>` per route, dialogs, legal and privacy text
 - css/input.css — Tailwind source and theme variables (css/app.css is generated, gitignored)
 - js/app.js — entry point: start-up, career path selection, sign-in, theme / language, error monitoring, PWA
-- js/state.js — shared state (state, path(), fail(), skill chips); js/router.js — routes and page focus
+- js/state.js — shared state (state, path(), fail(), skill chips); js/router.js — routes and page focus (sub-pages loaded on their first visit
+  with import(): courses, review, skillcheck, aitrack, projects, interview, admin); js/catalog.js — course index, list and
+  loadCourse (what pages need without the course player in courses.js); content/paths.json — career paths for Home's first
+  paint, written at deploy by scripts/gen-pages.mjs from seed.sql; js/app.js sets html[data-ready] when start-up is done
+  (the smoke tests wait for it). The French texts (js/i18n-fr.js) load only for a French interface
 - js/home.js, js/offers.js, js/training.js, js/cvpage.js, js/applications.js, js/account.js — one module per page
 - js/lib.js — DOM helpers (h, svg, $), localStorage wrapper, toast, download
 - js/icons.js — path card illustrations and the progress ring (Home)

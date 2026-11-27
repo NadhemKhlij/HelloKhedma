@@ -13,7 +13,7 @@ import { t, tn, LOCALE, localize } from "./i18n.js";
 import { sb } from "./supabase.js";
 import { state, byKind, fail } from "./state.js";
 import { extractSkills } from "./ats.js";
-import { renderCourseList, courseForSkill, courseMeta } from "./courses.js";
+import { renderCourseList, courseForSkill, courseMeta } from "./catalog.js";
 import { renderHome } from "./home.js";
 import { renderProjectList } from "./projects.js";
 import { dueCards, passedCourses } from "./srs.js";

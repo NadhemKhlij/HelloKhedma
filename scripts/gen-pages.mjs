@@ -6,6 +6,8 @@
 //   /careers/<path id>/         /fr/metiers/<path id>/          a career path: job titles, courses, interview questions
 //                                                               with model answers, portfolio projects
 //   /sitemap.xml                every page above, with hreflang alternates
+//   /content/paths.json         the career paths as career_paths rows, drawn on Home before Supabase answers
+//                               (js/app.js; audit 2026-11-23 P3: the path cards stayed empty while loading)
 // Each page links into the app ("/?lang=fr&path=grc#/course/grc-risk": js/i18n.js reads lang, js/app.js reads path).
 // Content comes from the same files the app reads (content/courses, content/interview, content/projects, content/ai)
 // and, for path names, blurbs and job titles, from supabase/seed.sql (no network: the build stays reproducible).
@@ -263,4 +265,10 @@ writeFileSync(join(OUT, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>
 ${urls.flatMap(([en, fr]) => (en === fr ? [entry(en, en, fr)] : [entry(en, en, fr), entry(fr, en, fr)])).join("\n")}
 </urlset>
 `);
+// Career paths for Home's first paint, in the shape of the career_paths rows (Supabase replaces them once loaded).
+mkdirSync(join(OUT, "content"), { recursive: true });
+writeFileSync(join(OUT, "content", "paths.json"), JSON.stringify(PATHS.map((p) => ({
+  id: p.id, name: p.name.en, blurb: p.blurb.en, name_fr: p.name.fr, blurb_fr: p.blurb.fr, color: p.color,
+  job_titles: p.titles.en, job_titles_fr: p.titles.fr, sort_order: p.sort,
+}))));
 console.log(`gen-pages: ${COURSES.length} courses and ${PATHS.length} career paths, ${(COURSES.length + PATHS.length + 1) * 2} pages, ${urls.length * 2 - 1} sitemap URLs in ${OUT}`);

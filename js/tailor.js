@@ -15,7 +15,7 @@ import { t, lang, skillLabel } from "./i18n.js";
 import { sb } from "./supabase.js";
 import { state, path, fitColor, skillChip } from "./state.js";
 import { extractSkills, matchSkills } from "./ats.js";
-import { loadAiCv, renderCvMaker } from "./cvmaker.js";
+// cvmaker.js is loaded when an AI CV arrives (audit 2026-11-23 P3); opening #/cv/maker sets it up (cvpage.js).
 import { gapTrainings } from "./gaps.js";
 import { countFeature } from "./usage.js";
 
@@ -141,8 +141,9 @@ export function improveBox({ found = [], missing = [] } = {}) {
     try {
       const data = await callCvTailor({ cv: state.cv.text.slice(0, 12000), matched: found, missing, role, lang, mode: "improve" });
       if (!data?.cv) throw Object.assign(new Error(t("Update the cv-tailor function to use this.")), { code: "outdated" });
-      if (!loadAiCv(data.cv, t("the {path} path", { path: role }))) { out.replaceChildren(); return; }
-      if (location.hash === "#/cv/maker") renderCvMaker(); else location.hash = "#/cv/maker";
+      const mk = await import("./cvmaker.js");
+      if (!mk.loadAiCv(data.cv, t("the {path} path", { path: role }))) { out.replaceChildren(); return; }
+      if (location.hash === "#/cv/maker") mk.renderCvMaker(); else location.hash = "#/cv/maker";
       toast(t("Your improved CV is in the CV maker, with what was changed. Check every line before using it."));
     } catch (e) {
       out.replaceChildren(h("p", { class: "text-sm", style: "color:var(--bad)" },
@@ -187,9 +188,10 @@ function aiSection({ offer, r }) {
       if (mode === "cv") {
         // An older cv-tailor (deployed before this feature) ignores mode and answers with text.
         if (!data?.cv) throw Object.assign(new Error(t("Update the cv-tailor function to use this.")), { code: "outdated" });
-        if (!loadAiCv(data.cv, [offer.title, offer.company].filter(Boolean).join(" · "))) { out.replaceChildren(); return; }
+        const mk = await import("./cvmaker.js");
+        if (!mk.loadAiCv(data.cv, [offer.title, offer.company].filter(Boolean).join(" · "))) { out.replaceChildren(); return; }
         $("#tailorDialog").close();
-        if (location.hash === "#/cv/maker") renderCvMaker(); else location.hash = "#/cv/maker";
+        if (location.hash === "#/cv/maker") mk.renderCvMaker(); else location.hash = "#/cv/maker";
         toast(t("Your corrected CV for this offer is in the CV maker, with what was changed. Check every line before using it."));
         return;
       }

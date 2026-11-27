@@ -6,7 +6,7 @@
 //                  20261106000300), sign-ups per week, daily searches / AI calls, applications by stage,
 //                  chosen paths, anonymous statistics, open problem reports with Done / Ignore, share of job source
 //                  answers reused from the database: source_saved / source_call, migration 20261109000400)
-//   checkAdmin()   true when the signed-in user is an admin (is_admin()); account.js shows the Admin link with it
+//   (is_admin(), the Admin link on the Account page, is checked in account.js: this file is loaded only on #/admin)
 // Site activity (2026-11-12, migration 20261112000100, js/usage.js): "Active accounts" = signed in or used the site
 // while signed in (profiles.last_seen_at); "Visitors and features" = anonymous daily counts of browsers that used each
 // feature (guests included, at most once per feature per day per browser), features_daily of admin_stats().
@@ -17,16 +17,10 @@ import { t, LOCALE } from "./i18n.js";
 import { sb } from "./supabase.js";
 import { state } from "./state.js";
 import { STAGES } from "./store.js";
-import { courseMeta } from "./courses.js";
+import { courseMeta } from "./catalog.js";
 
 const num = (n) => Number(n || 0).toLocaleString(LOCALE);
 const day = (d) => new Date(`${d}T00:00:00`).toLocaleDateString(LOCALE, { day: "numeric", month: "short" });
-
-export async function checkAdmin() {
-  if (!sb || !state.user) return false;
-  const { data, error } = await sb.rpc("is_admin");
-  return !error && data === true;
-}
 
 function tile(label, value, sub) {
   return h("div", { class: "panel !p-4 grid gap-0.5" },

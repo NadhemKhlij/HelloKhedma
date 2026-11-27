@@ -2,20 +2,23 @@
 // sub-pages) and moves focus to the page title. An unknown "#/…" address (audit 2026-11-23 P2: it showed Home with no
 // message and kept the wrong address) shows Home with "Page not found" and corrects the address to "#/"; anything that
 // is not "#/…" shows Home, untouched, so supabase-js can read "#access_token=..." after a magic link. Also refreshes pages that depend on data changed elsewhere.
+// Sub-pages (course, AI track, review, skill check, project, interview, admin) are loaded on their first visit with a
+// dynamic import (functional audit of 2026-11-23, P3: every visit loaded all of them); PAGES caches each module.
 import { $, toast } from "./lib.js";
 import { t } from "./i18n.js";
 import { state, path } from "./state.js";
-import { loadCourseIndex, renderCourse } from "./courses.js";
-import { renderInterview } from "./interview.js";
-import { renderProject } from "./projects.js";
+import { loadCourseIndex } from "./catalog.js";
 import { showCvTab } from "./cvpage.js";
-import { renderAiTrack } from "./aitrack.js";
 import { refreshLearning } from "./training.js";
 import { renderHome } from "./home.js";
-import { renderAdmin } from "./admin.js";
-import { renderReview } from "./review.js";
-import { renderSkillCheck } from "./skillcheck.js";
 import { maybeAutoSearch } from "./offers.js";
+
+const PAGES = {
+  course: () => import("./courses.js"), ai: () => import("./aitrack.js"), review: () => import("./review.js"),
+  skillcheck: () => import("./skillcheck.js"), project: () => import("./projects.js"), interview: () => import("./interview.js"),
+  admin: () => import("./admin.js"),
+};
+const page = (name) => PAGES[name]();
 
 const ROUTES = {
   home: "Home", offers: "Offers", training: "Training", cv: "CV check", applications: "My applications", course: "Course",
@@ -47,19 +50,19 @@ export function showRoute(moveFocus) {
   document.title = r === "home" ? "HelloKhedma" : `${t(ROUTES[r])} · HelloKhedma`;
   if (moveFocus) window.scrollTo(0, 0);
   if (r === "course") {
-    coursesReady.then(() => renderCourse(param)).then(() => { if (moveFocus) $("#h-course")?.focus({ preventScroll: true }); });
+    Promise.all([coursesReady, page("course")]).then(([, m]) => m.renderCourse(param)).then(() => { if (moveFocus) $("#h-course")?.focus({ preventScroll: true }); });
   } else if (r === "ai") {
-    renderAiTrack().then(() => { if (moveFocus) $("#h-ai")?.focus({ preventScroll: true }); });
+    page("ai").then((m) => m.renderAiTrack()).then(() => { if (moveFocus) $("#h-ai")?.focus({ preventScroll: true }); });
   } else if (r === "review") {
-    renderReview(param).then(() => { if (moveFocus) $("#h-review")?.focus({ preventScroll: true }); });
+    page("review").then((m) => m.renderReview(param)).then(() => { if (moveFocus) $("#h-review")?.focus({ preventScroll: true }); });
   } else if (r === "skillcheck") {
-    if (path()) renderSkillCheck().then(() => { if (moveFocus) $("#h-skillcheck")?.focus({ preventScroll: true }); });
+    if (path()) page("skillcheck").then((m) => m.renderSkillCheck()).then(() => { if (moveFocus) $("#h-skillcheck")?.focus({ preventScroll: true }); });
   } else if (r === "project") {
-    renderProject(param).then(() => { if (moveFocus) $("#h-project")?.focus({ preventScroll: true }); });
+    page("project").then((m) => m.renderProject(param)).then(() => { if (moveFocus) $("#h-project")?.focus({ preventScroll: true }); });
   } else if (moveFocus) $(`#h-${r}`)?.focus({ preventScroll: true });
   if (r === "interview") refreshInterview();
   if (r === "offers") maybeAutoSearch(); // first visit in this session: run the search (offers.js)
-  if (r === "admin") renderAdmin(); // admins only: the database refuses everyone else
+  if (r === "admin") page("admin").then((m) => m.renderAdmin()); // admins only: the database refuses everyone else
   if (r === "cv" && path()) showCvTab(param); // #/cv/maker opens the CV maker tab
   if (r === "training" && path()) refreshLearning(); // lessons, quiz scores and XP may have changed on a course page
   if (r === "home" && path()) renderHome(); // streak
@@ -67,10 +70,10 @@ export function showRoute(moveFocus) {
 
 // The skill check lists the courses of the selected path: drawn again once the path is loaded or changed.
 export function refreshSkillCheck() {
-  if (routeOf().r === "skillcheck" && path()) renderSkillCheck();
+  if (routeOf().r === "skillcheck" && path()) page("skillcheck").then((m) => m.renderSkillCheck());
 }
 
 // The interview page depends on the path (role questions, courses) and the tracker (upcoming interviews).
 export function refreshInterview() {
-  if (routeOf().r === "interview" && path()) renderInterview({ path: path(), cards: state.cards });
+  if (routeOf().r === "interview" && path()) page("interview").then((m) => m.renderInterview({ path: path(), cards: state.cards }));
 }

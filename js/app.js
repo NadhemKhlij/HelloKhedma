@@ -1,8 +1,10 @@
 // App entry point: start-up, career path selection, sign-in, theme / language, error monitoring and the PWA.
 // Each page has its own module, sharing state.js:
 //   router.js (routes, page focus) · home.js · offers.js · training.js · cvpage.js · applications.js · account.js
-//   (+ courses.js and interview.js, which render their own pages).
-// - Data: path content from Supabase (career_paths, path_resources here; tracks in training.js); applications through
+//   (+ the sub-pages router.js loads on their first visit: courses.js, interview.js, review.js, skillcheck.js, aitrack.js,
+//   projects.js, admin.js; audit 2026-11-23 P3).
+// - Data: path content from Supabase (career_paths, path_resources here; tracks in training.js); the path cards are first
+//   drawn from content/paths.json, a copy of seed.sql written at deploy (showPathsSnapshot); applications through
 //   state.store (LocalStore for guests, CloudStore when signed in, see store.js); onUser() imports guest data on sign-in.
 // - selectPath() reloads the path content and redraws every page; the CV version linked to the path becomes active.
 // - initGuide(): the guided first visit for a newcomer (guide.js; Home panel + a reminder line on #/cv and #/offers).
@@ -57,7 +59,21 @@ function renderLangToggle() {
   btn.addEventListener("click", () => setLang(lang === "fr" ? "en" : "fr"));
 }
 
-/* ---------- data loading (all content comes from Supabase) ---------- */
+/* ---------- data loading (all content comes from Supabase; content/paths.json only for the first paint) ---------- */
+// content/paths.json: a copy of the career paths written at deploy time from supabase/seed.sql (scripts/gen-pages.mjs),
+// so Home shows the path cards at once (audit 2026-11-23 P3); loadPaths() then replaces it with the database rows.
+async function showPathsSnapshot() {
+  try {
+    const res = await fetch("content/paths.json");
+    if (!res.ok || state.paths.length) return;
+    const rows = localize(await res.json(), ["name", "blurb"]);
+    if (state.paths.length) return; // the database answered first
+    state.paths = rows;
+    const saved = ls.get(PATH_KEY);
+    state.pathId = rows.some((p) => p.id === saved) ? saved : rows[0]?.id;
+    setAccent(); renderPaths();
+  } catch { /* no copy (local server without gen-pages): the database rows come next */ }
+}
 async function loadPaths() {
   const { data, error } = await sb.from("career_paths").select("*").order("sort_order");
   if (error) throw error;
@@ -90,12 +106,15 @@ function renderPaths() {
   $("#pathSelect").replaceChildren(...state.paths.map((p) => h("option", { value: p.id, selected: p.id === state.pathId }, p.name)));
 }
 
-function renderAll() {
+function setAccent() {
   const c = safeColor(path()?.color), root = document.documentElement.style;
   root.setProperty("--accent", c); // fills, bars, borders
   // Text in the path colour and white text on it, readable in both themes (WCAG AA: lib.js inkFor, css/input.css).
   root.setProperty("--accent-ink-light", inkFor(c, "light")); root.setProperty("--accent-ink-dark", inkFor(c, "dark"));
   root.setProperty("--accent-fill", inkFor(c, "fill"));
+}
+function renderAll() {
+  setAccent();
   renderPaths(); renderSearchControls(); renderLearn(); renderStatus(); renderCvVersions();
 }
 
@@ -239,8 +258,10 @@ async function init() {
   showRoute(false);
   window.addEventListener("hashchange", () => showRoute(true));
   if (!configured) { $("#setup").hidden = false; $("#status").textContent = t("Setup needed"); return; }
+  const snapshot = showPathsSnapshot();
   try {
     await loadPaths();
+    await snapshot.catch(() => {});
     // "?path=grc" (links from the static course and career pages, scripts/gen-pages.mjs): open that path and keep it.
     const params = new URLSearchParams(location.search), asked = params.get("path");
     if (asked && state.paths.some((p) => p.id === asked)) { pathFromLink(); ls.set(PATH_KEY, asked); }
@@ -249,7 +270,7 @@ async function init() {
     state.pathId = state.paths.some((p) => p.id === saved) ? saved : state.paths[0]?.id;
     if (!state.pathId) throw new Error(t("No career paths found. Did you run supabase/seed.sql?"));
     await Promise.all([loadResources(), loadTracks(), coursesReady]);
-  } catch (e) { fail(e); return; }
+  } catch (e) { fail(e); document.documentElement.dataset.ready = "error"; return; }
 
   $("#pathSelect").addEventListener("change", (e) => selectPath(e.target.value));
   initOffers();
@@ -265,6 +286,8 @@ async function init() {
   await refreshTracker();
   initGuide({ selectPath }); // guided first visit for a newcomer (Home, guide.js)
   initAuth({ onUser });
+  // Start-up done: the path cards alone no longer say so, since they are drawn first from content/paths.json.
+  document.documentElement.dataset.ready = "1"; // the smoke tests wait for it
 }
 
 init();

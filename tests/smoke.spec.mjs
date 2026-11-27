@@ -20,7 +20,9 @@ test.afterEach(async () => {
 // on Home only, so they are checked as present, not visible.
 async function open(page, hash = "#/") {
   await page.goto(`/index.html${hash}`);
-  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  // js/app.js sets data-ready when start-up is done (the path cards show earlier, from content/paths.json).
+  await expect(page.locator("html[data-ready]")).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator("#paths button").first()).toBeAttached();
 }
 
 // Logo (scripts/gen-icons.mjs, top bar in index.html): the mark is drawn, its icons are served, and the browser bar
@@ -95,7 +97,7 @@ test("guided first visit: role, CV, first search, then closed", async ({ page })
   await expect(guide).toBeEmpty();
   await expect(page.locator("#homeQuick")).toBeVisible();
   await page.reload();
-  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator("html[data-ready]")).toBeAttached({ timeout: 15_000 });
   await expect(guide).toBeEmpty();
 });
 test("guided first visit: not shown to someone who already used the site, and can be skipped", async ({ page }) => {
@@ -140,7 +142,7 @@ test("tracker: a guest application survives a reload and gets a follow-up email"
   await expect(card).toBeVisible();
   await card.getByRole("button", { name: "Move forward" }).click(); // Saved → Applied
   await page.reload();
-  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator("html[data-ready]")).toBeAttached({ timeout: 15_000 });
   await expect(card).toBeVisible();
   await card.getByRole("button", { name: "Write a follow-up email" }).click(); // card buttons are named by their title
   await expect(page.locator("#letterDialog")).toBeVisible();
@@ -245,7 +247,7 @@ test("CV: a tracked offer with no kept text can be pasted once, then is kept", a
   await expect(page.locator("#atsOut")).toContainText("% match");
   await page.locator("#jd").blur();
   await page.reload();
-  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator("html[data-ready]")).toBeAttached({ timeout: 15_000 });
   await expect(page.locator('#jdPick optgroup[label="In your tracker"] option').first()).toContainText("Applied · Data Engineer · Acme");
 });
 
@@ -921,7 +923,7 @@ test("explain my mistake: the answer is saved on the device and reused for the s
   expect(calls[0].fresh).toBeUndefined();
   // Same mistake on a fresh page: shown from this device, no new call.
   await page.reload();
-  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator("html[data-ready]")).toBeAttached({ timeout: 15_000 });
   await page.evaluate(async () => { (await import("/js/state.js")).state.user = { id: "test-user" }; });
   await page.locator('section[data-page="course"] [role=tab]').filter({ hasText: "Practice" }).click();
   await drill.locator("[data-drill] .opt").nth(pick.wrong).click();
@@ -1452,7 +1454,7 @@ test("session: a guest is told the applications are in the account; sign-in and 
   await open(page, "#/applications");
   await page.evaluate(() => localStorage.setItem("hk.accountUsed", "1"));
   await page.reload();
-  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator("html[data-ready]")).toBeAttached({ timeout: 15_000 });
   const hint = page.locator("#accountHint");
   await expect(hint).toBeVisible();
   await expect(hint).toContainText("your applications are in your account");
@@ -1464,7 +1466,7 @@ test("session: a guest is told the applications are in the account; sign-in and 
   // Without a past account on this device, no hint.
   await page.evaluate(() => localStorage.removeItem("hk.accountUsed"));
   await page.reload();
-  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator("html[data-ready]")).toBeAttached({ timeout: 15_000 });
   await expect(page.locator("#accountHint")).toBeHidden();
 
   // The sign-out dialog: the "clear this device" choice has a label and the dialog passes axe.
@@ -1577,7 +1579,7 @@ test("unknown address shows home with a message; Offers searches by itself on th
   });
   await page.evaluate(() => localStorage.setItem("hk.autoSearch", "1")); // allowed in this automated browser
   await page.reload();
-  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator("html[data-ready]")).toBeAttached({ timeout: 15_000 });
   await page.goto("/index.html#/offers");
   await expect(page.locator("#results > li")).toHaveCount(1, { timeout: 15_000 });
   await page.goto("/index.html#/");
@@ -1616,4 +1618,21 @@ test("French texts: skill labels, real plurals, CV copy names (audit P2 content)
     await page.waitForTimeout(400);
     expect(await page.locator("main").innerText(), route).not.toMatch(/\p{L}\(s\)/u);
   }
+});
+
+test("start-up: Home loads only its own code, and the path cards show before the database answers (audit P3)", async ({ page }) => {
+  const loaded = new Set();
+  page.on("request", (r) => { const m = r.url().match(/\/js\/(.+\.js)$/); if (m) loaded.add(m[1]); });
+  // The database answers late: the cards come from content/paths.json first.
+  await page.route(/supabase\.co/, async (r) => { await new Promise((ok) => setTimeout(ok, 3000)); await r.continue().catch(() => {}); });
+  await page.addInitScript(() => localStorage.setItem("hk.lang", "en"));
+  await page.goto("/index.html#/");
+  await expect(page.locator("#paths button").first()).toBeAttached({ timeout: 2500 });
+  await expect(page.locator("html[data-ready]")).toBeAttached({ timeout: 15_000 });
+  for (const f of ["courses.js", "practice.js", "drills.js", "admin.js", "interview.js", "review.js", "skillcheck.js",
+    "cvmaker.js", "cvpdf.js", "letters.js", "offercoach.js", "i18n-fr.js", "fr/offers.js"]) expect(loaded, f).not.toContain(f);
+  // A sub-page loads its code when opened.
+  await page.goto("/index.html#/course/sql");
+  await expect(page.locator("#h-course")).toBeVisible({ timeout: 15_000 });
+  expect(loaded).toContain("courses.js");
 });

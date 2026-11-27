@@ -7,7 +7,7 @@
 import { h, toast } from "./lib.js";
 import { t, skillLabel } from "./i18n.js";
 import { LocalStore } from "./store.js";
-import { courseForSkill } from "./courses.js";
+import { courseForSkill } from "./catalog.js";
 
 export const state = {
   paths: [], pathId: null, resources: [], tracks: [], open: new Set(), openInit: false, done: new Set(),

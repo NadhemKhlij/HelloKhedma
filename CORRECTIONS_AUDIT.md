@@ -155,10 +155,29 @@ Constats :
 
 ## P3 — Technique et performance (`index.html`, `js/app.js`)
 
-- [ ] Chaque visite charge 70 fichiers JavaScript (environ 840 Ko décompressés), quelle que soit la page, y compris `admin.js`, `drills.js`, `practice.js`, `cvmaker.js`. Charger le code de chaque page à la demande (import dynamique au moment de la navigation). Garder au démarrage seulement le noyau : router, état, auth, i18n, accueil.
-- [ ] Ne pas livrer `admin.js` aux utilisateurs non administrateurs (chargement à la demande après vérification du rôle).
-- [ ] Accueil : la section « Parcours métier » reste vide pendant le chargement depuis Supabase (`career_paths`). Embarquer une copie statique des parcours dans le bundle (ils changent rarement), puis rafraîchir depuis Supabase en arrière-plan.
-- [ ] **[À VÉRIFIER]** Toutes les pages sont rendues en même temps dans le DOM (10 h1, dont 9 masqués). Si c'est le cas, ne monter que la page active.
+- [x] Chaque visite charge 70 fichiers JavaScript (environ 840 Ko décompressés), quelle que soit la page, y compris `admin.js`, `drills.js`, `practice.js`, `cvmaker.js`. Charger le code de chaque page à la demande (import dynamique au moment de la navigation). Garder au démarrage seulement le noyau : router, état, auth, i18n, accueil.
+- [x] Ne pas livrer `admin.js` aux utilisateurs non administrateurs (chargement à la demande après vérification du rôle).
+- [x] Accueil : la section « Parcours métier » reste vide pendant le chargement depuis Supabase (`career_paths`). Embarquer une copie statique des parcours dans le bundle (ils changent rarement), puis rafraîchir depuis Supabase en arrière-plan.
+- [x] **[À VÉRIFIER]** Toutes les pages sont rendues en même temps dans le DOM (10 h1, dont 9 masqués). Si c'est le cas, ne monter que la page active.
+> **Fait le 27/11/2026 (Claude), mesuré dans un navigateur (premier passage sur l'accueil) :**
+> - Avant : 72 fichiers JS, 881 Ko. Après : **51 fichiers, 503 Ko en anglais** (642 Ko en français, qui charge ses textes).
+> - Sous-pages chargées à leur première ouverture (`import()` dans js/router.js) : cours (lecteur, quiz, exercices,
+>   drills, Python, SQL), révisions, test de positionnement, parcours IA, projet, entretiens, admin.
+>   `js/catalog.js` (index des cours) séparé de `js/courses.js` : Formation, « Combler les écarts » et l'état partagé
+>   n'emportent plus le lecteur de cours.
+> - Textes français (≈ 140 Ko) chargés seulement en français. Créateur de CV (+ PDF, lecture de CV), lettres et coach
+>   d'offre chargés au clic.
+> - `admin.js` n'est plus livré aux visiteurs : le contrôle du rôle est dans account.js, admin.js ne se charge que sur
+>   #/admin.
+> - Parcours : `content/paths.json`, copie écrite au déploiement depuis supabase/seed.sql (scripts/gen-pages.mjs), affichée
+>   tout de suite, puis remplacée par les lignes de Supabase. Testé avec Supabase retardé de 4 s : les 12 cartes et la
+>   couleur du parcours sont là en 1,2 s.
+> - [Vérifié] Les 10 pages sont bien dans le HTML, 9 avec l'attribut `hidden` : non affichées, non lues par les lecteurs
+>   d'écran. Le vrai coût était le code chargé et exécuté au démarrage (traité ci-dessus) ; pas de refonte d'index.html.
+> - Reste possible (étape suivante, non faite) : charger aussi à la demande les pages principales (Offres, CV, Suivi,
+>   Formation, ≈ 230 Ko). Plus risqué : un changement de parcours redessine toutes ces pages.
+> - Nouveau test « start-up » : l'accueil ne charge ni le lecteur de cours, ni admin, ni le créateur de CV, ni le français
+>   en anglais ; les cartes s'affichent avant la réponse de la base. Les tests attendent `html[data-ready]`.
 
 ---
 

@@ -13,7 +13,12 @@ import { state, fail } from "./state.js";
 import { cvSyncOn, setCvSync, cvSyncExport } from "./cvsync.js";
 import { insightsChoice, setInsights } from "./insights.js";
 import { learnSyncExport } from "./learnsync.js";
-import { checkAdmin, renderAdmin } from "./admin.js";
+// admin.js is loaded only for an admin on the admin page (audit 2026-11-23 P3: it was shipped to every visitor).
+const checkAdmin = async () => {
+  if (!sb || !state.user) return false;
+  const { data, error } = await sb.rpc("is_admin");
+  return !error && data === true;
+};
 import { leaving, openPasswordDialog } from "./auth.js";
 import { renderReminders } from "./reminders.js";
 
@@ -33,7 +38,7 @@ export function renderStatus() {
   $("#deleteData").textContent = u ? t("Delete my account") : t("Delete data on this device");
   $("#adminLink").hidden = true;
   if (u) checkAdmin().then((yes) => { $("#adminLink").hidden = !yes; }); // the Admin link, for admins only
-  if (location.hash.startsWith("#/admin")) renderAdmin(); // signed in or out while on the admin page
+  if (location.hash.startsWith("#/admin")) import("./admin.js").then((m) => m.renderAdmin()); // signed in or out while on the admin page
   renderChoices();
 }
 

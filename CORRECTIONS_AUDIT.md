@@ -183,8 +183,21 @@ Constats :
 
 ## Vérification finale
 
-- [ ] Tester chaque correction en invité ET connecté.
-- [ ] Tester sur un profil de navigateur vierge (valeurs par défaut, premier chargement).
-- [ ] Tester à 390 px et 1280 px de large (le mobile n'a pas pu être testé pendant l'audit).
-- [ ] Aucune erreur ni avertissement de debug dans la console.
-- [ ] Lancer les tests existants et ajouter ceux demandés ci-dessus (score d'adéquation, verbes d'action).
+- [ ] Tester chaque correction en invité ET connecté. → Invité : fait sur le site en ligne (ci-dessous). Connecté : couvert
+  par les tests automatiques (connexion simulée : alertes, « Demander sur la leçon », import des données invité), mais pas
+  vérifié en vrai : Claude n'a pas de compte et n'en crée pas sur la base réelle. Tâche O60 pour le propriétaire.
+- [x] Tester sur un profil de navigateur vierge (valeurs par défaut, premier chargement). → Un profil neuf par passage ;
+  statistiques anonymes non activées (« hk.insights » vide), page d'accueil et guide de première visite affichés.
+- [x] Tester à 390 px et 1280 px de large. → 16 adresses (toutes les pages, cours, révisions, test de positionnement,
+  parcours IA, projet, confidentialité, mentions légales, adresse inconnue) × 2 largeurs × FR / EN : aucun défilement
+  horizontal, aucun « null / undefined / NaN » ni « (s) » affiché, chaque page a du contenu.
+- [x] Aucune erreur ni avertissement de debug dans la console. → Aucun, sauf le script Cloudflare Web Analytics bloqué par
+  le réseau de l'environnement de test de Claude (il se charge dans un navigateur normal ; un bloqueur de publicité donne
+  la même ligne, sans effet sur le site). Plus de « Job sources ».
+- [x] Lancer les tests existants et ajouter ceux demandés ci-dessus. → 75 tests automatiques (CI, avant chaque mise en
+  ligne), dont les nouveaux : score d'adéquation, lieu des offres, session, « null », verbes d'action, heures de formation,
+  doublons, caractères cassés, adresse inconnue, textes français, démarrage.
+
+> Vérifié le 27/11/2026 sur https://hellokhedma.io après la mise en ligne de P3 (Claude, navigateur automatisé, sans
+> recherche d'offres ni compteurs d'usage). Premier passage sur l'accueil : 51 fichiers JS / 504 Ko en anglais,
+> 59 / 644 Ko en français (avant l'audit : 72 / 881 Ko).

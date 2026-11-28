@@ -45,11 +45,15 @@
 // Request  (POST JSON): { query, alt?, path?, location?, provider?, country?, page?, filters?, alert? }   alert: true from
 //   the search-alerts function only (with header x-cron-secret = CRON_SECRET): no rate limit, not counted, and never
 //   JSearch, Jooble or Careerjet (ALERT_SKIP).   alt: see French titles
-//   above; path: career path id (de, da, ba, as, do, ai), used by La bonne alternance
+//   above; path: career path id (de, sales, grc…), used by La bonne alternance (paths listed in LBA_ROMES)
 //   filters (Offers page, all optional): { contract: "CDI"|"CDD"|"Freelance"|"Internship"|"Apprenticeship",
 //   remote: "Remote"|"any-remote", days: 1|3|7|30 }. Sent to the sources that support them (Adzuna: max_days_old,
 //   permanent / contract, newest first when a date is asked; JSearch: date_posted, employment_types, work_from_home);
 //   the app filters the results again, so a source without the filter is still right.
+//   Internship / Apprenticeship (owner request 2026-11-28, "stages" on Offers): the words of the country's language
+//   (TRAINEE_WORDS) go to Adzuna as what_or (at least one of them, the job title still required), are added to Jooble's
+//   and Careerjet's keywords, Himalayas keeps its "Intern" type, Arbeitnow the offers that name one, La bonne alternance
+//   (work-study only) is skipped for internships; JSearch gets employment_types=INTERN.
 // Response (JSON):      { jobs: Job[], warnings: string[], cached?: true }   429 when rate limited
 // Salary statistics (Home market pulse): { kind: "salary", query, country } → { histogram: [[from, count]..],
 //   history: [["YYYY-MM", average]..], currency, companies: [{ name, count, salary }], regions: [{ name, count }],
@@ -181,6 +185,31 @@ function readFilters(f: Raw): Filters {
   };
 }
 
+// Words that name an internship or a work-study contract, per country language (folded: no accents, lower case).
+const TRAINEE_WORDS: Record<string, Record<string, string[]>> = {
+  Internship: {
+    fr: ["stage", "stagiaire"], be: ["stage", "stagiaire"], ch: ["stage", "stagiaire", "praktikum"], lu: ["stage", "stagiaire"],
+    de: ["praktikum", "praktikant", "werkstudent"], at: ["praktikum", "praktikant", "werkstudent"], nl: ["stage", "stagiair"],
+    es: ["practicas", "becario"], it: ["stage", "tirocinio", "stagista"], pl: ["staz", "praktyki"], default: ["internship", "intern"],
+  },
+  Apprenticeship: {
+    fr: ["alternance", "alternant", "apprentissage", "apprenti"], be: ["alternance", "apprentissage"], ch: ["apprentissage", "lehre"],
+    de: ["ausbildung", "duales studium"], at: ["lehre", "ausbildung"], nl: ["bbl", "leerwerktraject"], es: ["formacion dual"],
+    it: ["apprendistato"], default: ["apprenticeship", "apprentice", "work-study"],
+  },
+};
+const traineeWords = (contract: string, country: string): string[] => {
+  const w = TRAINEE_WORDS[contract];
+  return w ? [...new Set([...(w[country] ?? []), ...w.default])] : [];
+};
+const mentionsTrainee = (text: string, contract: string, country: string) =>
+  traineeWords(contract, country).some((w) => new RegExp(`(^|[^a-z])${w}s?(?![a-z])`).test(fold(text))); // "intern", not "international"
+// The keywords of a source that has no contract filter: the job title and the first word for that contract.
+const withTraineeWord = (q: string, f: Filters, country: string) => {
+  const w = traineeWords(f.contract, country)[0];
+  return w ? `${q} ${w}` : q;
+};
+
 // The provider's own error text (shortened), so a failing source says why in the app's search message.
 async function providerMessage(res: Response): Promise<string> {
   const text = await res.text().catch(() => "");
@@ -280,6 +309,7 @@ async function adzuna(q: string, where: string, country: string, page: number, f
     ...(where ? { where } : {}),
     ...(f.days ? { max_days_old: String(f.days), sort_by: "date" } : {}),
     ...(f.contract === "CDI" ? { permanent: "1" } : f.contract === "CDD" || f.contract === "Freelance" ? { contract: "1" } : {}),
+    ...(traineeWords(f.contract, country).length ? { what_or: traineeWords(f.contract, country).join(" ") } : {}),
   }).toString();
 
   const res = await fetch(url, { headers: { Accept: "application/json" } });
@@ -371,7 +401,7 @@ const COUNTRY_NAMES: Record<string, string> = {
   at: "Austria", be: "Belgium", ch: "Switzerland", es: "Spain", it: "Italy", pl: "Poland", br: "Brazil", in: "India",
   nz: "New Zealand", sg: "Singapore", za: "South Africa", mx: "Mexico",
 };
-async function jooble(q: string, where: string, country: string, page: number, _f: Filters): Promise<Job[]> {
+async function jooble(q: string, where: string, country: string, page: number, f: Filters): Promise<Job[]> {
   const key = Deno.env.get("JOOBLE_API_KEY");
   if (!key) throw new Error("Jooble is not configured (JOOBLE_API_KEY).");
   const host = (Deno.env.get("JOOBLE_HOST") || "jooble.org").replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -380,7 +410,7 @@ async function jooble(q: string, where: string, country: string, page: number, _
     const res = await fetch(`https://${host}/api/${encodeURIComponent(key)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ keywords: q, location: loc, page: String(page), ResultOnPage: "50" }),
+      body: JSON.stringify({ keywords: withTraineeWord(q, f, country), location: loc, page: String(page), ResultOnPage: "50" }),
     });
     if (!res.ok) throw new Error(`Jooble (${host}) returned ${res.status}: ${(await providerMessage(res)).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 100)}`);
     return await res.json();
@@ -421,7 +451,9 @@ async function himalayas(q: string, _where: string, country: string, page: numbe
   const open = (r: string[]) => !r?.length || r.some((x) => names.includes(String(x).toLowerCase())
     || (EUROPE.has(country) && /europe|emea/i.test(String(x))));
   const since = f.days ? Date.now() - f.days * 86400_000 : 0;
+  const type = f.contract === "Internship" ? "intern" : f.contract === "Apprenticeship" ? "apprentice" : "";
   return (data?.jobs ?? []).filter((x: Raw) => x.applicationLink && open(x.locationRestrictions) && (!since || x.pubDate * 1000 >= since))
+    .filter((x: Raw) => !type || fold(String(x.employmentType ?? "")).includes(type) || mentionsTrainee(x.title ?? "", f.contract, country))
     .map((x: Raw): Job => ({
       id: String(x.guid ?? x.applicationLink),
       title: strip(x.title, 200),
@@ -472,6 +504,7 @@ async function arbeitnow(q: string, where: string, country: string, _page: numbe
     .filter((x) => words.every((w) => fold(x.title).includes(w)))
     .filter((x) => (local ? !place || fold(x.location).includes(place) || x.remote : x.remote))
     .filter((x) => !since || x.created * 1000 >= since)
+    .filter((x) => !traineeWords(f.contract, country).length || mentionsTrainee(`${x.title} ${x.text}`, f.contract, country))
     .slice(0, 40)
     .map((x): Job => ({
       id: x.url, title: x.title, company: x.company, location: x.remote ? `${x.location} (remote)` : x.location, url: x.url,
@@ -492,8 +525,10 @@ const LBA_ROMES: Record<string, string> = {
 async function lba(q: string, where: string, country: string, page: number, f: Filters, alt = "", ctx?: Ctx): Promise<Job[]> {
   const token = Deno.env.get("LBA_API_TOKEN");
   if (!token) throw new Error("La bonne alternance is not configured (LBA_API_TOKEN).");
-  if (country !== "fr" || page > 1) return [];
-  const romes = LBA_ROMES[ctx?.path ?? ""] ?? "M1805";
+  if (country !== "fr" || page > 1 || f.contract === "Internship") return []; // work-study only, never internships
+  // A path with no trade code here is not searched (it used to fall back to software development's M1805).
+  const romes = LBA_ROMES[ctx?.path ?? ""];
+  if (!romes) return [];
   const url = new URL("https://api.apprentissage.beta.gouv.fr/api/job/v1/search");
   url.searchParams.set("romes", romes);
   const dep = where ? await departementOf(where).catch(() => null) : null;
@@ -528,12 +563,12 @@ const CAREERJET_LOCALES: Record<string, string> = {
   fr: "fr_FR", gb: "en_GB", us: "en_US", de: "de_DE", nl: "nl_NL", ca: "en_CA", au: "en_AU", at: "de_AT", be: "fr_BE",
   ch: "fr_CH", es: "es_ES", it: "it_IT", pl: "pl_PL", br: "pt_BR", in: "en_IN", nz: "en_NZ", sg: "en_SG", za: "en_ZA", mx: "es_MX",
 };
-async function careerjet(q: string, where: string, country: string, page: number, _f: Filters, _alt = "", ctx?: Ctx): Promise<Job[]> {
+async function careerjet(q: string, where: string, country: string, page: number, f: Filters, _alt = "", ctx?: Ctx): Promise<Job[]> {
   const key = Deno.env.get("CAREERJET_API_KEY");
   if (!key) throw new Error("Careerjet is not configured (CAREERJET_API_KEY).");
   const call = async (loc: string) => {
     const url = new URL("https://search.api.careerjet.net/v4/query");
-    for (const [k, v] of Object.entries({ keywords: q, locale_code: CAREERJET_LOCALES[country] ?? "en_GB", page_size: "50",
+    for (const [k, v] of Object.entries({ keywords: withTraineeWord(q, f, country), locale_code: CAREERJET_LOCALES[country] ?? "en_GB", page_size: "50",
       page: String(Math.min(page, 10)), user_ip: ctx?.ip || "127.0.0.1", user_agent: ctx?.ua || "HelloKhedma", ...(loc ? { location: loc } : {}) })) {
       url.searchParams.set(k, v);
     }
@@ -654,7 +689,7 @@ Deno.serve(async (req) => {
   const ctx: Ctx = {
     ip: req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "",
     ua: (req.headers.get("user-agent") || "").slice(0, 300),
-    path: /^(de|da|ba|as|do|ai)$/.test(String(body.path)) ? String(body.path) : "",
+    path: /^[a-z]{2,5}$/.test(String(body.path)) ? String(body.path) : "", // a career path id (de, sales, grc…)
   };
   // Guard and cache need the migration 20261028000200_job_search_guard.sql; if it is missing we log and carry on.
   // Each source's answer is saved on its own (sourceKey, SOURCE_TTL_H), so "All sources" only calls the sources with no

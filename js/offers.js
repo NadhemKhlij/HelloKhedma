@@ -13,6 +13,8 @@
 // offercheck.js adds its age ("Posted 3 days ago", date filter, "Most recent" sort), its level (Junior…Lead, level
 // filter) and the "⚠ Check this offer" warnings (scam signals, stale offer, no company; filter to hide them).
 // Contract, remote and "posted" are also sent to the sources with the search (jobs.js): changing one searches again.
+// "Job type" in the search form (#jobKind: all jobs, internships, work-study; owner request 2026-11-28) sets the same
+// Contract filter, so internships can be searched for before any result is shown.
 // Every result is also summarized for the market pulse on Home (pulse.js, this browser only) and kept for the CV page's
 // "Choose an offer" (offerpick.js, this browser only); a tracked offer keeps its text there too.
 // "✍ Tailor my CV" on each offer opens tailor.js (gaps + prompt to copy; nothing is sent); "✉ Cover letter" opens
@@ -144,18 +146,28 @@ const jobText = (j) => `${j.title} ${j.text || j.snippet || ""}`;
 const offerKey = (j) => `${j.source}:${j.id}`;
 
 // Contract type and remote policy, detected from the offer text (EN + FR wording). null when not stated.
+// contracts = every contract the offer names (« stage ou alternance » is both), so the Contract filter keeps it under
+// each; contract = the one shown on the card (internship / work-study named in the title first). Internship wording
+// (owner request 2026-11-28, "stages"): stagiaire, « stage de fin d'études », « convention de stage », « stage de 6 mois »,
+// internship, and the German, Italian and Spanish words (Praktikum, Werkstudent, tirocinio, prácticas).
+const INTERN_TITLE = /\bstages?\b|stagiaire|internship|\binterns?\b|praktik|werkstudent|tirocinio|practicas|becario/;
+const INTERN_TEXT = /stagiaire|internship|stage de fin d.?etudes?|offre de stage|convention de stage|stage de \d+ ?(a \d+ )?mois|stage (de )?pre-?embauche|praktikum|werkstudent|tirocinio/;
+const WORK_STUDY = /alternance|alternant|apprenti|apprentissage|work[- ]study|contrat de professionnalisation/;
 function offerTags(j) {
   const text = norm(`${j.title} ${j.text || j.snippet || ""}`), title = norm(j.title);
-  const contract =
-    /alternance|apprenti|apprentissage|work[- ]study/.test(text) ? "Apprenticeship"
-    : /\bstage\b|stagiaire|internship|\bintern\b/.test(title) || /stagiaire|internship/.test(text) ? "Internship"
-    : /\bcdi\b|permanent contract|contrat a duree indeterminee/.test(text) ? "CDI"
-    : /\bcdd\b|fixed[- ]term|contrat a duree determinee/.test(text) ? "CDD"
-    : /freelance|independant|contractor|portage salarial|\btjm\b/.test(text) ? "Freelance" : null;
+  const contracts = [
+    INTERN_TITLE.test(title) || INTERN_TEXT.test(text) ? "Internship" : null,
+    WORK_STUDY.test(text) ? "Apprenticeship" : null,
+    /\bcdi\b|permanent contract|contrat a duree indeterminee/.test(text) ? "CDI" : null,
+    /\bcdd\b|fixed[- ]term|contrat a duree determinee/.test(text) ? "CDD" : null,
+    /freelance|independant|contractor|portage salarial|\btjm\b/.test(text) ? "Freelance" : null,
+  ].filter(Boolean);
+  const contract = (INTERN_TITLE.test(title) && "Internship") || (WORK_STUDY.test(title) && "Apprenticeship")
+    || (contracts.includes("Apprenticeship") && "Apprenticeship") || contracts[0] || null;
   const remote =
     /full remote|fully remote|100 ?% remote|100 ?% teletravail|teletravail complet|remote first/.test(text) ? "Remote"
     : /hybride|hybrid|teletravail|remote|a distance/.test(text) ? "Hybrid" : null;
-  return { contract, remote };
+  return { contract, contracts, remote };
 }
 
 function toggleHidden(key) {
@@ -315,7 +327,7 @@ export function renderOffers() {
   const flaggedCount = list.filter((x) => x.flags.some((f) => f.serious)).length;
   list = list.filter((x) =>
     (!state.skillFilter || x.skills.includes(state.skillFilter))
-    && (!contract || x.tags.contract === contract)
+    && (!contract || x.tags.contracts.includes(contract))
     && (!remote || (remote === "Remote" ? x.tags.remote === "Remote" : Boolean(x.tags.remote)))
     && (!minFit || (x.fit?.score ?? -1) >= minFit)
     && salaryOk(x)
@@ -615,6 +627,9 @@ export function initOffers() {
   $("#country").addEventListener("change", () => { $("#role").replaceChildren(...titleOptions(path())); renderBoards(); });
   initPlaceSuggest();
   // Contract, remote and date also go to the sources: after a search, changing one searches again (cached server-side).
+  // Job type (search form) and Contract (filters) are one setting: each follows the other.
+  $("#jobKind").addEventListener("change", (e) => { $("#fContract").value = e.target.value; $("#fContract").dispatchEvent(new Event("change")); });
+  $("#fContract").addEventListener("change", (e) => { $("#jobKind").value = ["Internship", "Apprenticeship"].includes(e.target.value) ? e.target.value : ""; });
   for (const id of ["#fContract", "#fRemote", "#fDate"]) $(id).addEventListener("change", () => {
     if (state.offerMode === "search" && state.searchMsg && !$("#searchBtn").disabled) $("#searchForm").requestSubmit();
     else renderOffers();

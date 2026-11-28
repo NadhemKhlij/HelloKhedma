@@ -1636,3 +1636,28 @@ test("start-up: Home loads only its own code, and the path cards show before the
   await expect(page.locator("#h-course")).toBeVisible({ timeout: 15_000 });
   expect(loaded).toContain("courses.js");
 });
+
+// Internships (owner request 2026-11-28): "Job type" in the search form sends the contract to the sources and keeps the
+// offers that name an internship, including one that offers « stage ou alternance ».
+test("offers: internships from the search form, sent to the sources and kept when the text names one", async ({ page }) => {
+  const sent = [];
+  const job = (id, title, text) => ({ id, source: "adzuna", title, company: `Co ${id}`, location: "Paris", url: `https://example.com/${id}`, text, snippet: text });
+  await page.route("**/functions/v1/job-search", (route) => {
+    sent.push(route.request().postDataJSON()?.filters?.contract);
+    return route.fulfill(fake({ jobs: [
+      job("a", "Stage - Data Engineer (H/F)", "Stage de 6 mois, Paris."),
+      job("b", "Data Engineer (H/F)", "Nous proposons ce poste en stage ou alternance, convention de stage obligatoire."),
+      job("c", "Data Engineer (H/F)", "CDI, Paris. Our international team."),
+    ], warnings: [] }));
+  });
+  await open(page, "#/offers");
+  await page.selectOption("#jobKind", "Internship");
+  await page.locator("#searchForm").evaluate((f) => f.requestSubmit());
+  await expect(page.locator("#results > li")).toHaveCount(2);
+  expect(sent.at(-1)).toBe("Internship");
+  await expect(page.locator("#fContract")).toHaveValue("Internship");
+  // Back to all jobs from the Contract filter: the form follows and the CDI shows again.
+  await page.selectOption("#fContract", "");
+  await expect(page.locator("#jobKind")).toHaveValue("");
+  await expect(page.locator("#results > li")).toHaveCount(3);
+});
